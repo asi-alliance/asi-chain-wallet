@@ -1,0 +1,1 @@
+export { MobileLayout as Layout } from './MobileLayout';
