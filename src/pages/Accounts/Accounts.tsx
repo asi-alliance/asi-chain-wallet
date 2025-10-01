@@ -375,6 +375,7 @@ export const Accounts: React.FC = () => {
                 </WarningMessage>
               )}
               <Input
+                id="create-account-name-input"
                 label="Account Name"
                 value={newAccountName}
                 onChange={(e) => {
@@ -388,6 +389,7 @@ export const Accounts: React.FC = () => {
                 maxLength={30}
               />
               <Button
+                id="create-account-button"
                 onClick={handleCreateAccount}
                 disabled={!newAccountName.trim()}
                 fullWidth
@@ -414,6 +416,7 @@ export const Accounts: React.FC = () => {
                 </WarningMessage>
               )}
               <Input
+                id="import-account-name-input"
                 label="Account Name"
                 value={importName}
                 onChange={(e) => {
@@ -428,6 +431,7 @@ export const Accounts: React.FC = () => {
               />
               
               <ImportTypeSelector
+                id="import-account-type-selector"
                 value={importType}
                 onChange={(e) => setImportType(e.target.value as any)}
               >
@@ -437,6 +441,7 @@ export const Accounts: React.FC = () => {
               </ImportTypeSelector>
 
               <Input
+                id="import-account-value-input"
                 label="Value"
                 value={importValue}
                 onChange={(e) => setImportValue(e.target.value)}
@@ -445,6 +450,7 @@ export const Accounts: React.FC = () => {
               />
               
               <Button
+                id="import-account-button"
                 onClick={handleImportAccount}
                 disabled={!importName.trim() || !importValue.trim()}
                 fullWidth
@@ -478,6 +484,7 @@ export const Accounts: React.FC = () => {
                 return (
                   <AccountCard
                     key={account.id}
+                    id={`account-card-${account.id}`}
                     isSelected={selectedAccount?.id === account.id}
                     onClick={() => handleSelectAccount(account.id)}
                   >
@@ -502,6 +509,7 @@ export const Accounts: React.FC = () => {
                         </span>
                       )}
                       <Button
+                        id={`export-account-${account.id}`}
                         variant="ghost"
                         size="small"
                         onClick={(e) => {
@@ -512,6 +520,7 @@ export const Accounts: React.FC = () => {
                         Export
                       </Button>
                       <Button
+                        id={`remove-account-${account.id}`}
                         variant="danger"
                         size="small"
                         onClick={(e) => {

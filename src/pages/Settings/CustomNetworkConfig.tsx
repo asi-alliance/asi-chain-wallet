@@ -188,6 +188,7 @@ export const CustomNetworkConfig: React.FC = () => {
             <FormGroup>
               <Label>IP/Domain:</Label>
               <Input
+                id="network-validator-host-input"
                 value={validatorHost}
                 onChange={(e) => setValidatorHost(e.target.value)}
                 placeholder="localhost"
@@ -197,6 +198,7 @@ export const CustomNetworkConfig: React.FC = () => {
             <FormGroup>
               <Label>gRPC Port:</Label>
               <Input
+                id="network-validator-grpc-port-input"
                 value={validatorGrpcPort}
                 onChange={(e) => setValidatorGrpcPort(e.target.value)}
                 placeholder="40401"
@@ -209,6 +211,7 @@ export const CustomNetworkConfig: React.FC = () => {
             <FormGroup>
               <Label>HTTP Port:</Label>
               <Input
+                id="network-validator-http-port-input"
                 value={validatorHttpPort}
                 onChange={(e) => setValidatorHttpPort(e.target.value)}
                 placeholder="40403"
@@ -237,6 +240,7 @@ export const CustomNetworkConfig: React.FC = () => {
             <FormGroup>
               <Label>IP/Domain:</Label>
               <Input
+                id="network-readonly-host-input"
                 value={readOnlyHost}
                 onChange={(e) => setReadOnlyHost(e.target.value)}
                 placeholder="localhost"

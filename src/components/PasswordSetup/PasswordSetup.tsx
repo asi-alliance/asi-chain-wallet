@@ -98,6 +98,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
       <Title>{title}</Title>
       
       <Input
+        id="password-setup-password-input"
         type="password"
         label="Password"
         value={password}
@@ -127,6 +128,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
       )}
 
       <Input
+        id="password-setup-confirm-input"
         type="password"
         label="Confirm Password"
         value={confirmPassword}
@@ -139,6 +141,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
 
       <ButtonContainer>
         <Button
+          id="password-setup-submit-button"
           onClick={handleSubmit}
           disabled={!validation?.isValid || password !== confirmPassword}
           fullWidth
@@ -147,6 +150,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
         </Button>
         {onCancel && (
           <Button
+            id="password-setup-cancel-button"
             variant="ghost"
             onClick={onCancel}
             fullWidth

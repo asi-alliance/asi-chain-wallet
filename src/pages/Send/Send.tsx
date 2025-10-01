@@ -521,6 +521,7 @@ export const Send: React.FC = () => {
             <InputWithButton>
               <div style={{ flex: 1 }}>
                 <input
+                  id="send-recipient-input"
                   type="text"
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
@@ -541,6 +542,7 @@ export const Send: React.FC = () => {
               </div>
               <ButtonGroup>
                 <ScanButton
+                  id="send-qr-scan-button"
                   variant="ghost"
                   onClick={() => setShowQRScanner(true)}
                   title="Scan QR Code with Camera"
@@ -548,6 +550,7 @@ export const Send: React.FC = () => {
                   📷
                 </ScanButton>
                 <ScanButton
+                  id="send-qr-paste-button"
                   variant="ghost"
                   onClick={handlePasteImage}
                   title="Paste QR Code from Clipboard"
@@ -568,6 +571,7 @@ export const Send: React.FC = () => {
 
           <FormGroup>
             <Input
+              id="send-amount-input"
               label="Amount"
               type="number"
               value={amount}
@@ -578,6 +582,7 @@ export const Send: React.FC = () => {
               max={selectedAccount.balance}
             />
             <Button 
+              id="send-max-amount-button"
               variant="ghost" 
               size="small" 
               onClick={maxAmount}
@@ -590,6 +595,7 @@ export const Send: React.FC = () => {
           {needsPassword && (
             <FormGroup>
               <Input
+                id="send-password-input"
                 label={requirePasswordForTransaction ? "Transaction Password" : "Account Password"}
                 type="password"
                 value={password}
@@ -604,6 +610,7 @@ export const Send: React.FC = () => {
               Cancel
             </Button>
             <Button
+              id="send-transaction-button"
               onClick={handleSendClick}
               loading={isLoading}
               disabled={!recipient || !amount || (needsPassword && !password)}

@@ -843,10 +843,10 @@ export const IDE: React.FC = () => {
     <IDEContainer>
       <Toolbar>
         <ToolbarActions>
-          <Button size="small" variant="ghost" onClick={() => IDEStorageService.exportWorkspace(items)}>
+          <Button id="ide-export-workspace-button" size="small" variant="ghost" onClick={() => IDEStorageService.exportWorkspace(items)}>
             Export Workspace
           </Button>
-          <Button size="small" variant="ghost" onClick={() => workspaceInputRef.current?.click()}>
+          <Button id="ide-import-workspace-button" size="small" variant="ghost" onClick={() => workspaceInputRef.current?.click()}>
             Import Workspace
           </Button>
         </ToolbarActions>
@@ -854,6 +854,7 @@ export const IDE: React.FC = () => {
           <SettingLabel>
             Phlo Limit:
             <SettingInput
+              id="ide-phlo-limit-input"
               type="number"
               value={phloLimit}
               onChange={(e) => setPhloLimit(e.target.value)}
@@ -862,12 +863,14 @@ export const IDE: React.FC = () => {
           <SettingLabel>
             Phlo Price:
             <SettingInput
+              id="ide-phlo-price-input"
               type="number"
               value={phloPrice}
               onChange={(e) => setPhloPrice(e.target.value)}
             />
           </SettingLabel>
           <Button 
+            id="ide-explore-button"
             size="small" 
             variant="secondary" 
             onClick={handleExplore}
@@ -876,6 +879,7 @@ export const IDE: React.FC = () => {
             Explore
           </Button>
           <Button 
+            id="ide-deploy-button"
             size="small" 
             onClick={handleDeploy}
             loading={isDeploying}

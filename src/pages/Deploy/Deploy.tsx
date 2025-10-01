@@ -313,6 +313,7 @@ export const Deploy: React.FC = () => {
               Rholang Code
             </label>
             <CodeEditor
+              id="deploy-rholang-code-editor"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Enter your Rholang code here..."
@@ -330,6 +331,7 @@ export const Deploy: React.FC = () => {
 
           <FormRow>
             <Input
+              id="deploy-phlo-limit-input"
               label="Phlo Limit"
               value={phloLimit}
               onChange={(e) => setPhloLimit(e.target.value)}
@@ -337,6 +339,7 @@ export const Deploy: React.FC = () => {
               disabled={isLoading}
             />
             <Input
+              id="deploy-phlo-price-input"
               label="Phlo Price"
               value={phloPrice}
               onChange={(e) => setPhloPrice(e.target.value)}
@@ -359,6 +362,7 @@ export const Deploy: React.FC = () => {
               Explore (Read-only)
             </Button>
             <Button
+              id="deploy-contract-button"
               onClick={handleDeployClick}
               loading={isLoading}
               disabled={!code.trim() || !selectedAccount || !isAccountUnlocked(selectedAccount)}

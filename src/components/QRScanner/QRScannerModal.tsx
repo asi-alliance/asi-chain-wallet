@@ -457,6 +457,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
             {devices.length > 1 && (
               <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
                 <select
+                  id="qr-scanner-camera-select"
                   value={selectedDeviceId}
                   onChange={(e) => setSelectedDeviceId(e.target.value)}
                   style={{
@@ -479,6 +480,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
               <FileInputLabel>
                 Upload Image
                 <FileInput
+                  id="qr-scanner-file-input"
                   type="file"
                   accept="image/*"
                   onChange={handleFileUpload}

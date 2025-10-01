@@ -351,7 +351,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
               {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
             </IconButton>
             
-            <MenuButton onClick={() => setMobileMenuOpen(true)}>
+            <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
               <MenuIcon size={20} />
             </MenuButton>
           </HeaderActions>

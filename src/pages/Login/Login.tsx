@@ -107,7 +107,7 @@ export const Login: React.FC = () => {
             <p style={{ marginBottom: '24px', textAlign: 'center' }}>
               No accounts found. Create your first account to get started.
             </p>
-            <Button onClick={handleCreateAccount} fullWidth>
+            <Button id="login-create-account-button" onClick={handleCreateAccount} fullWidth>
               Create Account
             </Button>
           </CardContent>
@@ -130,6 +130,7 @@ export const Login: React.FC = () => {
 
           <FormGroup>
             <Input
+              id="login-password-input"
               type="password"
               label="Password"
               value={password}
@@ -142,6 +143,7 @@ export const Login: React.FC = () => {
 
           <ActionButtons>
             <Button
+              id="login-unlock-button"
               onClick={handleLogin}
               loading={isLoading}
               disabled={!password.trim()}

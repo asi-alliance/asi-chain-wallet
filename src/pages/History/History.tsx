@@ -344,6 +344,7 @@ export const History: React.FC = () => {
               <span>•</span>
               <span>Last: {lastRefresh.toLocaleTimeString()}</span>
               <Button 
+                id="history-refresh-button"
                 size="small" 
                 variant="ghost" 
                 onClick={async () => {
@@ -357,13 +358,13 @@ export const History: React.FC = () => {
               </Button>
             </RefreshInfo>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <Button size="small" variant="ghost" onClick={handleExportJSON}>
+              <Button id="history-export-json-button" size="small" variant="ghost" onClick={handleExportJSON}>
                 Export JSON
               </Button>
-              <Button size="small" variant="ghost" onClick={handleExportCSV}>
+              <Button id="history-export-csv-button" size="small" variant="ghost" onClick={handleExportCSV}>
                 Export CSV
               </Button>
-              <Button size="small" variant="ghost" onClick={handleClearHistory}>
+              <Button id="history-clear-button" size="small" variant="ghost" onClick={handleClearHistory}>
                 Clear History
               </Button>
             </div>
@@ -373,6 +374,7 @@ export const History: React.FC = () => {
             <FilterGroup>
               <FilterLabel>Type</FilterLabel>
               <FilterSelect
+                id="history-filter-type-select"
                 value={filter.type || 'all'}
                 onChange={(e) => handleFilterChange('type', e.target.value)}
               >
@@ -385,6 +387,7 @@ export const History: React.FC = () => {
             <FilterGroup>
               <FilterLabel>Status</FilterLabel>
               <FilterSelect
+                id="history-filter-status-select"
                 value={filter.status || 'all'}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
               >
@@ -434,7 +437,7 @@ export const History: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {transactions.map((tx) => (
-                    <TableRow key={tx.id}>
+                    <TableRow key={tx.id} id={`history-transaction-row-${tx.id}`}>
                       <TableCell>{formatDate(tx.timestamp)}</TableCell>
                       <TableCell>
                         <TypeBadge type={tx.type}>{tx.type}</TypeBadge>

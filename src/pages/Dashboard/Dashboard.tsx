@@ -391,12 +391,13 @@ export const Dashboard: React.FC = () => {
             {isLoading ? (
               <LoadingSkeleton height="48px" />
             ) : (
-              <BalanceAmount>
-                {formatBalanceDashboard(selectedAccount.balance)}
-              </BalanceAmount>
+            <BalanceAmount id="dashboard-current-balance">
+              {formatBalanceDashboard(selectedAccount.balance)}
+            </BalanceAmount>
             )}
             <BalanceLabel>Current Balance</BalanceLabel>
             <Button
+              id="dashboard-refresh-balance-button"
               variant="ghost"
               size="small"
               onClick={handleRefreshBalance}
@@ -416,13 +417,14 @@ export const Dashboard: React.FC = () => {
             <AccountInfo>
               <AddressRow>
                 <AddressLabel>Name:</AddressLabel>
-                <AddressValue title={selectedAccount.name}>
+                <AddressValue id="dashboard-account-name" title={selectedAccount.name}>
                   {selectedAccount.name}
                 </AddressValue>
               </AddressRow>
               <AddressRow>
                 <AddressLabel>REV Address:</AddressLabel>
                 <AddressValue
+                  id="dashboard-rev-address"
                   onClick={() => copyToClipboard(selectedAccount.revAddress)}
                   style={{ cursor: 'pointer' }}
                   title="Click to copy"
@@ -442,7 +444,7 @@ export const Dashboard: React.FC = () => {
               </AddressRow>
               <AddressRow>
                 <AddressLabel>Network:</AddressLabel>
-                <AddressValue>{selectedNetwork.name}</AddressValue>
+                <AddressValue id="dashboard-network-name">{selectedNetwork.name}</AddressValue>
               </AddressRow>
               <AddressRow>
                 <AddressLabel>Last Updated:</AddressLabel>

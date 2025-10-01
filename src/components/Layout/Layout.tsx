@@ -185,6 +185,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </LeftSection>
         <HeaderActions>
           <NetworkSelector 
+            id="header-network-selector"
             value={selectedNetwork.id} 
             onChange={handleNetworkChange}
           >

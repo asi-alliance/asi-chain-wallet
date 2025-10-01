@@ -229,11 +229,11 @@ export const AccountSwitcher: React.FC = () => {
 
   return (
     <SwitcherContainer ref={containerRef}>
-      <SwitcherButton onClick={handleToggle} onKeyDown={handleKeyDown}>
+      <SwitcherButton id="header-account-switcher" onClick={handleToggle} onKeyDown={handleKeyDown}>
         <AccountInfo>
           {selectedAccount ? (
             <>
-              <AccountName title={selectedAccount.name}>
+              <AccountName id="header-account-name" title={selectedAccount.name}>
                 {truncateText(selectedAccount.name, 20)}
               </AccountName>
               <AccountAddress>{formatAddress(selectedAccount.revAddress)}</AccountAddress>
@@ -243,7 +243,7 @@ export const AccountSwitcher: React.FC = () => {
           )}
         </AccountInfo>
         {selectedAccount && (
-          <AccountBalance>
+          <AccountBalance id="header-account-balance">
             {isLoadingBalances ? <LoadingSpinner /> : formatBalanceCompact(selectedAccount.balance)}
           </AccountBalance>
         )}

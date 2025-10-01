@@ -258,6 +258,7 @@ export const TwoFactorVerificationModal: React.FC<TwoFactorVerificationModalProp
               {!showBackupOption ? (
                 <>
                   <CodeInput
+                    id="2fa-code-input"
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     onKeyPress={handleKeyPress}
@@ -269,6 +270,7 @@ export const TwoFactorVerificationModal: React.FC<TwoFactorVerificationModalProp
                   
                   <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
                     <SecondaryButton
+                      id="2fa-backup-code-button"
                       onClick={() => setShowBackupOption(true)}
                       disabled={isLoading}
                       size="small"
