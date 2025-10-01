@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Button } from 'components';
+import { getTokenDisplayName } from '../../constants/token';
 
 const Overlay = styled.div`
   position: fixed;
@@ -174,17 +175,17 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
           
           <DetailRow>
             <DetailLabel>Amount:</DetailLabel>
-            <AmountValue>{amount} REV</AmountValue>
+            <AmountValue>{amount} {getTokenDisplayName()}</AmountValue>
           </DetailRow>
           
           <DetailRow>
             <DetailLabel>Estimated Fee:</DetailLabel>
-            <DetailValue>{estimatedFee} REV</DetailValue>
+            <DetailValue>{estimatedFee} {getTokenDisplayName()}</DetailValue>
           </DetailRow>
           
           <DetailRow>
             <DetailLabel>Total Cost:</DetailLabel>
-            <AmountValue>{totalAmount} REV</AmountValue>
+            <AmountValue>{totalAmount} {getTokenDisplayName()}</AmountValue>
           </DetailRow>
         </TransactionDetails>
 

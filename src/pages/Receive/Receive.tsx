@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { QRCodeCanvas } from 'qrcode.react';
 import { RootState } from 'store';
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
+import { getAddressLabel, getTokenDisplayName } from '../../constants/token';
 
 const ReceiveContainer = styled.div`
   max-width: 600px;
@@ -139,7 +140,7 @@ export const Receive: React.FC = () => {
   }
 
   const currentAddress = activeTab === 'rev' ? selectedAccount.revAddress : selectedAccount.ethAddress;
-  const addressLabel = activeTab === 'rev' ? 'REV Address' : 'ETH Address';
+  const addressLabel = activeTab === 'rev' ? getAddressLabel() : 'ETH Address';
 
   return (
     <ReceiveContainer>
@@ -155,7 +156,7 @@ export const Receive: React.FC = () => {
               active={activeTab === 'rev'}
               onClick={() => setActiveTab('rev')}
             >
-              REV Address
+              {getAddressLabel()}
             </Tab>
             <Tab
               active={activeTab === 'eth'}
@@ -210,7 +211,7 @@ export const Receive: React.FC = () => {
           <InfoBox>
             <InfoTitle>Important:</InfoTitle>
             <InfoList>
-              <li>Only send REV tokens to the REV address</li>
+              <li>Only send {getTokenDisplayName()} tokens to the {getAddressLabel()}</li>
               <li>The ETH address is for compatibility - mainly for address derivation</li>
               <li>Always double-check the address before sending</li>
               <li>Make sure you're on the correct network: {selectedAccount.name}</li>

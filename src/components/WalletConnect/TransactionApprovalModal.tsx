@@ -6,7 +6,7 @@ import { sendTransaction, fetchBalance } from '../../store/walletSlice';
 import { Card } from '../Card';
 import { Button } from '../Button';
 import { SignRequest } from '../../services/walletConnect';
-import { RChainService } from '../../services/rchain';
+import { getTokenDisplayName } from '../../constants/token';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -212,7 +212,7 @@ export const TransactionApprovalModal: React.FC<TransactionApprovalModalProps> =
             {params[0].amount && (
               <Section>
                 <Label>Amount</Label>
-                <Value>{params[0].amount} REV</Value>
+                <Value>{params[0].amount} {getTokenDisplayName()}</Value>
               </Section>
             )}
             {params[0].deploy && (

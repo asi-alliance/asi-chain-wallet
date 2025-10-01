@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Input, PrivateKeyDisp
 import { PasswordSetup } from 'components/PasswordSetup';
 import { SecureStorage } from 'services/secureStorage';
 import { validateAccountName } from 'utils/textUtils';
+import { getAddressLabel } from '../../constants/token';
 import { formatBalanceCard } from 'utils/balanceUtils';
 
 const AccountsContainer = styled.div`
@@ -295,7 +296,7 @@ export const Accounts: React.FC = () => {
       case 'eth':
         return 'Enter Ethereum address (0x...)';
       case 'rev':
-        return 'Enter REV address';
+        return `Enter ${getAddressLabel()}`;
       default:
         return 'Enter value';
     }
@@ -437,7 +438,7 @@ export const Accounts: React.FC = () => {
               >
                 <option value="private">Private Key</option>
                 <option value="eth">Ethereum Address (Watch Only)</option>
-                <option value="rev">REV Address (Watch Only)</option>
+                <option value="rev">{getAddressLabel()} (Watch Only)</option>
               </ImportTypeSelector>
 
               <Input

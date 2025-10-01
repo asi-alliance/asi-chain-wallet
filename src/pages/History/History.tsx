@@ -5,6 +5,7 @@ import { RootState } from 'store';
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import TransactionHistoryService, { Transaction, TransactionFilter } from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
+import { getTokenDisplayName } from '../../constants/token';
 
 const HistoryContainer = styled.div`
   max-width: 1200px;
@@ -180,7 +181,7 @@ const formatAmount = (amount?: string): string => {
     // Use BigInt for large numbers
     const atomicAmount = BigInt(amount);
     const rev = Number(atomicAmount) / 100000000;
-    return `${rev.toFixed(8)} REV`;
+    return `${rev.toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
     console.error('Error formatting amount:', amount, error);
     return `${amount} (raw)`;

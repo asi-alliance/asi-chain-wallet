@@ -1,3 +1,5 @@
+import { getTokenDisplayName } from '../constants/token';
+
 /**
  * Formats a balance value for display with appropriate precision
  * @param balance - The balance value as string or number
@@ -10,28 +12,26 @@ export const formatBalance = (
     showCurrency?: boolean;
     maxDecimals?: number;
     minDecimals?: number;
-    significantDigits?: number;
   } = {}
 ): string => {
   const {
     showCurrency = true,
     maxDecimals = 8,
     minDecimals = 0,
-    significantDigits = 6
   } = options;
 
   const num = typeof balance === 'string' ? parseFloat(balance) : balance;
   
   if (isNaN(num) || !isFinite(num)) {
-    return showCurrency ? '0 REV' : '0';
+    return showCurrency ? `0 ${getTokenDisplayName()}` : '0';
   }
 
   if (num === 0) {
-    return showCurrency ? '0 REV' : '0';
+    return showCurrency ? `0 ${getTokenDisplayName()}` : '0';
   }
 
   if (num < 0.000001) {
-    return showCurrency ? '<0.000001 REV' : '<0.000001';
+    return showCurrency ? `<0.000001 ${getTokenDisplayName()}` : '<0.000001';
   }
 
   let decimals = minDecimals;
@@ -50,7 +50,7 @@ export const formatBalance = (
   
   const trimmed = parseFloat(formatted).toString();
   
-  return showCurrency ? `${trimmed} REV` : trimmed;
+  return showCurrency ? `${trimmed} ${getTokenDisplayName()}` : trimmed;
 };
 
 /**
@@ -62,23 +62,23 @@ export const formatBalanceCompact = (balance: string | number): string => {
   const num = typeof balance === 'string' ? parseFloat(balance) : balance;
   
   if (isNaN(num) || !isFinite(num)) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num === 0) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num < 0.0001) {
-    return '<0.0001 REV';
+    return `<0.0001 ${getTokenDisplayName()}`;
   }
 
   if (num >= 1) {
-    return `${num.toFixed(2)} REV`;
+    return `${num.toFixed(2)} ${getTokenDisplayName()}`;
   } else if (num >= 0.01) {
-    return `${num.toFixed(4)} REV`;
+    return `${num.toFixed(4)} ${getTokenDisplayName()}`;
   } else {
-    return `${num.toFixed(6)} REV`;
+    return `${num.toFixed(6)} ${getTokenDisplayName()}`;
   }
 };
 
@@ -91,23 +91,23 @@ export const formatBalanceCard = (balance: string | number): string => {
   const num = typeof balance === 'string' ? parseFloat(balance) : balance;
   
   if (isNaN(num) || !isFinite(num)) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num === 0) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num < 0.000001) {
-    return '<0.000001 REV';
+    return `<0.000001 ${getTokenDisplayName()}`;
   }
 
   if (num >= 1) {
-    return `${num.toFixed(4)} REV`;
+    return `${num.toFixed(4)} ${getTokenDisplayName()}`;
   } else if (num >= 0.001) {
-    return `${num.toFixed(6)} REV`;
+    return `${num.toFixed(6)} ${getTokenDisplayName()}`;
   } else {
-    return `${num.toFixed(8)} REV`;
+    return `${num.toFixed(8)} ${getTokenDisplayName()}`;
   }
 };
 
@@ -120,25 +120,25 @@ export const formatBalanceDashboard = (balance: string | number): string => {
   const num = typeof balance === 'string' ? parseFloat(balance) : balance;
   
   if (isNaN(num) || !isFinite(num)) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num === 0) {
-    return '0 REV';
+    return `0 ${getTokenDisplayName()}`;
   }
 
   if (num < 0.00000001) {
-    return '<0.00000001 REV';
+    return `<0.00000001 ${getTokenDisplayName()}`;
   }
 
   if (num >= 1000) {
-    return `${num.toFixed(2)} REV`;
+    return `${num.toFixed(2)} ${getTokenDisplayName()}`;
   } else if (num >= 1) {
     const truncated = Math.floor(num * 100) / 100;
-    return `${truncated.toFixed(2)} REV`;
+    return `${truncated.toFixed(2)} ${getTokenDisplayName()}`;
   } else if (num >= 0.01) {
-    return `${num.toFixed(6)} REV`;
+    return `${num.toFixed(6)} ${getTokenDisplayName()}`;
   } else {
-    return `${num.toFixed(8)} REV`;
+    return `${num.toFixed(8)} ${getTokenDisplayName()}`;
   }
 };

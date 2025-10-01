@@ -327,7 +327,7 @@ class TransactionHistoryService {
     console.log(`[Receive Detection] Created transaction:`, {
       to: toAddress,
       amount: amount,
-      amountInREV: (Number(amount) / 100000000).toFixed(8)
+      amountInASI: (Number(amount) / 100000000).toFixed(8)
     });
     
     return transaction;

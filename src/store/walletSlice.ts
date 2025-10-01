@@ -1,8 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
-import { RChainService } from 'services/rchain';
 import { SecureStorage } from 'services/secureStorage';
 import TransactionHistoryService from 'services/transactionHistory';
+import { RChainService } from 'services/rchain';
 
 const defaultNetworks: Network[] = [
   {
@@ -141,7 +141,7 @@ export const fetchBalance = createAsyncThunk(
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     const atomicBalance = await rchain.getBalance(account.revAddress);
     
-    // Convert from atomic units to REV (divide by 100000000)
+    // Convert from atomic units to ASI (divide by 100000000)
     const balance = (parseInt(atomicBalance) / 100000000).toString();
     
     return { accountId: account.id, balance };
@@ -184,7 +184,7 @@ export const sendTransaction = createAsyncThunk(
     
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     
-    // Convert amount to atomic units (REV has 8 decimal places)
+    // Convert amount to atomic units (ASI has 8 decimal places)
     const atomicAmount = Math.floor(parseFloat(amount) * 100000000).toString();
     
     const deployId = await rchain.transfer(from.revAddress, to, atomicAmount, privateKey);

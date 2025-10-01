@@ -2,7 +2,7 @@
 
 import { store } from 'store';
 import { fetchBalance } from 'store/walletSlice';
-import TransactionHistoryService from './transactionHistory';
+import { getTokenDisplayName } from '../constants/token';
 
 interface PollingConfig {
   enabled: boolean;
@@ -121,7 +121,7 @@ class BalancePollingService {
       accounts.forEach(account => {
         const prevBalance = account.balance || '0';
         previousBalances.set(account.id, prevBalance);
-        console.log(`[Balance Polling] Account ${account.name}: current balance = ${prevBalance} REV`);
+        console.log(`[Balance Polling] Account ${account.name}: current balance = ${prevBalance} ${getTokenDisplayName()}`);
       });
 
       // Fetch balance for each account
@@ -135,7 +135,7 @@ class BalancePollingService {
           if (result.payload) {
             const newBalance = (result.payload as any).balance;
             const oldBalance = previousBalances.get(account.id) || '0';
-            console.log(`[Balance Polling] ${account.name}: ${oldBalance} → ${newBalance} REV`);
+            console.log(`[Balance Polling] ${account.name}: ${oldBalance} → ${newBalance} ${getTokenDisplayName()}`);
           }
           
           // Small delay between requests to avoid overwhelming the node

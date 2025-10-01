@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { signDeploy } from 'utils/crypto';
+import { getTokenDisplayName } from '../constants/token';
 
 // Global balance cache to prevent excessive API calls
 const globalBalanceCache: Map<string, { balance: string; timestamp: number }> = new Map();
@@ -140,15 +141,15 @@ export class RChainService {
     const now = Date.now();
     
     if (cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
-      console.log(`[Balance Cache] Using cached balance for ${revAddress}: ${cached.balance} REV`);
+      console.log(`[Balance Cache] Using cached balance for ${revAddress}: ${cached.balance} ${getTokenDisplayName()}`);
       return cached.balance;
     }
 
     const checkBalanceRho = `
-      new return, rl(\`rho:registry:lookup\`), RevVaultCh, vaultCh in {
-        rl!(\`rho:rchain:revVault\`, *RevVaultCh) |
-        for (@(_, RevVault) <- RevVaultCh) {
-          @RevVault!("findOrCreate", "${revAddress}", *vaultCh) |
+      new return, rl(\`rho:registry:lookup\`), ASIVaultCh, vaultCh in {
+        rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+        for (@(_, ASIVault) <- ASIVaultCh) {
+          @ASIVault!("findOrCreate", "${revAddress}", *vaultCh) |
           for (@maybeVault <- vaultCh) {
             match maybeVault {
               (true, vault) => @vault!("balance", *return)
@@ -171,7 +172,7 @@ export class RChainService {
           const balance = firstExpr.ExprInt.data.toString();
           // Cache the balance globally
           globalBalanceCache.set(cacheKey, { balance, timestamp: now });
-          console.log(`[Balance Cache] Cached balance for ${revAddress}: ${balance} REV`);
+          console.log(`[Balance Cache] Cached balance for ${revAddress}: ${balance} ${getTokenDisplayName()}`);
           return balance;
         }
         
@@ -195,41 +196,41 @@ export class RChainService {
     }
   }
 
-  // Transfer REV using real Rholang code (from F1R3FLY wallet)
   async transfer(fromAddress: string, toAddress: string, amount: string, privateKey: string): Promise<string> {
     const transferRho = `
-      new rl(\`rho:registry:lookup\`), RevVaultCh in {
-        rl!(\`rho:rchain:revVault\`, *RevVaultCh) |
-        for (@(_, RevVault) <- RevVaultCh) {
-          new vaultCh, vaultTo, revVaultkeyCh,
-          deployerId(\`rho:rchain:deployerId\`),
-          deployId(\`rho:rchain:deployId\`)
-          in {
-            match ("${fromAddress}", "${toAddress}", ${amount}) {
-              (revAddrFrom, revAddrTo, amount) => {
-                @RevVault!("findOrCreate", revAddrFrom, *vaultCh) |
-                @RevVault!("findOrCreate", revAddrTo, *vaultTo) |
-                @RevVault!("deployerAuthKey", *deployerId, *revVaultkeyCh) |
-                for (@vault <- vaultCh; key <- revVaultkeyCh; _ <- vaultTo) {
-                  match vault {
-                    (true, vault) => {
-                      new resultCh in {
-                        @vault!("transfer", revAddrTo, amount, *key, *resultCh) |
-                        for (@result <- resultCh) {
-                          match result {
-                            (true , _  ) => deployId!((true, "Transfer successful (not yet finalized)."))
-                            (false, err) => deployId!((false, err))
-                          }
-                        }
-                      }
-                    }
-                    err => {
-                      deployId!((false, "REV vault cannot be found or created."))
-                    }
-                  }
+      new 
+        deployerId(\`rho:rchain:deployerId\`),
+        stdout(\`rho:io:stdout\`),
+        rl(\`rho:registry:lookup\`),
+        ASIVaultCh,
+        vaultCh,
+        toVaultCh,
+        asiVaultkeyCh,
+        resultCh
+      in {
+        rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+        for (@(_, ASIVault) <- ASIVaultCh) {
+          @ASIVault!("findOrCreate", "${fromAddress}", *vaultCh) |
+          @ASIVault!("findOrCreate", "${toAddress}", *toVaultCh) |
+          @ASIVault!("deployerAuthKey", *deployerId, *asiVaultkeyCh) |
+          for (@(true, vault) <- vaultCh; key <- asiVaultkeyCh; @(true, toVault) <- toVaultCh) {
+            @vault!("transfer", "${toAddress}", ${amount}, *key, *resultCh) |
+            for (@result <- resultCh) {
+              match result {
+                (true, Nil) => {
+                  stdout!(("Transfer successful:", ${amount}, "ASI"))
+                }
+                (false, reason) => {
+                  stdout!(("Transfer failed:", reason))
                 }
               }
             }
+          } |
+          for (@(false, errorMsg) <- vaultCh) {
+            stdout!(("Sender vault error:", errorMsg))
+          } |
+          for (@(false, errorMsg) <- toVaultCh) {
+            stdout!(("Destination vault error:", errorMsg))
           }
         }
       }

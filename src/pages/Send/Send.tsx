@@ -6,6 +6,7 @@ import QrScanner from 'qr-scanner';
 import { RootState } from 'store';
 import { sendTransaction, fetchBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
+import { getTokenDisplayName } from '../../constants/token';
 
 const SendContainer = styled.div`
   max-width: 600px;
@@ -364,7 +365,7 @@ export const Send: React.FC = () => {
     const estimatedGas = 0.001; // Estimated gas fee
     const totalRequired = parseFloat(amount) + estimatedGas;
     if (totalRequired > parseFloat(selectedAccount?.balance || '0')) {
-      setValidationError(`Insufficient balance. Need ${totalRequired.toFixed(4)} REV (including gas)`);
+      setValidationError(`Insufficient balance. Need ${totalRequired.toFixed(4)} ${getTokenDisplayName()} (including gas)`);
       return false;
     }
     
@@ -477,7 +478,7 @@ export const Send: React.FC = () => {
     <SendContainer>
       <Card>
         <CardHeader>
-          <CardTitle>Send REV</CardTitle>
+          <CardTitle>Send ASI</CardTitle>
         </CardHeader>
         <CardContent>
           {txHash && !isWaitingForBalance && (
@@ -504,7 +505,7 @@ export const Send: React.FC = () => {
           )}
 
           <BalanceInfo>
-            <BalanceAmount>{parseFloat(selectedAccount.balance).toFixed(4)} REV</BalanceAmount>
+            <BalanceAmount>{parseFloat(selectedAccount.balance).toFixed(4)} {getTokenDisplayName()}</BalanceAmount>
             <BalanceLabel>Available Balance</BalanceLabel>
           </BalanceInfo>
 
@@ -526,7 +527,7 @@ export const Send: React.FC = () => {
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
                   onPaste={handleInputPaste}
-                  placeholder="Enter REV address or paste QR code image"
+                  placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
                   style={{
                     width: '100%',
                     height: '48px',

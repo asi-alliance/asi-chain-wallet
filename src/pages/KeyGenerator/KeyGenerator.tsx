@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { generateKeyPair, importPrivateKey } from 'utils/crypto';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
+import { getAddressLabel } from '../../constants/token';
 
 const KeyGeneratorContainer = styled.div`
   max-width: 800px;
@@ -220,7 +221,7 @@ export const KeyGenerator: React.FC = () => {
       </KeyField>
 
       <KeyField>
-        <KeyLabel>REV Address</KeyLabel>
+        <KeyLabel>{getAddressLabel()}</KeyLabel>
         <KeyValue>
           <KeyText 
             value={keys.revAddress} 
@@ -244,7 +245,7 @@ export const KeyGenerator: React.FC = () => {
         <p>
           Generate new keypairs or derive addresses from existing private keys. 
           The ETH address is compatible with MetaMask and all Ethereum wallets. 
-          The REV address is specific to the RChain network.
+          The {getAddressLabel()} is specific to the RChain network.
         </p>
       </InfoBox>
 

@@ -7,6 +7,7 @@ import { setSessionProposal, addSessionRequest } from 'store/walletConnectSlice'
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import { useNavigate } from 'react-router-dom';
 import { formatBalanceDashboard } from 'utils/balanceUtils';
+import { getAddressLabel } from '../../constants/token';
 import { 
   WalletConnectModalV2, 
   SessionProposalModal, 
@@ -422,7 +423,7 @@ export const Dashboard: React.FC = () => {
                 </AddressValue>
               </AddressRow>
               <AddressRow>
-                <AddressLabel>REV Address:</AddressLabel>
+                <AddressLabel>{getAddressLabel()}:</AddressLabel>
                 <AddressValue
                   id="dashboard-rev-address"
                   onClick={() => copyToClipboard(selectedAccount.revAddress)}
@@ -460,11 +461,11 @@ export const Dashboard: React.FC = () => {
           <CardHeader>
             <ActionCardTitle>
               <SendIcon size={20} />
-              Send REV
+              Send ASI
             </ActionCardTitle>
           </CardHeader>
           <CardContent>
-            <p>Send REV tokens to another address</p>
+            <p>Send ASI tokens to another address</p>
           </CardContent>
         </ActionCard>
 
@@ -472,11 +473,11 @@ export const Dashboard: React.FC = () => {
           <CardHeader>
             <ActionCardTitle>
               <ReceiveIcon size={20} />
-              Receive REV
+              Receive ASI
             </ActionCardTitle>
           </CardHeader>
           <CardContent>
-            <p>Get your address to receive REV tokens</p>
+            <p>Get your address to receive ASI tokens</p>
           </CardContent>
         </ActionCard>
 

@@ -14,7 +14,6 @@ export interface KeyPair {
   revAddress: string;
 }
 
-// REV address prefix as defined in RChain source
 const prefix = { coinId: "000000", version: "00" };
 
 // Helper functions for encoding/decoding
@@ -67,7 +66,6 @@ export const deriveEthAddress = (publicKey: string): string => {
   return `0x${ethAddress}`;
 };
 
-// Derive REV address from ETH address (exact F1R3FLY implementation)
 export const deriveRevAddress = (ethAddress: string): string => {
   try {
     const ethAddr = ethAddress.replace(/^0x/, '');
@@ -84,11 +82,10 @@ export const deriveRevAddress = (ethAddress: string): string => {
     const payloadBytes = decodeBase16(payload);
     const checksum = blake2bHex(payloadBytes, undefined, 32).slice(0, 8);
 
-    // Return REV address
     return encodeBase58(`${payload}${checksum}`);
   } catch (error) {
-    console.error('Error deriving REV address:', error);
-    throw new Error(`Failed to derive REV address: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('Error deriving ASI address:', error);
+    throw new Error(`Failed to derive ASI address: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -128,7 +125,6 @@ export const importEthAddress = (ethAddress: string): Partial<KeyPair> => {
   };
 };
 
-// Import REV address
 export const importRevAddress = (revAddress: string): Partial<KeyPair> => {
   try {
     const decoded = bs58.decode(revAddress);
@@ -140,7 +136,7 @@ export const importRevAddress = (revAddress: string): Partial<KeyPair> => {
       revAddress
     };
   } catch (error) {
-    throw new Error('Invalid REV address');
+    throw new Error('Invalid ASI address');
   }
 };
 
