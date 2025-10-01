@@ -24,10 +24,12 @@ const SwitcherButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 180px;
+  max-width: 280px;
   text-align: left;
   
   @media (max-width: 768px) {
     min-width: 140px;
+    max-width: 220px;
   }
 
   &:hover {
@@ -46,6 +48,8 @@ const AccountInfo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 `;
 
 const AccountName = styled.span`
@@ -73,6 +77,8 @@ const AccountBalance = styled.span`
   font-size: 12px;
   color: ${({ theme }) => theme.primary};
   font-weight: 500;
+  flex-shrink: 0; /* Prevent balance from shrinking */
+  white-space: nowrap;
 `;
 
 const LoadingSpinner = styled.div`

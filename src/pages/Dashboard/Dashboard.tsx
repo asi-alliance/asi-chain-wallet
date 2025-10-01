@@ -97,6 +97,10 @@ const AddressValue = styled.span`
   font-size: 14px;
   font-family: monospace;
   color: ${({ theme }) => theme.text.primary};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
 `;
 
 const ActionButtons = styled.div`
@@ -226,7 +230,6 @@ export const Dashboard: React.FC = () => {
     (state: RootState) => state.walletConnect
   );
   const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
-  const [showProposalModal, setShowProposalModal] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<any>(null);
   const [networkStatus, setNetworkStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -284,7 +287,6 @@ export const Dashboard: React.FC = () => {
     // Listen for WalletConnect events
     const handleSessionProposal = (event: CustomEvent) => {
       dispatch(setSessionProposal(event.detail));
-      setShowProposalModal(true);
     };
 
     const handleSessionRequest = (event: CustomEvent) => {
@@ -298,7 +300,6 @@ export const Dashboard: React.FC = () => {
 
     const handleSessionDelete = (event: CustomEvent) => {
       console.log('Session deleted:', event.detail);
-      // Optionally show a notification that session was terminated
     };
 
     window.addEventListener('walletconnect_session_proposal', handleSessionProposal as any);
@@ -415,7 +416,9 @@ export const Dashboard: React.FC = () => {
             <AccountInfo>
               <AddressRow>
                 <AddressLabel>Name:</AddressLabel>
-                <AddressValue>{selectedAccount.name}</AddressValue>
+                <AddressValue title={selectedAccount.name}>
+                  {selectedAccount.name}
+                </AddressValue>
               </AddressRow>
               <AddressRow>
                 <AddressLabel>REV Address:</AddressLabel>
@@ -546,7 +549,6 @@ export const Dashboard: React.FC = () => {
       <SessionProposalModal
         proposal={pendingProposal}
         onClose={() => {
-          setShowProposalModal(false);
           dispatch(setSessionProposal(null));
         }}
       />

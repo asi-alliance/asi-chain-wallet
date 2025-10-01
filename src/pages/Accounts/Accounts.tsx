@@ -45,6 +45,10 @@ const AccountName = styled.h3`
   font-weight: 600;
   color: ${({ theme }) => theme.text.primary};
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 250px;
 `;
 
 const AccountBalance = styled.div`
@@ -478,7 +482,7 @@ export const Accounts: React.FC = () => {
                     onClick={() => handleSelectAccount(account.id)}
                   >
                     <AccountHeader>
-                      <AccountName>{account.name}</AccountName>
+                      <AccountName title={account.name}>{account.name}</AccountName>
                       <AccountBalance>{formatBalanceCard(account.balance)}</AccountBalance>
                     </AccountHeader>
                     
