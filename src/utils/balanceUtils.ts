@@ -74,7 +74,9 @@ export const formatBalanceCompact = (balance: string | number): string => {
   }
 
   if (num >= 1) {
-    return `${num.toFixed(2)} ${getTokenDisplayName()}`;
+    const formatted = num.toFixed(4);
+    const trimmed = parseFloat(formatted).toString();
+    return `${trimmed} ${getTokenDisplayName()}`;
   } else if (num >= 0.01) {
     return `${num.toFixed(4)} ${getTokenDisplayName()}`;
   } else {

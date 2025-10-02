@@ -21,17 +21,15 @@ import { KeyGenerator } from 'pages/KeyGenerator';
 import { Login } from 'pages/Login';
 import { History } from 'pages/History';
 import { useIdleTimer, useDeepLink } from 'hooks';
+import TransactionPollingService from 'services/transactionPolling';
 
-// Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, hasAccounts } = useSelector((state: RootState) => state.auth);
   
-  // If no accounts exist, redirect to accounts page
   if (!hasAccounts) {
     return <Navigate to="/accounts" replace />;
   }
   
-  // If not authenticated, redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -45,22 +43,28 @@ const AppContent: React.FC = () => {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const theme = darkMode ? darkTheme : lightTheme;
 
-  // Use idle timer for session management
   useIdleTimer();
   
-  // Handle deep links
   useDeepLink();
 
-  // Check authentication status on mount
   useEffect(() => {
     console.log('[App] Initializing app, checking auth and WalletConnect...');
     dispatch(checkAuthentication());
     dispatch(initializeWalletConnect() as any);
-    // Load networks from localStorage after app initializes
     dispatch(loadNetworksFromStorage());
-    // Load accounts from SecureStorage to persist them across refreshes
     dispatch(loadAccountsFromStorage());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      TransactionPollingService.start();
+    } else {
+      TransactionPollingService.stop();
+    }
+    return () => {
+      TransactionPollingService.stop();
+    };
+  }, [isAuthenticated]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -141,7 +145,6 @@ const AppContent: React.FC = () => {
           </ProtectedRoute>
         } />
         
-        {/* Redirect any unknown routes */}
         <Route path="*" element={
           <Navigate to={isAuthenticated ? "/" : "/login"} replace />
         } />

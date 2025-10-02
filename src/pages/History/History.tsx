@@ -5,6 +5,7 @@ import { RootState } from 'store';
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import TransactionHistoryService, { Transaction, TransactionFilter } from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
+import TransactionPollingService from 'services/transactionPolling';
 import { getTokenDisplayName } from '../../constants/token';
 
 const HistoryContainer = styled.div`
@@ -290,18 +291,15 @@ export const History: React.FC = () => {
     });
   }, [loadTransactions, checkPendingTransactionStatuses]);
 
-  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('[History] Auto-refreshing transactions...');
-      checkPendingTransactionStatuses().then(() => {
-        loadTransactions();
-        setLastRefresh(new Date());
-      });
-    }, 30000); // 30 seconds
+      console.log('[History] Refreshing transaction list...');
+      loadTransactions();
+      setLastRefresh(new Date());
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [loadTransactions, checkPendingTransactionStatuses]);
+  }, [loadTransactions]);
 
   const handleExportJSON = () => {
     TransactionHistoryService.downloadTransactions('json');
@@ -350,12 +348,12 @@ export const History: React.FC = () => {
                 variant="ghost" 
                 onClick={async () => {
                   console.log('[History] Manual refresh triggered');
-                  await checkPendingTransactionStatuses();
+                  TransactionPollingService.forceCheck();
                   loadTransactions();
                   setLastRefresh(new Date());
                 }}
               >
-                🔄 Refresh
+                🔄 Refresh Status
               </Button>
             </RefreshInfo>
             <div style={{ display: 'flex', gap: '8px' }}>
