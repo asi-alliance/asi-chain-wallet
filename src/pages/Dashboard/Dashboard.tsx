@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import { useNavigate } from 'react-router-dom';
 import { formatBalanceDashboard } from 'utils/balanceUtils';
 import { getAddressLabel } from '../../constants/token';
+import TransactionHistoryService from '../../services/transactionHistory';
 import { 
   WalletConnectModalV2, 
   SessionProposalModal, 
@@ -238,19 +239,58 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     // Ensure selectedAccount and its revAddress exist before fetching
     if (selectedAccount && selectedAccount.revAddress && selectedNetwork) {
-      dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
+      const oldBalance = selectedAccount.balance || '0';
+      
+      dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any).then((result: any) => {
+        if (result.payload) {
+          const newBalance = result.payload.balance;
+          
+          if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+            console.log(`[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`);
+            try {
+              TransactionHistoryService.detectReceivedTransaction(
+                selectedAccount.revAddress,
+                oldBalance,
+                newBalance,
+                selectedNetwork.name
+              );
+            } catch (error) {
+              console.error(`[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`, error);
+            }
+          }
+        }
+      });
+      
       setLastRefresh(new Date());
     }
   }, [dispatch, selectedAccount, selectedNetwork]);
 
-  // Auto-refresh balance every 30 seconds
   useEffect(() => {
-    // Ensure selectedAccount and its revAddress exist for auto-refresh
     if (selectedAccount && selectedAccount.revAddress && selectedNetwork) {
       const interval = setInterval(() => {
-        // Double-check inside interval in case account is logged out
         if (selectedAccount && selectedAccount.revAddress) {
-          dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
+          const oldBalance = selectedAccount.balance || '0';
+          
+          dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any).then((result: any) => {
+            if (result.payload) {
+              const newBalance = result.payload.balance;
+              
+              if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+                console.log(`[Dashboard Auto-refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`);
+                try {
+                  TransactionHistoryService.detectReceivedTransaction(
+                    selectedAccount.revAddress,
+                    oldBalance,
+                    newBalance,
+                    selectedNetwork.name
+                  );
+                } catch (error) {
+                  console.error(`[Dashboard Auto-refresh] Error detecting received transaction for ${selectedAccount.name}:`, error);
+                }
+              }
+            }
+          });
+          
           setLastRefresh(new Date());
         }
       }, 30000); // 30 seconds
@@ -285,7 +325,6 @@ export const Dashboard: React.FC = () => {
 
 
   useEffect(() => {
-    // Listen for WalletConnect events
     const handleSessionProposal = (event: CustomEvent) => {
       dispatch(setSessionProposal(event.detail));
     };

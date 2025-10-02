@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import { RootState } from 'store';
+import { fetchBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import TransactionHistoryService, { Transaction, TransactionFilter } from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
@@ -194,6 +195,7 @@ const formatDate = (date: Date): string => {
 };
 
 export const History: React.FC = () => {
+  const dispatch = useDispatch();
   const { selectedAccount, selectedNetwork } = useSelector((state: RootState) => state.wallet);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<TransactionFilter>({});
@@ -349,6 +351,30 @@ export const History: React.FC = () => {
                 onClick={async () => {
                   console.log('[History] Manual refresh triggered');
                   TransactionPollingService.forceCheck();
+                  if (selectedAccount && selectedNetwork) {
+                    try {
+                      const oldBalance = selectedAccount.balance || '0';
+                      const balanceResult = await dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
+                      
+                      if (fetchBalance.fulfilled.match(balanceResult)) {
+                        const newBalance = balanceResult.payload.balance;
+                        
+                        // Detect received transactions if balance increased
+                        if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+                          console.log(`[History Manual Refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`);
+                          TransactionHistoryService.detectReceivedTransaction(
+                            selectedAccount.revAddress,
+                            oldBalance,
+                            newBalance,
+                            selectedNetwork.name
+                          );
+                        }
+                      }
+                    } catch (error) {
+                      console.error('[History] Error checking for received transactions:', error);
+                    }
+                  }
+                  
                   loadTransactions();
                   setLastRefresh(new Date());
                 }}

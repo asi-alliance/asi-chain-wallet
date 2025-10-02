@@ -3,6 +3,7 @@
 import { store } from 'store';
 import { fetchBalance } from 'store/walletSlice';
 import { getTokenDisplayName } from '../constants/token';
+import TransactionHistoryService from './transactionHistory';
 
 interface PollingConfig {
   enabled: boolean;
@@ -15,13 +16,11 @@ class BalancePollingService {
   private static pollingInterval: NodeJS.Timeout | null = null;
   private static isPolling = false;
 
-  // Default configuration
   private static readonly DEFAULT_CONFIG: PollingConfig = {
     enabled: false,
-    intervalMinutes: 5, // Default 5 minutes
+    intervalMinutes: 5,
   };
 
-  // Get polling configuration
   static getConfig(): PollingConfig {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
@@ -136,6 +135,21 @@ class BalancePollingService {
             const newBalance = (result.payload as any).balance;
             const oldBalance = previousBalances.get(account.id) || '0';
             console.log(`[Balance Polling] ${account.name}: ${oldBalance} → ${newBalance} ${getTokenDisplayName()}`);
+            
+            // Detect received transactions if balance increased
+            if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+              console.log(`[Balance Polling] Balance increased for ${account.name}, checking for received transactions...`);
+              try {
+                TransactionHistoryService.detectReceivedTransaction(
+                  account.revAddress,
+                  oldBalance,
+                  newBalance,
+                  selectedNetwork.name
+                );
+              } catch (error) {
+                console.error(`[Balance Polling] Error detecting received transaction for ${account.name}:`, error);
+              }
+            }
           }
           
           // Small delay between requests to avoid overwhelming the node

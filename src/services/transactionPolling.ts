@@ -24,11 +24,9 @@ class TransactionPollingService {
       this.pollPendingTransactions();
     }, this.POLL_INTERVAL);
 
-    // Initial poll
     this.pollPendingTransactions();
   }
 
-  // Stop polling
   static stop(): void {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
@@ -124,17 +122,35 @@ class TransactionPollingService {
 
     if (!selectedNetwork) return;
 
-    // Find accounts that might be affected by this transaction
     const affectedAccounts = accounts.filter(account => 
       account.revAddress.toLowerCase() === tx.from.toLowerCase() ||
       (tx.to && account.revAddress.toLowerCase() === tx.to.toLowerCase())
     );
 
-    // Refresh balances for affected accounts
     for (const account of affectedAccounts) {
       try {
         console.log(`[Transaction Polling] Refreshing balance for ${account.name}...`);
-        await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
+        const oldBalance = account.balance || '0';
+        
+        const balanceResult = await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
+        
+        if (fetchBalance.fulfilled.match(balanceResult)) {
+          const newBalance = balanceResult.payload.balance;
+          
+          if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+            console.log(`[Transaction Polling] Balance increased for ${account.name}, checking for received transactions...`);
+            try {
+              TransactionHistoryService.detectReceivedTransaction(
+                account.revAddress,
+                oldBalance,
+                newBalance,
+                selectedNetwork.name
+              );
+            } catch (error) {
+              console.error(`[Transaction Polling] Error detecting received transaction for ${account.name}:`, error);
+            }
+          }
+        }
       } catch (error) {
         console.error(`[Transaction Polling] Error refreshing balance for ${account.name}:`, error);
       }
