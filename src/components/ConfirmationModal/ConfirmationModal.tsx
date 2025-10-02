@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Button } from 'components';
+import { Button, Input } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
 
 const Overlay = styled.div`
@@ -106,13 +106,15 @@ const WarningText = styled.div`
 interface TransactionConfirmationProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (password?: string) => void;
   amount: string;
   recipient: string;
   senderAddress: string;
   senderName: string;
   estimatedFee?: string;
   loading?: boolean;
+  needsPassword?: boolean;
+  requirePasswordForTransaction?: boolean;
 }
 
 export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps> = ({
@@ -125,7 +127,11 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
   senderName,
   estimatedFee = '0.001',
   loading = false,
+  needsPassword = false,
+  requirePasswordForTransaction = false,
 }) => {
+  const [password, setPassword] = useState('');
+
   if (!isOpen) return null;
 
   const formatAddress = (address: string): string => {
@@ -137,8 +143,16 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
 
   const handleClose = () => {
     if (!loading) {
+      setPassword('');
       onClose();
     }
+  };
+
+  const handleConfirm = () => {
+    if (needsPassword && !password.trim()) {
+      return;
+    }
+    onConfirm(needsPassword ? password : undefined);
   };
 
   return (
@@ -189,11 +203,28 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
           </DetailRow>
         </TransactionDetails>
 
+        {needsPassword && (
+          <div style={{ marginBottom: '24px' }}>
+            <Input
+              label={requirePasswordForTransaction ? "Transaction Password" : "Account Password"}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              style={{ marginBottom: '16px' }}
+            />
+          </div>
+        )}
+
         <Actions>
           <Button variant="ghost" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={onConfirm} loading={loading}>
+          <Button 
+            onClick={handleConfirm} 
+            loading={loading}
+            disabled={needsPassword && !password.trim()}
+          >
             Confirm & Send
           </Button>
         </Actions>

@@ -344,6 +344,14 @@ export const Send: React.FC = () => {
   const isAccountUnlocked = selectedAccount && unlockedAccounts.some(a => a.id === selectedAccount.id);
   const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
 
+  console.log('Send Debug:', {
+    selectedAccount: selectedAccount?.id,
+    unlockedAccounts: unlockedAccounts.map(a => a.id),
+    isAccountUnlocked,
+    requirePasswordForTransaction,
+    needsPassword
+  });
+
   const validateForm = () => {
     if (!recipient.trim()) {
       setValidationError('Recipient address is required');
@@ -383,7 +391,7 @@ export const Send: React.FC = () => {
     setShowConfirmation(true);
   };
 
-  const handleConfirmSend = async () => {
+  const handleConfirmSend = async (passwordFromModal?: string) => {
     if (!selectedAccount) return;
 
     setShowConfirmation(false);
@@ -398,7 +406,7 @@ export const Send: React.FC = () => {
           from: selectedAccount,
           to: recipient,
           amount,
-          password: needsPassword ? password : undefined,
+          password: passwordFromModal || (needsPassword ? password : undefined),
           network: selectedNetwork,
         }) as any
       );
@@ -656,6 +664,8 @@ export const Send: React.FC = () => {
         senderAddress={selectedAccount?.revAddress || ''}
         senderName={selectedAccount?.name || ''}
         loading={isLoading}
+        needsPassword={needsPassword}
+        requirePasswordForTransaction={requirePasswordForTransaction}
       />
     </SendContainer>
   );
