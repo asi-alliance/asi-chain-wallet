@@ -181,8 +181,8 @@ const formatAmount = (amount?: string): string => {
   try {
     // Use BigInt for large numbers
     const atomicAmount = BigInt(amount);
-    const rev = Number(atomicAmount) / 100000000;
-    return `${rev.toFixed(8)} ${getTokenDisplayName()}`;
+    const tokenAmount = Number(atomicAmount) / 100000000;
+    return `${tokenAmount.toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
     console.error('Error formatting amount:', amount, error);
     return `${amount} (raw)`;

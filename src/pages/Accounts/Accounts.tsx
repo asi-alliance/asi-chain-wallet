@@ -438,7 +438,7 @@ export const Accounts: React.FC = () => {
               >
                 <option value="private">Private Key</option>
                 <option value="eth">Ethereum Address (Watch Only)</option>
-                <option value="rev">{getAddressLabel()} (Watch Only)</option>
+                <option value={getAddressLabel()}>{getAddressLabel()} (Watch Only)</option>
               </ImportTypeSelector>
 
               <Input

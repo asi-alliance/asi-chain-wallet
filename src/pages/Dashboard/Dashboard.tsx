@@ -425,7 +425,7 @@ export const Dashboard: React.FC = () => {
               <AddressRow>
                 <AddressLabel>{getAddressLabel()}:</AddressLabel>
                 <AddressValue
-                  id="dashboard-rev-address"
+                  id="dashboard-asi-address"
                   onClick={() => copyToClipboard(selectedAccount.revAddress)}
                   style={{ cursor: 'pointer' }}
                   title="Click to copy"

@@ -228,8 +228,8 @@ export const KeyGenerator: React.FC = () => {
             readOnly 
             onClick={(e) => e.currentTarget.select()}
           />
-          <CopyButton onClick={() => handleCopy(keys.revAddress, 'rev')}>
-            {copiedField === 'rev' ? 'Copied!' : 'Copy'}
+          <CopyButton onClick={() => handleCopy(keys.revAddress, 'asi')}>
+            {copiedField === 'asi' ? 'Copied!' : 'Copy'}
           </CopyButton>
         </KeyValue>
       </KeyField>

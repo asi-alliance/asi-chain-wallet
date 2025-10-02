@@ -116,7 +116,7 @@ const InfoList = styled.ul`
 export const Receive: React.FC = () => {
   const navigate = useNavigate();
   const { selectedAccount } = useSelector((state: RootState) => state.wallet);
-  const [activeTab, setActiveTab] = useState<'rev' | 'eth'>('rev');
+  const [activeTab, setActiveTab] = useState<string>(getAddressLabel());
   const [copyMessage, setCopyMessage] = useState('');
 
   const copyToClipboard = (text: string) => {
@@ -139,8 +139,8 @@ export const Receive: React.FC = () => {
     );
   }
 
-  const currentAddress = activeTab === 'rev' ? selectedAccount.revAddress : selectedAccount.ethAddress;
-  const addressLabel = activeTab === 'rev' ? getAddressLabel() : 'ETH Address';
+  const currentAddress = activeTab === getAddressLabel() ? selectedAccount.revAddress : selectedAccount.ethAddress;
+  const addressLabel = activeTab === getAddressLabel() ? getAddressLabel() : 'ETH Address';
 
   return (
     <ReceiveContainer>
@@ -153,8 +153,8 @@ export const Receive: React.FC = () => {
 
           <TabContainer>
             <Tab
-              active={activeTab === 'rev'}
-              onClick={() => setActiveTab('rev')}
+              active={activeTab === getAddressLabel()}
+              onClick={() => setActiveTab(getAddressLabel())}
             >
               {getAddressLabel()}
             </Tab>
@@ -186,7 +186,7 @@ export const Receive: React.FC = () => {
               onClick={() => copyToClipboard(currentAddress)}
               fullWidth
             >
-              Copy {activeTab.toUpperCase()} Address
+              Copy {addressLabel} Address
             </CopyButton>
             
             <Button
@@ -196,7 +196,7 @@ export const Receive: React.FC = () => {
                 if (canvas) {
                   const url = canvas.toDataURL('image/png');
                   const link = document.createElement('a');
-                  link.download = `${activeTab}-address-qr.png`;
+                  link.download = `${addressLabel.toLowerCase().replace(' ', '-')}-address-qr.png`;
                   link.href = url;
                   link.click();
                 }
