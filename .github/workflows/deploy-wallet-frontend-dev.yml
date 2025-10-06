@@ -1,0 +1,31 @@
+name: Dev Wallet Frontend Deployment
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build on AWS CodeBuild
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::533793137436:role/asi-chain-wallet-github-codebuild-role 
+          aws-region: us-east-1 
+
+      - name: Run AWS CodeBuild
+        uses: aws-actions/aws-codebuild-run-build@v1
+        id: codebuild
+        with:
+          project-name: asi-chain-wallet-frontend
