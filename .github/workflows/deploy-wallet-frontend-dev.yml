@@ -21,7 +21,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::533793137436:role/asi-chain-wallet-github-codebuild-role 
+          role-to-assume: arn:aws:iam::533793137436:role/asi-chain-wallet-codebuild-service-role 
           aws-region: us-east-1 
 
       - name: Run AWS CodeBuild
