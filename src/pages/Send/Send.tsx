@@ -212,24 +212,55 @@ export const Send: React.FC = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanError, setScanError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  const handleAmountChange = (value: string) => {
+    setAmount(value);
+    
+    if (!value.trim()) {
+      setValidationError('');
+      return;
+    }
+    
+    const amountValue = parseFloat(value);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      return;
+    }
+    
+    const balance = parseFloat(selectedAccount?.balance || '0');
+    const estimatedGas = 0.001;
+    
+    if (amountValue > balance) {
+      setValidationError(`Insufficient balance. You have ${balance.toFixed(8)} ${getTokenDisplayName()}`);
+      return;
+    }
+    
+    const totalRequired = amountValue + estimatedGas;
+    if (totalRequired > balance) {
+      const maxSendable = Math.max(0, balance - estimatedGas);
+      setValidationError(
+        `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxSendable.toFixed(8)} ${getTokenDisplayName()}`
+      );
+      return;
+    }
+    
+    setValidationError('');
+  };
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
-  // Fetch balance on mount and when selected account changes
   useEffect(() => {
     if (selectedAccount && selectedNetwork) {
       dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
     }
   }, [selectedAccount, selectedNetwork, dispatch]);
 
-  // Set up auto-refresh interval for balance
   useEffect(() => {
     if (!selectedAccount || !selectedNetwork) return;
 
     const interval = setInterval(() => {
       dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
-    }, 30000); // Refresh every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [selectedAccount, selectedNetwork, dispatch]);
@@ -369,11 +400,20 @@ export const Send: React.FC = () => {
       return false;
     }
     
-    // Issue #31: Account for gas fees in balance check
-    const estimatedGas = 0.001; // Estimated gas fee
-    const totalRequired = parseFloat(amount) + estimatedGas;
-    if (totalRequired > parseFloat(selectedAccount?.balance || '0')) {
-      setValidationError(`Insufficient balance. Need ${totalRequired.toFixed(4)} ${getTokenDisplayName()} (including gas)`);
+    const balance = parseFloat(selectedAccount?.balance || '0');
+    const amountToSend = parseFloat(amount);
+    
+    if (amountToSend > balance) {
+      setValidationError(`Insufficient balance. You have ${balance.toFixed(8)} ${getTokenDisplayName()}`);
+      return false;
+    }
+    
+    const totalRequired = amountToSend + estimatedGas;
+    if (totalRequired > balance) {
+      const maxSendable = Math.max(0, balance - estimatedGas);
+      setValidationError(
+        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${estimatedGas.toFixed(8)} fee)`
+      );
       return false;
     }
     
@@ -434,13 +474,11 @@ export const Send: React.FC = () => {
           if (fetchBalance.fulfilled.match(balanceResult)) {
             const newBalance = balanceResult.payload.balance;
             
-            // Check if balance has changed or max polls reached
             if (newBalance !== initialBalance || pollCount >= maxPolls) {
               clearInterval(pollInterval);
               setIsWaitingForBalance(false);
               
               if (newBalance !== initialBalance) {
-                // Balance updated successfully
                 console.log('Balance updated from', initialBalance, 'to', newBalance);
               } else {
                 console.log('Balance update timeout - transaction may still be processing');
@@ -584,7 +622,7 @@ export const Send: React.FC = () => {
               label="Amount"
               type="number"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => handleAmountChange(e.target.value)}
               placeholder="Enter amount"
               step="0.00000001"
               min="0"
