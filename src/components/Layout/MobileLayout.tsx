@@ -16,19 +16,27 @@ const Container = styled.div`
 `;
 
 const Header = styled.header`
-    background: ${({ theme }) => theme.card};
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-    padding: 12px 16px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+  background: ${({ theme }) => theme.card};
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+  }
 `;
 
 const HeaderTop = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
 `;
 
 const HeaderBottom = styled.div`
@@ -36,11 +44,16 @@ const HeaderBottom = styled.div`
 `;
 
 const LeftSection = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
 `;
 
 const LogoContainer = styled.div`
@@ -317,11 +330,6 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
-<<<<<<< HEAD
-            const networkToSet = networks.find(
-                (network) => network.id === lastSelectedNetworkId
-            );
-=======
   return (
     <Container>
       <Header>
@@ -366,7 +374,6 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
           </HeaderBottom>
         )}
       </Header>
->>>>>>> 0213a03 ([as-28]: replace acount info and singIn florw)
 
             if (!networkToSet) {
                 return;

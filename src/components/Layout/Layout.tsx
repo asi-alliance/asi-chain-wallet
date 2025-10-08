@@ -23,6 +23,13 @@ const Header = styled.header`
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-height: auto;
+  }
 `;
 
 const LeftSection = styled.div`
@@ -33,7 +40,10 @@ const LeftSection = styled.div`
   min-width: 0;
   
   @media (max-width: 768px) {
-    gap: 16px;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
   }
 `;
 
@@ -62,12 +72,25 @@ const LogoText = styled.h1`
   font-weight: 700;
   color: ${({ theme }) => theme.primary};
   margin: 0;
+  
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 16px;
+  }
 `;
 
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+  
+  @media (max-width: 768px) {
+    gap: 8px;
+    flex-shrink: 0;
+  }
 `;
 
 const NetworkSelector = styled.select`
@@ -77,6 +100,12 @@ const NetworkSelector = styled.select`
   background: ${({ theme }) => theme.surface};
   color: ${({ theme }) => theme.text.primary};
   font-size: 14px;
+  
+  @media (max-width: 768px) {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-width: 80px;
+  }
 `;
 
 const ThemeToggle = styled.button`
@@ -91,6 +120,11 @@ const ThemeToggle = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  
+  @media (max-width: 768px) {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
 
   &:hover {
     background: ${({ theme }) => theme.primary};
@@ -112,6 +146,19 @@ const Nav = styled.nav`
   padding: 0 24px;
   display: flex;
   gap: 24px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  
+  @media (max-width: 768px) {
+    padding: 0 16px;
+    gap: 16px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0 12px;
+    gap: 12px;
+  }
 `;
 
 const NavLink = styled.button<{ active: boolean }>`
@@ -123,6 +170,18 @@ const NavLink = styled.button<{ active: boolean }>`
   font-weight: ${({ active }) => (active ? '600' : '400')};
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  
+  @media (max-width: 768px) {
+    padding: 12px 0;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px 0;
+    font-size: 13px;
+  }
 
   &:hover {
     color: ${({ theme }) => theme.primary};
