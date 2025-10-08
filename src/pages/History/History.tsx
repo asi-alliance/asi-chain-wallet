@@ -286,12 +286,24 @@ export const History: React.FC = () => {
 
   useEffect(() => {
     loadTransactions();
-    // Check pending transaction statuses on load
+    
+    if (selectedAccount && selectedNetwork && selectedNetwork.graphqlUrl) {
+      TransactionHistoryService.syncFromBlockchain(
+        selectedAccount.revAddress,
+        selectedNetwork.name,
+        selectedNetwork.graphqlUrl
+      ).then(result => {
+        if (result.added > 0 || result.updated > 0) {
+          console.log(`[History] Synced ${result.added} new, ${result.updated} updated from blockchain`);
+          loadTransactions();
+        }
+      });
+    }
+    
     checkPendingTransactionStatuses().then(() => {
-      // Reload transactions after status updates
       loadTransactions();
     });
-  }, [loadTransactions, checkPendingTransactionStatuses]);
+  }, [loadTransactions, checkPendingTransactionStatuses, selectedAccount, selectedNetwork]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -351,6 +363,22 @@ export const History: React.FC = () => {
                 onClick={async () => {
                   console.log('[History] Manual refresh triggered');
                   TransactionPollingService.forceCheck();
+                  
+                  if (selectedAccount && selectedNetwork && selectedNetwork.graphqlUrl) {
+                    try {
+                      const result = await TransactionHistoryService.syncFromBlockchain(
+                        selectedAccount.revAddress,
+                        selectedNetwork.name,
+                        selectedNetwork.graphqlUrl
+                      );
+                      if (result.added > 0 || result.updated > 0) {
+                        console.log(`[History Refresh] Synced ${result.added} new, ${result.updated} updated`);
+                      }
+                    } catch (error) {
+                      console.error('[History] Error syncing from blockchain:', error);
+                    }
+                  }
+                  
                   if (selectedAccount && selectedNetwork) {
                     try {
                       const oldBalance = selectedAccount.balance || '0';
@@ -359,7 +387,6 @@ export const History: React.FC = () => {
                       if (fetchBalance.fulfilled.match(balanceResult)) {
                         const newBalance = balanceResult.payload.balance;
                         
-                        // Detect received transactions if balance increased
                         if (parseFloat(newBalance) > parseFloat(oldBalance)) {
                           console.log(`[History Manual Refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`);
                           TransactionHistoryService.detectReceivedTransaction(
@@ -379,7 +406,7 @@ export const History: React.FC = () => {
                   setLastRefresh(new Date());
                 }}
               >
-                🔄 Refresh Status
+                🔄 Refresh & Sync
               </Button>
             </RefreshInfo>
             <div style={{ display: 'flex', gap: '8px' }}>

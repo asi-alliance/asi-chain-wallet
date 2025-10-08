@@ -333,7 +333,66 @@ class TransactionHistoryService {
     return transaction;
   }
 
-  // Private helper methods
+  static async syncFromBlockchain(
+    address: string,
+    network: string,
+    graphqlUrl: string
+  ): Promise<{ added: number; updated: number }> {
+    try {
+      const { RChainService } = await import('./rchain');
+      
+      const rchain = new RChainService('', '', '', 'root', graphqlUrl);
+      const blockchainTxs = await rchain.fetchTransactionHistory(address, 100);
+      
+      console.log(`[History Sync] Found ${blockchainTxs.length} transactions from blockchain`);
+      
+      let added = 0;
+      let updated = 0;
+      
+      for (const bcTx of blockchainTxs) {
+        const isReceive = bcTx.to && bcTx.to.toLowerCase() === address.toLowerCase();
+        const isSend = bcTx.from && bcTx.from.toLowerCase() === address.toLowerCase();
+        
+        if (!isReceive && !isSend) continue;
+        
+        const type: 'send' | 'receive' = isReceive ? 'receive' : 'send';
+        
+        const existing = this.getTransactions().find(
+          tx => tx.deployId === bcTx.deployId
+        );
+        
+        if (existing) {
+          if (existing.status !== bcTx.status) {
+            this.updateTransaction(existing.id, {
+              status: bcTx.status,
+              blockHash: bcTx.blockHash
+            });
+            updated++;
+          }
+        } else {
+          this.addTransaction({
+            timestamp: new Date(bcTx.timestamp),
+            type: type,
+            from: bcTx.from,
+            to: bcTx.to,
+            amount: bcTx.amount,
+            deployId: bcTx.deployId,
+            blockHash: bcTx.blockHash,
+            status: bcTx.status,
+            network: network,
+            detectedBy: 'auto',
+            note: 'Synced from blockchain'
+          });
+          added++;
+        }
+      }
+      
+      return { added, updated };
+    } catch (error) {
+      return { added: 0, updated: 0 };
+    }
+  }
+
   private static saveTransactions(transactions: Transaction[]): void {
     try {
       const data = {
@@ -343,7 +402,6 @@ class TransactionHistoryService {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.error('Error saving transaction history:', error);
-      // If storage is full, remove oldest transactions
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
         const reduced = transactions.slice(0, Math.floor(transactions.length * 0.9));
         this.saveTransactions(reduced);
