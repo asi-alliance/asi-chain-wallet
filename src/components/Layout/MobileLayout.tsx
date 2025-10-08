@@ -330,50 +330,9 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
-  return (
-    <Container>
-      <Header>
-        <HeaderTop>
-          <LeftSection>
-            <LogoContainer onClick={() => navigate('/')}>
-              <LogoImage 
-                src="/asi-icon.png" 
-                alt="ASI Alliance"
-                $darkMode={darkMode}
-              />
-              <LogoText>ASI Wallet</LogoText>
-            </LogoContainer>
-          </LeftSection>
-          
-          <HeaderActions>
-            <NetworkSelector 
-              id="mobile-header-network-selector"
-              value={selectedNetwork.id} 
-              onChange={handleNetworkChange}
-            >
-              {networks.map((network) => (
-                <option key={network.id} value={network.id}>
-                  {network.name}
-                </option>
-              ))}
-            </NetworkSelector>
-            
-            <IconButton onClick={handleThemeToggle} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-            </IconButton>
-            
-            <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
-              <MenuIcon size={20} />
-            </MenuButton>
-          </HeaderActions>
-        </HeaderTop>
-        
-        {isAuthenticated && accounts.length > 0 && (
-          <HeaderBottom>
-            <AccountSwitcher />
-          </HeaderBottom>
-        )}
-      </Header>
+            const networkToSet = networks.find(
+                (network) => network.id === lastSelectedNetworkId
+            );
 
             if (!networkToSet) {
                 return;
@@ -383,7 +342,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         };
 
         setCachedNetwork();
-    }, [isAuthenticated, selectedAccount, networks]);
+    }, [isAuthenticated, selectedAccount, networks, dispatch]);
 
     const cacheNetworkByAddress = (networkId: string) => {
         if (!isAuthenticated || !selectedAccount?.address) {
@@ -441,122 +400,97 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
     ];
 
     return (
-        <Container>
-            <Header>
-                <HeaderTop>
-                    <LeftSection>
-                        <LogoContainer onClick={() => navigate("/")}>
-                            <LogoImage
-                                src="/asi-icon.png"
-                                alt="ASI Alliance"
-                                $darkMode={darkMode}
-                            />
-                            <LogoText>ASI Wallet</LogoText>
-                        </LogoContainer>
-                    </LeftSection>
+    <Container>
+      <Header>
+        <HeaderTop>
+          <LeftSection>
+            <LogoContainer onClick={() => navigate('/')}>
+              <LogoImage 
+                src="/asi-icon.png" 
+                alt="ASI Alliance"
+                $darkMode={darkMode}
+              />
+              <LogoText>ASI Wallet</LogoText>
+            </LogoContainer>
+          </LeftSection>
+          
+          <HeaderActions>
+            <NetworkSelector 
+              id="mobile-header-network-selector"
+              value={selectedNetwork.id} 
+              onChange={handleNetworkChange}
+            >
+              {networks.map((network) => (
+                <option key={network.id} value={network.id}>
+                  {network.name}
+                </option>
+              ))}
+            </NetworkSelector>
+            
+            <IconButton onClick={handleThemeToggle} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+            </IconButton>
+            
+            <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
+              <MenuIcon size={20} />
+            </MenuButton>
+          </HeaderActions>
+        </HeaderTop>
+        
+        {isAuthenticated && accounts.length > 0 && (
+          <HeaderBottom>
+            <AccountSwitcher />
+          </HeaderBottom>
+        )}
+      </Header>
 
-                    <HeaderActions>
-                        <NetworkSelector
-                            value={selectedNetwork.id}
-                            onChange={handleNetworkChange}
-                        >
-                            {networks.map((network) => (
-                                <option key={network.id} value={network.id}>
-                                    {network.name}
-                                </option>
-                            ))}
-                        </NetworkSelector>
+      <DesktopNav>
+        {navItems.map(item => (
+          <NavLink 
+            key={item.path}
+            $active={location.pathname === item.path} 
+            onClick={() => navigate(item.path)}
+          >
+            {item.label}
+          </NavLink>
+        ))}
+      </DesktopNav>
 
-                        <IconButton
-                            onClick={handleThemeToggle}
-                            title={
-                                darkMode
-                                    ? "Switch to Light Mode"
-                                    : "Switch to Dark Mode"
-                            }
-                        >
-                            {darkMode ? (
-                                <SunIcon size={20} />
-                            ) : (
-                                <MoonIcon size={20} />
-                            )}
-                        </IconButton>
+      <MobileNavOverlay $isOpen={mobileMenuOpen} onClick={() => setMobileMenuOpen(false)} />
+      <MobileNavDrawer $isOpen={mobileMenuOpen}>
+        <MobileNavHeader>
+          <h2 style={{ margin: 0, fontSize: '18px' }}>Menu</h2>
+          <IconButton onClick={() => setMobileMenuOpen(false)}>
+            <CloseIcon size={20} />
+          </IconButton>
+        </MobileNavHeader>
+        
+        <MobileNavContent>
+          <MobileNavSection>
+            <MobileNavSectionTitle>Navigation</MobileNavSectionTitle>
+            {navItems.map(item => (
+              <MobileNavLink
+                key={item.path}
+                $active={location.pathname === item.path}
+                onClick={() => handleNavigation(item.path)}
+              >
+                {item.label}
+              </MobileNavLink>
+            ))}
+          </MobileNavSection>
+          
+          {isAuthenticated && (
+            <MobileNavSection>
+              <MobileNavSectionTitle>Account</MobileNavSectionTitle>
+              <LogoutButton $active={false} onClick={handleLogout}>
+                Logout
+              </LogoutButton>
+            </MobileNavSection>
+          )}
+        </MobileNavContent>
+      </MobileNavDrawer>
 
-                        <MenuButton
-                            id="sidebar-menu-button"
-                            onClick={() => setMobileMenuOpen(true)}
-                        >
-                            <MenuIcon size={20} />
-                        </MenuButton>
-                    </HeaderActions>
-                </HeaderTop>
-
-                {isAuthenticated && accounts.length > 0 && (
-                    <HeaderBottom>
-                        <AccountSwitcher />
-                    </HeaderBottom>
-                )}
-            </Header>
-
-            {/* Desktop Navigation */}
-            <DesktopNav>
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        $active={location.pathname === item.path}
-                        onClick={() => navigate(item.path)}
-                    >
-                        {item.label}
-                    </NavLink>
-                ))}
-            </DesktopNav>
-
-            {/* Mobile Navigation Drawer */}
-            <MobileNavOverlay
-                $isOpen={mobileMenuOpen}
-                onClick={() => setMobileMenuOpen(false)}
-            />
-            <MobileNavDrawer $isOpen={mobileMenuOpen}>
-                <MobileNavHeader>
-                    <h2 style={{ margin: 0, fontSize: "18px" }}>Menu</h2>
-                    <IconButton onClick={() => setMobileMenuOpen(false)}>
-                        <CloseIcon size={20} />
-                    </IconButton>
-                </MobileNavHeader>
-
-                <MobileNavContent>
-                    <MobileNavSection>
-                        <MobileNavSectionTitle>
-                            Navigation
-                        </MobileNavSectionTitle>
-                        {navItems.map((item) => (
-                            <MobileNavLink
-                                key={item.path}
-                                $active={location.pathname === item.path}
-                                onClick={() => handleNavigation(item.path)}
-                            >
-                                {item.label}
-                            </MobileNavLink>
-                        ))}
-                    </MobileNavSection>
-
-                    {isAuthenticated && (
-                        <MobileNavSection>
-                            <MobileNavSectionTitle>
-                                Account
-                            </MobileNavSectionTitle>
-                            <LogoutButton
-                                $active={false}
-                                onClick={handleLogout}
-                            >
-                                Logout
-                            </LogoutButton>
-                        </MobileNavSection>
-                    )}
-                </MobileNavContent>
-            </MobileNavDrawer>
-
-            <Main $fullWidth={location.pathname === "/ide"}>{children}</Main>
-        </Container>
-    );
+      <Main $fullWidth={location.pathname === '/ide'}>{children}</Main>
+    </Container>
+  );
 };
