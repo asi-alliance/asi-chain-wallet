@@ -193,6 +193,8 @@ const ButtonGroup = styled.div`
   margin-bottom: 0;
 `;
 
+const ESTIMATED_GAS_FEE = 0.001;
+
 export const Send: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -227,16 +229,15 @@ export const Send: React.FC = () => {
     }
     
     const balance = parseFloat(selectedAccount?.balance || '0');
-    const estimatedGas = 0.001;
     
     if (amountValue > balance) {
       setValidationError(`Insufficient balance. You have ${balance.toFixed(8)} ${getTokenDisplayName()}`);
       return;
     }
     
-    const totalRequired = amountValue + estimatedGas;
+    const totalRequired = amountValue + ESTIMATED_GAS_FEE;
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - estimatedGas);
+      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
       setValidationError(
         `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxSendable.toFixed(8)} ${getTokenDisplayName()}`
       );
@@ -389,7 +390,6 @@ export const Send: React.FC = () => {
       return false;
     }
     
-    // Issue #32: Prevent self-transfers
     if (selectedAccount && recipient.toLowerCase() === selectedAccount.address.toLowerCase()) {
       setValidationError('Cannot send to the same address (self-transfer not allowed)');
       return false;
@@ -408,11 +408,11 @@ export const Send: React.FC = () => {
       return false;
     }
     
-    const totalRequired = amountToSend + estimatedGas;
+    const totalRequired = amountToSend + ESTIMATED_GAS_FEE;
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - estimatedGas);
+      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
       setValidationError(
-        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${estimatedGas.toFixed(8)} fee)`
+        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${ESTIMATED_GAS_FEE.toFixed(8)} fee)`
       );
       return false;
     }
@@ -485,7 +485,7 @@ export const Send: React.FC = () => {
               }
             }
           }
-        }, 2000); // Poll every 2 seconds
+        }, 2000);
       }
     } catch (err) {
       console.error('Send failed:', err);
@@ -493,16 +493,14 @@ export const Send: React.FC = () => {
   };
 
   const maxAmount = () => {
-    // Issue #31: Properly calculate max amount accounting for gas
     const balance = parseFloat(selectedAccount?.balance || '0');
-    const estimatedGas = 0.001; // Estimated gas fee
-    const max = Math.max(0, balance - estimatedGas);
+    const max = Math.max(0, balance - ESTIMATED_GAS_FEE);
     
     if (max <= 0) {
       setValidationError('Insufficient balance to cover gas fees');
       setAmount('0');
     } else {
-      setAmount(max.toFixed(8)); // Use 8 decimal precision
+      setAmount(max.toFixed(8));
       setValidationError('');
     }
   };
