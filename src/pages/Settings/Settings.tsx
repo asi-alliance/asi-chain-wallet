@@ -296,7 +296,7 @@ export const Settings: React.FC = () => {
               </FormGroup>
 
               <FormGroup>
-                <Label>Read-Only Node URL (Optional)</Label>
+                <Label>Read-Only Node URL</Label>
                 <Input
                   value={editingNetwork.readOnlyUrl || ''}
                   onChange={(e) => updateEditingNetwork('readOnlyUrl', e.target.value)}
