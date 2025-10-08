@@ -119,6 +119,35 @@ const WarningMessage = styled.div`
   }
 `;
 
+const SuccessMessage = styled.div`
+  background: ${({ theme }) => `${theme.success || '#7ED321'}20`};
+  border: 1px solid ${({ theme }) => `${theme.success || '#7ED321'}40`};
+  color: ${({ theme }) => theme.success || '#7ED321'};
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.3s ease-out;
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .icon {
+    font-size: 20px;
+  }
+`;
+
 export const Accounts: React.FC = () => {
   const dispatch = useDispatch();
   const { accounts, selectedAccount, selectedNetwork, isLoading } = useSelector((state: RootState) => state.wallet);
@@ -141,6 +170,7 @@ export const Accounts: React.FC = () => {
   const [importType, setImportType] = useState<'private' | 'public' | 'eth' | 'rev'>('private');
   const [newAccountNameError, setNewAccountNameError] = useState('');
   const [importNameError, setImportNameError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (unlockedAccounts.length > 0) {
@@ -209,6 +239,10 @@ export const Accounts: React.FC = () => {
       
       if (importAccountWithPassword.fulfilled.match(resultAction)) {
         dispatch(syncAccounts([resultAction.payload.account]));
+        
+        // Show success message
+        setSuccessMessage(`Account "${pendingImport.name}" imported successfully! 🎉`);
+        setTimeout(() => setSuccessMessage(''), 5000);
       }
       
       setImportName('');
@@ -223,6 +257,10 @@ export const Accounts: React.FC = () => {
       ...acc,
       privateKey: undefined, 
     }))));
+    
+    // Show success message
+    setSuccessMessage(`Account "${pendingAccountName}" created successfully! 🎉`);
+    setTimeout(() => setSuccessMessage(''), 5000);
     
     setNewAccountName('');
     setPendingAccountName('');
@@ -359,6 +397,90 @@ export const Accounts: React.FC = () => {
 
   return (
     <AccountsContainer>
+      {successMessage && (
+        <SuccessMessage>
+          <span className="icon">✅</span>
+          <span>{successMessage}</span>
+        </SuccessMessage>
+      )}
+
+      {/* Show existing accounts first when they exist */}
+      {accounts.length > 0 && (
+        <Card style={{ marginBottom: '32px' }}>
+          <CardHeader>
+            <CardTitle>Your Accounts ({accounts.length})</CardTitle>
+            <Button
+              variant="ghost"
+              size="small"
+              onClick={handleRefreshBalances}
+              loading={isLoading}
+            >
+              Refresh Balances
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <AccountsGrid>
+              {accounts.map((account) => {
+                const isUnlocked = unlockedAccounts.some(a => a.id === account.id);
+                return (
+                  <AccountCard
+                    key={account.id}
+                    id={`account-card-${account.id}`}
+                    isSelected={selectedAccount?.id === account.id}
+                    onClick={() => handleSelectAccount(account.id)}
+                  >
+                    <AccountHeader>
+                      <AccountName title={account.name}>{account.name}</AccountName>
+                      <AccountBalance>{formatBalanceCard(account.balance)}</AccountBalance>
+                    </AccountHeader>
+                    
+                    <AccountAddress>
+                      {formatAddress(account.revAddress)}
+                    </AccountAddress>
+                    
+                    <AccountActions>
+                      {selectedAccount?.id === account.id && (
+                        <span style={{ fontSize: '12px', color: '#7ED321', fontWeight: '600' }}>
+                          SELECTED
+                        </span>
+                      )}
+                      {isUnlocked && (
+                        <span style={{ fontSize: '12px', color: '#4A90E2', fontWeight: '600', marginLeft: '8px' }}>
+                          UNLOCKED
+                        </span>
+                      )}
+                      <Button
+                        id={`export-account-${account.id}`}
+                        variant="ghost"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportKeyfile(account.id);
+                        }}
+                      >
+                        Export
+                      </Button>
+                      <Button
+                        id={`remove-account-${account.id}`}
+                        variant="danger"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAccount(account.id);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </AccountActions>
+                  </AccountCard>
+                );
+              })}
+            </AccountsGrid>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Create/Import section below existing accounts */}
       <FormContainer>
         <CreateAccountSection>
           <Card>
@@ -462,83 +584,6 @@ export const Accounts: React.FC = () => {
           </Card>
         </ImportAccountSection>
       </FormContainer>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Accounts ({accounts.length})</CardTitle>
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={handleRefreshBalances}
-            loading={isLoading}
-          >
-            Refresh Balances
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {accounts.length === 0 ? (
-            <p>No accounts found. Create or import an account to get started.</p>
-          ) : (
-            <AccountsGrid>
-              {accounts.map((account) => {
-                const isUnlocked = unlockedAccounts.some(a => a.id === account.id);
-                return (
-                  <AccountCard
-                    key={account.id}
-                    id={`account-card-${account.id}`}
-                    isSelected={selectedAccount?.id === account.id}
-                    onClick={() => handleSelectAccount(account.id)}
-                  >
-                    <AccountHeader>
-                      <AccountName title={account.name}>{account.name}</AccountName>
-                      <AccountBalance>{formatBalanceCard(account.balance)}</AccountBalance>
-                    </AccountHeader>
-                    
-                    <AccountAddress>
-                      {formatAddress(account.revAddress)}
-                    </AccountAddress>
-                    
-                    <AccountActions>
-                      {selectedAccount?.id === account.id && (
-                        <span style={{ fontSize: '12px', color: '#7ED321', fontWeight: '600' }}>
-                          SELECTED
-                        </span>
-                      )}
-                      {isUnlocked && (
-                        <span style={{ fontSize: '12px', color: '#4A90E2', fontWeight: '600', marginLeft: '8px' }}>
-                          UNLOCKED
-                        </span>
-                      )}
-                      <Button
-                        id={`export-account-${account.id}`}
-                        variant="ghost"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleExportKeyfile(account.id);
-                        }}
-                      >
-                        Export
-                      </Button>
-                      <Button
-                        id={`remove-account-${account.id}`}
-                        variant="danger"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveAccount(account.id);
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </AccountActions>
-                  </AccountCard>
-                );
-              })}
-            </AccountsGrid>
-          )}
-        </CardContent>
-      </Card>
     </AccountsContainer>
   );
 };

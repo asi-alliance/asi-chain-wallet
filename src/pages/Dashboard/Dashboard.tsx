@@ -424,17 +424,17 @@ export const Dashboard: React.FC = () => {
           <strong>WalletConnect Error:</strong> {wcError}
         </ErrorMessage>
       )}
-      <NetworkStatusBar $connected={networkStatus === 'connected'}>
+      <NetworkStatusBar id="dashboard-network-status-bar" $connected={networkStatus === 'connected'}>
         <StatusDot $connected={networkStatus === 'connected'} />
-        <NetworkInfo>
-          <span>{selectedNetwork.name}</span>
+        <NetworkInfo id="dashboard-network-info">
+          <span id="dashboard-network-name-display">{selectedNetwork.name}</span>
           <span>•</span>
-          <span>
+          <span id="dashboard-network-status">
             {networkStatus === 'checking' ? 'Checking...' : 
              networkStatus === 'connected' ? 'Connected' : 'Disconnected'}
           </span>
           <span>•</span>
-          <LastUpdated>Updated {formatRelativeTime(lastRefresh)}</LastUpdated>
+          <LastUpdated id="dashboard-last-updated">Updated {formatRelativeTime(lastRefresh)}</LastUpdated>
         </NetworkInfo>
       </NetworkStatusBar>
       

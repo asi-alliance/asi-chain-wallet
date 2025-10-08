@@ -317,9 +317,56 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
+<<<<<<< HEAD
             const networkToSet = networks.find(
                 (network) => network.id === lastSelectedNetworkId
             );
+=======
+  return (
+    <Container>
+      <Header>
+        <HeaderTop>
+          <LeftSection>
+            <LogoContainer onClick={() => navigate('/')}>
+              <LogoImage 
+                src="/asi-icon.png" 
+                alt="ASI Alliance"
+                $darkMode={darkMode}
+              />
+              <LogoText>ASI Wallet</LogoText>
+            </LogoContainer>
+          </LeftSection>
+          
+          <HeaderActions>
+            <NetworkSelector 
+              id="mobile-header-network-selector"
+              value={selectedNetwork.id} 
+              onChange={handleNetworkChange}
+            >
+              {networks.map((network) => (
+                <option key={network.id} value={network.id}>
+                  {network.name}
+                </option>
+              ))}
+            </NetworkSelector>
+            
+            <IconButton onClick={handleThemeToggle} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+            </IconButton>
+            
+            <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
+              <MenuIcon size={20} />
+            </MenuButton>
+          </HeaderActions>
+        </HeaderTop>
+        
+        {isAuthenticated && accounts.length > 0 && (
+          <HeaderBottom>
+            <AccountSwitcher />
+          </HeaderBottom>
+        )}
+      </Header>
+>>>>>>> 0213a03 ([as-28]: replace acount info and singIn florw)
 
             if (!networkToSet) {
                 return;

@@ -115,7 +115,7 @@ const InfoList = styled.ul`
 
 export const Receive: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedAccount } = useSelector((state: RootState) => state.wallet);
+  const { selectedAccount, selectedNetwork } = useSelector((state: RootState) => state.wallet);
   const [activeTab, setActiveTab] = useState<string>(getAddressLabel());
   const [copyMessage, setCopyMessage] = useState('');
 
@@ -214,7 +214,7 @@ export const Receive: React.FC = () => {
               <li>Only send {getTokenDisplayName()} tokens to the {getAddressLabel()}</li>
               <li>The ETH address is for compatibility - mainly for address derivation</li>
               <li>Always double-check the address before sending</li>
-              <li>Make sure you're on the correct network: {selectedAccount.name}</li>
+              <li>Make sure you're on the correct network: <span id="receive-network-name">{selectedNetwork.name}</span></li>
             </InfoList>
           </InfoBox>
 

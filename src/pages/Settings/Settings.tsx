@@ -148,12 +148,12 @@ export const Settings: React.FC = () => {
       <h3 style={{ marginTop: '40px', marginBottom: '20px' }}>Predefined Networks</h3>
       
       {networks.filter(n => n.id !== 'custom').map((network) => (
-        <NetworkCard key={network.id}>
+        <NetworkCard key={network.id} id={`settings-network-card-${network.id}`}>
           <CardHeader>
             <CardTitle>
-              {network.name}
+              <span id={`settings-network-name-${network.id}`}>{network.name}</span>
               {network.id === selectedNetwork.id && (
-                <span style={{ fontSize: '12px', marginLeft: '8px', color: '#4caf50' }}>
+                <span id={`settings-network-active-${network.id}`} style={{ fontSize: '12px', marginLeft: '8px', color: '#4caf50' }}>
                   (Active)
                 </span>
               )}
