@@ -190,8 +190,8 @@ class TransactionHistoryService {
   }
 
   // Export transactions
-  static exportTransactions(format: 'json' | 'csv' = 'json'): string {
-    const transactions = this.getTransactions();
+  static exportTransactions(format: 'json' | 'csv' = 'json', accountAddress?: string): string {
+    const transactions = accountAddress ? this.getAccountTransactions(accountAddress) : this.getTransactions();
     
     if (format === 'json') {
       return JSON.stringify(transactions, null, 2);
@@ -235,8 +235,8 @@ class TransactionHistoryService {
   }
 
   // Download transactions
-  static downloadTransactions(format: 'json' | 'csv' = 'json') {
-    const data = this.exportTransactions(format);
+  static downloadTransactions(format: 'json' | 'csv' = 'json', accountAddress?: string) {
+    const data = this.exportTransactions(format, accountAddress);
     const blob = new Blob([data], { 
       type: format === 'json' ? 'application/json' : 'text/csv' 
     });
