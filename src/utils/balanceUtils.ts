@@ -104,12 +104,16 @@ export const formatBalanceCard = (balance: string | number): string => {
     return `<0.000001 ${getTokenDisplayName()}`;
   }
 
+
   if (num >= 1) {
-    return `${num.toFixed(4)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 10000) / 10000;
+    return `${truncated.toFixed(4)} ${getTokenDisplayName()}`;
   } else if (num >= 0.001) {
-    return `${num.toFixed(6)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 1000000) / 1000000;
+    return `${truncated.toFixed(6)} ${getTokenDisplayName()}`;
   } else {
-    return `${num.toFixed(8)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 100000000) / 100000000;
+    return `${truncated.toFixed(8)} ${getTokenDisplayName()}`;
   }
 };
 
@@ -133,14 +137,15 @@ export const formatBalanceDashboard = (balance: string | number): string => {
     return `<0.00000001 ${getTokenDisplayName()}`;
   }
 
-  if (num >= 1000) {
-    return `${num.toFixed(2)} ${getTokenDisplayName()}`;
-  } else if (num >= 1) {
+  // Always truncate (round down) to avoid displaying more than available
+  if (num >= 1) {
     const truncated = Math.floor(num * 100) / 100;
     return `${truncated.toFixed(2)} ${getTokenDisplayName()}`;
   } else if (num >= 0.01) {
-    return `${num.toFixed(6)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 1000000) / 1000000;
+    return `${truncated.toFixed(6)} ${getTokenDisplayName()}`;
   } else {
-    return `${num.toFixed(8)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 100000000) / 100000000;
+    return `${truncated.toFixed(8)} ${getTokenDisplayName()}`;
   }
 };

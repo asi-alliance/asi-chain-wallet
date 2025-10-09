@@ -237,9 +237,22 @@ export const Dashboard: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
-    // Ensure selectedAccount and its revAddress exist before fetching
     if (selectedAccount && selectedAccount.revAddress && selectedNetwork) {
       const oldBalance = selectedAccount.balance || '0';
+      
+      if (selectedNetwork.graphqlUrl) {
+        TransactionHistoryService.syncFromBlockchain(
+          selectedAccount.revAddress,
+          selectedNetwork.name,
+          selectedNetwork.graphqlUrl
+        ).then(result => {
+          if (result.added > 0 || result.updated > 0) {
+            console.log(`[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`);
+          }
+        }).catch(error => {
+          console.error('[Dashboard] Error syncing from blockchain:', error);
+        });
+      }
       
       dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any).then((result: any) => {
         if (result.payload) {
@@ -411,17 +424,17 @@ export const Dashboard: React.FC = () => {
           <strong>WalletConnect Error:</strong> {wcError}
         </ErrorMessage>
       )}
-      <NetworkStatusBar $connected={networkStatus === 'connected'}>
+      <NetworkStatusBar id="dashboard-network-status-bar" $connected={networkStatus === 'connected'}>
         <StatusDot $connected={networkStatus === 'connected'} />
-        <NetworkInfo>
-          <span>{selectedNetwork.name}</span>
+        <NetworkInfo id="dashboard-network-info">
+          <span id="dashboard-network-name-display">{selectedNetwork.name}</span>
           <span>•</span>
-          <span>
+          <span id="dashboard-network-status">
             {networkStatus === 'checking' ? 'Checking...' : 
              networkStatus === 'connected' ? 'Connected' : 'Disconnected'}
           </span>
           <span>•</span>
-          <LastUpdated>Updated {formatRelativeTime(lastRefresh)}</LastUpdated>
+          <LastUpdated id="dashboard-last-updated">Updated {formatRelativeTime(lastRefresh)}</LastUpdated>
         </NetworkInfo>
       </NetworkStatusBar>
       
