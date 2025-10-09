@@ -316,11 +316,11 @@ export const History: React.FC = () => {
   }, [loadTransactions]);
 
   const handleExportJSON = () => {
-    TransactionHistoryService.downloadTransactions('json');
+    TransactionHistoryService.downloadTransactions('json', selectedAccount?.revAddress);
   };
 
   const handleExportCSV = () => {
-    TransactionHistoryService.downloadTransactions('csv');
+    TransactionHistoryService.downloadTransactions('csv', selectedAccount?.revAddress);
   };
 
   const handleClearHistory = () => {
