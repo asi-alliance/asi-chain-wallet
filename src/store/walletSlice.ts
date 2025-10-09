@@ -117,13 +117,12 @@ const loadAccountsFromSecureStorage = (): Account[] => {
   }
 };
 
-// Create initial state with defensive defaults
 const createInitialState = (): WalletState => {
   const networks = initialNetworks;
-  const defaultNetwork = networks.find(n => n.id === 'custom') || networks[0];
+  const defaultNetwork = networks[0] || networks.find(n => n.id === 'custom');
   
   return {
-    accounts: [], // Start with empty accounts, will be loaded later
+    accounts: [],
     selectedAccount: null,
     transactions: [],
     networks: networks,
@@ -141,7 +140,6 @@ export const fetchBalance = createAsyncThunk(
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     const atomicBalance = await rchain.getBalance(account.revAddress);
     
-    // Convert from atomic units to ASI (divide by 100000000)
     const balance = (parseInt(atomicBalance) / 100000000).toString();
     
     return { accountId: account.id, balance };
@@ -337,7 +335,8 @@ const walletSlice = createSlice({
       if (selectedNetwork) {
         state.selectedNetwork = selectedNetwork;
       } else {
-        state.selectedNetwork = loadedNetworks.find(n => n.id === 'custom') || loadedNetworks[0];
+        // Use the first network as default instead of looking for 'custom'
+        state.selectedNetwork = loadedNetworks[0];
       }
     },
     loadAccountsFromStorage: (state) => {

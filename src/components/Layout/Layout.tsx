@@ -241,6 +241,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {isAuthenticated && accounts.length > 0 && (
             <AccountSwitcher />
           )}
+          {isAuthenticated && accounts.length === 0 && (
+            <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+              No accounts yet
+            </div>
+          )}
         </LeftSection>
         <HeaderActions>
           <NetworkSelector 
