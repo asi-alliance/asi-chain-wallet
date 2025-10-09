@@ -7,6 +7,7 @@ import { RootState } from 'store';
 import { sendTransaction, fetchBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
+import addressValidation from 'utils/AddressValidation';
 
 const SendContainer = styled.div`
   max-width: 600px;
@@ -250,6 +251,13 @@ export const Send: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
+  const validateRecipientAddress = (address: string): void => {
+    const {validationMessages} = addressValidation(address);
+    setValidationError(validationMessages?.[0] ?? '')
+    setRecipient(address);
+  }
+
+  // Fetch balance on mount and when selected account changes
   useEffect(() => {
     if (selectedAccount && selectedNetwork) {
       dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
@@ -273,7 +281,7 @@ export const Send: React.FC = () => {
         videoRef.current,
         (result) => {
           console.log('QR Code detected:', result);
-          setRecipient(result.data);
+          validateRecipientAddress(result.data);
           setShowQRScanner(false);
           setScanError('');
         },
@@ -325,7 +333,7 @@ export const Send: React.FC = () => {
               });
               
               if (result.data) {
-                setRecipient(result.data);
+                validateRecipientAddress(result.data);
                 return;
               }
             } catch (error) {
@@ -360,7 +368,7 @@ export const Send: React.FC = () => {
             });
             
             if (result.data) {
-              setRecipient(result.data);
+              validateRecipientAddress(result.data);
             }
           } catch (error) {
             console.error('Failed to scan QR code from pasted image:', error);
@@ -569,7 +577,7 @@ export const Send: React.FC = () => {
                   id="send-recipient-input"
                   type="text"
                   value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
+                  onChange={(e) => validateRecipientAddress(e.target.value)}
                   onPaste={handleInputPaste}
                   placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
                   style={{
@@ -658,7 +666,7 @@ export const Send: React.FC = () => {
               id="send-transaction-button"
               onClick={handleSendClick}
               loading={isLoading}
-              disabled={!recipient || !amount || (needsPassword && !password)}
+              disabled={!recipient || !amount || (needsPassword && !password) || !!validationError}
             >
               Send Transaction
             </Button>
