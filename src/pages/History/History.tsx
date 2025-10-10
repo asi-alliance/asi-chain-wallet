@@ -8,6 +8,7 @@ import TransactionHistoryService, { Transaction, TransactionFilter } from 'servi
 import { RChainService } from 'services/rchain';
 import TransactionPollingService from 'services/transactionPolling';
 import { getTokenDisplayName } from '../../constants/token';
+import { utils } from 'ethers';
 
 const HistoryContainer = styled.div`
   max-width: 1200px;
@@ -185,10 +186,9 @@ const formatAddress = (address: string): string => {
 const formatAmount = (amount?: string): string => {
   if (!amount) return '-';
   try {
-    // Use BigInt for large numbers
-    const atomicAmount = BigInt(amount);
-    const tokenAmount = Number(atomicAmount) / 100000000;
-    return `${tokenAmount.toFixed(8)} ${getTokenDisplayName()}`;
+    // Use utils.parseEther for large numbers that can be not integer
+    const atomicAmount = utils.parseEther(amount);
+    return `${Number(utils.formatEther(atomicAmount)).toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
     console.error('Error formatting amount:', amount, error);
     return `${amount} (raw)`;
@@ -256,24 +256,25 @@ export const History: React.FC = () => {
     }
   }, [selectedNetwork]);
 
-  const loadTransactions = useCallback(() => {
-    let txs: Transaction[];
+  const loadTransactions = useCallback(async () => {
+    let txs: Transaction[] = [];
     
     // Get transactions for the selected account only
     if (selectedAccount) {
-      txs = TransactionHistoryService.getAccountTransactions(selectedAccount.revAddress);
+      const rchain = new RChainService('', '', '', 'root', selectedNetwork.graphqlUrl);
+      if(selectedAccount?.revAddress) {   
+        const res = await rchain.fetchTransactionHistory(selectedAccount?.revAddress, selectedAccount?.publicKey);
+        txs = res;
       
-      // Apply additional filters
-      if (filter.type) {
-        txs = txs.filter(tx => tx.type === filter.type);
-      }
-      if (filter.status) {
-        txs = txs.filter(tx => tx.status === filter.status);
-      }
-    } else {
-      // No account selected, show empty
-      txs = [];
+        // Apply additional filters
+        if (filter.type) {
+          txs = txs.filter(tx => tx.type === filter.type);
+        }
+        if (filter.status) {
+          txs = txs.filter(tx => tx.status === filter.status);
+        }
     }
+  }
 
     // Filter by network if selected
     if (selectedNetwork) {
@@ -295,6 +296,7 @@ export const History: React.FC = () => {
     if (selectedAccount && selectedNetwork && selectedNetwork.graphqlUrl) {
       TransactionHistoryService.syncFromBlockchain(
         selectedAccount.revAddress,
+        selectedAccount.publicKey,
         selectedNetwork.name,
         selectedNetwork.graphqlUrl
       ).then(result => {
@@ -373,6 +375,7 @@ export const History: React.FC = () => {
                     try {
                       const result = await TransactionHistoryService.syncFromBlockchain(
                         selectedAccount.revAddress,
+                        selectedAccount.publicKey,
                         selectedNetwork.name,
                         selectedNetwork.graphqlUrl
                       );

@@ -1,4 +1,5 @@
 // Transaction History Service - Browser-based transaction tracking
+import { utils } from 'ethers';
 
 export interface Transaction {
   id: string;
@@ -176,7 +177,9 @@ class TransactionHistoryService {
         if (tx.type === 'send') {
           stats.totalSent = (BigInt(stats.totalSent) + BigInt(tx.amount)).toString();
         } else if (tx.type === 'receive') {
-          stats.totalReceived = (BigInt(stats.totalReceived) + BigInt(tx.amount)).toString();
+          const txAmount = utils.parseEther(tx.amount);
+          const totalAmount = utils.parseEther(stats.totalReceived);
+          stats.totalReceived = (txAmount.add(totalAmount)).toString();
         }
       }
 
@@ -335,6 +338,7 @@ class TransactionHistoryService {
 
   static async syncFromBlockchain(
     address: string,
+    publicKey: string,
     network: string,
     graphqlUrl: string
   ): Promise<{ added: number; updated: number }> {
@@ -342,7 +346,7 @@ class TransactionHistoryService {
       const { RChainService } = await import('./rchain');
       
       const rchain = new RChainService('', '', '', 'root', graphqlUrl);
-      const blockchainTxs = await rchain.fetchTransactionHistory(address, 100);
+      const blockchainTxs = await rchain.fetchTransactionHistory(address, publicKey, 100);
       
       console.log(`[History Sync] Found ${blockchainTxs.length} transactions from blockchain`);
       

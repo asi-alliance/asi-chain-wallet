@@ -243,6 +243,7 @@ export const Dashboard: React.FC = () => {
       if (selectedNetwork.graphqlUrl) {
         TransactionHistoryService.syncFromBlockchain(
           selectedAccount.revAddress,
+          selectedAccount.publicKey,
           selectedNetwork.name,
           selectedNetwork.graphqlUrl
         ).then(result => {
