@@ -171,6 +171,7 @@ export const Accounts: React.FC = () => {
   const [newAccountNameError, setNewAccountNameError] = useState('');
   const [importNameError, setImportNameError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const infoMessage = !accounts?.length ? "Create or import your account to access the wallet functionality" : null;
 
   useEffect(() => {
     if (unlockedAccounts.length > 0) {
@@ -401,6 +402,13 @@ export const Accounts: React.FC = () => {
         <SuccessMessage>
           <span className="icon">✅</span>
           <span>{successMessage}</span>
+        </SuccessMessage>
+      )}
+
+      {infoMessage && (
+        <SuccessMessage>
+          <span className="icon">ℹ️</span>
+          <span>{infoMessage}</span>
         </SuccessMessage>
       )}
 
