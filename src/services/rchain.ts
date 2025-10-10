@@ -454,17 +454,17 @@ export class RChainService {
   }
 
   // Fetch transaction history from GraphQL indexer
-  async fetchTransactionHistory(address: string, limit: number = 50): Promise<any[]> {
+  async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
     const graphqlEndpoint = this.graphqlUrl;
     
     try {
       const graphqlQuery = {
         query: `
-          query GetTransactionHistory($address: String!, $limit: Int!) {
+          query GetTransactionHistory($address: String!, $publicKey: String!, $limit: Int!) {
             transfers(
               where: {
                 _or: [
-                  {from_address: {_eq: $address}},
+                  {from_address: {_eq: $publicKey}},
                   {to_address: {_eq: $address}}
                 ]
               },
@@ -479,20 +479,12 @@ export class RChainService {
               amount_rev
               status
               created_at
-              deployments {
-                deploy_id
-                timestamp
-                status
-                block {
-                  block_hash
-                  timestamp
-                }
-              }
             }
           }
         `,
         variables: {
           address: address,
+          publicKey: publicKey,
           limit: limit
         }
       };
@@ -512,7 +504,8 @@ export class RChainService {
           amount: tx.amount_rev,
           status: tx.status === 'success' ? 'confirmed' : tx.status,
           timestamp: tx.deployments?.timestamp || tx.created_at,
-          blockHash: tx.deployments?.block?.block_hash
+          blockHash: tx.deployments?.block?.block_hash,
+          type: tx.to_address === address ? 'receive' : 'send'
         }));
       }
       

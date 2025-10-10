@@ -41,6 +41,8 @@ class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      console.log('this.state.hasError: ', this.state.error);
+      
       return (
         <div style={{ 
           padding: '20px', 
