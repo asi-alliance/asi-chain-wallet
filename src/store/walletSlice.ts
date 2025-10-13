@@ -59,6 +59,38 @@ const getNodeUrl = (node: typeof DEVNET_NODES.bootstrap, port: number = 40403) =
   return `${API_GATEWAY_URL}/${node.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
+const getValidatorUrl = (port: number = 40403) => {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+    const stableNode = INTERNAL_DEV_NODES.stable;
+    const endpointId = Math.floor((port % 100) / 10); 
+    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  }
+  
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
+    return `http://54.152.57.201:${port}`;
+  }
+  
+  const validatorNode = DEVNET_NODES.validator1;
+  const endpointId = Math.floor((port % 100) / 10);
+  return `${API_GATEWAY_URL}/${validatorNode.hash}/endpoint_${endpointId}/HTTP_API`;
+};
+
+const getObserverUrl = (port: number = 40453) => {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+    const stableNode = INTERNAL_DEV_NODES.stable;
+    const endpointId = Math.floor((port % 100) / 10); 
+    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/READONLY_API`;
+  }
+  
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
+    return `http://54.235.138.68:${port}`;
+  }
+  
+  const observerNode = DEVNET_NODES.observer;
+  const endpointId = Math.floor((port % 100) / 10);
+  return `${API_GATEWAY_URL}/${observerNode.hash}/endpoint_${endpointId}/READONLY_API`;
+};
+
 const getGraphqlUrl = () => {
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
     return 'http://localhost:8080/v1/graphql';
@@ -71,24 +103,24 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Testnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
