@@ -79,7 +79,7 @@ const getObserverUrl = (port: number = 40453) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/READONLY_API`;
+    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
@@ -88,7 +88,7 @@ const getObserverUrl = (port: number = 40453) => {
   
   const observerNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${observerNode.hash}/endpoint_${endpointId}/READONLY_API`;
+  return `${API_GATEWAY_URL}/${observerNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
 const getGraphqlUrl = () => {
