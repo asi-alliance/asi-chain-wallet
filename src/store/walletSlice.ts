@@ -48,9 +48,9 @@ const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/
 
 const getValidatorUrl = (port: number = 40413) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
-    const validatorNode = INTERNAL_DEV_NODES.experimental;
+    const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${validatorNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
