@@ -4,28 +4,36 @@ import { SecureStorage } from 'services/secureStorage';
 import TransactionHistoryService from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
 
+const DEVNET_NODES = {
+  bootstrap: '54.152.57.201',
+  validator1: '34.196.119.4',
+  validator2: '54.84.69.169',
+  validator3: '52.45.73.187',
+  observer: '54.235.138.68',
+};
+
 const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: 'http://54.175.6.183:40413',
-    readOnlyUrl: 'http://54.175.6.183:40453',
-    graphqlUrl: 'http://54.209.17.179:8080/v1/graphql',
+    url: process.env.REACT_APP_CUSTOMNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
+    graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || 'http://54.175.6.183:40413',
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || 'http://54.175.6.183:40453',
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Testnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || 'http://54.175.6.183:40413',
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || 'http://54.175.6.183:40453',
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
@@ -40,12 +48,9 @@ const defaultNetworks: Network[] = [
   },
 ];
 
-// Storage key for networks
 const NETWORKS_STORAGE_KEY = 'asi_wallet_networks';
 
-// Load networks from localStorage or use defaults
 const loadNetworks = (): Network[] => {
-  // Check if we're in a browser environment
   if (typeof window === 'undefined' || !window.localStorage) {
     return defaultNetworks;
   }
@@ -54,13 +59,10 @@ const loadNetworks = (): Network[] => {
     const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
     if (stored) {
       const networks = JSON.parse(stored) as Network[];
-      // Merge with defaults to ensure all default networks exist
       const networkMap = new Map<string, Network>();
       
-      // Add stored networks first (to preserve user modifications)
       networks.forEach(n => networkMap.set(n.id, n));
       
-      // Add default networks only if not already present
       defaultNetworks.forEach(n => {
         if (!networkMap.has(n.id)) {
           networkMap.set(n.id, n);
@@ -75,7 +77,6 @@ const loadNetworks = (): Network[] => {
   return defaultNetworks;
 };
 
-// Save networks to localStorage
 const saveNetworks = (networks: Network[]) => {
   // Check if we're in a browser environment
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -117,13 +118,12 @@ const loadAccountsFromSecureStorage = (): Account[] => {
   }
 };
 
-// Create initial state with defensive defaults
 const createInitialState = (): WalletState => {
   const networks = initialNetworks;
-  const defaultNetwork = networks.find(n => n.id === 'custom') || networks[0];
+  const defaultNetwork = networks[0] || networks.find(n => n.id === 'custom');
   
   return {
-    accounts: [], // Start with empty accounts, will be loaded later
+    accounts: [],
     selectedAccount: null,
     transactions: [],
     networks: networks,
@@ -141,7 +141,6 @@ export const fetchBalance = createAsyncThunk(
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     const atomicBalance = await rchain.getBalance(account.revAddress);
     
-    // Convert from atomic units to ASI (divide by 100000000)
     const balance = (parseInt(atomicBalance) / 100000000).toString();
     
     return { accountId: account.id, balance };
@@ -337,7 +336,8 @@ const walletSlice = createSlice({
       if (selectedNetwork) {
         state.selectedNetwork = selectedNetwork;
       } else {
-        state.selectedNetwork = loadedNetworks.find(n => n.id === 'custom') || loadedNetworks[0];
+        // Use the first network as default instead of looking for 'custom'
+        state.selectedNetwork = loadedNetworks[0];
       }
     },
     loadAccountsFromStorage: (state) => {
