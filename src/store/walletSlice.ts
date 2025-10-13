@@ -5,36 +5,91 @@ import TransactionHistoryService from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
 
 const DEVNET_NODES = {
-  bootstrap: '54.152.57.201',
-  validator1: '34.196.119.4',
-  validator2: '54.84.69.169',
-  validator3: '52.45.73.187',
-  observer: '54.235.138.68',
+  bootstrap: {
+    ip: '54.152.57.201',
+    hash: 'abc96ca0a78fbdd2b5e87eaa691bb05f'
+  },
+  validator1: {
+    ip: '34.196.119.4',
+    hash: 'bb93eaa595aaddf6912e372debc73eef'
+  },
+  validator2: {
+    ip: '54.84.69.169',
+    hash: '039206b26069004fc3736f3b2fb88a95'
+  },
+  validator3: {
+    ip: '52.45.73.187',
+    hash: 'b7dc4a862a2509f19c7dfbd22b6d6f40'
+  },
+  observer: {
+    ip: '54.235.138.68',
+    hash: '91e17db5a9020441d38bf4dd3d24df2b'
+  }
+};
+
+const INTERNAL_DEV_NODES = {
+  experimental: {
+    ip: '44.198.8.24',
+    hash: '69bca1a3d19689cc22cd78f3e2abd47e'
+  },
+  stable: {
+    ip: '54.175.6.183',
+    hash: '9a58a8ea5d22e5d33dd36435e9d4b575'
+  },
+  indexer: {
+    ip: '184.73.0.34',
+    hash: '58d77d02c7298819a8ce23959a81af06'
+  }
+};
+
+const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
+
+const getNodeUrl = (node: typeof DEVNET_NODES.bootstrap, port: number = 40403) => {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+    const stableNode = INTERNAL_DEV_NODES.stable;
+    const endpointId = Math.floor((port % 100) / 10); 
+    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  }
+  
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
+    return `http://${node.ip}:${port}`;
+  }
+  
+  const endpointId = Math.floor((port % 100) / 10);
+  return `${API_GATEWAY_URL}/${node.hash}/endpoint_${endpointId}/HTTP_API`;
+};
+
+const getGraphqlUrl = () => {
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
+    return 'http://localhost:8080/v1/graphql';
+  }
+  
+  return 'https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql';
 };
 
 const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
-    graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
+    url: process.env.REACT_APP_CUSTOMNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
-    graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Testnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || `http://${DEVNET_NODES.bootstrap}:40413`,
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || `http://${DEVNET_NODES.bootstrap}:40453`,
-    graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || 'http://54.209.17.179:8080/v1/graphql',
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getNodeUrl(DEVNET_NODES.bootstrap),
+    graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
   {
