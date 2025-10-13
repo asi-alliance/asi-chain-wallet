@@ -2,14 +2,12 @@ import { ethers } from 'ethers';
 import { 
   MultisigWalletConfig, 
   MultisigTransaction, 
-  MultisigProposal, 
   CreateMultisigWalletRequest,
   DeployMultisigRequest,
   MultisigParticipant,
   MultisigSignature,
   MultisigBalance,
   MultisigActivity,
-  MultisigApiResponse
 } from '../types/multisig';
 import { SecureStorage } from './secureStorage';
 

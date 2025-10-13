@@ -44,26 +44,13 @@ const INTERNAL_DEV_NODES = {
 
 const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 
-const getNodeUrl = (node: typeof DEVNET_NODES.bootstrap, port: number = 40403) => {
-  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
-    const stableNode = INTERNAL_DEV_NODES.stable;
-    const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
-  }
-  
-  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://${node.ip}:${port}`;
-  }
-  
-  const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${node.hash}/endpoint_${endpointId}/HTTP_API`;
-};
 
-const getValidatorUrl = (port: number = 40403) => {
+
+const getValidatorUrl = (port: number = 40413) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
-    const stableNode = INTERNAL_DEV_NODES.stable;
+    const validatorNode = INTERNAL_DEV_NODES.experimental;
     const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    return `${API_GATEWAY_URL}/${validatorNode.hash}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
@@ -103,7 +90,7 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40403),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40413),
     readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
@@ -111,7 +98,7 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40403),
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40413),
     readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
@@ -119,7 +106,7 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Testnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40403),
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
     readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
