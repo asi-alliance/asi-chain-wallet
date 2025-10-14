@@ -211,10 +211,28 @@ export const Send: React.FC = () => {
   const [password, setPassword] = useState('');
   const [txHash, setTxHash] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [addressError, setAddressError] = useState('');
   const [isWaitingForBalance, setIsWaitingForBalance] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanError, setScanError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  const handleRecipientChange = (value: string) => {
+    setRecipient(value);
+    
+    if (!value.trim()) {
+      setAddressError('');
+      return;
+    }
+    
+    // Validate address in real time
+    const validation = addressValidation(value);
+    if (!validation.isValid) {
+      setAddressError(validation.validationMessages.join(', '));
+    } else {
+      setAddressError('');
+    }
+  };
 
   const handleAmountChange = (value: string) => {
     setAmount(value);
@@ -254,9 +272,19 @@ export const Send: React.FC = () => {
   const qrScannerRef = useRef<QrScanner | null>(null);
 
   const validateRecipientAddress = (address: string): void => {
-    const {validationMessages} = addressValidation(address);
-    setValidationError(validationMessages?.[0] ?? '')
     setRecipient(address);
+    
+    if (!address.trim()) {
+      setAddressError('');
+      return;
+    }
+    
+    const validation = addressValidation(address);
+    if (!validation.isValid) {
+      setAddressError(validation.validationMessages.join(', '));
+    } else {
+      setAddressError('');
+    }
   }
 
   // Fetch balance on mount and when selected account changes
@@ -397,6 +425,13 @@ export const Send: React.FC = () => {
   const validateForm = () => {
     if (!recipient.trim()) {
       setValidationError('Recipient address is required');
+      return false;
+    }
+    
+    // Validate address format
+    const addressValidationResult = addressValidation(recipient);
+    if (!addressValidationResult.isValid) {
+      setValidationError(`Invalid recipient address: ${addressValidationResult.validationMessages.join(', ')}`);
       return false;
     }
     
@@ -633,7 +668,7 @@ export const Send: React.FC = () => {
                     height: '48px',
                     padding: '0 16px',
                     fontSize: '16px',
-                    border: `2px solid ${validationError && !recipient ? '#ff4d4f' : '#e0e0e0'}`,
+                    border: `2px solid ${addressError ? '#ff4d4f' : '#e0e0e0'}`,
                     borderRadius: '8px',
                     background: 'transparent',
                     color: 'inherit',
@@ -660,6 +695,11 @@ export const Send: React.FC = () => {
                 </ScanButton>
               </ButtonGroup>
             </InputWithButton>
+            {addressError && (
+              <div style={{ marginTop: '8px', color: '#ff4d4f', fontSize: '14px' }}>
+                {addressError}
+              </div>
+            )}
             {scanError && (
               <div style={{ marginTop: '8px', color: '#ff4d4f', fontSize: '14px' }}>
                 {scanError}
@@ -714,7 +754,7 @@ export const Send: React.FC = () => {
               id="send-transaction-button"
               onClick={handleSendClick}
               loading={isLoading}
-              disabled={!recipient || !amount || (needsPassword && !password) || !!validationError}
+              disabled={!recipient || !amount || (needsPassword && !password) || !!validationError || !!addressError}
             >
               Send Transaction
             </Button>

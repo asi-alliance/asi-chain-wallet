@@ -2,7 +2,7 @@ import { utils } from 'ethers';
 
 const RCHAIN_ADDRESS_START_STRING: string = "1111";
 const ETH_ADDRESS_START_STRING: string = "0x";
-const ADDRESS_MINIMUM_LENGTH: number = 54;
+const ADDRESS_MINIMUM_LENGTH: number = 53;
 const ADDRESS_MAXIMUM_LENGTH: number = 56;
 
 export interface IInputWithValidation {
