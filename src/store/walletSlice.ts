@@ -287,7 +287,9 @@ export const sendTransaction = createAsyncThunk(
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     
     // Convert amount to atomic units (ASI has 8 decimal places)
-    const atomicAmount = Math.floor(parseFloat(amount) * 100000000).toString();
+    // Use more precise calculation to avoid floating point errors
+    const amountNum = parseFloat(amount);
+    const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();
     
     const deployId = await rchain.transfer(from.revAddress, to, atomicAmount, privateKey);
     

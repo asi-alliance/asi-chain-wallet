@@ -239,8 +239,10 @@ export const Send: React.FC = () => {
     const totalRequired = amountValue + ESTIMATED_GAS_FEE;
     if (totalRequired > balance) {
       const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
+      // Round down to avoid floating point precision issues
+      const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
       setValidationError(
-        `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxSendable.toFixed(8)} ${getTokenDisplayName()}`
+        `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxRounded.toFixed(8)} ${getTokenDisplayName()}`
       );
       return;
     }
@@ -552,7 +554,9 @@ export const Send: React.FC = () => {
       setValidationError('Insufficient balance to cover gas fees');
       setAmount('0');
     } else {
-      setAmount(max.toFixed(8));
+      // Round down to avoid floating point precision issues
+      const maxRounded = Math.floor(max * 100000000) / 100000000;
+      setAmount(maxRounded.toFixed(8));
       setValidationError('');
     }
   };
