@@ -137,10 +137,9 @@ export const formatBalanceDashboard = (balance: string | number): string => {
     return `<0.00000001 ${getTokenDisplayName()}`;
   }
 
-  // Always truncate (round down) to avoid displaying more than available
   if (num >= 1) {
-    const truncated = Math.floor(num * 100) / 100;
-    return `${truncated.toFixed(2)} ${getTokenDisplayName()}`;
+    const truncated = Math.floor(num * 10000) / 10000;
+    return `${truncated.toFixed(4)} ${getTokenDisplayName()}`;
   } else if (num >= 0.01) {
     const truncated = Math.floor(num * 1000000) / 1000000;
     return `${truncated.toFixed(6)} ${getTokenDisplayName()}`;
