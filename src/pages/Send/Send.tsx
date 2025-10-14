@@ -194,7 +194,7 @@ const ButtonGroup = styled.div`
   margin-bottom: 0;
 `;
 
-const ESTIMATED_GAS_FEE = 0.01;
+const ESTIMATED_GAS_FEE = 0.001;
 
 export const Send: React.FC = () => {
   const dispatch = useDispatch();
