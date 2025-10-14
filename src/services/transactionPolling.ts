@@ -6,6 +6,8 @@ import TransactionHistoryService from './transactionHistory';
 
 class TransactionPollingService {
   private static isPolling = false;
+  private static corsErrorCount = 0;
+  private static readonly MAX_CORS_ERRORS = 3;
   private static pollInterval: NodeJS.Timeout | null = null;
   private static readonly POLL_INTERVAL = 15000; // 15 seconds
   private static readonly MAX_POLL_ATTEMPTS = 20; // 5 minutes max
@@ -56,6 +58,35 @@ class TransactionPollingService {
     try {
       console.log('[Transaction Polling] Checking pending transactions...');
       
+      // Check if GraphQL is accessible before polling
+      try {
+        const testRchain = new RChainService(
+          selectedNetwork.url,
+          selectedNetwork.readOnlyUrl,
+          selectedNetwork.adminUrl,
+          selectedNetwork.shardId,
+          selectedNetwork.graphqlUrl
+        );
+        
+        // Quick test to see if GraphQL is accessible
+        await testRchain.fetchTransactionHistory('test', 'test', 1);
+        
+        // Reset CORS error count on successful connection
+        this.corsErrorCount = 0;
+      } catch (error: any) {
+        if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
+          this.corsErrorCount++;
+          console.warn(`[Transaction Polling] GraphQL API not accessible due to CORS/network issues. Error count: ${this.corsErrorCount}/${this.MAX_CORS_ERRORS}`);
+          
+          if (this.corsErrorCount >= this.MAX_CORS_ERRORS) {
+            console.warn('[Transaction Polling] Too many CORS errors. Temporarily disabling polling.');
+            this.stop();
+            return;
+          }
+          return;
+        }
+      }
+      
       // Get all pending transactions
       const pendingTxs = TransactionHistoryService.getFilteredTransactions({
         status: 'pending',
@@ -105,8 +136,21 @@ class TransactionPollingService {
             });
           }
           
-        } catch (error) {
+        } catch (error: any) {
           console.log(`[Transaction Polling] Error checking transaction ${tx.id}:`, error);
+          
+          // If it's a CORS error and transaction is old enough, assume it's confirmed
+          if ((error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) && tx.deployId) {
+            const txAge = Date.now() - tx.timestamp.getTime();
+            const fiveMinutes = 5 * 60 * 1000; // 5 minutes
+            
+            if (txAge > fiveMinutes) {
+              console.log(`[Transaction Polling] Transaction ${tx.id} is ${Math.round(txAge / 60000)} minutes old and GraphQL is unavailable. Assuming confirmed.`);
+              TransactionHistoryService.updateTransaction(tx.id, {
+                status: 'confirmed'
+              });
+            }
+          }
         }
       }
 

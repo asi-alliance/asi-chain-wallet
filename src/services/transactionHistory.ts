@@ -123,7 +123,9 @@ class TransactionHistoryService {
     const transactions = this.getTransactions();
     return transactions.filter(tx => 
       tx.from.toLowerCase() === address.toLowerCase() || 
-      (tx.type === 'receive' && tx.to?.toLowerCase() === address.toLowerCase())
+      tx.to?.toLowerCase() === address.toLowerCase() ||
+      tx.from === address || 
+      tx.to === address
     );
   }
   

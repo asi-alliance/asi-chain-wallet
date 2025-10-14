@@ -186,12 +186,14 @@ const formatAddress = (address: string): string => {
 const formatAmount = (amount?: string): string => {
   if (!amount) return '-';
   try {
-    // Use utils.parseEther for large numbers that can be not integer
-    const atomicAmount = utils.parseEther(amount);
-    return `${Number(utils.formatEther(atomicAmount)).toFixed(8)} ${getTokenDisplayName()}`;
+    const atomicAmount = parseFloat(amount);
+    if (isNaN(atomicAmount)) return `${amount} ${getTokenDisplayName()}`;
+    
+    const asiAmount = atomicAmount / 100000000;
+    return `${asiAmount.toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
     console.error('Error formatting amount:', amount, error);
-    return `${amount} (raw)`;
+    return `${amount} ${getTokenDisplayName()}`;
   }
 };
 
@@ -310,10 +312,16 @@ export const History: React.FC = () => {
 
     setTransactions(txs);
 
-    // Update statistics for the selected account only
-    const statistics = TransactionHistoryService.getStatistics(
-      selectedAccount?.revAddress
-    );
+    // Calculate statistics based on the filtered transactions
+    const statistics = {
+      total: txs.length,
+      sent: txs.filter(tx => tx.type === 'send').length,
+      received: txs.filter(tx => tx.type === 'receive').length,
+      deployed: txs.filter(tx => tx.type === 'deploy').length,
+      pending: txs.filter(tx => tx.status === 'pending').length,
+      confirmed: txs.filter(tx => tx.status === 'confirmed').length,
+      failed: txs.filter(tx => tx.status === 'failed').length
+    };
     setStats(statistics);
   }, [selectedAccount, selectedNetwork, filter]);
 
