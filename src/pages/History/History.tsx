@@ -451,6 +451,25 @@ export const History: React.FC = () => {
               >
                 🔄 Refresh & Sync
               </Button>
+              {selectedAccount && (
+                <Button
+                  id="history-refresh-balance-button"
+                  size="small"
+                  variant="secondary"
+                  onClick={async () => {
+                    if (selectedAccount && selectedNetwork) {
+                      try {
+                        console.log('[History] Force refreshing balance...');
+                        await dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork, forceRefresh: true }) as any);
+                      } catch (error) {
+                        console.error('[History] Error refreshing balance:', error);
+                      }
+                    }
+                  }}
+                >
+                  💰 Refresh Balance
+                </Button>
+              )}
             </RefreshInfo>
             <div style={{ display: 'flex', gap: '8px' }}>
               <Button id="history-export-json-button" size="small" variant="ghost" onClick={handleExportJSON}>

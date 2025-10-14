@@ -133,14 +133,12 @@ export class RChainService {
     return readOnlyMethods.includes(apiMethod);
   }
 
-  // Get balance using real Rholang code (from F1R3FLY wallet)
-  async getBalance(revAddress: string): Promise<string> {
-    // Check global cache first
+  async getBalance(revAddress: string, forceRefresh: boolean = false): Promise<string> {
     const cacheKey = `${revAddress}_${this.readOnlyUrl}`;
     const cached = globalBalanceCache.get(cacheKey);
     const now = Date.now();
     
-    if (cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
+    if (!forceRefresh && cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
       console.log(`[Balance Cache] Using cached balance for ${revAddress}: ${cached.balance} ${getTokenDisplayName()}`);
       return cached.balance;
     }

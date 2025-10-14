@@ -240,9 +240,9 @@ const initialState: WalletState = createInitialState();
 
 export const fetchBalance = createAsyncThunk(
   'wallet/fetchBalance',
-  async ({ account, network }: { account: Account; network: Network }) => {
+  async ({ account, network, forceRefresh = false }: { account: Account; network: Network; forceRefresh?: boolean }) => {
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
-    const atomicBalance = await rchain.getBalance(account.revAddress);
+    const atomicBalance = await rchain.getBalance(account.revAddress, forceRefresh);
     
     const balance = (parseInt(atomicBalance) / 100000000).toString();
     

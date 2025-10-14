@@ -467,9 +467,15 @@ export const Send: React.FC = () => {
         setAmount('');
         setPassword('');
         
-        // Start polling for balance update
+        try {
+          console.log('[Send] Force refreshing balance after successful transaction...');
+          await dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork, forceRefresh: true }) as any);
+        } catch (error) {
+          console.warn('[Send] Failed to refresh balance immediately:', error);
+        }
+        
         let pollCount = 0;
-        const maxPolls = 30; // Poll for up to 60 seconds (30 * 2 seconds)
+        const maxPolls = 30;
         const initialBalance = selectedAccount.balance;
         
         const pollInterval = setInterval(async () => {
@@ -477,7 +483,7 @@ export const Send: React.FC = () => {
           
           try {
             const balanceResult = await dispatch(
-              fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any
+              fetchBalance({ account: selectedAccount, network: selectedNetwork, forceRefresh: true }) as any
             );
             
             if (fetchBalance.fulfilled.match(balanceResult)) {
