@@ -260,21 +260,48 @@ export const History: React.FC = () => {
     let txs: Transaction[] = [];
     
     // Get transactions for the selected account only
-    if (selectedAccount) {
-      const rchain = new RChainService('', '', '', 'root', selectedNetwork.graphqlUrl);
-      if(selectedAccount?.revAddress) {   
-        const res = await rchain.fetchTransactionHistory(selectedAccount?.revAddress, selectedAccount?.publicKey);
-        txs = res;
+    if (selectedAccount && selectedNetwork) {
+      try {
+        const rchain = new RChainService('', '', '', 'root', selectedNetwork.graphqlUrl);
+        if(selectedAccount?.revAddress) {   
+          const res = await rchain.fetchTransactionHistory(selectedAccount?.revAddress, selectedAccount?.publicKey);
+          txs = res;
+          
+          if (txs.length === 0) {
+            console.log('[History] No transactions from GraphQL, checking local storage...');
+            const localTxs = TransactionHistoryService.getFilteredTransactions({
+              type: filter.type,
+              status: filter.status
+            }).filter(tx => 
+              tx.from === selectedAccount.revAddress || 
+              tx.to === selectedAccount.revAddress ||
+              tx.from === selectedAccount.publicKey
+            );
+            txs = localTxs;
+          }
+        }
+      } catch (error) {
+        console.error('[History] Error loading transactions from GraphQL:', error);
+        const localTxs = TransactionHistoryService.getFilteredTransactions({
+          type: filter.type,
+          status: filter.status
+        }).filter(tx => 
+          selectedAccount && (
+            tx.from === selectedAccount.revAddress || 
+            tx.to === selectedAccount.revAddress ||
+            tx.from === selectedAccount.publicKey
+          )
+        );
+        txs = localTxs;
+      }
       
-        // Apply additional filters
-        if (filter.type) {
-          txs = txs.filter(tx => tx.type === filter.type);
-        }
-        if (filter.status) {
-          txs = txs.filter(tx => tx.status === filter.status);
-        }
+      if (filter.type) {
+        txs = txs.filter(tx => tx.type === filter.type);
+      }
+      if (filter.status) {
+        txs = txs.filter(tx => tx.status === filter.status);
+      }
     }
-  }
 
     // Filter by network if selected
     if (selectedNetwork) {

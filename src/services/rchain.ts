@@ -509,16 +509,27 @@ export class RChainService {
         }
       };
       
-      const response = await axios.post(graphqlEndpoint, graphqlQuery, {
-        headers: {
-          'Content-Type': 'application/json'
+      let response;
+      try {
+        response = await axios.post(graphqlEndpoint, graphqlQuery, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error: any) {
+        console.error('[GraphQL] Request failed:', error.message);
+        
+        if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
+          console.warn('[GraphQL] CORS or network error detected. Transaction history will be empty until API is configured properly.');
+          return [];
         }
-      });
+        
+        throw error;
+      }
       
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
       
-      // Process transfers
       const transferTxs = transfers.map((tx: any) => {
         const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
         const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();

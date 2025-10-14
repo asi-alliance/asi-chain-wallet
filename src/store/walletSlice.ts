@@ -44,6 +44,17 @@ const INTERNAL_DEV_NODES = {
 
 const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 
+const PRODUCTION_API_GATEWAY_URL = 'https://production-api-gateway.execute-api.us-east-1.amazonaws.com/prod';
+const PRODUCTION_GRAPHQL_URL = 'https://production-graphql-endpoint.execute-api.us-east-1.amazonaws.com/v1/graphql';
+const PRODUCTION_VALIDATOR_HASH = 'production-validator-hash';
+const PRODUCTION_OBSERVER_HASH = 'production-observer-hash';
+
+const PRODUCTION_DOMAINS = [
+  'wallet.asi-chain.com',
+  'wallet.singularitynet.io', 
+  'asi-wallet.singularitynet.io'
+];
+
 
 
 const getValidatorUrl = (port: number = 40413) => {
@@ -51,6 +62,11 @@ const getValidatorUrl = (port: number = 40413) => {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  }
+  
+  if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
+    const endpointId = Math.floor((port % 100) / 10);
+    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_VALIDATOR_HASH}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
@@ -69,6 +85,11 @@ const getObserverUrl = (port: number = 40453) => {
     return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
   }
   
+  if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
+    const endpointId = Math.floor((port % 100) / 10);
+    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+  }
+  
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
     return `http://54.235.138.68:${port}`;
   }
@@ -81,6 +102,14 @@ const getObserverUrl = (port: number = 40453) => {
 const getGraphqlUrl = () => {
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
     return 'http://localhost:8080/v1/graphql';
+  }
+  
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+    return 'https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql';
+  }
+  
+  if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
+    return PRODUCTION_GRAPHQL_URL;
   }
   
   return 'https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql';
