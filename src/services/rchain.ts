@@ -387,7 +387,6 @@ export class RChainService {
           console.log(`[GraphQL] ✅ Deploy ${deployId} found in block ${deploy.block_number} after ${i + 1} attempts`);
           console.log(`[GraphQL] Deploy details:`, deploy);
           
-          // Check for deploy execution errors
           if (deploy.errored) {
             return {
               status: 'errored',
@@ -398,7 +397,6 @@ export class RChainService {
             };
           }
           
-          // Deploy succeeded and is in a block
           return {
             status: 'completed',
             message: 'Deploy successfully included in block',
@@ -416,7 +414,6 @@ export class RChainService {
         console.error(`[GraphQL] Error checking indexer for deploy ${deployId}:`, error.message);
         console.error(`[GraphQL] Full error:`, error);
         
-        // Fallback to old method if GraphQL fails
         try {
           const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
           
@@ -446,7 +443,6 @@ export class RChainService {
         }
       }
       
-      // Wait 5 seconds before next attempt (blocks take 30 seconds)
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
     
@@ -479,6 +475,30 @@ export class RChainService {
               amount_rev
               status
               created_at
+              deployments {
+                timestamp
+                block {
+                  block_hash
+                }
+              }
+            }
+            deployments(
+              where: {
+                deployer: {_eq: $publicKey}
+              },
+              order_by: {block_number: desc},
+              limit: $limit
+            ) {
+              id
+              deploy_id
+              block_number
+              deployer
+              status
+              created_at
+              timestamp
+              block {
+                block_hash
+              }
             }
           }
         `,
@@ -495,8 +515,24 @@ export class RChainService {
         }
       });
       
-      if (response.data?.data?.transfers) {
-        return response.data.data.transfers.map((tx: any) => ({
+      const transfers = response.data?.data?.transfers || [];
+      const deployments = response.data?.data?.deployments || [];
+      
+      // Process transfers
+      const transferTxs = transfers.map((tx: any) => {
+        const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
+        const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
+        
+        let type: 'send' | 'receive' | 'deploy' = 'deploy'; 
+        if (isReceive && isSend) {
+          type = 'send';
+        } else if (isReceive) {
+          type = 'receive';
+        } else if (isSend) {
+          type = 'send';
+        }
+        
+        return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
           from: tx.from_address,
@@ -505,11 +541,24 @@ export class RChainService {
           status: tx.status === 'success' ? 'confirmed' : tx.status,
           timestamp: tx.deployments?.timestamp || tx.created_at,
           blockHash: tx.deployments?.block?.block_hash,
-          type: tx.to_address === address ? 'receive' : 'send'
-        }));
-      }
+          type: type
+        };
+      });
       
-      return [];
+      const deployTxs = deployments.map((tx: any) => ({
+        deployId: tx.deploy_id,
+        blockNumber: tx.block_number,
+        from: tx.deployer,
+        to: undefined,
+        amount: undefined,
+        status: tx.status === 'success' ? 'confirmed' : tx.status,
+        timestamp: tx.timestamp || tx.created_at,
+        blockHash: tx.block?.block_hash,
+        type: 'deploy' as const
+      }));
+      
+      const allTxs = [...transferTxs, ...deployTxs];
+      return allTxs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch (error) {
       console.error('Error fetching transaction history from indexer:', error);
       return [];

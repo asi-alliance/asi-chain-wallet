@@ -355,11 +355,20 @@ class TransactionHistoryService {
       
       for (const bcTx of blockchainTxs) {
         const isReceive = bcTx.to && bcTx.to.toLowerCase() === address.toLowerCase();
-        const isSend = bcTx.from && bcTx.from.toLowerCase() === address.toLowerCase();
+        const isSend = bcTx.from && bcTx.from.toLowerCase() === publicKey.toLowerCase();
         
         if (!isReceive && !isSend) continue;
         
-        const type: 'send' | 'receive' = isReceive ? 'receive' : 'send';
+        // Determine transaction type
+        let type: 'send' | 'receive' | 'deploy' = 'deploy';
+        if (isReceive && isSend) {
+          // Self-transfer, classify as send
+          type = 'send';
+        } else if (isReceive) {
+          type = 'receive';
+        } else if (isSend) {
+          type = 'send';
+        }
         
         const existing = this.getTransactions().find(
           tx => tx.deployId === bcTx.deployId
