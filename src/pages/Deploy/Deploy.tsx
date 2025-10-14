@@ -234,14 +234,24 @@ export const Deploy: React.FC = () => {
         } else {
           setResult(finalResult);
         }
-      } catch (resultError) {
+      } catch (resultError: any) {
         console.log('Could not fetch deploy result:', resultError);
-        // Set a basic success result since we got a deploy ID
-        setResult({
-          deployId: deployResult,
-          status: 'submitted',
-          message: '[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.'
-        });
+        
+        // Check if it's a CORS or network error
+        if (resultError.message && (resultError.message.includes('CORS') || resultError.message.includes('network'))) {
+          setResult({
+            deployId: deployResult,
+            status: 'pending',
+            message: '[PENDING] Deploy submitted successfully. Status check unavailable due to CORS/network issues.'
+          });
+        } else {
+          // Set a basic success result since we got a deploy ID
+          setResult({
+            deployId: deployResult,
+            status: 'submitted',
+            message: '[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.'
+          });
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Deploy failed');

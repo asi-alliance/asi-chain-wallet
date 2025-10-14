@@ -374,11 +374,27 @@ export class RChainService {
         
         console.log(`[GraphQL] Querying indexer for deploy ${deployId} (attempt ${i + 1}/${maxAttempts})`);
         
-        const response = await axios.post(graphqlEndpoint, graphqlQuery, {
-          headers: {
-            'Content-Type': 'application/json'
+        let response;
+        try {
+          response = await axios.post(graphqlEndpoint, graphqlQuery, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+        } catch (error: any) {
+          console.error(`[GraphQL] Request failed for deploy ${deployId}:`, error.message);
+          
+          if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
+            console.warn(`[GraphQL] CORS or network error for deploy ${deployId}. Returning pending status.`);
+            return {
+              status: 'pending',
+              message: 'Deploy status check unavailable due to CORS/network issues',
+              deployId: deployId
+            };
           }
-        });
+          
+          throw error;
+        }
         
         console.log(`[GraphQL] Response:`, response.data);
         
@@ -439,17 +455,26 @@ export class RChainService {
             }
           }
         } catch (fallbackError) {
-          console.error('Fallback method also failed:', fallbackError);
+          console.error('[GraphQL] Fallback method also failed:', fallbackError);
+          return {
+            status: 'pending',
+            message: 'Deploy status check unavailable - both GraphQL and fallback methods failed',
+            deployId: deployId
+          };
         }
       }
       
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
     
-    throw new Error(`Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
+    console.warn(`[GraphQL] Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
+    return {
+      status: 'pending',
+      message: `Deploy ${deployId} not found after ${maxAttempts} attempts. It may still be processing.`,
+      deployId: deployId
+    };
   }
 
-  // Fetch transaction history from GraphQL indexer
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
     const graphqlEndpoint = this.graphqlUrl;
     
