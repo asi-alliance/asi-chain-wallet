@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import QrScanner from 'qr-scanner';
 import { RootState } from 'store';
-import { sendTransaction, fetchBalance } from 'store/walletSlice';
+import { sendTransaction, fetchBalance, updateAccountBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
 import addressValidation from 'utils/AddressValidation';
@@ -454,7 +454,7 @@ export const Send: React.FC = () => {
           from: selectedAccount,
           to: recipient,
           amount,
-          password: passwordFromModal || (needsPassword ? password : undefined),
+          password: passwordFromModal,
           network: selectedNetwork,
         }) as any
       );
@@ -475,22 +475,60 @@ export const Send: React.FC = () => {
         const pollInterval = setInterval(async () => {
           pollCount++;
           
-          const balanceResult = await dispatch(
-            fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any
-          );
-          
-          if (fetchBalance.fulfilled.match(balanceResult)) {
-            const newBalance = balanceResult.payload.balance;
+          try {
+            const balanceResult = await dispatch(
+              fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any
+            );
             
-            if (newBalance !== initialBalance || pollCount >= maxPolls) {
+            if (fetchBalance.fulfilled.match(balanceResult)) {
+              const newBalance = balanceResult.payload.balance;
+              
+              if (newBalance !== initialBalance || pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                setIsWaitingForBalance(false);
+                
+                if (newBalance !== initialBalance) {
+                  console.log('[Send] Balance updated from', initialBalance, 'to', newBalance);
+                } else {
+                  console.log('[Send] Balance update timeout - transaction may still be processing');
+                  const sentAmount = parseFloat(amount);
+                  const fee = ESTIMATED_GAS_FEE;
+                  const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
+                  
+                  if (expectedNewBalance >= 0) {
+                    console.log('[Send] Updating balance locally as fallback');
+                    dispatch(updateAccountBalance({
+                      accountId: selectedAccount.id,
+                      balance: expectedNewBalance.toString()
+                    }));
+                  }
+                }
+              }
+            } else if (fetchBalance.rejected.match(balanceResult)) {
+              console.warn('[Send] Balance fetch failed, but transaction was sent successfully');
+              
+              const sentAmount = parseFloat(amount);
+              const fee = ESTIMATED_GAS_FEE;
+              const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
+              
+              if (expectedNewBalance >= 0) {
+                console.log('[Send] Updating balance locally due to fetch failure');
+                dispatch(updateAccountBalance({
+                  accountId: selectedAccount.id,
+                  balance: expectedNewBalance.toString()
+                }));
+              }
+              
+              if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                setIsWaitingForBalance(false);
+              }
+            }
+          } catch (error) {
+            console.error('[Send] Error during balance polling:', error);
+            if (pollCount >= maxPolls) {
               clearInterval(pollInterval);
               setIsWaitingForBalance(false);
-              
-              if (newBalance !== initialBalance) {
-                console.log('Balance updated from', initialBalance, 'to', newBalance);
-              } else {
-                console.log('Balance update timeout - transaction may still be processing');
-              }
             }
           }
         }, 2000);
@@ -701,7 +739,10 @@ export const Send: React.FC = () => {
       {/* Transaction Confirmation Modal */}
       <TransactionConfirmationModal
         isOpen={showConfirmation}
-        onClose={() => setShowConfirmation(false)}
+        onClose={() => {
+          setShowConfirmation(false);
+          setPassword('');
+        }}
         onConfirm={handleConfirmSend}
         amount={amount}
         recipient={recipient}
