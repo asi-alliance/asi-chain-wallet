@@ -568,7 +568,7 @@ export class RChainService {
           to: tx.to_address,
           amount: tx.amount_rev,
           status: 'confirmed',
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString(), // Use current time as fallback
           blockHash: undefined,
           type: type
         };
@@ -581,7 +581,7 @@ export class RChainService {
         to: undefined,
         amount: undefined,
         status: 'confirmed',
-        timestamp: tx.timestamp || new Date().toISOString(),
+        timestamp: tx.timestamp ? new Date(parseInt(tx.timestamp)).toISOString() : new Date().toISOString(),
         blockHash: tx.block?.block_hash,
         type: 'deploy' as const
       }));

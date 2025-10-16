@@ -298,33 +298,12 @@ export const sendTransaction = createAsyncThunk(
       status: 'pending',
     };
     
-    // Add to transaction history
-    const historyTx = TransactionHistoryService.addTransaction({
-      timestamp: new Date(),
-      type: 'send',
-      from: from.revAddress,
-      to,
-      amount: atomicAmount, // Store atomic amount
-      deployId,
-      status: 'pending',
-      network: network.name
-    });
     
-    // Try to wait for confirmation (non-blocking) - wait up to 2 minutes
     rchain.waitForDeployResult(deployId, 24).then(result => {
       if (result.status === 'completed') {
-        TransactionHistoryService.updateTransaction(historyTx.id, {
-          status: 'confirmed',
-          blockHash: result.blockHash,
-          gasCost: result.cost?.toString()
-        });
       } else if (result.status === 'errored' || result.status === 'system_error') {
-        TransactionHistoryService.updateTransaction(historyTx.id, {
-          status: 'failed'
-        });
       }
     }).catch(error => {
-      console.log('Could not get deploy result for transaction history:', error);
     });
     
     return transaction;

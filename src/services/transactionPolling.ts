@@ -87,72 +87,8 @@ class TransactionPollingService {
         }
       }
       
-      // Get all pending transactions
-      const pendingTxs = TransactionHistoryService.getFilteredTransactions({
-        status: 'pending',
-        network: selectedNetwork.name
-      });
+      return;
 
-      if (pendingTxs.length === 0) {
-        console.log('[Transaction Polling] No pending transactions found');
-        return;
-      }
-
-      console.log(`[Transaction Polling] Found ${pendingTxs.length} pending transactions`);
-
-      // Create RChain service instance
-      const rchain = new RChainService(
-        selectedNetwork.url,
-        selectedNetwork.readOnlyUrl,
-        selectedNetwork.adminUrl,
-        selectedNetwork.shardId,
-        selectedNetwork.graphqlUrl
-      );
-
-      // Check status for each pending transaction
-      for (const tx of pendingTxs) {
-        if (!tx.deployId) continue;
-
-        try {
-          console.log(`[Transaction Polling] Checking deploy ${tx.deployId}...`);
-          
-          const result = await rchain.waitForDeployResult(tx.deployId, 1);
-          
-          if (result.status === 'completed') {
-            console.log(`[Transaction Polling] Transaction ${tx.id} confirmed`);
-            TransactionHistoryService.updateTransaction(tx.id, {
-              status: 'confirmed',
-              blockHash: result.blockHash,
-              gasCost: result.cost?.toString()
-            });
-            
-            // Trigger balance refresh for affected accounts
-            this.refreshAccountBalances(tx);
-            
-          } else if (result.status === 'errored' || result.status === 'system_error') {
-            console.log(`[Transaction Polling] Transaction ${tx.id} failed`);
-            TransactionHistoryService.updateTransaction(tx.id, {
-              status: 'failed'
-            });
-          }
-          
-        } catch (error: any) {
-          console.log(`[Transaction Polling] Error checking transaction ${tx.id}:`, error);
-          
-          // If it's a CORS error and transaction is old enough, assume it's confirmed
-          if ((error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) && tx.deployId) {
-            const txAge = Date.now() - tx.timestamp.getTime();
-            const fiveMinutes = 5 * 60 * 1000; // 5 minutes
-            
-            if (txAge > fiveMinutes) {
-              console.log(`[Transaction Polling] Transaction ${tx.id} is ${Math.round(txAge / 60000)} minutes old and GraphQL is unavailable. Assuming confirmed.`);
-              TransactionHistoryService.updateTransaction(tx.id, {
-                status: 'confirmed'
-              });
-            }
-          }
-        }
-      }
 
     } catch (error) {
       console.error('[Transaction Polling] Error during polling:', error);

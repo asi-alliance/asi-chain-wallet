@@ -1,4 +1,4 @@
-// Transaction History Service - Browser-based transaction tracking
+// Transaction History Service - GraphQL-only transaction tracking
 import { utils } from 'ethers';
 
 export interface Transaction {
@@ -15,7 +15,7 @@ export interface Transaction {
   contractCode?: string;
   note?: string;
   network: string;
-  detectedBy?: 'balance_change' | 'manual' | 'auto'; // How the receive was detected
+  detectedBy?: 'balance_change' | 'manual' | 'auto';
 }
 
 export interface TransactionFilter {
@@ -29,79 +29,69 @@ export interface TransactionFilter {
 }
 
 class TransactionHistoryService {
-  private static readonly STORAGE_KEY = 'asi_wallet_transaction_history';
-  private static readonly MAX_TRANSACTIONS = 10000; // Limit to prevent storage issues
-  private static readonly VERSION = '1.0';
-
-  // Save a new transaction
-  static addTransaction(transaction: Omit<Transaction, 'id'>): Transaction {
-    const transactions = this.getTransactions();
-    
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: this.generateTransactionId(),
-      timestamp: new Date(transaction.timestamp) // Ensure it's a Date object
-    };
-
-    // Add to beginning (newest first)
-    transactions.unshift(newTransaction);
-
-    // Limit total transactions
-    if (transactions.length > this.MAX_TRANSACTIONS) {
-      transactions.splice(this.MAX_TRANSACTIONS);
-    }
-
-    this.saveTransactions(transactions);
-    return newTransaction;
-  }
-
-  // Update transaction status
-  static updateTransaction(
-    id: string, 
-    updates: Partial<Pick<Transaction, 'status' | 'blockHash' | 'gasCost'>>
-  ): Transaction | null {
-    const transactions = this.getTransactions();
-    const index = transactions.findIndex(tx => tx.id === id);
-    
-    if (index === -1) return null;
-
-    transactions[index] = {
-      ...transactions[index],
-      ...updates
-    };
-
-    this.saveTransactions(transactions);
-    return transactions[index];
-  }
-
-  // Get all transactions
-  static getTransactions(): Transaction[] {
+  static async getTransactions(
+    address: string,
+    publicKey: string,
+    network: string,
+    graphqlUrl: string,
+    limit: number = 100
+  ): Promise<Transaction[]> {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (!stored) return [];
+      const { RChainService } = await import('./rchain');
       
-      const data = JSON.parse(stored);
+      const rchain = new RChainService('', '', '', 'root', graphqlUrl);
+      const blockchainTxs = await rchain.fetchTransactionHistory(address, publicKey, limit);
       
-      // Version check
-      if (data.version !== this.VERSION) {
-        console.log('Transaction history version mismatch, clearing...');
-        return [];
+      const transactions: Transaction[] = [];
+      
+      for (const bcTx of blockchainTxs) {
+        const isReceive = bcTx.to && bcTx.to.toLowerCase() === address.toLowerCase();
+        const isSend = bcTx.from && bcTx.from.toLowerCase() === publicKey.toLowerCase();
+        
+        if (!isReceive && !isSend) {
+          continue;
+        }
+        
+        let type: 'send' | 'receive' | 'deploy' = 'deploy';
+        if (isReceive && isSend) {
+          type = 'send';
+        } else if (isReceive) {
+          type = 'receive';
+        } else if (isSend) {
+          type = 'send';
+        }
+        
+        const transaction: Transaction = {
+          id: bcTx.deployId || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date(bcTx.timestamp),
+          type: type,
+          from: bcTx.from,
+          to: bcTx.to,
+          amount: bcTx.amount,
+          deployId: bcTx.deployId,
+          blockHash: bcTx.blockHash,
+          status: bcTx.status,
+          network: network,
+          detectedBy: 'auto'
+        };
+        
+        transactions.push(transaction);
       }
-
-      // Parse dates
-      return data.transactions.map((tx: any) => ({
-        ...tx,
-        timestamp: new Date(tx.timestamp)
-      }));
+      
+      return transactions;
     } catch (error) {
-      console.error('Error loading transaction history:', error);
       return [];
     }
   }
 
-  // Get filtered transactions
-  static getFilteredTransactions(filter: TransactionFilter): Transaction[] {
-    const transactions = this.getTransactions();
+  static async getFilteredTransactions(
+    filter: TransactionFilter,
+    address: string,
+    publicKey: string,
+    network: string,
+    graphqlUrl: string
+  ): Promise<Transaction[]> {
+    const transactions = await this.getTransactions(address, publicKey, network, graphqlUrl);
     
     return transactions.filter(tx => {
       if (filter.type && tx.type !== filter.type) return false;
@@ -118,37 +108,13 @@ class TransactionHistoryService {
     });
   }
 
-  // Get transactions for a specific account (sent from this account or received by this account)
-  static getAccountTransactions(address: string): Transaction[] {
-    const transactions = this.getTransactions();
-    return transactions.filter(tx => 
-      tx.from.toLowerCase() === address.toLowerCase() || 
-      tx.to?.toLowerCase() === address.toLowerCase() ||
-      tx.from === address || 
-      tx.to === address
-    );
-  }
-  
-  // Get all transactions involving an account (as sender or receiver)
-  static getAccountRelatedTransactions(address: string): Transaction[] {
-    const transactions = this.getTransactions();
-    return transactions.filter(tx => 
-      tx.from.toLowerCase() === address.toLowerCase() || 
-      tx.to?.toLowerCase() === address.toLowerCase()
-    );
-  }
-
-  // Get transaction by ID
-  static getTransaction(id: string): Transaction | null {
-    const transactions = this.getTransactions();
-    return transactions.find(tx => tx.id === id) || null;
-  }
-
-  // Get transaction statistics
-  static getStatistics(address?: string) {
-    const transactions = address 
-      ? this.getAccountTransactions(address)
-      : this.getTransactions();
+  static async getStatistics(
+    address: string,
+    publicKey: string,
+    network: string,
+    graphqlUrl: string
+  ) {
+    const transactions = await this.getTransactions(address, publicKey, network, graphqlUrl);
 
     const stats = {
       total: transactions.length,
@@ -164,17 +130,14 @@ class TransactionHistoryService {
     };
 
     transactions.forEach(tx => {
-      // Type counts
       if (tx.type === 'send') stats.sent++;
       else if (tx.type === 'receive') stats.received++;
       else if (tx.type === 'deploy') stats.deployed++;
 
-      // Status counts
       if (tx.status === 'pending') stats.pending++;
       else if (tx.status === 'confirmed') stats.confirmed++;
       else if (tx.status === 'failed') stats.failed++;
 
-      // Amount totals (only for confirmed transactions)
       if (tx.status === 'confirmed' && tx.amount) {
         if (tx.type === 'send') {
           stats.totalSent = (BigInt(stats.totalSent) + BigInt(tx.amount)).toString();
@@ -185,7 +148,6 @@ class TransactionHistoryService {
         }
       }
 
-      // Gas total
       if (tx.gasCost) {
         stats.totalGas = (BigInt(stats.totalGas) + BigInt(tx.gasCost)).toString();
       }
@@ -194,15 +156,19 @@ class TransactionHistoryService {
     return stats;
   }
 
-  // Export transactions
-  static exportTransactions(format: 'json' | 'csv' = 'json', accountAddress?: string): string {
-    const transactions = accountAddress ? this.getAccountTransactions(accountAddress) : this.getTransactions();
+  static async exportTransactions(
+    format: 'json' | 'csv' = 'json',
+    address: string,
+    publicKey: string,
+    network: string,
+    graphqlUrl: string
+  ): Promise<string> {
+    const transactions = await this.getTransactions(address, publicKey, network, graphqlUrl);
     
     if (format === 'json') {
       return JSON.stringify(transactions, null, 2);
     }
     
-    // CSV format
     const headers = [
       'Date',
       'Time',
@@ -239,9 +205,14 @@ class TransactionHistoryService {
     return [headers.join(','), ...rows].join('\n');
   }
 
-  // Download transactions
-  static downloadTransactions(format: 'json' | 'csv' = 'json', accountAddress?: string) {
-    const data = this.exportTransactions(format, accountAddress);
+  static async downloadTransactions(
+    format: 'json' | 'csv' = 'json',
+    address: string,
+    publicKey: string,
+    network: string,
+    graphqlUrl: string
+  ) {
+    const data = await this.exportTransactions(format, address, publicKey, network, graphqlUrl);
     const blob = new Blob([data], { 
       type: format === 'json' ? 'application/json' : 'text/csv' 
     });
@@ -255,30 +226,6 @@ class TransactionHistoryService {
     URL.revokeObjectURL(url);
   }
 
-  // Clear all transactions
-  static clearHistory(): void {
-    localStorage.removeItem(this.STORAGE_KEY);
-  }
-
-  // Clear old transactions
-  static clearOldTransactions(daysToKeep: number = 90): number {
-    const transactions = this.getTransactions();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-    
-    const filtered = transactions.filter(tx => 
-      new Date(tx.timestamp) > cutoffDate
-    );
-    
-    const removed = transactions.length - filtered.length;
-    if (removed > 0) {
-      this.saveTransactions(filtered);
-    }
-    
-    return removed;
-  }
-
-  // Detect and record a received transaction based on balance increase
   static detectReceivedTransaction(
     toAddress: string,
     previousBalance: string,
@@ -288,52 +235,24 @@ class TransactionHistoryService {
     const prevBalanceNum = BigInt(previousBalance);
     const newBalanceNum = BigInt(newBalance);
     
-    console.log(`[Receive Detection] Address: ${toAddress}`);
-    console.log(`[Receive Detection] Previous balance: ${previousBalance} (${prevBalanceNum})`);
-    console.log(`[Receive Detection] New balance: ${newBalance} (${newBalanceNum})`);
-    
-    // Only record if balance increased
     if (newBalanceNum <= prevBalanceNum) {
-      console.log('[Receive Detection] No increase detected, skipping');
       return null;
     }
     
     const amount = (newBalanceNum - prevBalanceNum).toString();
-    console.log(`[Receive Detection] Amount received: ${amount} atomic units`);
     
-    // Check if we already have a recent receive transaction with this amount
-    // to avoid duplicates from multiple balance checks
-    const recentTransactions = this.getAccountTransactions(toAddress)
-      .filter(tx => tx.type === 'receive' && tx.status === 'confirmed')
-      .filter(tx => {
-        const txTime = new Date(tx.timestamp).getTime();
-        const now = Date.now();
-        return (now - txTime) < 60000; // Within last minute
-      });
-    
-    const isDuplicate = recentTransactions.some(tx => tx.amount === amount);
-    if (isDuplicate) {
-      return null;
-    }
-    
-    // Create a receive transaction
-    const transaction = this.addTransaction({
+    const transaction: Transaction = {
+      id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(),
       type: 'receive',
-      from: 'Unknown', // We don't know the sender
+      from: 'Unknown',
       to: toAddress,
       amount: amount,
       status: 'confirmed',
       network: network,
       detectedBy: 'balance_change',
-      note: 'Detected from balance increase'
-    });
-    
-    console.log(`[Receive Detection] Created transaction:`, {
-      to: toAddress,
-      amount: amount,
-      amountInASI: (Number(amount) / 100000000).toFixed(8)
-    });
+      note: 'Detected from balance increase (temporary)'
+    };
     
     return transaction;
   }
@@ -345,87 +264,11 @@ class TransactionHistoryService {
     graphqlUrl: string
   ): Promise<{ added: number; updated: number }> {
     try {
-      const { RChainService } = await import('./rchain');
-      
-      const rchain = new RChainService('', '', '', 'root', graphqlUrl);
-      const blockchainTxs = await rchain.fetchTransactionHistory(address, publicKey, 100);
-      
-      console.log(`[History Sync] Found ${blockchainTxs.length} transactions from blockchain`);
-      
-      let added = 0;
-      let updated = 0;
-      
-      for (const bcTx of blockchainTxs) {
-        const isReceive = bcTx.to && bcTx.to.toLowerCase() === address.toLowerCase();
-        const isSend = bcTx.from && bcTx.from.toLowerCase() === publicKey.toLowerCase();
-        
-        if (!isReceive && !isSend) continue;
-        
-        // Determine transaction type
-        let type: 'send' | 'receive' | 'deploy' = 'deploy';
-        if (isReceive && isSend) {
-          // Self-transfer, classify as send
-          type = 'send';
-        } else if (isReceive) {
-          type = 'receive';
-        } else if (isSend) {
-          type = 'send';
-        }
-        
-        const existing = this.getTransactions().find(
-          tx => tx.deployId === bcTx.deployId
-        );
-        
-        if (existing) {
-          if (existing.status !== bcTx.status) {
-            this.updateTransaction(existing.id, {
-              status: bcTx.status,
-              blockHash: bcTx.blockHash
-            });
-            updated++;
-          }
-        } else {
-          this.addTransaction({
-            timestamp: new Date(bcTx.timestamp),
-            type: type,
-            from: bcTx.from,
-            to: bcTx.to,
-            amount: bcTx.amount,
-            deployId: bcTx.deployId,
-            blockHash: bcTx.blockHash,
-            status: bcTx.status,
-            network: network,
-            detectedBy: 'auto',
-            note: 'Synced from blockchain'
-          });
-          added++;
-        }
-      }
-      
-      return { added, updated };
+      const transactions = await this.getTransactions(address, publicKey, network, graphqlUrl);
+      return { added: transactions.length, updated: 0 };
     } catch (error) {
       return { added: 0, updated: 0 };
     }
-  }
-
-  private static saveTransactions(transactions: Transaction[]): void {
-    try {
-      const data = {
-        version: this.VERSION,
-        transactions: transactions
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.error('Error saving transaction history:', error);
-      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        const reduced = transactions.slice(0, Math.floor(transactions.length * 0.9));
-        this.saveTransactions(reduced);
-      }
-    }
-  }
-
-  private static generateTransactionId(): string {
-    return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 

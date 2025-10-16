@@ -191,16 +191,6 @@ export const Deploy: React.FC = () => {
       const deployResult = await rchain.sendDeploy(code, privateKey, parseInt(phloLimit));
       setDeployId(deployResult);
 
-      // Add to transaction history
-      const historyTx = TransactionHistoryService.addTransaction({
-        timestamp: new Date(),
-        type: 'deploy',
-        from: selectedAccount.revAddress,
-        deployId: deployResult,
-        status: 'pending',
-        contractCode: code.substring(0, 100) + (code.length > 100 ? '...' : ''), // Store preview
-        network: selectedNetwork.name
-      });
 
       // Try to get deploy result with enhanced status checking
       try {
@@ -215,22 +205,10 @@ export const Deploy: React.FC = () => {
             cost: finalResult.cost
           });
           
-          // Update transaction history
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'confirmed',
-            blockHash: finalResult.blockHash,
-            gasCost: finalResult.cost?.toString()
-          });
         } else if (finalResult.status === 'errored') {
           setError(`[ERROR] Deploy execution failed: ${finalResult.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         } else if (finalResult.status === 'system_error') {
           setError(`[ERROR] System error: ${finalResult.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         } else {
           setResult(finalResult);
         }

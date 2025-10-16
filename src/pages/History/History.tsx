@@ -192,7 +192,6 @@ const formatAmount = (amount?: string): string => {
     const asiAmount = atomicAmount / 100000000;
     return `${asiAmount.toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
-    console.error('Error formatting amount:', amount, error);
     return `${amount} ${getTokenDisplayName()}`;
   }
 };
@@ -210,11 +209,16 @@ export const History: React.FC = () => {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const checkPendingTransactionStatuses = useCallback(async () => {
-    if (!selectedNetwork) return;
+    if (!selectedAccount || !selectedNetwork) return;
     
-    console.log('[History] Checking pending transaction statuses...');
+    const pendingTxs = await TransactionHistoryService.getTransactions(
+      selectedAccount.revAddress,
+      selectedAccount.publicKey,
+      selectedNetwork.name,
+      selectedNetwork.graphqlUrl || '',
+      100
+    ).then(txs => txs.filter(tx => tx.status === 'pending'));
     
-    // Create RChain service instance
     const rchain = new RChainService(
       selectedNetwork.url,
       selectedNetwork.readOnlyUrl,
@@ -223,124 +227,65 @@ export const History: React.FC = () => {
       selectedNetwork.graphqlUrl
     );
     
-    // Get all pending transactions
-    const pendingTxs = TransactionHistoryService.getFilteredTransactions({
-      status: 'pending'
-    });
-    
-    console.log(`[History] Found ${pendingTxs.length} pending transactions to check`);
-    
-    // Check status for each pending transaction
     for (const tx of pendingTxs) {
       if (tx.deployId) {
         try {
-          console.log(`[History] Checking status for deploy ${tx.deployId}`);
-          // Use shorter timeout for status checks
           const result = await rchain.waitForDeployResult(tx.deployId, 1);
           
           if (result.status === 'completed') {
-            console.log(`[History] Deploy ${tx.deployId} is now confirmed!`);
-            TransactionHistoryService.updateTransaction(tx.id, {
-              status: 'confirmed',
-              blockHash: result.blockHash
-            });
-          } else if (result.status === 'errored') {
-            console.log(`[History] Deploy ${tx.deployId} failed`);
-            TransactionHistoryService.updateTransaction(tx.id, {
-              status: 'failed'
-            });
+          } else if (result.status === 'errored' || result.status === 'system_error') {
           }
         } catch (error) {
-          // Still pending or error checking, leave as is
-          console.log(`[History] Deploy ${tx.deployId} still pending or error checking`);
         }
       }
     }
-  }, [selectedNetwork]);
+  }, [selectedAccount, selectedNetwork]);
 
   const loadTransactions = useCallback(async () => {
-    let txs: Transaction[] = [];
-    
-    // Get transactions for the selected account only
-    if (selectedAccount && selectedNetwork) {
-      try {
-        const rchain = new RChainService('', '', '', 'root', selectedNetwork.graphqlUrl);
-        if(selectedAccount?.revAddress) {   
-          const res = await rchain.fetchTransactionHistory(selectedAccount?.revAddress, selectedAccount?.publicKey);
-          txs = res;
-          
-          if (txs.length === 0) {
-            console.log('[History] No transactions from GraphQL, checking local storage...');
-            const localTxs = TransactionHistoryService.getFilteredTransactions({
-              type: filter.type,
-              status: filter.status
-            }).filter(tx => 
-              tx.from === selectedAccount.revAddress || 
-              tx.to === selectedAccount.revAddress ||
-              tx.from === selectedAccount.publicKey
-            );
-            txs = localTxs;
-          }
-        }
-      } catch (error) {
-        console.error('[History] Error loading transactions from GraphQL:', error);
-        const localTxs = TransactionHistoryService.getFilteredTransactions({
-          type: filter.type,
-          status: filter.status
-        }).filter(tx => 
-          selectedAccount && (
-            tx.from === selectedAccount.revAddress || 
-            tx.to === selectedAccount.revAddress ||
-            tx.from === selectedAccount.publicKey
-          )
-        );
-        txs = localTxs;
-      }
+    if (!selectedAccount || !selectedNetwork) {
+      setTransactions([]);
+      setStats({ total: 0, sent: 0, received: 0, deployed: 0, pending: 0, confirmed: 0, failed: 0 });
+      return;
+    }
+
+    try {
+      const txs = await TransactionHistoryService.getTransactions(
+        selectedAccount.revAddress,
+        selectedAccount.publicKey,
+        selectedNetwork.name,
+        selectedNetwork.graphqlUrl || '',
+        100
+      );
       
+      let filteredTxs = txs;
       if (filter.type) {
-        txs = txs.filter(tx => tx.type === filter.type);
+        filteredTxs = filteredTxs.filter(tx => tx.type === filter.type);
       }
       if (filter.status) {
-        txs = txs.filter(tx => tx.status === filter.status);
+        filteredTxs = filteredTxs.filter(tx => tx.status === filter.status);
       }
+      
+      setTransactions(filteredTxs);
+
+      const statistics = {
+        total: filteredTxs.length,
+        sent: filteredTxs.filter(tx => tx.type === 'send').length,
+        received: filteredTxs.filter(tx => tx.type === 'receive').length,
+        deployed: filteredTxs.filter(tx => tx.type === 'deploy').length,
+        pending: filteredTxs.filter(tx => tx.status === 'pending').length,
+        confirmed: filteredTxs.filter(tx => tx.status === 'confirmed').length,
+        failed: filteredTxs.filter(tx => tx.status === 'failed').length
+      };
+      setStats(statistics);
+      
+    } catch (error) {
+      setTransactions([]);
+      setStats({ total: 0, sent: 0, received: 0, deployed: 0, pending: 0, confirmed: 0, failed: 0 });
     }
-
-    // Filter by network if selected
-    if (selectedNetwork) {
-      txs = txs.filter(tx => tx.network === selectedNetwork.name);
-    }
-
-    setTransactions(txs);
-
-    // Calculate statistics based on the filtered transactions
-    const statistics = {
-      total: txs.length,
-      sent: txs.filter(tx => tx.type === 'send').length,
-      received: txs.filter(tx => tx.type === 'receive').length,
-      deployed: txs.filter(tx => tx.type === 'deploy').length,
-      pending: txs.filter(tx => tx.status === 'pending').length,
-      confirmed: txs.filter(tx => tx.status === 'confirmed').length,
-      failed: txs.filter(tx => tx.status === 'failed').length
-    };
-    setStats(statistics);
   }, [selectedAccount, selectedNetwork, filter]);
 
   useEffect(() => {
     loadTransactions();
-    
-    if (selectedAccount && selectedNetwork && selectedNetwork.graphqlUrl) {
-      TransactionHistoryService.syncFromBlockchain(
-        selectedAccount.revAddress,
-        selectedAccount.publicKey,
-        selectedNetwork.name,
-        selectedNetwork.graphqlUrl
-      ).then(result => {
-        if (result.added > 0 || result.updated > 0) {
-          console.log(`[History] Synced ${result.added} new, ${result.updated} updated from blockchain`);
-          loadTransactions();
-        }
-      });
-    }
     
     checkPendingTransactionStatuses().then(() => {
       loadTransactions();
@@ -349,7 +294,6 @@ export const History: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('[History] Refreshing transaction list...');
       loadTransactions();
       setLastRefresh(new Date());
     }, 30000);
@@ -357,17 +301,38 @@ export const History: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadTransactions]);
 
-  const handleExportJSON = () => {
-    TransactionHistoryService.downloadTransactions('json', selectedAccount?.revAddress);
+  const handleExportJSON = async () => {
+    if (!selectedAccount || !selectedNetwork) return;
+    
+    try {
+      await TransactionHistoryService.downloadTransactions(
+        'json',
+        selectedAccount.revAddress,
+        selectedAccount.publicKey,
+        selectedNetwork.name,
+        selectedNetwork.graphqlUrl || ''
+      );
+    } catch (error) {
+    }
   };
 
-  const handleExportCSV = () => {
-    TransactionHistoryService.downloadTransactions('csv', selectedAccount?.revAddress);
+  const handleExportCSV = async () => {
+    if (!selectedAccount || !selectedNetwork) return;
+    
+    try {
+      await TransactionHistoryService.downloadTransactions(
+        'csv',
+        selectedAccount.revAddress,
+        selectedAccount.publicKey,
+        selectedNetwork.name,
+        selectedNetwork.graphqlUrl || ''
+      );
+    } catch (error) {
+    }
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear all transaction history? This cannot be undone.')) {
-      TransactionHistoryService.clearHistory();
+    if (window.confirm('Transaction history is now loaded directly from the blockchain. Click OK to refresh the data.')) {
       loadTransactions();
     }
   };
@@ -403,7 +368,6 @@ export const History: React.FC = () => {
                 size="small" 
                 variant="ghost" 
                 onClick={async () => {
-                  console.log('[History] Manual refresh triggered');
                   TransactionPollingService.forceCheck();
                   
                   if (selectedAccount && selectedNetwork && selectedNetwork.graphqlUrl) {
@@ -414,11 +378,7 @@ export const History: React.FC = () => {
                         selectedNetwork.name,
                         selectedNetwork.graphqlUrl
                       );
-                      if (result.added > 0 || result.updated > 0) {
-                        console.log(`[History Refresh] Synced ${result.added} new, ${result.updated} updated`);
-                      }
                     } catch (error) {
-                      console.error('[History] Error syncing from blockchain:', error);
                     }
                   }
                   
@@ -431,7 +391,6 @@ export const History: React.FC = () => {
                         const newBalance = balanceResult.payload.balance;
                         
                         if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-                          console.log(`[History Manual Refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`);
                           TransactionHistoryService.detectReceivedTransaction(
                             selectedAccount.revAddress,
                             oldBalance,
@@ -441,7 +400,6 @@ export const History: React.FC = () => {
                         }
                       }
                     } catch (error) {
-                      console.error('[History] Error checking for received transactions:', error);
                     }
                   }
                   
@@ -459,10 +417,8 @@ export const History: React.FC = () => {
                   onClick={async () => {
                     if (selectedAccount && selectedNetwork) {
                       try {
-                        console.log('[History] Force refreshing balance...');
                         await dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork, forceRefresh: true }) as any);
                       } catch (error) {
-                        console.error('[History] Error refreshing balance:', error);
                       }
                     }
                   }}

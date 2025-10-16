@@ -562,17 +562,6 @@ export const IDE: React.FC = () => {
       
       addConsoleMessage('success', `Deploy submitted successfully! Deploy ID: ${deployId}`);
       
-      // Add to transaction history
-      const historyTx = TransactionHistoryService.addTransaction({
-        timestamp: new Date(),
-        type: 'deploy',
-        from: selectedAccount.revAddress,
-        deployId: deployId,
-        status: 'pending',
-        contractCode: activeFile.content.substring(0, 100) + (activeFile.content.length > 100 ? '...' : ''),
-        note: `IDE: ${activeFile.name}`,
-        network: selectedNetwork.name
-      });
       
       // Try to get deploy result with enhanced status checking
       try {
@@ -588,25 +577,12 @@ export const IDE: React.FC = () => {
             addConsoleMessage('info', `Gas Cost: ${result.cost}`);
           }
           
-          // Update transaction history
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'confirmed',
-            blockHash: result.blockHash,
-            gasCost: result.cost?.toString()
-          });
         } else if (result.status === 'errored') {
           addConsoleMessage('error', `[ERROR] Deploy execution failed: ${result.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         } else if (result.status === 'system_error') {
           addConsoleMessage('error', `[ERROR] System error: ${result.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         }
       } catch (resultError) {
-        console.log('Could not fetch deploy result:', resultError);
         addConsoleMessage('info', '[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.');
       }
     } catch (error: any) {
@@ -642,17 +618,6 @@ export const IDE: React.FC = () => {
       
       addConsoleMessage('success', `Deploy submitted successfully! Deploy ID: ${deployId}`);
       
-      // Add to transaction history
-      const historyTx = TransactionHistoryService.addTransaction({
-        timestamp: new Date(),
-        type: 'deploy',
-        from: selectedAccount.revAddress,
-        deployId: deployId,
-        status: 'pending',
-        contractCode: activeFile.content.substring(0, 100) + (activeFile.content.length > 100 ? '...' : ''),
-        note: `IDE: ${activeFile.name}`,
-        network: selectedNetwork.name
-      });
       
       // Try to get deploy result with enhanced status checking
       try {
@@ -668,25 +633,12 @@ export const IDE: React.FC = () => {
             addConsoleMessage('info', `Gas Cost: ${result.cost}`);
           }
           
-          // Update transaction history
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'confirmed',
-            blockHash: result.blockHash,
-            gasCost: result.cost?.toString()
-          });
         } else if (result.status === 'errored') {
           addConsoleMessage('error', `[ERROR] Deploy execution failed: ${result.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         } else if (result.status === 'system_error') {
           addConsoleMessage('error', `[ERROR] System error: ${result.error}`);
-          TransactionHistoryService.updateTransaction(historyTx.id, {
-            status: 'failed'
-          });
         }
       } catch (resultError) {
-        console.log('Could not fetch deploy result:', resultError);
         addConsoleMessage('info', '[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.');
       }
     } catch (error: any) {
