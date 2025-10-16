@@ -7,23 +7,11 @@ import { RChainService } from 'services/rchain';
 const DEVNET_NODES = {
   bootstrap: {
     ip: '54.152.57.201',
-    hash: 'abc96ca0a78fbdd2b5e87eaa691bb05f'
-  },
-  validator1: {
-    ip: '34.196.119.4',
-    hash: 'bb93eaa595aaddf6912e372debc73eef'
-  },
-  validator2: {
-    ip: '54.84.69.169',
-    hash: '039206b26069004fc3736f3b2fb88a95'
-  },
-  validator3: {
-    ip: '52.45.73.187',
-    hash: 'b7dc4a862a2509f19c7dfbd22b6d6f40'
-  },
-  observer: {
-    ip: '54.235.138.68',
-    hash: '91e17db5a9020441d38bf4dd3d24df2b'
+    hash: 'abc96ca0a78fbdd2b5e87eaa691bb05f',
+    ports: {
+      validator: [40410, 40411, 40412, 40413, 40414, 40415],
+      observer: [40450, 40451, 40452, 40453, 40454, 40455],
+    }
   }
 };
 
@@ -73,9 +61,9 @@ const getValidatorUrl = (port: number = 40413) => {
     return `http://54.152.57.201:${port}`;
   }
   
-  const validatorNode = DEVNET_NODES.validator1;
+  const devnetNode = DEVNET_NODES.bootstrap;
   const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${validatorNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
 const getObserverUrl = (port: number = 40453) => {
@@ -91,12 +79,12 @@ const getObserverUrl = (port: number = 40453) => {
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.235.138.68:${port}`;
+    return `http://54.152.57.201:${port}`;
   }
   
-  const observerNode = DEVNET_NODES.observer;
+  const devnetNode = DEVNET_NODES.bootstrap;
   const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${observerNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
 const getGraphqlUrl = () => {
