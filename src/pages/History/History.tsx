@@ -186,11 +186,10 @@ const formatAddress = (address: string): string => {
 const formatAmount = (amount?: string): string => {
   if (!amount) return '-';
   try {
-    const atomicAmount = parseFloat(amount);
-    if (isNaN(atomicAmount)) return `${amount} ${getTokenDisplayName()}`;
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum)) return `${amount} ${getTokenDisplayName()}`;
     
-    const asiAmount = atomicAmount / 100000000;
-    return `${asiAmount.toFixed(8)} ${getTokenDisplayName()}`;
+    return `${amountNum.toFixed(8)} ${getTokenDisplayName()}`;
   } catch (error) {
     return `${amount} ${getTokenDisplayName()}`;
   }

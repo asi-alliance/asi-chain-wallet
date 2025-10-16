@@ -548,6 +548,11 @@ export class RChainService {
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
       
+      const deployTimestampMap = new Map();
+      deployments.forEach((deploy: any) => {
+        deployTimestampMap.set(deploy.deploy_id, deploy.timestamp);
+      });
+
       const transferTxs = transfers.map((tx: any) => {
         const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
         const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
@@ -561,6 +566,9 @@ export class RChainService {
           type = 'send';
         }
         
+        const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
+        const timestamp = deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date().toISOString();
+        
         return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
@@ -568,7 +576,7 @@ export class RChainService {
           to: tx.to_address,
           amount: tx.amount_rev,
           status: 'confirmed',
-          timestamp: new Date().toISOString(), // Use current time as fallback
+          timestamp: timestamp,
           blockHash: undefined,
           type: type
         };
