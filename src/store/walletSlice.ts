@@ -279,6 +279,13 @@ export const sendTransaction = createAsyncThunk(
     const amountNum = parseFloat(amount);
     const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();
     
+    console.log(`[Send Transaction] Amount conversion:`, {
+      userInput: amount,
+      amountNum,
+      atomicAmount,
+      expectedDeduction: `${amountNum} ASI`
+    });
+    
     const deployId = await rchain.transfer(from.revAddress, to, atomicAmount, privateKey);
     
     const transaction: Transaction = {

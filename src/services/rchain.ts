@@ -195,6 +195,13 @@ export class RChainService {
   }
 
   async transfer(fromAddress: string, toAddress: string, amount: string, privateKey: string): Promise<string> {
+    console.log(`[RChain Transfer] Transfer details:`, {
+      from: fromAddress,
+      to: toAddress,
+      amount: amount,
+      amountInASI: (parseInt(amount) / 100000000).toString()
+    });
+    
     const transferRho = `
       new 
         deployerId(\`rho:rchain:deployerId\`),
@@ -490,20 +497,11 @@ export class RChainService {
               order_by: {block_number: desc},
               limit: $limit
             ) {
-              id
               deploy_id
               block_number
               from_address
               to_address
               amount_rev
-              status
-              created_at
-              deployments {
-                timestamp
-                block {
-                  block_hash
-                }
-              }
             }
             deployments(
               where: {
@@ -512,12 +510,9 @@ export class RChainService {
               order_by: {block_number: desc},
               limit: $limit
             ) {
-              id
               deploy_id
               block_number
               deployer
-              status
-              created_at
               timestamp
               block {
                 block_hash
@@ -572,9 +567,9 @@ export class RChainService {
           from: tx.from_address,
           to: tx.to_address,
           amount: tx.amount_rev,
-          status: tx.status === 'success' ? 'confirmed' : tx.status,
-          timestamp: tx.deployments?.timestamp || tx.created_at,
-          blockHash: tx.deployments?.block?.block_hash,
+          status: 'confirmed',
+          timestamp: new Date().toISOString(),
+          blockHash: undefined,
           type: type
         };
       });
@@ -585,8 +580,8 @@ export class RChainService {
         from: tx.deployer,
         to: undefined,
         amount: undefined,
-        status: tx.status === 'success' ? 'confirmed' : tx.status,
-        timestamp: tx.timestamp || tx.created_at,
+        status: 'confirmed',
+        timestamp: tx.timestamp || new Date().toISOString(),
         blockHash: tx.block?.block_hash,
         type: 'deploy' as const
       }));
