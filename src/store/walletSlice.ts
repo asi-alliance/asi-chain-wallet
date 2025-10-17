@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
 import { SecureStorage } from 'services/secureStorage';
-import TransactionHistoryService from 'services/transactionHistory';
 import { RChainService } from 'services/rchain';
 
 const DEVNET_NODES = {
@@ -9,8 +8,35 @@ const DEVNET_NODES = {
     ip: '54.152.57.201',
     hash: 'abc96ca0a78fbdd2b5e87eaa691bb05f',
     ports: {
+      validator: [40400, 40401, 40402, 40403, 40404, 40405],
+    }
+  },
+  validator1: {
+    ip: '34.196.119.4',
+    hash: 'bb93eaa595aaddf6912e372debc73eef',
+    ports: {
       validator: [40410, 40411, 40412, 40413, 40414, 40415],
-      observer: [40450, 40451, 40452, 40453, 40454, 40455],
+    }
+  },
+  validator2: {
+    ip: '54.84.69.169',
+    hash: '039206b26069004fc3736f3b2fb88a95',
+    ports: {
+      validator: [40420, 40421, 40422, 40423, 40424, 40425],
+    }
+  },
+  validator3: {
+    ip: '52.45.73.187',
+    hash: 'b7dc4a862a2509f19c7dfbd22b6d6f40',
+    ports: {
+      validator: [40430, 40431, 40432, 40433, 40434, 40435],
+    }
+  },
+  observer: {
+    ip: '54.235.138.68',
+    hash: '91e17db5a9020441d38bf4dd3d24df2b',
+    ports: {
+      validator: [40450, 40451, 40452, 40453, 40454, 40455],
     }
   }
 };
@@ -61,7 +87,7 @@ const getValidatorUrl = (port: number = 40413) => {
     return `http://54.152.57.201:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.validator1;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
@@ -82,7 +108,7 @@ const getObserverUrl = (port: number = 40453) => {
     return `http://54.152.57.201:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.validator1;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
@@ -100,7 +126,7 @@ const getGraphqlUrl = () => {
     return PRODUCTION_GRAPHQL_URL;
   }
   
-  return 'https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql';
+  return 'https://2vlbfiujj8.execute-api.us-east-1.amazonaws.com/v1/graphql';
 };
 
 const defaultNetworks: Network[] = [
