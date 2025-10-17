@@ -87,7 +87,7 @@ const getValidatorUrl = (port: number = 40413) => {
     return `http://54.152.57.201:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.validator1;
+  const devnetNode = DEVNET_NODES.bootstrap;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
@@ -108,7 +108,7 @@ const getObserverUrl = (port: number = 40453) => {
     return `http://54.152.57.201:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.validator1;
+  const devnetNode = DEVNET_NODES.bootstrap;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
