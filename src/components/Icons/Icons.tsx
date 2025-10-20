@@ -123,6 +123,12 @@ export const SunIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColor'
   </svg>
 );
 
+export const LogoutIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColor', className }) => (
+  <svg  width={size} height={size} className={className} viewBox="0 0 768 768">
+    <path fill={color} d="M127.5 160.5v447h256.5v64.5h-256.5q-25.5 0-44.25-19.5t-18.75-45v-447q0-25.5 18.75-45t44.25-19.5h256.5v64.5h-256.5zM544.5 223.5l159 160.5-159 160.5-45-46.5 82.5-82.5h-325.5v-63h325.5l-82.5-84z"/>
+  </svg>
+);
+
 export const MoonIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColor', className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
