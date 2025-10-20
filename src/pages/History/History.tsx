@@ -207,6 +207,12 @@ export const History: React.FC = () => {
   const [stats, setStats] = useState<any>({});
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  const handleCopy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
+  }, []);
+
   const checkPendingTransactionStatuses = useCallback(async () => {
     if (!selectedAccount || !selectedNetwork) return;
     
@@ -537,8 +543,16 @@ export const History: React.FC = () => {
                       <TableCell>
                         {tx.note && <div style={{ fontSize: '12px', marginBottom: '4px' }}>{tx.note}</div>}
                         {tx.deployId && (
-                          <div style={{ fontSize: '11px', fontFamily: 'monospace' }}>
-                            Deploy: {tx.deployId.substring(0, 16)}...
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>Deploy: {tx.deployId.substring(0, 16)}...</span>
+                            <Button
+                              id={`copy-deployid-${tx.id}`}
+                              size="small"
+                              variant="ghost"
+                              onClick={() => handleCopy(tx.deployId as string)}
+                            >
+                              Copy
+                            </Button>
                           </div>
                         )}
                         {tx.blockHash && (
