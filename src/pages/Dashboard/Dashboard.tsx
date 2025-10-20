@@ -231,7 +231,7 @@ export const Dashboard: React.FC = () => {
   const { pendingProposal, pendingRequests, error: wcError } = useSelector(
     (state: RootState) => state.walletConnect
   );
-  const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
+  // const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<any>(null);
   const [networkStatus, setNetworkStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -348,9 +348,9 @@ export const Dashboard: React.FC = () => {
       setCurrentRequest(event.detail);
     };
 
-    const handleOpenWalletConnect = () => {
-      setShowWalletConnectModal(true);
-    };
+    // const handleOpenWalletConnect = () => {
+    //   setShowWalletConnectModal(true);
+    // };
 
     const handleSessionDelete = (event: CustomEvent) => {
       console.log('Session deleted:', event.detail);
@@ -359,13 +359,13 @@ export const Dashboard: React.FC = () => {
     window.addEventListener('walletconnect_session_proposal', handleSessionProposal as any);
     window.addEventListener('walletconnect_session_request', handleSessionRequest as any);
     window.addEventListener('walletconnect_session_delete', handleSessionDelete as any);
-    window.addEventListener('open_walletconnect_modal', handleOpenWalletConnect);
+    // window.addEventListener('open_walletconnect_modal', handleOpenWalletConnect);
 
     return () => {
       window.removeEventListener('walletconnect_session_proposal', handleSessionProposal as any);
       window.removeEventListener('walletconnect_session_request', handleSessionRequest as any);
       window.removeEventListener('walletconnect_session_delete', handleSessionDelete as any);
-      window.removeEventListener('open_walletconnect_modal', handleOpenWalletConnect);
+      // window.removeEventListener('open_walletconnect_modal', handleOpenWalletConnect);
     };
   }, [dispatch]);
 
@@ -582,7 +582,7 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </ActionCard>
 
-        <ActionCard onClick={() => setShowWalletConnectModal(true)}>
+        {/* <ActionCard onClick={() => setShowWalletConnectModal(true)}>
           <CardHeader>
             <ActionCardTitle>
               <WalletConnectIcon size={20} />
@@ -593,14 +593,15 @@ export const Dashboard: React.FC = () => {
             <p>Connect to dApps using WalletConnect</p>
           </CardContent>
         </ActionCard>
+         */}
       </QuickActions>
 
       <ConnectedDApps />
 
-      <WalletConnectModalV2
+      {/* <WalletConnectModalV2
         isOpen={showWalletConnectModal}
         onClose={() => setShowWalletConnectModal(false)}
-      />
+      /> */}
 
       <SessionProposalModal
         proposal={pendingProposal}
