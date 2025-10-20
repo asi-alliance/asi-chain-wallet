@@ -276,7 +276,7 @@ export const History: React.FC = () => {
         total: filteredTxs.length,
         sent: filteredTxs.filter(tx => tx.type === 'send').length,
         received: filteredTxs.filter(tx => tx.type === 'receive').length,
-        deployed: filteredTxs.filter(tx => tx.type === 'deploy').length,
+        deployed: filteredTxs.filter(tx => tx.type === 'deploy' || (!!tx.deployId)).length,
         pending: filteredTxs.filter(tx => tx.status === 'pending').length,
         confirmed: filteredTxs.filter(tx => tx.status === 'confirmed').length,
         failed: filteredTxs.filter(tx => tx.status === 'failed').length
@@ -543,16 +543,16 @@ export const History: React.FC = () => {
                       <TableCell>
                         {tx.note && <div style={{ fontSize: '12px', marginBottom: '4px' }}>{tx.note}</div>}
                         {tx.deployId && (
-                          <div style={{ fontSize: '11px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>Deploy: {tx.deployId.substring(0, 16)}...</span>
-                            <Button
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace' }}>
+                            Deploy: {tx.deployId.substring(0, 16)}...
+                            <a
                               id={`copy-deployid-${tx.id}`}
-                              size="small"
-                              variant="ghost"
-                              onClick={() => handleCopy(tx.deployId as string)}
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); handleCopy(tx.deployId as string); }}
+                              style={{ marginLeft: 8 }}
                             >
                               Copy
-                            </Button>
+                            </a>
                           </div>
                         )}
                         {tx.blockHash && (
