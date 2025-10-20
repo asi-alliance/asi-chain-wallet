@@ -340,7 +340,7 @@ export const CreateMultisigModal: React.FC<CreateMultisigModalProps> = ({ isOpen
               disabled={isCreating}
             >
               <option value="mainnet">Mainnet</option>
-              <option value="testnet">Testnet</option>
+              <option value="testnet">Devnet</option>
               <option value="local">Local Network</option>
             </NetworkSelector>
           </FormGroup>

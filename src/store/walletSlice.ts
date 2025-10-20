@@ -148,7 +148,7 @@ const defaultNetworks: Network[] = [
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
-    name: process.env.TESTNET_NAME || 'Testnet',
+    name: process.env.TESTNET_NAME || 'Devnet',
     url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
     readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
