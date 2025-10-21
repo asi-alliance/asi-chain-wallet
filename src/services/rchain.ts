@@ -570,7 +570,7 @@ export class RChainService {
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        const timestamp = tx.created_at ? new Date(parseInt(tx.created_at)).toISOString() : 
+        const timestamp = tx.created_at ? new Date(tx.created_at).toISOString() : 
                          (deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date(0).toISOString());
         
         return {
