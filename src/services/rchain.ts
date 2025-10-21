@@ -567,7 +567,7 @@ export class RChainService {
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        const timestamp = deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date().toISOString();
+        const timestamp = deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date(0).toISOString();
         
         return {
           deployId: tx.deploy_id,
@@ -589,7 +589,7 @@ export class RChainService {
         to: undefined,
         amount: undefined,
         status: 'confirmed',
-        timestamp: tx.timestamp ? new Date(parseInt(tx.timestamp)).toISOString() : new Date().toISOString(),
+        timestamp: tx.timestamp ? new Date(parseInt(tx.timestamp)).toISOString() : new Date(0).toISOString(),
         blockHash: tx.block?.block_hash,
         type: 'deploy' as const
       }));

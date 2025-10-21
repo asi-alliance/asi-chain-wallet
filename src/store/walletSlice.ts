@@ -266,6 +266,23 @@ export const fetchBalance = createAsyncThunk(
   }
 );
 
+export const fetchTransactionHistory = createAsyncThunk(
+  'wallet/fetchTransactionHistory',
+  async ({ address, publicKey, limit = 50 }: { address: string; publicKey: string; limit?: number }, { getState }) => {
+    const state = getState() as { wallet: WalletState };
+    const { selectedNetwork } = state.wallet;
+    
+    if (!selectedNetwork) {
+      throw new Error('No network selected');
+    }
+    
+    const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId, selectedNetwork.graphqlUrl);
+    const transactions = await rchain.fetchTransactionHistory(address, publicKey, limit);
+    
+    return transactions;
+  }
+);
+
 export const sendTransaction = createAsyncThunk(
   'wallet/sendTransaction',
   async ({
@@ -280,7 +297,7 @@ export const sendTransaction = createAsyncThunk(
     amount: string;
     password?: string;
     network: Network;
-  }) => {
+  }, { dispatch }) => {
     // Get private key from unlocked account or decrypt with password
     let privateKey: string | undefined;
     
@@ -329,9 +346,13 @@ export const sendTransaction = createAsyncThunk(
     
     rchain.waitForDeployResult(deployId, 24).then(result => {
       if (result.status === 'completed') {
+        dispatch(updateTransactionStatus({ deployId, status: 'completed' }));
+        dispatch(fetchTransactionHistory({ address: from.revAddress, publicKey: from.publicKey, limit: 50 }));
       } else if (result.status === 'errored' || result.status === 'system_error') {
+        dispatch(updateTransactionStatus({ deployId, status: 'failed', error: result.error }));
       }
     }).catch(error => {
+      dispatch(updateTransactionStatus({ deployId, status: 'failed', error: error.message }));
     });
     
     return transaction;
@@ -470,6 +491,15 @@ const walletSlice = createSlice({
         console.error('Failed to load accounts from storage:', error);
       }
     },
+    updateTransactionStatus: (state, action: PayloadAction<{ deployId: string; status: 'pending' | 'completed' | 'failed'; error?: string }>) => {
+      const transaction = state.transactions.find(tx => tx.deployId === action.payload.deployId);
+      if (transaction) {
+        transaction.status = action.payload.status;
+        if (action.payload.error) {
+          transaction.error = action.payload.error;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -500,6 +530,25 @@ const walletSlice = createSlice({
       .addCase(sendTransaction.rejected, (state, action) => {
         state.error = action.error.message || 'Failed to send transaction';
         state.isLoading = false;
+      })
+      .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
+        const newTransactions = action.payload.map((tx: any) => ({
+          id: tx.deployId,
+          deployId: tx.deployId,
+          from: tx.from,
+          to: tx.to,
+          amount: tx.amount,
+          timestamp: new Date(tx.timestamp),
+          status: tx.status,
+          blockNumber: tx.blockNumber,
+          blockHash: tx.blockHash,
+          type: tx.type
+        }));
+        
+        const existingIds = new Set(state.transactions.map(tx => tx.id));
+        const uniqueNewTransactions = newTransactions.filter(tx => !existingIds.has(tx.id));
+        
+        state.transactions = [...uniqueNewTransactions, ...state.transactions];
       });
   },
 });
@@ -516,6 +565,7 @@ export const {
   addNetwork,
   loadNetworksFromStorage,
   loadAccountsFromStorage,
+  updateTransactionStatus,
 } = walletSlice.actions;
 
 export default walletSlice.reducer;
