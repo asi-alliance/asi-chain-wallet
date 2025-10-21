@@ -7,6 +7,7 @@ import { RootState } from 'store';
 import { sendTransaction, fetchBalance, updateAccountBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
+import { GAS_FEE, getGasFeeAsNumber } from '../../constants/gas';
 import addressValidation from 'utils/AddressValidation';
 
 const SendContainer = styled.div`
@@ -194,7 +195,6 @@ const ButtonGroup = styled.div`
   margin-bottom: 0;
 `;
 
-const ESTIMATED_GAS_FEE = 0.0025;
 
 export const Send: React.FC = () => {
   const dispatch = useDispatch();
@@ -254,9 +254,9 @@ export const Send: React.FC = () => {
       return;
     }
     
-    const totalRequired = amountValue + ESTIMATED_GAS_FEE;
+    const totalRequired = amountValue + getGasFeeAsNumber();
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
+      const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
       const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
       setValidationError(
         `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxRounded.toFixed(8)} ${getTokenDisplayName()}`
@@ -452,11 +452,11 @@ export const Send: React.FC = () => {
       return false;
     }
     
-    const totalRequired = amountToSend + ESTIMATED_GAS_FEE;
+    const totalRequired = amountToSend + getGasFeeAsNumber();
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
+      const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
       setValidationError(
-        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${ESTIMATED_GAS_FEE.toFixed(8)} fee)`
+        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${getGasFeeAsNumber().toFixed(8)} fee)`
       );
       return false;
     }
@@ -534,7 +534,7 @@ export const Send: React.FC = () => {
                 } else {
                   console.log('[Send] Balance update timeout - transaction may still be processing');
                   const sentAmount = parseFloat(amount);
-                  const fee = ESTIMATED_GAS_FEE;
+                  const fee = getGasFeeAsNumber();
                   const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
                   
                   if (expectedNewBalance >= 0) {
@@ -550,7 +550,7 @@ export const Send: React.FC = () => {
               console.warn('[Send] Balance fetch failed, but transaction was sent successfully');
               
               const sentAmount = parseFloat(amount);
-              const fee = ESTIMATED_GAS_FEE;
+              const fee = getGasFeeAsNumber();
               const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
               
               if (expectedNewBalance >= 0) {
@@ -582,7 +582,7 @@ export const Send: React.FC = () => {
 
   const maxAmount = () => {
     const balance = parseFloat(selectedAccount?.balance || '0');
-    const max = Math.max(0, balance - ESTIMATED_GAS_FEE);
+    const max = Math.max(0, balance - getGasFeeAsNumber());
     
     if (max <= 0) {
       setValidationError('Insufficient balance to cover gas fees');
@@ -796,6 +796,7 @@ export const Send: React.FC = () => {
         recipient={recipient}
         senderAddress={selectedAccount?.revAddress || ''}
         senderName={selectedAccount?.name || ''}
+        estimatedFee={GAS_FEE.ESTIMATED_FEE}
         loading={isLoading}
         needsPassword={needsPassword}
         requirePasswordForTransaction={requirePasswordForTransaction}

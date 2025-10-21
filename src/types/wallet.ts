@@ -21,6 +21,7 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   blockNumber?: number;
   error?: string;
+  gasCost?: string;
 }
 
 export interface Deploy {

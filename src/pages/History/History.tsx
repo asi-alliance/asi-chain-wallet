@@ -538,7 +538,7 @@ export const History: React.FC = () => {
                       </TableCell>
                       <TableCell align="right">{formatAmount(tx.amount)}</TableCell>
                       <TableCell align="right">
-                        {tx.gasCost ? `${tx.gasCost} phlo` : '-'}
+                        {tx.gasCost ? `${tx.gasCost} ASI` : '-'}
                       </TableCell>
                       <TableCell>
                         {tx.note && <div style={{ fontSize: '12px', marginBottom: '4px' }}>{tx.note}</div>}

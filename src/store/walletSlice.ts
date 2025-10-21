@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
+import { GAS_FEE } from '../constants/gas';
 
 const DEVNET_NODES = {
   bootstrap: {
@@ -75,7 +76,7 @@ const PRODUCTION_DOMAINS = [
 
 
 
-const getValidatorUrl = (port: number = 40403) => {
+const getValidatorUrl = (port: number = 40413) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -341,6 +342,7 @@ export const sendTransaction = createAsyncThunk(
       amount,
       timestamp: new Date(),
       status: 'pending',
+      gasCost: GAS_FEE.ESTIMATED_FEE,
     };
     
     
@@ -542,7 +544,8 @@ const walletSlice = createSlice({
           status: tx.status,
           blockNumber: tx.blockNumber,
           blockHash: tx.blockHash,
-          type: tx.type
+          type: tx.type,
+          gasCost: GAS_FEE.ESTIMATED_FEE
         }));
         
         const existingIds = new Set(state.transactions.map(tx => tx.id));
