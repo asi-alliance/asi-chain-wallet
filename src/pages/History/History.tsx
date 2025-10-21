@@ -276,7 +276,7 @@ export const History: React.FC = () => {
         total: filteredTxs.length,
         sent: filteredTxs.filter(tx => tx.type === 'send').length,
         received: filteredTxs.filter(tx => tx.type === 'receive').length,
-        deployed: filteredTxs.filter(tx => tx.type === 'deploy' || (!!tx.deployId)).length,
+        deployed: filteredTxs.filter(tx => tx.type === 'deploy').length,
         pending: filteredTxs.filter(tx => tx.status === 'pending').length,
         confirmed: filteredTxs.filter(tx => tx.status === 'confirmed').length,
         failed: filteredTxs.filter(tx => tx.status === 'failed').length

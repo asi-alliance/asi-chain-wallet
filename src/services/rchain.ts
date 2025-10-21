@@ -557,12 +557,12 @@ export class RChainService {
         const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
         const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
         
-        let type: 'send' | 'receive' | 'deploy' = 'deploy'; 
-        if (isReceive && isSend) {
-          type = 'send';
-        } else if (isReceive) {
+        let type: 'send' | 'receive' = 'send';
+        if (isReceive && !isSend) {
           type = 'receive';
-        } else if (isSend) {
+        } else if (isSend && !isReceive) {
+          type = 'send';
+        } else if (isReceive && isSend) {
           type = 'send';
         }
         
@@ -595,7 +595,37 @@ export class RChainService {
       }));
       
       const allTxs = [...transferTxs, ...deployTxs];
-      return allTxs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      const txMap = new Map();
+      
+      allTxs.forEach(tx => {
+        const existingTx = txMap.get(tx.deployId);
+        
+        if (!existingTx) {
+          txMap.set(tx.deployId, tx);
+        } else {
+          if (tx.type === 'deploy' && existingTx.type !== 'deploy') {
+            txMap.set(tx.deployId, {
+              ...existingTx,
+              blockHash: tx.blockHash,
+              type: existingTx.type
+            });
+          } else if (existingTx.type === 'deploy' && tx.type !== 'deploy') {
+            txMap.set(tx.deployId, {
+              ...tx,
+              blockHash: existingTx.blockHash
+            });
+          } else if (tx.type === 'deploy' && existingTx.type === 'deploy') {
+            txMap.set(tx.deployId, tx);
+          } else {
+            txMap.set(tx.deployId, tx);
+          }
+        }
+      });
+      
+      const sortedTxs = Array.from(txMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      return sortedTxs;
     } catch (error) {
       console.error('Error fetching transaction history from indexer:', error);
       return [];
