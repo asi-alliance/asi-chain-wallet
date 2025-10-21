@@ -1,22 +1,22 @@
-// Gas fee constants - Single source of truth for transaction fees
 export const GAS_FEE = {
-  // Estimated gas fee for transactions (in ASI)
-  ESTIMATED_FEE: '0.0025',
-  
-  // Gas fee display label
+  BASE_FEE: 0.0025,
+  VARIATION_RANGE: 0.1,
   LABEL: 'ASI',
-  
-  // Gas fee for different transaction types (if needed in future)
   TRANSFER: '0.0025',
   DEPLOY: '0.0025',
 } as const;
 
-// Helper function to get gas fee as number
-export const getGasFeeAsNumber = (): number => {
-  return parseFloat(GAS_FEE.ESTIMATED_FEE);
+export const generateRandomGasFee = (): string => {
+  const variation = (Math.random() - 0.5) * 2 * GAS_FEE.VARIATION_RANGE;
+  const randomFee = GAS_FEE.BASE_FEE * (1 + variation);
+  return randomFee.toFixed(4);
 };
 
-// Helper function to format gas fee display
-export const formatGasFee = (): string => {
-  return `${GAS_FEE.ESTIMATED_FEE} ${GAS_FEE.LABEL}`;
+export const getGasFeeAsNumber = (): number => {
+  return GAS_FEE.BASE_FEE;
+};
+
+export const formatGasFee = (fee?: string): string => {
+  const feeValue = fee || generateRandomGasFee();
+  return `${feeValue} ${GAS_FEE.LABEL}`;
 };

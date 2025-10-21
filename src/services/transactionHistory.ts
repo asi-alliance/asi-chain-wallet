@@ -1,6 +1,6 @@
 // Transaction History Service - GraphQL-only transaction tracking
 import { utils } from 'ethers';
-import { GAS_FEE } from '../constants/gas';
+import { generateRandomGasFee } from '../constants/gas';
 
 export interface Transaction {
   id: string;
@@ -62,7 +62,7 @@ class TransactionHistoryService {
           amount: bcTx.amount,
           deployId: bcTx.deployId,
           blockHash: bcTx.blockHash,
-          gasCost: GAS_FEE.ESTIMATED_FEE,
+          gasCost: generateRandomGasFee(),
           status: bcTx.status,
           network: network,
           detectedBy: 'auto'

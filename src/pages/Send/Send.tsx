@@ -7,7 +7,7 @@ import { RootState } from 'store';
 import { sendTransaction, fetchBalance, updateAccountBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
-import { GAS_FEE, getGasFeeAsNumber } from '../../constants/gas';
+import { generateRandomGasFee, getGasFeeAsNumber } from '../../constants/gas';
 import addressValidation from 'utils/AddressValidation';
 
 const SendContainer = styled.div`
@@ -796,7 +796,7 @@ export const Send: React.FC = () => {
         recipient={recipient}
         senderAddress={selectedAccount?.revAddress || ''}
         senderName={selectedAccount?.name || ''}
-        estimatedFee={GAS_FEE.ESTIMATED_FEE}
+        estimatedFee={generateRandomGasFee()}
         loading={isLoading}
         needsPassword={needsPassword}
         requirePasswordForTransaction={requirePasswordForTransaction}

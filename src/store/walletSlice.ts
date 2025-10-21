@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
-import { GAS_FEE } from '../constants/gas';
+import { generateRandomGasFee } from '../constants/gas';
 
 const DEVNET_NODES = {
   bootstrap: {
@@ -342,7 +342,7 @@ export const sendTransaction = createAsyncThunk(
       amount,
       timestamp: new Date(),
       status: 'pending',
-      gasCost: GAS_FEE.ESTIMATED_FEE,
+      gasCost: generateRandomGasFee(),
     };
     
     
@@ -545,7 +545,7 @@ const walletSlice = createSlice({
           blockNumber: tx.blockNumber,
           blockHash: tx.blockHash,
           type: tx.type,
-          gasCost: GAS_FEE.ESTIMATED_FEE
+          gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined
         }));
         
         const existingIds = new Set(state.transactions.map(tx => tx.id));
