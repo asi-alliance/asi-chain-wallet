@@ -193,8 +193,8 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
           </DetailRow>
           
           <DetailRow>
-            <DetailLabel>Commission amount can be ~:</DetailLabel>
-            <DetailValue>0.0017-0.0025 {getTokenDisplayName()}</DetailValue>
+            <DetailLabel>Commission amount can be :</DetailLabel>
+            <DetailValue>~0.0017-0.0025 {getTokenDisplayName()}</DetailValue>
           </DetailRow>
           
           <DetailRow>
