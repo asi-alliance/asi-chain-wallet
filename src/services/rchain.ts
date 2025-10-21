@@ -502,6 +502,7 @@ export class RChainService {
               from_address
               to_address
               amount_rev
+              created_at
             }
             deployments(
               where: {
@@ -567,7 +568,8 @@ export class RChainService {
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        const timestamp = deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date(0).toISOString();
+        const timestamp = tx.created_at ? new Date(parseInt(tx.created_at)).toISOString() : 
+                         (deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date(0).toISOString());
         
         return {
           deployId: tx.deploy_id,
