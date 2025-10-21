@@ -15,7 +15,7 @@ const DEVNET_NODES = {
     ip: '34.196.119.4',
     hash: 'bb93eaa595aaddf6912e372debc73eef',
     ports: {
-      validator: [40410, 40411, 40412, 40413, 40414, 40415],
+      validator: [40400, 40401, 40402, 40403, 40404, 40405],
     }
   },
   validator2: {
@@ -71,7 +71,7 @@ const PRODUCTION_DOMAINS = [
 
 
 
-const getValidatorUrl = (port: number = 40413) => {
+const getValidatorUrl = (port: number = 40403) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -84,15 +84,15 @@ const getValidatorUrl = (port: number = 40413) => {
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.152.57.201:${port}`;
+    return `http://34.196.119.4:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.validator1;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40453) => {
+const getObserverUrl = (port: number = 40403) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -105,10 +105,10 @@ const getObserverUrl = (port: number = 40453) => {
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.152.57.201:${port}`;
+    return `http://54.235.138.68:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
@@ -133,8 +133,8 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40403),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
@@ -149,8 +149,8 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Devnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40403),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
