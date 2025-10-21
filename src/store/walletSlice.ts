@@ -138,7 +138,7 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40403),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40413),
     readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
