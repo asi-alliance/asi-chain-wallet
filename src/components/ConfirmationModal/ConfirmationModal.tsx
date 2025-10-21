@@ -139,7 +139,7 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
     return `${address.substring(0, 12)}...${address.substring(address.length - 10)}`;
   };
 
-  const totalAmount = (parseFloat(amount) + parseFloat(estimatedFee)).toFixed(8);
+  const totalAmount = (parseFloat(amount) + 0.0025).toFixed(8); // Use max fee for total calculation
 
   const handleClose = () => {
     if (!loading) {
@@ -193,8 +193,8 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
           </DetailRow>
           
           <DetailRow>
-            <DetailLabel>Estimated Fee:</DetailLabel>
-            <DetailValue>{estimatedFee} {getTokenDisplayName()}</DetailValue>
+            <DetailLabel>Commission amount can be ~:</DetailLabel>
+            <DetailValue>0.0017-0.0025 {getTokenDisplayName()}</DetailValue>
           </DetailRow>
           
           <DetailRow>

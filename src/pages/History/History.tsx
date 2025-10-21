@@ -506,7 +506,6 @@ export const History: React.FC = () => {
                     <TableHeaderCell>From</TableHeaderCell>
                     <TableHeaderCell>To</TableHeaderCell>
                     <TableHeaderCell align="right">Amount</TableHeaderCell>
-                    <TableHeaderCell align="right">Gas</TableHeaderCell>
                     <TableHeaderCell>Details</TableHeaderCell>
                   </tr>
                 </TableHeader>
@@ -537,9 +536,6 @@ export const History: React.FC = () => {
                         ) : '-'}
                       </TableCell>
                       <TableCell align="right">{formatAmount(tx.amount)}</TableCell>
-                      <TableCell align="right">
-                        {tx.gasCost ? `${tx.gasCost} ASI` : '-'}
-                      </TableCell>
                       <TableCell>
                         {tx.note && <div style={{ fontSize: '12px', marginBottom: '4px' }}>{tx.note}</div>}
                         {tx.deployId && (
