@@ -570,8 +570,18 @@ export class RChainService {
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        const timestamp = tx.created_at ? new Date(tx.created_at).toISOString() : 
-                         (deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date(0).toISOString());
+        
+        let timestamp: string;
+        if (tx.created_at) {
+          const date = new Date(tx.created_at);
+          timestamp = date.toISOString();
+          console.log(`[Transfer Time] DeployId: ${tx.deploy_id}, created_at: ${tx.created_at}, UTC: ${timestamp}`);
+        } else if (deployTimestamp) {
+          const date = new Date(parseInt(deployTimestamp));
+          timestamp = date.toISOString();
+        } else {
+          timestamp = new Date(0).toISOString();
+        }
         
         return {
           deployId: tx.deploy_id,
@@ -586,17 +596,27 @@ export class RChainService {
         };
       });
       
-      const deployTxs = deployments.map((tx: any) => ({
-        deployId: tx.deploy_id,
-        blockNumber: tx.block_number,
-        from: tx.deployer,
-        to: undefined,
-        amount: undefined,
-        status: 'confirmed',
-        timestamp: tx.timestamp ? new Date(parseInt(tx.timestamp)).toISOString() : new Date(0).toISOString(),
-        blockHash: tx.block?.block_hash,
-        type: 'deploy' as const
-      }));
+      const deployTxs = deployments.map((tx: any) => {
+        let timestamp: string;
+        if (tx.timestamp) {
+          const date = new Date(parseInt(tx.timestamp));
+          timestamp = date.toISOString();
+        } else {
+          timestamp = new Date(0).toISOString();
+        }
+        
+        return {
+          deployId: tx.deploy_id,
+          blockNumber: tx.block_number,
+          from: tx.deployer,
+          to: undefined,
+          amount: undefined,
+          status: 'confirmed',
+          timestamp: timestamp,
+          blockHash: tx.block?.block_hash,
+          type: 'deploy' as const
+        };
+      });
       
       const allTxs = [...transferTxs, ...deployTxs];
       
