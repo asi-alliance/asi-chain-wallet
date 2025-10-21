@@ -565,6 +565,8 @@ export class RChainService {
           type = 'send';
         } else if (isReceive && isSend) {
           type = 'send';
+        } else {
+          type = 'receive';
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
@@ -609,8 +611,7 @@ export class RChainService {
           if (tx.type === 'deploy' && existingTx.type !== 'deploy') {
             txMap.set(tx.deployId, {
               ...existingTx,
-              blockHash: tx.blockHash,
-              type: existingTx.type
+              blockHash: tx.blockHash
             });
           } else if (existingTx.type === 'deploy' && tx.type !== 'deploy') {
             txMap.set(tx.deployId, {

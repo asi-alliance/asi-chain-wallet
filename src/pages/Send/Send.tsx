@@ -216,16 +216,21 @@ export const Send: React.FC = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanError, setScanError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
+
+  const updateEstimatedFee = () => {
+    setEstimatedFee(generateRandomGasFee());
+  };
 
   const handleRecipientChange = (value: string) => {
     setRecipient(value);
+    updateEstimatedFee();
     
     if (!value.trim()) {
       setAddressError('');
       return;
     }
     
-    // Validate address in real time
     const validation = addressValidation(value);
     if (!validation.isValid) {
       setAddressError(validation.validationMessages.join(', '));
@@ -236,6 +241,7 @@ export const Send: React.FC = () => {
 
   const handleAmountChange = (value: string) => {
     setAmount(value);
+    updateEstimatedFee();
     
     if (!value.trim()) {
       setValidationError('');
@@ -270,21 +276,6 @@ export const Send: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
-  const validateRecipientAddress = (address: string): void => {
-    setRecipient(address);
-    
-    if (!address.trim()) {
-      setAddressError('');
-      return;
-    }
-    
-    const validation = addressValidation(address);
-    if (!validation.isValid) {
-      setAddressError(validation.validationMessages.join(', '));
-    } else {
-      setAddressError('');
-    }
-  }
 
   // Fetch balance on mount and when selected account changes
   useEffect(() => {
@@ -309,8 +300,7 @@ export const Send: React.FC = () => {
       const qrScanner = new QrScanner(
         videoRef.current,
         (result) => {
-          console.log('QR Code detected:', result);
-          validateRecipientAddress(result.data);
+          handleRecipientChange(result.data);
           setShowQRScanner(false);
           setScanError('');
         },
@@ -362,7 +352,7 @@ export const Send: React.FC = () => {
               });
               
               if (result.data) {
-                validateRecipientAddress(result.data);
+                handleRecipientChange(result.data);
                 return;
               }
             } catch (error) {
@@ -397,7 +387,7 @@ export const Send: React.FC = () => {
             });
             
             if (result.data) {
-              validateRecipientAddress(result.data);
+              handleRecipientChange(result.data);
             }
           } catch (error) {
             console.error('Failed to scan QR code from pasted image:', error);
@@ -658,7 +648,7 @@ export const Send: React.FC = () => {
                   id="send-recipient-input"
                   type="text"
                   value={recipient}
-                  onChange={(e) => validateRecipientAddress(e.target.value)}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
                   onPaste={handleInputPaste}
                   placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
                   style={{
@@ -796,7 +786,7 @@ export const Send: React.FC = () => {
         recipient={recipient}
         senderAddress={selectedAccount?.revAddress || ''}
         senderName={selectedAccount?.name || ''}
-        estimatedFee={generateRandomGasFee()}
+        estimatedFee={estimatedFee}
         loading={isLoading}
         needsPassword={needsPassword}
         requirePasswordForTransaction={requirePasswordForTransaction}
