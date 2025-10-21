@@ -50,8 +50,8 @@ const INTERNAL_DEV_NODES = {
     ip: '54.175.6.183',
     hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
     ports: {
-      validator: [40400, 40401, 40402, 40403, 40404, 40405],
-      observer: [40450, 40451, 40452, 40453, 40454, 40455]
+      validator: [40410, 40411, 40412, 40413, 40414, 40415],
+      observer: [40460, 40461, 40462, 40463, 40464, 40465]
     }
   },
   indexer: {
@@ -96,7 +96,7 @@ const getValidatorUrl = (port: number = 40403) => {
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40453) => {
+const getObserverUrl = (port: number = 40463) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -153,8 +153,8 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Devnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40403),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40463),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
