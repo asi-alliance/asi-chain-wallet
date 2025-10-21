@@ -8,6 +8,7 @@ import { selectNetwork } from "store/walletSlice";
 import { logout } from "store/authSlice";
 import { AccountSwitcher } from "components/AccountSwitcher";
 import { SunIcon, MoonIcon, MenuIcon, CloseIcon, LogoutIcon } from "components/Icons";
+import Logo from 'components/Logo';
 
 const Container = styled.div`
     min-height: 100vh;
@@ -416,8 +417,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         <HeaderTop>
           <LeftSection>
             <LogoContainer onClick={() => navigate('/')}>
-              <LogoImage isDarkMode={darkMode} />
-              <LogoText>ASI Wallet</LogoText>
+              <Logo size="medium" showText={true} />
             </LogoContainer>
           </LeftSection>
           

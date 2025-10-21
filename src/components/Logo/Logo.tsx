@@ -50,7 +50,7 @@ const LogoContainer = styled.div<{ size: 'small' | 'medium' | 'large'; theme: Th
 `;
 
 const LogoText = styled.span`
-  color: var(--Primary-Black, #000);
+  color: ${({ theme }) => theme.text.primary};
   font-family: "Roboto Mono", monospace;
   font-style: normal;
   font-weight: 700;
@@ -60,6 +60,7 @@ const LogoText = styled.span`
 
 const LogoIcon = styled.svg`
   flex-shrink: 0;
+  color: ${({ theme }) => theme.text.primary};
 `;
 
 const Logo: React.FC<LogoProps> = ({ 
