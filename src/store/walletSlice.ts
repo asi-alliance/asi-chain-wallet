@@ -48,7 +48,11 @@ const INTERNAL_DEV_NODES = {
   },
   stable: {
     ip: '54.175.6.183',
-    hash: '9a58a8ea5d22e5d33dd36435e9d4b575'
+    hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
+    ports: {
+      validator: [40400, 40401, 40402, 40403, 40404, 40405],
+      observer: [40450, 40451, 40452, 40453, 40454, 40455]
+    }
   },
   indexer: {
     ip: '184.73.0.34',
@@ -92,7 +96,7 @@ const getValidatorUrl = (port: number = 40403) => {
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40403) => {
+const getObserverUrl = (port: number = 40453) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -134,7 +138,7 @@ const defaultNetworks: Network[] = [
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
     url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40403),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
@@ -150,7 +154,7 @@ const defaultNetworks: Network[] = [
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Devnet',
     url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40403),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40403),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
@@ -181,9 +185,7 @@ const loadNetworks = (): Network[] => {
       networks.forEach(n => networkMap.set(n.id, n));
       
       defaultNetworks.forEach(n => {
-        if (!networkMap.has(n.id)) {
-          networkMap.set(n.id, n);
-        }
+        networkMap.set(n.id, n); // Always override with fresh defaults
       });
       
       return Array.from(networkMap.values());
