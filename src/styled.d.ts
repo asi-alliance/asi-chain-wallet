@@ -62,11 +62,21 @@ declare module 'styled-components' {
     shadow: string;
     shadowLarge: string;
     
-    // Additional theme properties
     error: string;
     textSecondary: string;
     
-    // Gradients
+    fontSize: {
+      xs: string;
+      sm: string;
+      base: string;
+      lg: string;
+      xl: string;
+      '2xl': string;
+      '3xl': string;
+      '4xl': string;
+      logo: string;
+    };
+    
     gradient: {
       primary: string;
       secondary: string;
