@@ -50,8 +50,8 @@ const INTERNAL_DEV_NODES = {
     ip: '54.175.6.183',
     hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
     ports: {
-      validator: [40410, 40411, 40412, 40413, 40414, 40415],
-      observer: [40460, 40461, 40462, 40463, 40464, 40465]
+      validator: [40413, 40423, 40433],
+      observer: [40463, 40473, 40483]
     }
   },
   indexer: {
