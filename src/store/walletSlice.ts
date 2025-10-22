@@ -48,8 +48,8 @@ const INTERNAL_DEV_NODES = {
     hash: '69bca1a3d19689cc22cd78f3e2abd47e'
   },
   stable: {
-    ip: '54.175.6.183',
-    hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
+    ip: '54.235.138.68',
+    hash: '91e17db5a9020441d38bf4dd3d24df2b',
     ports: {
       validator: [40400, 40410, 40420],
       observer: [40450, 40460, 40470]
