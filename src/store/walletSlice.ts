@@ -81,6 +81,7 @@ const getValidatorUrl = (port: number = 40400) => {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    console.log(`[DEBUG] Validator URL: ${url}`);
     return url;
   }
   
@@ -103,6 +104,7 @@ const getObserverUrl = (port: number = 40450) => {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    console.log(`[DEBUG] Observer URL: ${url}`);
     return url;
   }
   

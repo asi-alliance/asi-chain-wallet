@@ -93,7 +93,7 @@ export const CustomNetworkConfig: React.FC = () => {
   const dispatch = useDispatch();
   const { networks, selectedNetwork } = useSelector((state: RootState) => state.wallet);
   
-  // State for custom network configuration
+  // State for Devnet configuration
   const [validatorHost, setValidatorHost] = useState('localhost');
   const [validatorHttpPort, setValidatorHttpPort] = useState('40403');
   const [validatorGrpcPort, setValidatorGrpcPort] = useState('40401');
@@ -163,7 +163,7 @@ export const CustomNetworkConfig: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle>
-          Custom Network Configuration
+          Devnet Configuration
           {selectedNetwork.id === 'custom' && (
             <span style={{ fontSize: '12px', marginLeft: '8px', color: '#4caf50' }}>
               (Active)
@@ -173,16 +173,15 @@ export const CustomNetworkConfig: React.FC = () => {
       </CardHeader>
       <CardContent>
         <InfoBox>
-          <h4>🔧 Custom Network Setup</h4>
+          <h4>🔧 Devnet Setup</h4>
           <p>
-            Configure custom validator and read-only nodes for local development or private networks. 
-            This matches the F1R3Wallet custom network configuration.
+            Configure Devnet validator and read-only nodes for local development or private networks. 
           </p>
         </InfoBox>
 
         {/* Validator Node Configuration */}
         <ConfigSection>
-          <ConfigTitle>Custom network - validator node</ConfigTitle>
+          <ConfigTitle>Devnet - validator node</ConfigTitle>
           
           <FormRow>
             <FormGroup>
@@ -234,7 +233,7 @@ export const CustomNetworkConfig: React.FC = () => {
 
         {/* Read-only Node Configuration */}
         <ConfigSection>
-          <ConfigTitle>Custom network - read-only node</ConfigTitle>
+          <ConfigTitle>Devnet - read-only node</ConfigTitle>
           
           <FormRow>
             <FormGroup>
@@ -290,7 +289,7 @@ export const CustomNetworkConfig: React.FC = () => {
               </Button>
               {selectedNetwork.id !== 'custom' && (
                 <Button variant="primary" onClick={handleUseCustomNetwork}>
-                  Use Custom Network
+                  Use Devnet
                 </Button>
               )}
             </>
