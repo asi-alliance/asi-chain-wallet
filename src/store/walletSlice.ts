@@ -51,8 +51,8 @@ const INTERNAL_DEV_NODES = {
     ip: '54.175.6.183',
     hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
     ports: {
-      validator: [40413, 40423, 40433],
-      observer: [40463, 40473, 40483]
+      validator: [40400, 40410, 40420],
+      observer: [40450, 40460, 40470]
     }
   },
   indexer: {
@@ -76,7 +76,7 @@ const PRODUCTION_DOMAINS = [
 
 
 
-const getValidatorUrl = (port: number = 40413) => {
+const getValidatorUrl = (port: number = 40400) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -138,32 +138,32 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
     name: process.env.TESTNET_NAME || 'Devnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40463),
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
   {
     id: process.env.LOCALNET_ID || 'local',
     name: process.env.LOCALNET_NAME || 'Local Network',
-    url: process.env.REACT_APP_FIREFLY_LOCAL_URL || 'http://localhost:40413',
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_LOCAL_READONLY_URL || 'http://localhost:40453',
+    url: process.env.REACT_APP_FIREFLY_LOCAL_URL || 'http://localhost:40400',
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_LOCAL_READONLY_URL || 'http://localhost:40450',
     adminUrl: process.env.REACT_APP_FIREFLY_LOCAL_ADMIN_URL || 'http://localhost:40405',
     graphqlUrl: process.env.REACT_APP_FIREFLY_LOCAL_GRAPHQL_URL || 'http://localhost:8080/v1/graphql',
     shardId: process.env.LOCALNET_SHARD_ID || 'root',
