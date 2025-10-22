@@ -142,7 +142,7 @@ const getGraphqlUrl = () => {
 const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
-    name: process.env.CUSTOMNET_NAME || 'Custom Network',
+    name: process.env.CUSTOMNET_NAME || 'Devnet',
     url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40400),
     readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
@@ -158,7 +158,7 @@ const defaultNetworks: Network[] = [
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
-    name: process.env.TESTNET_NAME || 'Devnet',
+    name: process.env.TESTNET_NAME || 'Custom Network',
     url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40400),
     readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
