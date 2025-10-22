@@ -415,7 +415,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
           <LeftSection>
             <LogoContainer onClick={() => navigate('/')}>
               <LogoImage isDarkMode={darkMode} />
-              <LogoText>ASI:Wallet</LogoText>
+              <LogoText>ASI:Chain Wallet</LogoText>
             </LogoContainer>
           </LeftSection>
           

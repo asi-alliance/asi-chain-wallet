@@ -1,7 +1,7 @@
 {
   "name": "asi-wallet-v2-dappconnect",
   "version": "2.2.0-dappconnect",
-  "description": "ASI Wallet v2 - A modern wallet for the Firefly network with DApp Connectivity",
+  "description": "ASI Wallet - A modern wallet for the Firefly network with DApp Connectivity",
   "private": true,
   "homepage": ".",
   "scripts": {

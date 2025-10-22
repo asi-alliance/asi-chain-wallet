@@ -1,4 +1,4 @@
-# ASI Wallet v2 - DApp Connect Edition
+# ASI Wallet - DApp Connect Edition
 
 A modern, secure, and fully decentralized wallet for the RChain network, featuring WalletConnect integration for seamless dApp connectivity, an integrated Rholang IDE, and enhanced deployment tracking.
 
@@ -37,7 +37,7 @@ The `start-wallet.sh` script provides automatic image building, health checking,
 
 ## 🌐 Production Deployment
 
-ASI Wallet v2 is currently deployed on AWS Lightsail:
+ASI Wallet is currently deployed on AWS Lightsail:
 
 - **Live Wallet**: http://13.251.66.61:3000
 - **Region**: Singapore (ap-southeast-1) for optimal F1R3FLY network performance

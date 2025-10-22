@@ -405,7 +405,7 @@ export const Dashboard: React.FC = () => {
       <div>
         <Card>
           <CardHeader>
-            <CardTitle>Welcome to ASI Wallet v2</CardTitle>
+            <CardTitle>Welcome to ASI Wallet</CardTitle>
           </CardHeader>
           <CardContent>
             <p>No accounts found. Create or import an account to get started.</p>

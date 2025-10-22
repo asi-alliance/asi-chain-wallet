@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting ASI Wallet v2 with Docker..."
+echo "🚀 Starting ASI Wallet with Docker..."
 echo ""
 
 # Check if Docker is running
@@ -25,12 +25,12 @@ if docker ps -a | grep -q "asi-wallet-v2"; then
     docker-compose down
 fi
 
-echo "🏃 Starting ASI Wallet v2..."
+echo "🏃 Starting ASI Wallet..."
 docker-compose up -d
 
 if [ $? -eq 0 ]; then
     echo ""
-    echo "✅ ASI Wallet v2 is running!"
+    echo "✅ ASI Wallet is running!"
     echo ""
     echo "📱 Access the wallet at: http://localhost:3000"
     echo "🔗 Connected to: F1R3FLY Network (AWS Lightsail)"
@@ -49,7 +49,7 @@ if [ $? -eq 0 ]; then
     echo "🛑 Stop with: docker-compose down"
     echo "🔄 Rebuild with: docker-compose build --no-cache"
 else
-    echo "❌ Failed to start ASI Wallet v2"
+    echo "❌ Failed to start ASI Wallet"
     echo "📝 Check logs with: docker-compose logs"
     exit 1
 fi
