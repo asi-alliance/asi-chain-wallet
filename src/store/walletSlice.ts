@@ -86,7 +86,7 @@ const getValidatorUrl = (port: number = 40400) => {
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
     const endpointId = Math.floor((port % 100) / 10);
-    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_VALIDATOR_HASH}/endpoint_${endpointId}/HTTP_API`;
+    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
@@ -152,7 +152,7 @@ const defaultNetworks: Network[] = [
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
     url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40400),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40450),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40400),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
