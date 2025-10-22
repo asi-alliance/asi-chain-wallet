@@ -97,7 +97,7 @@ const getValidatorUrl = (port: number = 40400) => {
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40463) => {
+const getObserverUrl = (port: number = 40450) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
