@@ -195,10 +195,12 @@ const loadNetworks = (): Network[] => {
       const networks = JSON.parse(stored) as Network[];
       const networkMap = new Map<string, Network>();
       
-      networks.forEach(n => networkMap.set(n.id, n));
+      defaultNetworks.forEach(n => networkMap.set(n.id, n));
       
-      defaultNetworks.forEach(n => {
-        networkMap.set(n.id, n); // Always override with fresh defaults
+      networks.forEach(n => {
+        if (!networkMap.has(n.id)) {
+          networkMap.set(n.id, n);
+        }
       });
       
       return Array.from(networkMap.values());
