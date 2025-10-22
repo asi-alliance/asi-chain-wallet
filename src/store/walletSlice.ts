@@ -48,8 +48,8 @@ const INTERNAL_DEV_NODES = {
     hash: '69bca1a3d19689cc22cd78f3e2abd47e'
   },
   stable: {
-    ip: '54.175.6.183',
-    hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
+    ip: '54.235.138.68',
+    hash: '91e17db5a9020441d38bf4dd3d24df2b',
     ports: {
       validator: [40400, 40410, 40420],
       observer: [40450, 40460, 40470]
@@ -63,10 +63,10 @@ const INTERNAL_DEV_NODES = {
 
 const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 
-const PRODUCTION_API_GATEWAY_URL = 'https://production-api-gateway.execute-api.us-east-1.amazonaws.com/prod';
+const PRODUCTION_API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 const PRODUCTION_GRAPHQL_URL = 'https://production-graphql-endpoint.execute-api.us-east-1.amazonaws.com/v1/graphql';
-const PRODUCTION_VALIDATOR_HASH = 'production-validator-hash';
-const PRODUCTION_OBSERVER_HASH = 'production-observer-hash';
+const PRODUCTION_VALIDATOR_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
+const PRODUCTION_OBSERVER_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 
 const PRODUCTION_DOMAINS = [
   'wallet.asi-chain.com',
@@ -77,10 +77,11 @@ const PRODUCTION_DOMAINS = [
 
 
 const getValidatorUrl = (port: number = 40400) => {
-  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev' || window.location.hostname === 'wallet.dev.asichain.io') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    return url;
   }
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
@@ -97,25 +98,29 @@ const getValidatorUrl = (port: number = 40400) => {
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40463) => {
-  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+const getObserverUrl = (port: number = 40450) => {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev' || window.location.hostname === 'wallet.dev.asichain.io') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
-    return `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
+    return url;
   }
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
     const endpointId = Math.floor((port % 100) / 10);
-    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+    const url = `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+    return url;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.235.138.68:${port}`;
+    const url = `http://54.235.138.68:${port}`;
+    return url;
   }
   
   const devnetNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  const url = `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  return url;
 };
 
 const getGraphqlUrl = () => {
@@ -137,9 +142,9 @@ const getGraphqlUrl = () => {
 const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
-    name: process.env.CUSTOMNET_NAME || 'Custom Network',
+    name: process.env.CUSTOMNET_NAME || 'Devnet',
     url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40400),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40450),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40400),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
@@ -153,7 +158,7 @@ const defaultNetworks: Network[] = [
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
-    name: process.env.TESTNET_NAME || 'Devnet',
+    name: process.env.TESTNET_NAME || 'Custom Network',
     url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40400),
     readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
@@ -183,10 +188,12 @@ const loadNetworks = (): Network[] => {
       const networks = JSON.parse(stored) as Network[];
       const networkMap = new Map<string, Network>();
       
-      networks.forEach(n => networkMap.set(n.id, n));
+      defaultNetworks.forEach(n => networkMap.set(n.id, n));
       
-      defaultNetworks.forEach(n => {
-        networkMap.set(n.id, n); // Always override with fresh defaults
+      networks.forEach(n => {
+        if (!networkMap.has(n.id)) {
+          networkMap.set(n.id, n);
+        }
       });
       
       return Array.from(networkMap.values());
