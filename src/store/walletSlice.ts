@@ -63,10 +63,10 @@ const INTERNAL_DEV_NODES = {
 
 const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 
-const PRODUCTION_API_GATEWAY_URL = 'https://production-api-gateway.execute-api.us-east-1.amazonaws.com/prod';
+const PRODUCTION_API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 const PRODUCTION_GRAPHQL_URL = 'https://production-graphql-endpoint.execute-api.us-east-1.amazonaws.com/v1/graphql';
 const PRODUCTION_VALIDATOR_HASH = 'production-validator-hash';
-const PRODUCTION_OBSERVER_HASH = 'production-observer-hash';
+const PRODUCTION_OBSERVER_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 
 const PRODUCTION_DOMAINS = [
   'wallet.asi-chain.com',
@@ -81,7 +81,6 @@ const getValidatorUrl = (port: number = 40400) => {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
-    console.log(`[DEBUG] Validator URL: ${url}`);
     return url;
   }
   
@@ -104,7 +103,6 @@ const getObserverUrl = (port: number = 40450) => {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
-    console.log(`[DEBUG] Observer URL: ${url}`);
     return url;
   }
   
