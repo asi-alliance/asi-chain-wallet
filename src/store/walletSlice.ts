@@ -65,7 +65,7 @@ const API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/
 
 const PRODUCTION_API_GATEWAY_URL = 'https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod';
 const PRODUCTION_GRAPHQL_URL = 'https://production-graphql-endpoint.execute-api.us-east-1.amazonaws.com/v1/graphql';
-const PRODUCTION_VALIDATOR_HASH = 'production-validator-hash';
+const PRODUCTION_VALIDATOR_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 const PRODUCTION_OBSERVER_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 
 const PRODUCTION_DOMAINS = [
@@ -86,7 +86,7 @@ const getValidatorUrl = (port: number = 40400) => {
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
     const endpointId = Math.floor((port % 100) / 10);
-    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_VALIDATOR_HASH}/endpoint_${endpointId}/HTTP_API`;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
@@ -144,7 +144,7 @@ const defaultNetworks: Network[] = [
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Devnet',
     url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40400),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40450),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40400),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
@@ -152,7 +152,7 @@ const defaultNetworks: Network[] = [
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
     url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40400),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
