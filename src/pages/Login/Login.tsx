@@ -98,7 +98,7 @@ export const Login: React.FC = () => {
   if (!hasAccounts) {
     return (
       <LoginContainer>
-        <Logo>ASI Wallet v2</Logo>
+        <Logo>ASI Wallet</Logo>
         <Card>
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
@@ -118,7 +118,7 @@ export const Login: React.FC = () => {
 
   return (
     <LoginContainer>
-      <Logo>ASI Wallet v2</Logo>
+      <Logo>ASI Wallet</Logo>
       <Card>
         <CardHeader>
           <CardTitle>Unlock Wallet</CardTitle>
