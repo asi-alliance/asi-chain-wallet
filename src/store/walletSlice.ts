@@ -16,21 +16,21 @@ const DEVNET_NODES = {
     ip: '34.196.119.4',
     hash: 'bb93eaa595aaddf6912e372debc73eef',
     ports: {
-      validator: [40400, 40401, 40402, 40403, 40404, 40405],
+      validator: [40400, 40410, 40420],
     }
   },
   validator2: {
     ip: '54.84.69.169',
     hash: '039206b26069004fc3736f3b2fb88a95',
     ports: {
-      validator: [40420, 40421, 40422, 40423, 40424, 40425],
+      validator: [40400, 40410, 40420],
     }
   },
   validator3: {
     ip: '52.45.73.187',
     hash: 'b7dc4a862a2509f19c7dfbd22b6d6f40',
     ports: {
-      validator: [40430, 40431, 40432, 40433, 40434, 40435],
+      validator: [40400, 40410, 40420],
     }
   },
   observer: {
