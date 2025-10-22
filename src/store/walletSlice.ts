@@ -77,11 +77,10 @@ const PRODUCTION_DOMAINS = [
 
 
 const getValidatorUrl = (port: number = 40400) => {
-  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev' || window.location.hostname === 'wallet.dev.asichain.io') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
-    console.log(`[Validator URL] Dev environment: ${url} (port: ${port}, endpointId: ${endpointId})`);
     return url;
   }
   
@@ -100,33 +99,27 @@ const getValidatorUrl = (port: number = 40400) => {
 };
 
 const getObserverUrl = (port: number = 40450) => {
-  console.log(`[Observer URL] Hostname: ${window.location.hostname}, Port: ${port}`);
-  
-  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
+  if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev' || window.location.hostname === 'wallet.dev.asichain.io') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
-    console.log(`[Observer URL] Dev environment: ${url} (port: ${port}, endpointId: ${endpointId})`);
     return url;
   }
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
     const endpointId = Math.floor((port % 100) / 10);
     const url = `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
-    console.log(`[Observer URL] Production environment: ${url}`);
     return url;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
     const url = `http://54.235.138.68:${port}`;
-    console.log(`[Observer URL] Localhost development: ${url}`);
     return url;
   }
   
   const devnetNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
   const url = `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
-  console.log(`[Observer URL] DevNet fallback: ${url} (using old hash!)`);
   return url;
 };
 

@@ -139,7 +139,6 @@ export class RChainService {
     const now = Date.now();
     
     if (!forceRefresh && cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
-      console.log(`[Balance Cache] Using cached balance for ${revAddress}: ${cached.balance} ${getTokenDisplayName()}`);
       return cached.balance;
     }
 
@@ -168,9 +167,7 @@ export class RChainService {
         // Check if it's a direct integer (balance)
         if (firstExpr?.ExprInt?.data !== undefined) {
           const balance = firstExpr.ExprInt.data.toString();
-          // Cache the balance globally
           globalBalanceCache.set(cacheKey, { balance, timestamp: now });
-          console.log(`[Balance Cache] Cached balance for ${revAddress}: ${balance} ${getTokenDisplayName()}`);
           return balance;
         }
         
@@ -183,7 +180,6 @@ export class RChainService {
         }
       }
       
-      console.log('Balance check: No valid result', result);
       // Cache zero balance for no result case
       globalBalanceCache.set(cacheKey, { balance: '0', timestamp: now });
       return '0';
@@ -195,13 +191,6 @@ export class RChainService {
   }
 
   async transfer(fromAddress: string, toAddress: string, amount: string, privateKey: string): Promise<string> {
-    console.log(`[RChain Transfer] Transfer details:`, {
-      from: fromAddress,
-      to: toAddress,
-      amount: amount,
-      amountInASI: (parseInt(amount) / 100000000).toString()
-    });
-    
     const transferRho = `
       new 
         deployerId(\`rho:rchain:deployerId\`),
