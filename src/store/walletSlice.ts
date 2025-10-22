@@ -100,6 +100,8 @@ const getValidatorUrl = (port: number = 40400) => {
 };
 
 const getObserverUrl = (port: number = 40450) => {
+  console.log(`[Observer URL] Hostname: ${window.location.hostname}, Port: ${port}`);
+  
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -110,16 +112,22 @@ const getObserverUrl = (port: number = 40450) => {
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
     const endpointId = Math.floor((port % 100) / 10);
-    return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+    const url = `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
+    console.log(`[Observer URL] Production environment: ${url}`);
+    return url;
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.235.138.68:${port}`;
+    const url = `http://54.235.138.68:${port}`;
+    console.log(`[Observer URL] Localhost development: ${url}`);
+    return url;
   }
   
   const devnetNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
-  return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  const url = `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
+  console.log(`[Observer URL] DevNet fallback: ${url} (using old hash!)`);
+  return url;
 };
 
 const getGraphqlUrl = () => {
