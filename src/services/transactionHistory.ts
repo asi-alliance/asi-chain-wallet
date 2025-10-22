@@ -1,5 +1,6 @@
 // Transaction History Service - GraphQL-only transaction tracking
 import { utils } from 'ethers';
+import { generateRandomGasFee } from '../constants/gas';
 
 export interface Transaction {
   id: string;
@@ -52,24 +53,16 @@ class TransactionHistoryService {
           continue;
         }
         
-        let type: 'send' | 'receive' | 'deploy' = 'deploy';
-        if (isReceive && isSend) {
-          type = 'send';
-        } else if (isReceive) {
-          type = 'receive';
-        } else if (isSend) {
-          type = 'send';
-        }
-        
         const transaction: Transaction = {
           id: bcTx.deployId || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           timestamp: new Date(bcTx.timestamp),
-          type: type,
+          type: bcTx.type, // Use the type already determined by RChainService
           from: bcTx.from,
           to: bcTx.to,
           amount: bcTx.amount,
           deployId: bcTx.deployId,
           blockHash: bcTx.blockHash,
+          gasCost: generateRandomGasFee(),
           status: bcTx.status,
           network: network,
           detectedBy: 'auto'

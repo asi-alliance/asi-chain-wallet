@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
+import { generateRandomGasFee } from '../constants/gas';
 
 const DEVNET_NODES = {
   bootstrap: {
@@ -15,7 +16,7 @@ const DEVNET_NODES = {
     ip: '34.196.119.4',
     hash: 'bb93eaa595aaddf6912e372debc73eef',
     ports: {
-      validator: [40410, 40411, 40412, 40413, 40414, 40415],
+      validator: [40400, 40401, 40402, 40403, 40404, 40405],
     }
   },
   validator2: {
@@ -48,7 +49,11 @@ const INTERNAL_DEV_NODES = {
   },
   stable: {
     ip: '54.175.6.183',
-    hash: '9a58a8ea5d22e5d33dd36435e9d4b575'
+    hash: '9a58a8ea5d22e5d33dd36435e9d4b575',
+    ports: {
+      validator: [40400, 40410, 40420],
+      observer: [40450, 40460, 40470]
+    }
   },
   indexer: {
     ip: '184.73.0.34',
@@ -71,7 +76,7 @@ const PRODUCTION_DOMAINS = [
 
 
 
-const getValidatorUrl = (port: number = 40413) => {
+const getValidatorUrl = (port: number = 40400) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -84,15 +89,15 @@ const getValidatorUrl = (port: number = 40413) => {
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.152.57.201:${port}`;
+    return `http://34.196.119.4:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.validator1;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
 
-const getObserverUrl = (port: number = 40453) => {
+const getObserverUrl = (port: number = 40463) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
     const endpointId = Math.floor((port % 100) / 10); 
@@ -105,10 +110,10 @@ const getObserverUrl = (port: number = 40453) => {
   }
   
   if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
-    return `http://54.152.57.201:${port}`;
+    return `http://54.235.138.68:${port}`;
   }
   
-  const devnetNode = DEVNET_NODES.bootstrap;
+  const devnetNode = DEVNET_NODES.observer;
   const endpointId = Math.floor((port % 100) / 10);
   return `${API_GATEWAY_URL}/${devnetNode.hash}/endpoint_${endpointId}/HTTP_API`;
 };
@@ -133,32 +138,32 @@ const defaultNetworks: Network[] = [
   {
     id: process.env.CUSTOMNET_ID || 'custom',
     name: process.env.CUSTOMNET_NAME || 'Custom Network',
-    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_CUSTOMNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_CUSTOMNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_CUSTOMNET_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.CUSTOMNET_SHARD_ID || 'root',
   },
   {
     id: process.env.MAINNET_ID || 'mainnet',
     name: process.env.MAINNET_NAME || 'Mainnet',
-    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40453),
+    url: process.env.REACT_APP_FIREFLY_MAINNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_MAINNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.MAINNET_SHARD_ID || 'root',
   },
   {
     id: process.env.TESTNET_ID || 'testnet',
-    name: process.env.TESTNET_NAME || 'Testnet',
-    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40413),
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40453),
+    name: process.env.TESTNET_NAME || 'Devnet',
+    url: process.env.REACT_APP_FIREFLY_TESTNET_URL || getValidatorUrl(40400),
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_TESTNET_READONLY_URL || getObserverUrl(40450),
     graphqlUrl: process.env.REACT_APP_FIREFLY_GRAPHQL_URL || getGraphqlUrl(),
     shardId: process.env.TESTNET_SHARD_ID || 'testnet',
   },
   {
     id: process.env.LOCALNET_ID || 'local',
     name: process.env.LOCALNET_NAME || 'Local Network',
-    url: process.env.REACT_APP_FIREFLY_LOCAL_URL || 'http://localhost:40413',
-    readOnlyUrl: process.env.REACT_APP_FIREFLY_LOCAL_READONLY_URL || 'http://localhost:40453',
+    url: process.env.REACT_APP_FIREFLY_LOCAL_URL || 'http://localhost:40400',
+    readOnlyUrl: process.env.REACT_APP_FIREFLY_LOCAL_READONLY_URL || 'http://localhost:40450',
     adminUrl: process.env.REACT_APP_FIREFLY_LOCAL_ADMIN_URL || 'http://localhost:40405',
     graphqlUrl: process.env.REACT_APP_FIREFLY_LOCAL_GRAPHQL_URL || 'http://localhost:8080/v1/graphql',
     shardId: process.env.LOCALNET_SHARD_ID || 'root',
@@ -181,9 +186,7 @@ const loadNetworks = (): Network[] => {
       networks.forEach(n => networkMap.set(n.id, n));
       
       defaultNetworks.forEach(n => {
-        if (!networkMap.has(n.id)) {
-          networkMap.set(n.id, n);
-        }
+        networkMap.set(n.id, n); // Always override with fresh defaults
       });
       
       return Array.from(networkMap.values());
@@ -264,6 +267,23 @@ export const fetchBalance = createAsyncThunk(
   }
 );
 
+export const fetchTransactionHistory = createAsyncThunk(
+  'wallet/fetchTransactionHistory',
+  async ({ address, publicKey, limit = 50 }: { address: string; publicKey: string; limit?: number }, { getState }) => {
+    const state = getState() as { wallet: WalletState };
+    const { selectedNetwork } = state.wallet;
+    
+    if (!selectedNetwork) {
+      throw new Error('No network selected');
+    }
+    
+    const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId, selectedNetwork.graphqlUrl);
+    const transactions = await rchain.fetchTransactionHistory(address, publicKey, limit);
+    
+    return transactions;
+  }
+);
+
 export const sendTransaction = createAsyncThunk(
   'wallet/sendTransaction',
   async ({
@@ -278,7 +298,7 @@ export const sendTransaction = createAsyncThunk(
     amount: string;
     password?: string;
     network: Network;
-  }) => {
+  }, { dispatch }) => {
     // Get private key from unlocked account or decrypt with password
     let privateKey: string | undefined;
     
@@ -322,14 +342,19 @@ export const sendTransaction = createAsyncThunk(
       amount,
       timestamp: new Date(),
       status: 'pending',
+      gasCost: generateRandomGasFee(),
     };
     
     
     rchain.waitForDeployResult(deployId, 24).then(result => {
       if (result.status === 'completed') {
+        dispatch(updateTransactionStatus({ deployId, status: 'completed' }));
+        dispatch(fetchTransactionHistory({ address: from.revAddress, publicKey: from.publicKey, limit: 50 }));
       } else if (result.status === 'errored' || result.status === 'system_error') {
+        dispatch(updateTransactionStatus({ deployId, status: 'failed', error: result.error }));
       }
     }).catch(error => {
+      dispatch(updateTransactionStatus({ deployId, status: 'failed', error: error.message }));
     });
     
     return transaction;
@@ -468,6 +493,15 @@ const walletSlice = createSlice({
         console.error('Failed to load accounts from storage:', error);
       }
     },
+    updateTransactionStatus: (state, action: PayloadAction<{ deployId: string; status: 'pending' | 'completed' | 'failed'; error?: string }>) => {
+      const transaction = state.transactions.find(tx => tx.deployId === action.payload.deployId);
+      if (transaction) {
+        transaction.status = action.payload.status;
+        if (action.payload.error) {
+          transaction.error = action.payload.error;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -498,6 +532,26 @@ const walletSlice = createSlice({
       .addCase(sendTransaction.rejected, (state, action) => {
         state.error = action.error.message || 'Failed to send transaction';
         state.isLoading = false;
+      })
+      .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
+        const newTransactions = action.payload.map((tx: any) => ({
+          id: tx.deployId,
+          deployId: tx.deployId,
+          from: tx.from,
+          to: tx.to,
+          amount: tx.amount,
+          timestamp: new Date(tx.timestamp),
+          status: tx.status,
+          blockNumber: tx.blockNumber,
+          blockHash: tx.blockHash,
+          type: tx.type,
+          gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined
+        }));
+        
+        const existingIds = new Set(state.transactions.map(tx => tx.id));
+        const uniqueNewTransactions = newTransactions.filter(tx => !existingIds.has(tx.id));
+        
+        state.transactions = [...uniqueNewTransactions, ...state.transactions];
       });
   },
 });
@@ -514,6 +568,7 @@ export const {
   addNetwork,
   loadNetworksFromStorage,
   loadAccountsFromStorage,
+  updateTransactionStatus,
 } = walletSlice.actions;
 
 export default walletSlice.reducer;

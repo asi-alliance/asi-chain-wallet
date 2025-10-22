@@ -7,6 +7,7 @@ import { RootState } from 'store';
 import { sendTransaction, fetchBalance, updateAccountBalance } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, TransactionConfirmationModal } from 'components';
 import { getTokenDisplayName } from '../../constants/token';
+import { generateRandomGasFee, getGasFeeAsNumber } from '../../constants/gas';
 import addressValidation from 'utils/AddressValidation';
 
 const SendContainer = styled.div`
@@ -194,7 +195,6 @@ const ButtonGroup = styled.div`
   margin-bottom: 0;
 `;
 
-const ESTIMATED_GAS_FEE = 0.001;
 
 export const Send: React.FC = () => {
   const dispatch = useDispatch();
@@ -216,16 +216,21 @@ export const Send: React.FC = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanError, setScanError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
+
+  const updateEstimatedFee = () => {
+    setEstimatedFee(generateRandomGasFee());
+  };
 
   const handleRecipientChange = (value: string) => {
     setRecipient(value);
+    updateEstimatedFee();
     
     if (!value.trim()) {
       setAddressError('');
       return;
     }
     
-    // Validate address in real time
     const validation = addressValidation(value);
     if (!validation.isValid) {
       setAddressError(validation.validationMessages.join(', '));
@@ -236,6 +241,7 @@ export const Send: React.FC = () => {
 
   const handleAmountChange = (value: string) => {
     setAmount(value);
+    updateEstimatedFee();
     
     if (!value.trim()) {
       setValidationError('');
@@ -254,10 +260,9 @@ export const Send: React.FC = () => {
       return;
     }
     
-    const totalRequired = amountValue + ESTIMATED_GAS_FEE;
+    const totalRequired = amountValue + getGasFeeAsNumber();
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
-      // Round down to avoid floating point precision issues
+      const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
       const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
       setValidationError(
         `Amount + fee (${totalRequired.toFixed(8)}) exceeds balance. Max: ${maxRounded.toFixed(8)} ${getTokenDisplayName()}`
@@ -271,21 +276,6 @@ export const Send: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
-  const validateRecipientAddress = (address: string): void => {
-    setRecipient(address);
-    
-    if (!address.trim()) {
-      setAddressError('');
-      return;
-    }
-    
-    const validation = addressValidation(address);
-    if (!validation.isValid) {
-      setAddressError(validation.validationMessages.join(', '));
-    } else {
-      setAddressError('');
-    }
-  }
 
   // Fetch balance on mount and when selected account changes
   useEffect(() => {
@@ -310,8 +300,7 @@ export const Send: React.FC = () => {
       const qrScanner = new QrScanner(
         videoRef.current,
         (result) => {
-          console.log('QR Code detected:', result);
-          validateRecipientAddress(result.data);
+          handleRecipientChange(result.data);
           setShowQRScanner(false);
           setScanError('');
         },
@@ -363,7 +352,7 @@ export const Send: React.FC = () => {
               });
               
               if (result.data) {
-                validateRecipientAddress(result.data);
+                handleRecipientChange(result.data);
                 return;
               }
             } catch (error) {
@@ -398,7 +387,7 @@ export const Send: React.FC = () => {
             });
             
             if (result.data) {
-              validateRecipientAddress(result.data);
+              handleRecipientChange(result.data);
             }
           } catch (error) {
             console.error('Failed to scan QR code from pasted image:', error);
@@ -453,11 +442,11 @@ export const Send: React.FC = () => {
       return false;
     }
     
-    const totalRequired = amountToSend + ESTIMATED_GAS_FEE;
+    const totalRequired = amountToSend + getGasFeeAsNumber();
     if (totalRequired > balance) {
-      const maxSendable = Math.max(0, balance - ESTIMATED_GAS_FEE);
+      const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
       setValidationError(
-        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${ESTIMATED_GAS_FEE.toFixed(8)} fee)`
+        `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(8)} ${getTokenDisplayName()} (${balance.toFixed(8)} - ${getGasFeeAsNumber().toFixed(8)} fee)`
       );
       return false;
     }
@@ -535,7 +524,7 @@ export const Send: React.FC = () => {
                 } else {
                   console.log('[Send] Balance update timeout - transaction may still be processing');
                   const sentAmount = parseFloat(amount);
-                  const fee = ESTIMATED_GAS_FEE;
+                  const fee = getGasFeeAsNumber();
                   const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
                   
                   if (expectedNewBalance >= 0) {
@@ -551,7 +540,7 @@ export const Send: React.FC = () => {
               console.warn('[Send] Balance fetch failed, but transaction was sent successfully');
               
               const sentAmount = parseFloat(amount);
-              const fee = ESTIMATED_GAS_FEE;
+              const fee = getGasFeeAsNumber();
               const expectedNewBalance = parseFloat(initialBalance) - sentAmount - fee;
               
               if (expectedNewBalance >= 0) {
@@ -583,13 +572,12 @@ export const Send: React.FC = () => {
 
   const maxAmount = () => {
     const balance = parseFloat(selectedAccount?.balance || '0');
-    const max = Math.max(0, balance - ESTIMATED_GAS_FEE);
+    const max = Math.max(0, balance - getGasFeeAsNumber());
     
     if (max <= 0) {
       setValidationError('Insufficient balance to cover gas fees');
       setAmount('0');
     } else {
-      // Round down to avoid floating point precision issues
       const maxRounded = Math.floor(max * 100000000) / 100000000;
       setAmount(maxRounded.toFixed(8));
       setValidationError('');
@@ -660,7 +648,7 @@ export const Send: React.FC = () => {
                   id="send-recipient-input"
                   type="text"
                   value={recipient}
-                  onChange={(e) => validateRecipientAddress(e.target.value)}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
                   onPaste={handleInputPaste}
                   placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
                   style={{
@@ -798,6 +786,7 @@ export const Send: React.FC = () => {
         recipient={recipient}
         senderAddress={selectedAccount?.revAddress || ''}
         senderName={selectedAccount?.name || ''}
+        estimatedFee={estimatedFee}
         loading={isLoading}
         needsPassword={needsPassword}
         requirePasswordForTransaction={requirePasswordForTransaction}

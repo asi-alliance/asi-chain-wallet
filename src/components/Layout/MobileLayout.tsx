@@ -7,7 +7,7 @@ import { toggleTheme } from "store/themeSlice";
 import { selectNetwork } from "store/walletSlice";
 import { logout } from "store/authSlice";
 import { AccountSwitcher } from "components/AccountSwitcher";
-import { SunIcon, MoonIcon, MenuIcon, CloseIcon } from "components/Icons";
+import { SunIcon, MoonIcon, MenuIcon, CloseIcon, LogoutIcon } from "components/Icons";
 
 const Container = styled.div`
     min-height: 100vh;
@@ -435,6 +435,12 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
             <IconButton onClick={handleThemeToggle} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
               {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
             </IconButton>
+
+            {isAuthenticated && (
+              <IconButton onClick={handleLogout} title={'Logout'}>
+                <LogoutIcon size={20} />
+              </IconButton>
+            )}
             
             <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
               <MenuIcon size={20} />

@@ -47,6 +47,7 @@ export const createAccountWithPassword = createAsyncThunk(
 
     // Save encrypted account
     SecureStorage.saveAccount(account, password);
+    SecureStorage.unlockAccount(account.id, password);
     
     // Only set authenticated if this is the first account
     if (!hadAccountsBefore) {
@@ -105,6 +106,7 @@ export const importAccountWithPassword = createAsyncThunk(
     // Save encrypted account
     if (account.privateKey) {
       SecureStorage.saveAccount(account, password);
+      SecureStorage.unlockAccount(account.id, password);
     }
     
     // Only set authenticated if this is the first account

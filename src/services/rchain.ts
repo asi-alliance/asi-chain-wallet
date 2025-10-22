@@ -502,6 +502,7 @@ export class RChainService {
               from_address
               to_address
               amount_rev
+              created_at
             }
             deployments(
               where: {
@@ -557,17 +558,30 @@ export class RChainService {
         const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
         const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
         
-        let type: 'send' | 'receive' | 'deploy' = 'deploy'; 
-        if (isReceive && isSend) {
-          type = 'send';
-        } else if (isReceive) {
+        let type: 'send' | 'receive' = 'send';
+        if (isReceive && !isSend) {
           type = 'receive';
-        } else if (isSend) {
+        } else if (isSend && !isReceive) {
           type = 'send';
+        } else if (isReceive && isSend) {
+          type = 'send';
+        } else {
+          type = 'receive';
         }
         
         const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        const timestamp = deployTimestamp ? new Date(parseInt(deployTimestamp)).toISOString() : new Date().toISOString();
+        
+        let timestamp: string;
+        if (tx.created_at) {
+          const date = new Date(tx.created_at);
+          timestamp = date.toISOString();
+          console.log(`[Transfer Time] DeployId: ${tx.deploy_id}, created_at: ${tx.created_at}, UTC: ${timestamp}`);
+        } else if (deployTimestamp) {
+          const date = new Date(parseInt(deployTimestamp));
+          timestamp = date.toISOString();
+        } else {
+          timestamp = new Date(0).toISOString();
+        }
         
         return {
           deployId: tx.deploy_id,
@@ -582,20 +596,59 @@ export class RChainService {
         };
       });
       
-      const deployTxs = deployments.map((tx: any) => ({
-        deployId: tx.deploy_id,
-        blockNumber: tx.block_number,
-        from: tx.deployer,
-        to: undefined,
-        amount: undefined,
-        status: 'confirmed',
-        timestamp: tx.timestamp ? new Date(parseInt(tx.timestamp)).toISOString() : new Date().toISOString(),
-        blockHash: tx.block?.block_hash,
-        type: 'deploy' as const
-      }));
+      const deployTxs = deployments.map((tx: any) => {
+        let timestamp: string;
+        if (tx.timestamp) {
+          const date = new Date(parseInt(tx.timestamp));
+          timestamp = date.toISOString();
+        } else {
+          timestamp = new Date(0).toISOString();
+        }
+        
+        return {
+          deployId: tx.deploy_id,
+          blockNumber: tx.block_number,
+          from: tx.deployer,
+          to: undefined,
+          amount: undefined,
+          status: 'confirmed',
+          timestamp: timestamp,
+          blockHash: tx.block?.block_hash,
+          type: 'deploy' as const
+        };
+      });
       
       const allTxs = [...transferTxs, ...deployTxs];
-      return allTxs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      const txMap = new Map();
+      
+      allTxs.forEach(tx => {
+        const existingTx = txMap.get(tx.deployId);
+        
+        if (!existingTx) {
+          txMap.set(tx.deployId, tx);
+        } else {
+          if (tx.type === 'deploy' && existingTx.type !== 'deploy') {
+            txMap.set(tx.deployId, {
+              ...existingTx,
+              blockHash: tx.blockHash
+            });
+          } else if (existingTx.type === 'deploy' && tx.type !== 'deploy') {
+            txMap.set(tx.deployId, {
+              ...tx,
+              blockHash: existingTx.blockHash
+            });
+          } else if (tx.type === 'deploy' && existingTx.type === 'deploy') {
+            txMap.set(tx.deployId, tx);
+          } else {
+            txMap.set(tx.deployId, tx);
+          }
+        }
+      });
+      
+      const sortedTxs = Array.from(txMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      return sortedTxs;
     } catch (error) {
       console.error('Error fetching transaction history from indexer:', error);
       return [];

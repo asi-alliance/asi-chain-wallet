@@ -506,7 +506,6 @@ export const History: React.FC = () => {
                     <TableHeaderCell>From</TableHeaderCell>
                     <TableHeaderCell>To</TableHeaderCell>
                     <TableHeaderCell align="right">Amount</TableHeaderCell>
-                    <TableHeaderCell align="right">Gas</TableHeaderCell>
                     <TableHeaderCell>Details</TableHeaderCell>
                   </tr>
                 </TableHeader>
@@ -537,22 +536,19 @@ export const History: React.FC = () => {
                         ) : '-'}
                       </TableCell>
                       <TableCell align="right">{formatAmount(tx.amount)}</TableCell>
-                      <TableCell align="right">
-                        {tx.gasCost ? `${tx.gasCost} phlo` : '-'}
-                      </TableCell>
                       <TableCell>
                         {tx.note && <div style={{ fontSize: '12px', marginBottom: '4px' }}>{tx.note}</div>}
                         {tx.deployId && (
-                          <div style={{ fontSize: '11px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>Deploy: {tx.deployId.substring(0, 16)}...</span>
-                            <Button
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace' }}>
+                            Deploy: {tx.deployId.substring(0, 16)}...
+                            <a
                               id={`copy-deployid-${tx.id}`}
-                              size="small"
-                              variant="ghost"
-                              onClick={() => handleCopy(tx.deployId as string)}
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); handleCopy(tx.deployId as string); }}
+                              style={{ marginLeft: 8 }}
                             >
                               Copy
-                            </Button>
+                            </a>
                           </div>
                         )}
                         {tx.blockHash && (
