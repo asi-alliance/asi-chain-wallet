@@ -262,7 +262,7 @@ export const Settings: React.FC = () => {
       ))}
 
       {!isCustomNetwork && !editingNetwork && (
-        <Button variant="primary" onClick={handleAddCustomNetwork}>
+        <Button variant="primary" onClick={handleAddCustomNetwork} style={{ marginBottom: '40px' }}>
           Add Custom Network
         </Button>
       )}
