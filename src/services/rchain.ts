@@ -355,7 +355,7 @@ export class RChainService {
                 transfers {
                   from_address
                   to_address
-                  amount_asi
+                  amount_rev
                   status
                 }
               }
@@ -490,7 +490,7 @@ export class RChainService {
               block_number
               from_address
               to_address
-              amount_asi
+              amount_rev
               created_at
             }
             deployments(
@@ -577,7 +577,7 @@ export class RChainService {
           blockNumber: tx.block_number,
           from: tx.from_address,
           to: tx.to_address,
-          amount: tx.amount_asi,
+          amount: tx.amount_rev,
           status: 'confirmed',
           timestamp: timestamp,
           blockHash: undefined,
