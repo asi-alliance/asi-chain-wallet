@@ -9,7 +9,7 @@ const DEVNET_NODES = {
     ip: '54.152.57.201',
     hash: 'abc96ca0a78fbdd2b5e87eaa691bb05f',
     ports: {
-      validator: [40400, 40401, 40402, 40403, 40404, 40405],
+      validator: [40400, 40410, 40420, 40430, 40440, 40450],
     }
   },
   validator1: {
@@ -37,7 +37,7 @@ const DEVNET_NODES = {
     ip: '54.235.138.68',
     hash: '91e17db5a9020441d38bf4dd3d24df2b',
     ports: {
-      validator: [40450, 40451, 40452, 40453, 40454, 40455],
+      validator: [40400, 40410, 40420, 40430, 40440, 40450],
     }
   }
 };
@@ -69,9 +69,7 @@ const PRODUCTION_VALIDATOR_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 const PRODUCTION_OBSERVER_HASH = '91e17db5a9020441d38bf4dd3d24df2b';
 
 const PRODUCTION_DOMAINS = [
-  'wallet.asi-chain.com',
-  'wallet.singularitynet.io', 
-  'asi-wallet.singularitynet.io'
+  'wallet.dev.asichain.io'
 ];
 
 
@@ -79,13 +77,16 @@ const PRODUCTION_DOMAINS = [
 const getValidatorUrl = (port: number = 40400) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
-    const endpointId = Math.floor((port % 100) / 10); 
+    const devPort = 40410;
+    const endpointId = Math.floor((devPort % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
     return url;
   }
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
-    const endpointId = Math.floor((port % 100) / 10);
+
+    const prodPort = port === 40400 ? 40400 : port;
+    const endpointId = Math.floor((prodPort % 100) / 10);
     return `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_VALIDATOR_HASH}/endpoint_${endpointId}/HTTP_API`;
   }
   
@@ -101,13 +102,15 @@ const getValidatorUrl = (port: number = 40400) => {
 const getObserverUrl = (port: number = 40450) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
-    const endpointId = Math.floor((port % 100) / 10); 
+    const devPort = 40450;
+    const endpointId = Math.floor((devPort % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
     return url;
   }
   
   if (PRODUCTION_DOMAINS.includes(window.location.hostname)) {
-    const endpointId = Math.floor((port % 100) / 10);
+    const prodPort = port === 40450 ? 40400 : port;
+    const endpointId = Math.floor((prodPort % 100) / 10);
     const url = `${PRODUCTION_API_GATEWAY_URL}/${PRODUCTION_OBSERVER_HASH}/endpoint_${endpointId}/HTTP_API`;
     return url;
   }
