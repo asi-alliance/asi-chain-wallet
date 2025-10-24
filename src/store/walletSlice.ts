@@ -79,7 +79,8 @@ const PRODUCTION_DOMAINS = [
 const getValidatorUrl = (port: number = 40400) => {
   if (window.location.hostname === 'wallet.asi-chain.singularitynet.dev') {
     const stableNode = INTERNAL_DEV_NODES.stable;
-    const endpointId = Math.floor((port % 100) / 10); 
+    const devPort = port === 40400 ? 40410 : port; // Use endpoint_1 for Dev
+    const endpointId = Math.floor((devPort % 100) / 10); 
     const url = `${API_GATEWAY_URL}/${stableNode.hash}/endpoint_${endpointId}/HTTP_API`;
     return url;
   }
