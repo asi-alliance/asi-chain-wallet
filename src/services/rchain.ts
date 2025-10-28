@@ -491,7 +491,7 @@ export class RChainService {
               from_address
               to_address
               amount_asi
-              created_at
+              timestamp
             }
             deployments(
               where: {
@@ -558,15 +558,9 @@ export class RChainService {
           type = 'receive';
         }
         
-        const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        
         let timestamp: string;
-        if (tx.created_at) {
-          const date = new Date(tx.created_at);
-          timestamp = date.toISOString();
-          console.log(`[Transfer Time] DeployId: ${tx.deploy_id}, created_at: ${tx.created_at}, UTC: ${timestamp}`);
-        } else if (deployTimestamp) {
-          const date = new Date(parseInt(deployTimestamp));
+        if (tx.timestamp) {
+          const date = new Date(parseInt(tx.timestamp));
           timestamp = date.toISOString();
         } else {
           timestamp = new Date(0).toISOString();
