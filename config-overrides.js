@@ -1,5 +1,68 @@
 const webpack = require('webpack');
 
+try {
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = path.resolve(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const envFile = fs.readFileSync(envPath, 'utf8');
+    const lines = envFile.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (!line || line.startsWith('#')) continue;
+      
+      if (line.includes('<<EOF')) {
+        continue;
+      }
+      
+      let match = line.match(/^([^#=]+)=(.*)$/);
+      if (!match) {
+        if (i > 0 && lines[i-1].endsWith('\\')) {
+          continue;
+        }
+        continue;
+      }
+      
+      const key = match[1].trim();
+      let value = match[2].trim();
+      
+      if (value === 'EOF' || value.endsWith(' EOF')) {
+        continue;
+      }
+      
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+        value = value.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+      } else if (value.startsWith("'") && value.endsWith("'")) {
+        value = value.slice(1, -1);
+        value = value.replace(/\\'/g, "'").replace(/\\n/g, '\n');
+      }
+      
+      if (key === 'NETWORKS') {
+        try {
+          JSON.parse(value);
+        } catch (e) {
+          console.warn('[config-overrides] NETWORKS value is not valid JSON, skipping:', e.message);
+          continue;
+        }
+      }
+      
+      if (!process.env[key]) {
+        process.env[key] = value;
+        if (key === 'NETWORKS') {
+          console.log('[config-overrides] Loaded NETWORKS from .env, length:', value.length);
+        }
+      }
+    }
+    console.log('[config-overrides] Loaded .env file');
+  } else {
+    console.log('[config-overrides] .env file not found at:', envPath);
+  }
+} catch (error) {
+  console.warn('[config-overrides] Failed to load .env file:', error.message);
+}
+
 module.exports = function override(config, env) {
   // Exclude mock files from the build
   config.module.rules.forEach(rule => {
@@ -52,6 +115,7 @@ module.exports = function override(config, env) {
     }),
     new webpack.DefinePlugin({
       'process.env.NETWORKS': JSON.stringify(process.env.NETWORKS || '{}'),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || env),
     }),
   ];
   
