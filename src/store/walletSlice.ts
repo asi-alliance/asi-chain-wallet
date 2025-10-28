@@ -55,6 +55,67 @@ const defaultNetworks: Network[] = parseNetworksFromEnv();
 
 const NETWORKS_STORAGE_KEY = 'asi_wallet_networks';
 const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
+const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
+
+interface PendingTransaction {
+  deployId: string;
+  from: string;
+  to: string;
+  amount: string;
+  timestamp: string;
+  accountId: string;
+}
+
+const savePendingTransaction = (tx: PendingTransaction) => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  
+  try {
+    const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
+    const pendingTxs: PendingTransaction[] = existing ? JSON.parse(existing) : [];
+    
+    const existingIndex = pendingTxs.findIndex(t => t.deployId === tx.deployId);
+    if (existingIndex >= 0) {
+      pendingTxs[existingIndex] = tx;
+    } else {
+      pendingTxs.push(tx);
+    }
+    
+    localStorage.setItem(PENDING_TRANSACTIONS_KEY, JSON.stringify(pendingTxs));
+  } catch (error) {
+    console.error('Failed to save pending transaction to localStorage:', error);
+  }
+};
+
+const loadPendingTransactions = (): PendingTransaction[] => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return [];
+  }
+  
+  try {
+    const stored = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to load pending transactions from localStorage:', error);
+    return [];
+  }
+};
+
+const removePendingTransaction = (deployId: string) => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  
+  try {
+    const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
+    const pendingTxs: PendingTransaction[] = existing ? JSON.parse(existing) : [];
+    const filtered = pendingTxs.filter(t => t.deployId !== deployId);
+    localStorage.setItem(PENDING_TRANSACTIONS_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Failed to remove pending transaction from localStorage:', error);
+  }
+};
 
 const loadNetworks = (): Network[] => {
   const result: Network[] = [...defaultNetworks];
@@ -190,9 +251,9 @@ export const fetchBalance = createAsyncThunk(
 
 export const fetchTransactionHistory = createAsyncThunk(
   'wallet/fetchTransactionHistory',
-  async ({ address, publicKey, limit = 50 }: { address: string; publicKey: string; limit?: number }, { getState }) => {
+  async ({ address, publicKey, limit = 50 }: { address: string; publicKey: string; limit?: number }, { getState, dispatch }) => {
     const state = getState() as { wallet: WalletState };
-    const { selectedNetwork } = state.wallet;
+    const { selectedNetwork, accounts } = state.wallet;
     
     if (!selectedNetwork) {
       throw new Error('No network selected');
@@ -200,6 +261,21 @@ export const fetchTransactionHistory = createAsyncThunk(
     
     const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId, selectedNetwork.graphqlUrl);
     const transactions = await rchain.fetchTransactionHistory(address, publicKey, limit);
+    
+    const pendingTxs = loadPendingTransactions();
+    const pendingDeployIds = new Set(pendingTxs.map(t => t.deployId));
+    
+    transactions.forEach((tx: any) => {
+      if (pendingDeployIds.has(tx.deployId)) {
+        const pendingTx = pendingTxs.find(t => t.deployId === tx.deployId);
+        if (pendingTx) {
+          const account = accounts.find(a => a.id === pendingTx.accountId);
+          if (account) {
+            dispatch(fetchBalance({ account, network: selectedNetwork, forceRefresh: true }));
+          }
+        }
+      }
+    });
     
     return transactions;
   }
@@ -219,7 +295,7 @@ export const sendTransaction = createAsyncThunk(
     amount: string;
     password?: string;
     network: Network;
-  }, { dispatch }) => {
+  }, { dispatch, getState }) => {
     let privateKey: string | undefined;
     
     const unlockedAccount = SecureStorage.getUnlockedAccount(from.id);
@@ -261,17 +337,25 @@ export const sendTransaction = createAsyncThunk(
       gasCost: generateRandomGasFee(),
     };
     
-    
-    rchain.waitForDeployResult(deployId, 24).then(result => {
-      if (result.status === 'completed') {
-        dispatch(updateTransactionStatus({ deployId, status: 'completed' }));
-        dispatch(fetchTransactionHistory({ address: from.revAddress, publicKey: from.publicKey, limit: 50 }));
-      } else if (result.status === 'errored' || result.status === 'system_error') {
-        dispatch(updateTransactionStatus({ deployId, status: 'failed', error: result.error }));
-      }
-    }).catch(error => {
-      dispatch(updateTransactionStatus({ deployId, status: 'failed', error: error.message }));
+    savePendingTransaction({
+      deployId,
+      from: from.revAddress,
+      to,
+      amount,
+      timestamp: new Date().toISOString(),
+      accountId: from.id,
     });
+    
+    const state = getState() as { wallet: WalletState };
+    const account = state.wallet.accounts.find(a => a.id === from.id);
+    if (account) {
+      const amountNum = parseFloat(amount);
+      const currentBalance = parseFloat(account.balance || '0');
+      dispatch(updateAccountBalance({ 
+        accountId: from.id, 
+        balance: Math.max(0, currentBalance - amountNum).toString()
+      }));
+    }
     
     return transaction;
   }
@@ -424,6 +508,10 @@ const walletSlice = createSlice({
         if (action.payload.error) {
           transaction.error = action.payload.error;
         }
+        
+        if (action.payload.status === 'completed' || action.payload.status === 'failed') {
+          removePendingTransaction(action.payload.deployId);
+        }
       }
     },
   },
@@ -451,6 +539,18 @@ const walletSlice = createSlice({
       })
       .addCase(sendTransaction.fulfilled, (state, action) => {
         state.transactions.unshift(action.payload);
+        
+        const amountNum = parseFloat(action.payload.amount);
+        const account = state.accounts.find(a => a.revAddress === action.payload.from);
+        if (account) {
+          const currentBalance = parseFloat(account.balance || '0');
+          account.balance = Math.max(0, currentBalance - amountNum).toString();
+        }
+        if (state.selectedAccount && state.selectedAccount.revAddress === action.payload.from) {
+          const currentBalance = parseFloat(state.selectedAccount.balance || '0');
+          state.selectedAccount.balance = Math.max(0, currentBalance - amountNum).toString();
+        }
+        
         state.isLoading = false;
       })
       .addCase(sendTransaction.rejected, (state, action) => {
@@ -458,24 +558,47 @@ const walletSlice = createSlice({
         state.isLoading = false;
       })
       .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
-        const newTransactions = action.payload.map((tx: any) => ({
-          id: tx.deployId,
-          deployId: tx.deployId,
-          from: tx.from,
-          to: tx.to,
-          amount: tx.amount,
-          timestamp: new Date(tx.timestamp),
-          status: tx.status,
-          blockNumber: tx.blockNumber,
-          blockHash: tx.blockHash,
-          type: tx.type,
-          gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined
-        }));
+        const pendingTxs = loadPendingTransactions();
+        const pendingDeployIds = new Set(pendingTxs.map(t => t.deployId));
+        const confirmedDeployIds: string[] = [];
+        
+        const newTransactions = action.payload.map((tx: any) => {
+          const isPendingInStorage = pendingDeployIds.has(tx.deployId);
+          
+          if (isPendingInStorage) {
+            const pendingTx = pendingTxs.find(t => t.deployId === tx.deployId);
+            if (pendingTx) {
+              removePendingTransaction(tx.deployId);
+              confirmedDeployIds.push(tx.deployId);
+            }
+          }
+          
+          return {
+            id: tx.deployId,
+            deployId: tx.deployId,
+            from: tx.from,
+            to: tx.to,
+            amount: tx.amount,
+            timestamp: new Date(tx.timestamp),
+            status: isPendingInStorage ? 'completed' : tx.status,
+            blockNumber: tx.blockNumber,
+            blockHash: tx.blockHash,
+            type: tx.type,
+            gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined
+          };
+        });
         
         const existingIds = new Set(state.transactions.map(tx => tx.id));
         const uniqueNewTransactions = newTransactions.filter(tx => !existingIds.has(tx.id));
         
         state.transactions = [...uniqueNewTransactions, ...state.transactions];
+        
+        confirmedDeployIds.forEach(deployId => {
+          const tx = state.transactions.find(t => t.deployId === deployId);
+          if (tx && tx.status === 'pending') {
+            tx.status = 'completed';
+          }
+        });
       });
   },
 });
