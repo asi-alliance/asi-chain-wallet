@@ -50,6 +50,9 @@ module.exports = function override(config, env) {
       process: 'process/browser',
       Buffer: ['buffer', 'Buffer'],
     }),
+    new webpack.DefinePlugin({
+      'process.env.NETWORKS': JSON.stringify(process.env.NETWORKS || '{}'),
+    }),
   ];
   
   if (env === 'production') {
