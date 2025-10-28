@@ -5,6 +5,7 @@ import { RChainService } from 'services/rchain';
 import { generateRandomGasFee } from '../constants/gas';
 
 interface NetworkConfig {
+  name: string;
   ValidatorURL: string;
   ReadOnlyURL?: string;
   IndexerURL?: string;
@@ -24,7 +25,7 @@ const parseNetworksFromEnv = (): Network[] => {
     const config = JSON.parse(networksEnv) as Record<string, NetworkConfig>;
     
     Object.entries(config).forEach(([key, networkConfig]) => {
-      if (!networkConfig || !networkConfig.ValidatorURL) {
+      if (!networkConfig) {
         return;
       }
       
@@ -33,17 +34,10 @@ const parseNetworksFromEnv = (): Network[] => {
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, '');
       
-      const name = key
-        .replace(/([A-Z])/g, ' $1')
-        .trim()
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-      
       networks.push({
         id,
-        name,
-        url: networkConfig.ValidatorURL,
+        name: networkConfig.name || key,
+        url: networkConfig.ValidatorURL || '',
         readOnlyUrl: networkConfig.ReadOnlyURL || undefined,
         graphqlUrl: networkConfig.IndexerURL || undefined,
         shardId: 'root',
@@ -51,7 +45,7 @@ const parseNetworksFromEnv = (): Network[] => {
     });
     
   } catch (error) {
-    console.error('Failed to parse REACT_APP_NETWORKS:', error);
+    console.error('Failed to parse NETWORKS:', error);
   }
   
   return networks;
@@ -60,26 +54,27 @@ const parseNetworksFromEnv = (): Network[] => {
 const defaultNetworks: Network[] = parseNetworksFromEnv();
 
 const NETWORKS_STORAGE_KEY = 'asi_wallet_networks';
+const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
 
 const loadNetworks = (): Network[] => {
   const result: Network[] = [...defaultNetworks];
   const envNetworkIds = new Set(defaultNetworks.map(n => n.id));
   
   if (typeof window !== 'undefined' && window.localStorage) {
-  try {
-    const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
-    if (stored) {
+    try {
+      const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
+      if (stored) {
         const storedNetworks = JSON.parse(stored) as Network[];
         
         storedNetworks.forEach(n => {
-          if (!envNetworkIds.has(n.id)) {
+          if (n.id === 'custom' && !envNetworkIds.has(n.id)) {
             result.push(n);
           }
         });
+      }
+    } catch (error) {
+      console.error('Failed to load networks from localStorage:', error);
     }
-  } catch (error) {
-    console.error('Failed to load networks from localStorage:', error);
-  }
   }
   
   return result;
@@ -91,7 +86,12 @@ const saveNetworks = (networks: Network[]) => {
   }
   
   try {
-    localStorage.setItem(NETWORKS_STORAGE_KEY, JSON.stringify(networks));
+    const customNetwork = networks.find(n => n.id === 'custom');
+    if (customNetwork) {
+      localStorage.setItem(NETWORKS_STORAGE_KEY, JSON.stringify([customNetwork]));
+    } else {
+      localStorage.removeItem(NETWORKS_STORAGE_KEY);
+    }
   } catch (error) {
     console.error('Failed to save networks to localStorage:', error);
   }
@@ -123,7 +123,22 @@ const loadAccountsFromSecureStorage = (): Account[] => {
 const createInitialState = (): WalletState => {
   const networks = initialNetworks;
   
-  let defaultNetwork: Network | undefined = networks[0];
+  let defaultNetwork: Network | undefined;
+  
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const selectedNetworkId = localStorage.getItem(SELECTED_NETWORK_KEY);
+      if (selectedNetworkId) {
+        defaultNetwork = networks.find(n => n.id === selectedNetworkId && n.url && n.url.trim() !== '');
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load selected network from localStorage:', error);
+  }
+  
+  if (!defaultNetwork) {
+    defaultNetwork = networks.find(n => n.url && n.url.trim() !== '');
+  }
   
   if (!defaultNetwork) {
     try {
@@ -131,7 +146,7 @@ const createInitialState = (): WalletState => {
         const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
         if (stored) {
           const storedNetworks = JSON.parse(stored) as Network[];
-          defaultNetwork = storedNetworks[0];
+          defaultNetwork = storedNetworks.find(n => n.url && n.url.trim() !== '');
         }
       }
     } catch (error) {
@@ -301,8 +316,11 @@ const walletSlice = createSlice({
     },
     selectNetwork: (state, action: PayloadAction<string>) => {
       const network = state.networks.find(n => n.id === action.payload);
-      if (network) {
+      if (network && network.url && network.url.trim() !== '') {
         state.selectedNetwork = network;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
+        }
       }
     },
     removeAccount: (state, action: PayloadAction<string>) => {
@@ -352,11 +370,30 @@ const walletSlice = createSlice({
     loadNetworksFromStorage: (state) => {
       const loadedNetworks = loadNetworks();
       state.networks = loadedNetworks;
-      const selectedNetwork = loadedNetworks.find(n => n.id === state.selectedNetwork.id);
-      if (selectedNetwork) {
-        state.selectedNetwork = selectedNetwork;
-      } else if (loadedNetworks.length > 0) {
-        state.selectedNetwork = loadedNetworks[0];
+      
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const selectedNetworkId = localStorage.getItem(SELECTED_NETWORK_KEY);
+          if (selectedNetworkId) {
+            const selectedNetwork = loadedNetworks.find(n => n.id === selectedNetworkId && n.url && n.url.trim() !== '');
+            if (selectedNetwork) {
+              state.selectedNetwork = selectedNetwork;
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore selected network:', error);
+      }
+      
+      const currentSelected = loadedNetworks.find(n => n.id === state.selectedNetwork.id && n.url && n.url.trim() !== '');
+      if (currentSelected) {
+        state.selectedNetwork = currentSelected;
+      } else {
+        const firstAvailable = loadedNetworks.find(n => n.url && n.url.trim() !== '');
+        if (firstAvailable) {
+          state.selectedNetwork = firstAvailable;
+        }
       }
     },
     loadAccountsFromStorage: (state) => {

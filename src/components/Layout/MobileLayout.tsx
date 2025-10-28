@@ -426,7 +426,11 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
               onChange={handleNetworkChange}
             >
               {networks.map((network) => (
-                <option key={network.id} value={network.id}>
+                <option 
+                  key={network.id} 
+                  value={network.id}
+                  disabled={!network.url || network.url.trim() === ''}
+                >
                   {network.name}
                 </option>
               ))}
