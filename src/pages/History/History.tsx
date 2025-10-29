@@ -224,8 +224,13 @@ export const History: React.FC = () => {
       100
     ).then(txs => txs.filter(tx => tx.status === 'pending'));
     
+    if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
+      console.error(`Network "${selectedNetwork.name}" has no validator URL configured`);
+      return;
+    }
+    
     const rchain = new RChainService(
-      selectedNetwork.url,
+      selectedNetwork.url.trim(),
       selectedNetwork.readOnlyUrl,
       selectedNetwork.adminUrl,
       selectedNetwork.shardId,

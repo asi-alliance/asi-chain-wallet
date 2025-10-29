@@ -32,15 +32,19 @@ export class RChainService {
   private shardId: string;
 
   constructor(nodeUrl: string, readOnlyUrl?: string, adminUrl?: string, shardId: string = 'root', graphqlUrl?: string) {
-    this.nodeUrl = nodeUrl;
-    this.readOnlyUrl = readOnlyUrl || nodeUrl; // Fallback to validator URL if no read-only URL
+    if (!nodeUrl || !nodeUrl.trim()) {
+      throw new Error('RChainService: nodeUrl (validator URL) is required and cannot be empty');
+    }
+    
+    this.nodeUrl = nodeUrl.trim();
+    this.readOnlyUrl = (readOnlyUrl && readOnlyUrl.trim()) || this.nodeUrl;
     this.adminUrl = adminUrl;
     this.graphqlUrl = graphqlUrl || 'http://18.142.221.192:8080/v1/graphql';
     this.shardId = shardId;
     
     // Validator client for state-changing operations
     this.validatorClient = axios.create({
-      baseURL: nodeUrl,
+      baseURL: this.nodeUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json'
