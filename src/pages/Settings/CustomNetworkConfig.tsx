@@ -93,7 +93,6 @@ export const CustomNetworkConfig: React.FC = () => {
   const dispatch = useDispatch();
   const { networks, selectedNetwork } = useSelector((state: RootState) => state.wallet);
   
-  // State for Devnet configuration
   const [validatorHost, setValidatorHost] = useState('localhost');
   const [validatorHttpPort, setValidatorHttpPort] = useState('40403');
   const [validatorGrpcPort, setValidatorGrpcPort] = useState('40401');
@@ -104,7 +103,6 @@ export const CustomNetworkConfig: React.FC = () => {
   
   const [isEditing, setIsEditing] = useState(false);
 
-  // Find or create custom network
   const customNetwork = networks.find(n => n.id === 'custom') || {
     id: 'custom',
     name: 'Custom Network',
@@ -159,11 +157,15 @@ export const CustomNetworkConfig: React.FC = () => {
   const readOnlyGrpcUrl = `${readOnlyHost}:${readOnlyGrpcPort}`;
   const readOnlyHttpUrl = `http://${readOnlyHost}:${readOnlyHttpPort}`;
 
+  if (customNetwork.id !== 'custom') {
+    return null;
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          Devnet Configuration
+          Custom Network Configuration
           {selectedNetwork.id === 'custom' && (
             <span style={{ fontSize: '12px', marginLeft: '8px', color: '#4caf50' }}>
               (Active)
@@ -173,15 +175,15 @@ export const CustomNetworkConfig: React.FC = () => {
       </CardHeader>
       <CardContent>
         <InfoBox>
-          <h4>🔧 Devnet Setup</h4>
+          <h4>🔧 Custom Network Setup</h4>
           <p>
-            Configure Devnet validator and read-only nodes for local development or private networks. 
+            Configure your custom network validator and read-only nodes for local development or private networks. 
+            Note: Predefined networks from the configuration file cannot be edited here.
           </p>
         </InfoBox>
 
-        {/* Validator Node Configuration */}
         <ConfigSection>
-          <ConfigTitle>Devnet - validator node</ConfigTitle>
+          <ConfigTitle>Validator Node</ConfigTitle>
           
           <FormRow>
             <FormGroup>
@@ -231,9 +233,8 @@ export const CustomNetworkConfig: React.FC = () => {
           </DirectLinks>
         </ConfigSection>
 
-        {/* Read-only Node Configuration */}
         <ConfigSection>
-          <ConfigTitle>Devnet - read-only node</ConfigTitle>
+          <ConfigTitle>Read-only Node</ConfigTitle>
           
           <FormRow>
             <FormGroup>
@@ -289,7 +290,7 @@ export const CustomNetworkConfig: React.FC = () => {
               </Button>
               {selectedNetwork.id !== 'custom' && (
                 <Button variant="primary" onClick={handleUseCustomNetwork}>
-                  Use Devnet
+                  Use Custom Network
                 </Button>
               )}
             </>
