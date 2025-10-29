@@ -39,53 +39,17 @@ class TransactionHistoryService {
   ): Promise<Transaction[]> {
     try {
       if (!address || !publicKey) {
-        console.error('[TransactionHistoryService] Missing parameters:', {
-          hasAddress: !!address,
-          hasPublicKey: !!publicKey,
-          address,
-          publicKey
-        });
         return [];
       }
       
-      console.log('[TransactionHistoryService] Fetching transactions:', {
-        address: address?.substring(0, 20) + '...',
-        addressFull: address,
-        publicKey: publicKey?.substring(0, 20) + '...',
-        publicKeyFull: publicKey,
-        network,
-        graphqlUrl,
-        limit
-      });
-      
       if (!graphqlUrl || !graphqlUrl.trim()) {
-        console.error('[TransactionHistoryService] GraphQL URL is missing or empty:', graphqlUrl);
         return [];
       }
       
       const { RChainService } = await import('./rchain');
       
-      console.log('[TransactionHistoryService] Creating RChainService with graphqlUrl:', graphqlUrl.substring(0, 60) + '...');
-      
       const rchain = new RChainService('', '', '', 'root', graphqlUrl);
-      
-      console.log('[TransactionHistoryService] About to call fetchTransactionHistory');
-      let blockchainTxs;
-      try {
-        blockchainTxs = await rchain.fetchTransactionHistory(address, publicKey, limit);
-        console.log('[TransactionHistoryService] fetchTransactionHistory succeeded, received:', blockchainTxs.length);
-      } catch (error: any) {
-        console.error('[TransactionHistoryService] fetchTransactionHistory failed:', {
-          error: error.message,
-          stack: error.stack,
-          address,
-          publicKey,
-          graphqlUrl
-        });
-        throw error;
-      }
-      
-      console.log('[TransactionHistoryService] Received transactions from blockchain:', blockchainTxs.length);
+      const blockchainTxs = await rchain.fetchTransactionHistory(address, publicKey, limit);
       
       const transactions: Transaction[] = [];
       
@@ -122,14 +86,6 @@ class TransactionHistoryService {
       
       return transactions;
     } catch (error: any) {
-      console.error('[TransactionHistoryService] getTransactions error:', {
-        error: error?.message,
-        stack: error?.stack,
-        address,
-        publicKey,
-        network,
-        graphqlUrl
-      });
       return [];
     }
   }

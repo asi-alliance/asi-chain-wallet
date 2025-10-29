@@ -50,14 +50,6 @@ const parseNetworksFromEnv = (): Network[] => {
         graphqlUrl,
         shardId: 'root',
       });
-      
-      console.log(`[parseNetworksFromEnv] Added network "${key}":`, {
-        id,
-        name: networkConfig.name || key,
-        validatorUrl: validatorUrl.substring(0, 50) + '...',
-        readOnlyUrl: networkConfig.ReadOnlyURL?.trim()?.substring(0, 50) + '...' || 'none',
-        graphqlUrl: graphqlUrl?.substring(0, 50) + '...' || 'none'
-      });
     });
     
   } catch (error) {
