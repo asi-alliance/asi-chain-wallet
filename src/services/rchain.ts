@@ -33,18 +33,29 @@ export class RChainService {
 
   constructor(nodeUrl: string, readOnlyUrl?: string, adminUrl?: string, shardId: string = 'root', graphqlUrl?: string) {
     if (!nodeUrl || !nodeUrl.trim()) {
-      throw new Error('RChainService: nodeUrl (validator URL) is required and cannot be empty');
+      if (!graphqlUrl || !graphqlUrl.trim()) {
+        throw new Error('RChainService: either nodeUrl (validator URL) or graphqlUrl must be provided');
+      }
+      this.nodeUrl = '';
+    } else {
+      this.nodeUrl = nodeUrl.trim();
     }
     
-    this.nodeUrl = nodeUrl.trim();
     this.readOnlyUrl = (readOnlyUrl && readOnlyUrl.trim()) || this.nodeUrl;
     this.adminUrl = adminUrl;
-    this.graphqlUrl = graphqlUrl || 'http://18.142.221.192:8080/v1/graphql';
+    this.graphqlUrl = (graphqlUrl && graphqlUrl.trim()) || 'http://18.142.221.192:8080/v1/graphql';
     this.shardId = shardId;
     
-    // Validator client for state-changing operations
+    console.log('[RChainService] Initialized with:', {
+      nodeUrl: this.nodeUrl ? this.nodeUrl.substring(0, 50) + '...' : '(empty, GraphQL only)',
+      readOnlyUrl: this.readOnlyUrl?.substring(0, 50) + '...' || '(empty)',
+      graphqlUrl: this.graphqlUrl.substring(0, 70) + '...',
+      shardId: this.shardId
+    });
+    
+    // Validator client for state-changing operations (only if nodeUrl is provided)
     this.validatorClient = axios.create({
-      baseURL: this.nodeUrl,
+      baseURL: this.nodeUrl || 'http://localhost',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json'
@@ -474,6 +485,13 @@ export class RChainService {
   }
 
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
+    console.log('[GraphQL] fetchTransactionHistory called with:', {
+      address: address?.substring(0, 30) + '...',
+      publicKey: publicKey?.substring(0, 30) + '...',
+      limit,
+      graphqlUrl: this.graphqlUrl?.substring(0, 60) + '...'
+    });
+    
     const graphqlEndpoint = this.graphqlUrl;
     
     if (!address || !address.trim()) {
@@ -487,7 +505,7 @@ export class RChainService {
     }
     
     if (!graphqlEndpoint) {
-      console.error('[GraphQL] No GraphQL endpoint configured');
+      console.error('[GraphQL] No GraphQL endpoint configured. Current value:', graphqlEndpoint);
       throw new Error('GraphQL endpoint is not configured');
     }
     
@@ -511,6 +529,7 @@ export class RChainService {
               to_address
               amount_asi
               timestamp
+              fee_value
             }
             deployments(
               where: {
@@ -536,29 +555,65 @@ export class RChainService {
         }
       };
       
-      console.log('[GraphQL] Fetching transaction history:', {
-        address: address?.substring(0, 20) + '...',
-        addressFull: address,
-        publicKey: publicKey?.substring(0, 20) + '...',
-        publicKeyFull: publicKey,
-        limit,
-        graphqlEndpoint
-      });
+      const isTestQuery = address === 'test' && publicKey === 'test';
       
-      if (!address || !publicKey) {
+      if (!isTestQuery) {
+        console.log('[GraphQL] Fetching transaction history:', {
+          address: address?.substring(0, 20) + '...',
+          addressFull: address,
+          publicKey: publicKey?.substring(0, 20) + '...',
+          publicKeyFull: publicKey,
+          limit,
+          graphqlEndpoint
+        });
+      }
+      
+      if (!isTestQuery && (!address || !publicKey)) {
         console.error('[GraphQL] Missing required parameters:', { address: !!address, publicKey: !!publicKey });
+        return [];
+      }
+      
+      if (isTestQuery) {
         return [];
       }
       
       let response;
       try {
+        if (!isTestQuery) {
+          console.log('[GraphQL] Sending request to:', graphqlEndpoint);
+        }
+        
         response = await axios.post(graphqlEndpoint, graphqlQuery, {
           headers: {
             'Content-Type': 'application/json'
           }
         });
+        
+        if (!isTestQuery) {
+          console.log('[GraphQL] Response status:', response.status);
+          console.log('[GraphQL] Response data structure:', {
+            hasData: !!response.data,
+            hasDataData: !!response.data?.data,
+            hasTransfers: !!response.data?.data?.transfers,
+            hasDeployments: !!response.data?.data?.deployments,
+            hasErrors: !!response.data?.errors
+          });
+          
+          if (response.data?.errors) {
+            console.error('[GraphQL] GraphQL errors:', response.data.errors);
+          }
+        }
       } catch (error: any) {
-        console.error('[GraphQL] Request failed:', error.message);
+        console.error('[GraphQL] Request failed:', {
+          message: error.message,
+          code: error.code,
+          response: error.response?.status,
+          responseData: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method
+          }
+        });
         
         if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
           console.warn('[GraphQL] CORS or network error detected. Transaction history will be empty until API is configured properly.');
@@ -571,15 +626,24 @@ export class RChainService {
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
       
-      console.log('[GraphQL] Response:', {
-        transfersCount: transfers.length,
-        deploymentsCount: deployments.length,
-        firstTransfer: transfers[0] ? {
-          from: transfers[0].from_address?.substring(0, 20) + '...',
-          to: transfers[0].to_address?.substring(0, 20) + '...',
-          amount: transfers[0].amount_asi
-        } : null
-      });
+      if (!isTestQuery) {
+        console.log('[GraphQL] Parsed results:', {
+          transfersCount: transfers.length,
+          deploymentsCount: deployments.length,
+          firstTransfer: transfers[0] ? {
+            deployId: transfers[0].deploy_id,
+            from: transfers[0].from_address?.substring(0, 20) + '...',
+            to: transfers[0].to_address?.substring(0, 20) + '...',
+            amount: transfers[0].amount_asi,
+            timestamp: transfers[0].timestamp
+          } : null,
+          firstDeployment: deployments[0] ? {
+            deployId: deployments[0].deploy_id,
+            deployer: deployments[0].deployer?.substring(0, 20) + '...',
+            timestamp: deployments[0].timestamp
+          } : null
+        });
+      }
       
       const deployTimestampMap = new Map();
       deployments.forEach((deploy: any) => {

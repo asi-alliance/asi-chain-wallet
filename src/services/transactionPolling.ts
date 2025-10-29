@@ -58,20 +58,22 @@ class TransactionPollingService {
     try {
       console.log('[Transaction Polling] Checking pending transactions...');
       
-      // Check if GraphQL is accessible before polling
       try {
-        const testRchain = new RChainService(
-          selectedNetwork.url,
-          selectedNetwork.readOnlyUrl,
-          selectedNetwork.adminUrl,
-          selectedNetwork.shardId,
-          selectedNetwork.graphqlUrl
-        );
+        if (!selectedNetwork.graphqlUrl) {
+          return;
+        }
         
-        // Quick test to see if GraphQL is accessible
-        await testRchain.fetchTransactionHistory('test', 'test', 1);
+        const testQuery = {
+          query: `query { __typename }`,
+          variables: {}
+        };
         
-        // Reset CORS error count on successful connection
+        const axios = require('axios');
+        await axios.post(selectedNetwork.graphqlUrl, testQuery, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000
+        });
+        
         this.corsErrorCount = 0;
       } catch (error: any) {
         if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {

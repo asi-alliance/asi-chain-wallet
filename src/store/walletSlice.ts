@@ -40,13 +40,23 @@ const parseNetworksFromEnv = (): Network[] => {
         return;
       }
       
+      const graphqlUrl = networkConfig.IndexerURL?.trim() || undefined;
+      
       networks.push({
         id,
         name: networkConfig.name || key,
         url: validatorUrl,
         readOnlyUrl: networkConfig.ReadOnlyURL?.trim() || undefined,
-        graphqlUrl: networkConfig.IndexerURL?.trim() || undefined,
+        graphqlUrl,
         shardId: 'root',
+      });
+      
+      console.log(`[parseNetworksFromEnv] Added network "${key}":`, {
+        id,
+        name: networkConfig.name || key,
+        validatorUrl: validatorUrl.substring(0, 50) + '...',
+        readOnlyUrl: networkConfig.ReadOnlyURL?.trim()?.substring(0, 50) + '...' || 'none',
+        graphqlUrl: graphqlUrl?.substring(0, 50) + '...' || 'none'
       });
     });
     
