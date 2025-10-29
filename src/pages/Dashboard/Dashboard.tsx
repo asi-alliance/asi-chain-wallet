@@ -318,12 +318,18 @@ export const Dashboard: React.FC = () => {
     const checkNetwork = async () => {
       if (!selectedNetwork) return;
       
+      const networkUrl = selectedNetwork.readOnlyUrl || selectedNetwork.url;
+      if (!networkUrl || !networkUrl.trim()) {
+        setNetworkStatus('disconnected');
+        return;
+      }
+      
       setNetworkStatus('checking');
       try {
-        const response = await fetch(selectedNetwork.readOnlyUrl + '/api/status', {
+        const response = await fetch(networkUrl + '/api/status', {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(5000) // 5 second timeout
+          signal: AbortSignal.timeout(5000)
         });
         setNetworkStatus(response.ok ? 'connected' : 'disconnected');
       } catch {

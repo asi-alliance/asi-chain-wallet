@@ -34,12 +34,18 @@ const parseNetworksFromEnv = (): Network[] => {
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, '');
       
+      const validatorUrl = networkConfig.ValidatorURL?.trim() || '';
+      if (!validatorUrl) {
+        console.warn(`[parseNetworksFromEnv] Skipping network "${key}" because ValidatorURL is empty`);
+        return;
+      }
+      
       networks.push({
         id,
         name: networkConfig.name || key,
-        url: networkConfig.ValidatorURL || '',
-        readOnlyUrl: networkConfig.ReadOnlyURL || undefined,
-        graphqlUrl: networkConfig.IndexerURL || undefined,
+        url: validatorUrl,
+        readOnlyUrl: networkConfig.ReadOnlyURL?.trim() || undefined,
+        graphqlUrl: networkConfig.IndexerURL?.trim() || undefined,
         shardId: 'root',
       });
     });
@@ -259,7 +265,12 @@ export const fetchTransactionHistory = createAsyncThunk(
       throw new Error('No network selected');
     }
     
-    const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId, selectedNetwork.graphqlUrl);
+    const validatorUrl = selectedNetwork.url?.trim();
+    if (!validatorUrl) {
+      throw new Error(`Network "${selectedNetwork.name}" has no validator URL configured`);
+    }
+    
+    const rchain = new RChainService(validatorUrl, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId, selectedNetwork.graphqlUrl);
     const transactions = await rchain.fetchTransactionHistory(address, publicKey, limit);
     
     const pendingTxs = loadPendingTransactions();
@@ -312,7 +323,12 @@ export const sendTransaction = createAsyncThunk(
       throw new Error('Account is locked. Please provide password or unlock account first.');
     }
     
-    const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
+    const validatorUrl = network.url?.trim();
+    if (!validatorUrl) {
+      throw new Error(`Network "${network.name}" has no validator URL configured`);
+    }
+    
+    const rchain = new RChainService(validatorUrl, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     
     const amountNum = parseFloat(amount);
     const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();

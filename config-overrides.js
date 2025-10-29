@@ -31,6 +31,30 @@ try {
         continue;
       }
       
+
+      if (key === 'NETWORKS') {
+        let networksValue = value;
+        if (networksValue.startsWith('"') && networksValue.endsWith('"')) {
+          networksValue = networksValue.slice(1, -1);
+        }
+        
+        networksValue = networksValue.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+        
+        try {
+          const parsed = JSON.parse(networksValue);
+          process.env[key] = networksValue;
+          console.log('[config-overrides] ✅ Loaded NETWORKS from .env');
+          console.log('[config-overrides] NETWORKS length:', networksValue.length);
+          console.log('[config-overrides] Networks found:', Object.keys(parsed).join(', '));
+        } catch (e) {
+          console.error('[config-overrides] ❌ NETWORKS parsing failed:', e.message);
+          console.error('[config-overrides] Raw value (first 200 chars):', networksValue.substring(0, 200));
+          process.env[key] = networksValue;
+          console.warn('[config-overrides] ⚠️ Using NETWORKS as-is despite parse error');
+        }
+        continue;
+      }
+      
       if (value.startsWith('"') && value.endsWith('"')) {
         value = value.slice(1, -1);
         value = value.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
@@ -39,21 +63,7 @@ try {
         value = value.replace(/\\'/g, "'").replace(/\\n/g, '\n');
       }
       
-      if (key === 'NETWORKS') {
-        try {
-          JSON.parse(value);
-        } catch (e) {
-          console.warn('[config-overrides] NETWORKS value is not valid JSON, skipping:', e.message);
-          continue;
-        }
-      }
-      
-      if (!process.env[key]) {
-        process.env[key] = value;
-        if (key === 'NETWORKS') {
-          console.log('[config-overrides] Loaded NETWORKS from .env, length:', value.length);
-        }
-      }
+      process.env[key] = value;
     }
     console.log('[config-overrides] Loaded .env file');
   } else {
@@ -64,6 +74,19 @@ try {
 }
 
 module.exports = function override(config, env) {
+  const networksValue = process.env.NETWORKS || '{}';
+  console.log('[config-overrides] NETWORKS available for DefinePlugin:', !!process.env.NETWORKS);
+  console.log('[config-overrides] NETWORKS length:', networksValue.length);
+  if (process.env.NETWORKS) {
+    try {
+      const parsed = JSON.parse(process.env.NETWORKS);
+      const networkNames = Object.keys(parsed);
+      console.log('[config-overrides] Networks found:', networkNames.join(', '));
+    } catch (e) {
+      console.warn('[config-overrides] Failed to parse NETWORKS:', e.message);
+    }
+  }
+  
   // Exclude mock files from the build
   config.module.rules.forEach(rule => {
     if (rule.oneOf) {

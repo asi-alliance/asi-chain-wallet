@@ -537,7 +537,11 @@ export const IDE: React.FC = () => {
     addConsoleMessage('info', `Deploying ${activeFile.name}...`);
 
     try {
-      const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
+      if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
+        throw new Error(`Network "${selectedNetwork.name}" has no validator URL configured`);
+      }
+      
+      const rchain = new RChainService(selectedNetwork.url.trim(), selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
       let privateKey = selectedAccount.privateKey;
 
       // If no private key in memory, decrypt it
@@ -600,7 +604,11 @@ export const IDE: React.FC = () => {
     addConsoleMessage('info', `Deploying ${activeFile.name}...`);
 
     try {
-      const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
+      if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
+        throw new Error(`Network "${selectedNetwork.name}" has no validator URL configured`);
+      }
+      
+      const rchain = new RChainService(selectedNetwork.url.trim(), selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
       
       // Find the private key from unlocked accounts
       const unlockedAccount = unlockedAccounts.find(acc => acc.id === selectedAccount.id);
@@ -661,7 +669,11 @@ export const IDE: React.FC = () => {
     addConsoleMessage('info', `Exploring ${activeFile.name}...`);
 
     try {
-      const rchain = new RChainService(selectedNetwork.url, selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
+      if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
+        throw new Error(`Network "${selectedNetwork.name}" has no validator URL configured`);
+      }
+      
+      const rchain = new RChainService(selectedNetwork.url.trim(), selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
       const result = await rchain.exploreDeployData(activeFile.content);
       
       addConsoleMessage('success', `Explore result: ${JSON.stringify(result, null, 2)}`);

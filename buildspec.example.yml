@@ -53,8 +53,17 @@ phases:
       - cat .env 
       - |
           # Export NETWORKS as environment variable so it's available to webpack
-          export NETWORKS=$(grep '^NETWORKS=' .env | cut -d '=' -f2- | sed 's/^"//;s/"$//')
+          # Extract NETWORKS value from .env file, handling escaped quotes
+          export NETWORKS=$(grep '^NETWORKS=' .env | cut -d '=' -f2- | sed 's/^"//;s/"$//' | sed 's/\\\\"/\\"/g' | sed 's/\\\\\\\\/\\\\/g')
           echo "Exported NETWORKS (first 100 chars): ${NETWORKS:0:100}..."
+          echo "NETWORKS length: ${#NETWORKS}"
+          
+          # Verify it's valid JSON
+          if echo "$NETWORKS" | python3 -m json.tool > /dev/null 2>&1; then
+            echo "✅ NETWORKS is valid JSON"
+          else
+            echo "❌ WARNING: NETWORKS is not valid JSON"
+          fi
       - npm install
       - echo "Install phase complete..."
 
