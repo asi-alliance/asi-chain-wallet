@@ -476,6 +476,21 @@ export class RChainService {
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
     const graphqlEndpoint = this.graphqlUrl;
     
+    if (!address || !address.trim()) {
+      console.error('[GraphQL] Invalid address provided:', address);
+      throw new Error('Address is required for transaction history');
+    }
+    
+    if (!publicKey || !publicKey.trim()) {
+      console.error('[GraphQL] Invalid publicKey provided:', publicKey);
+      throw new Error('Public key is required for transaction history');
+    }
+    
+    if (!graphqlEndpoint) {
+      console.error('[GraphQL] No GraphQL endpoint configured');
+      throw new Error('GraphQL endpoint is not configured');
+    }
+    
     try {
       const graphqlQuery = {
         query: `
@@ -515,11 +530,25 @@ export class RChainService {
           }
         `,
         variables: {
-          address: address,
-          publicKey: publicKey,
+          address: address.trim(),
+          publicKey: publicKey.trim(),
           limit: limit
         }
       };
+      
+      console.log('[GraphQL] Fetching transaction history:', {
+        address: address?.substring(0, 20) + '...',
+        addressFull: address,
+        publicKey: publicKey?.substring(0, 20) + '...',
+        publicKeyFull: publicKey,
+        limit,
+        graphqlEndpoint
+      });
+      
+      if (!address || !publicKey) {
+        console.error('[GraphQL] Missing required parameters:', { address: !!address, publicKey: !!publicKey });
+        return [];
+      }
       
       let response;
       try {
@@ -542,14 +571,29 @@ export class RChainService {
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
       
+      console.log('[GraphQL] Response:', {
+        transfersCount: transfers.length,
+        deploymentsCount: deployments.length,
+        firstTransfer: transfers[0] ? {
+          from: transfers[0].from_address?.substring(0, 20) + '...',
+          to: transfers[0].to_address?.substring(0, 20) + '...',
+          amount: transfers[0].amount_asi
+        } : null
+      });
+      
       const deployTimestampMap = new Map();
       deployments.forEach((deploy: any) => {
         deployTimestampMap.set(deploy.deploy_id, deploy.timestamp);
       });
 
       const transferTxs = transfers.map((tx: any) => {
-        const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
-        const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
+        const normalizedAddress = address?.toLowerCase().trim();
+        const normalizedPublicKey = publicKey?.toLowerCase().trim();
+        const normalizedToAddress = tx.to_address?.toLowerCase().trim();
+        const normalizedFromAddress = tx.from_address?.toLowerCase().trim();
+        
+        const isReceive = normalizedToAddress && normalizedToAddress === normalizedAddress;
+        const isSend = normalizedFromAddress && normalizedFromAddress === normalizedPublicKey;
         
         let type: 'send' | 'receive' = 'send';
         if (isReceive && !isSend) {
