@@ -56,8 +56,6 @@ class TransactionPollingService {
     }
 
     try {
-      console.log('[Transaction Polling] Checking pending transactions...');
-      
       try {
         if (!selectedNetwork.graphqlUrl) {
           return;

@@ -46,13 +46,6 @@ export class RChainService {
     this.graphqlUrl = (graphqlUrl && graphqlUrl.trim()) || 'http://18.142.221.192:8080/v1/graphql';
     this.shardId = shardId;
     
-    console.log('[RChainService] Initialized with:', {
-      nodeUrl: this.nodeUrl ? this.nodeUrl.substring(0, 50) + '...' : '(empty, GraphQL only)',
-      readOnlyUrl: this.readOnlyUrl?.substring(0, 50) + '...' || '(empty)',
-      graphqlUrl: this.graphqlUrl.substring(0, 70) + '...',
-      shardId: this.shardId
-    });
-    
     // Validator client for state-changing operations (only if nodeUrl is provided)
     this.validatorClient = axios.create({
       baseURL: this.nodeUrl || 'http://localhost',
@@ -485,13 +478,6 @@ export class RChainService {
   }
 
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
-    console.log('[GraphQL] fetchTransactionHistory called with:', {
-      address: address?.substring(0, 30) + '...',
-      publicKey: publicKey?.substring(0, 30) + '...',
-      limit,
-      graphqlUrl: this.graphqlUrl?.substring(0, 60) + '...'
-    });
-    
     const graphqlEndpoint = this.graphqlUrl;
     
     if (!address || !address.trim()) {
@@ -529,7 +515,6 @@ export class RChainService {
               to_address
               amount_asi
               timestamp
-              fee_value
             }
             deployments(
               where: {
@@ -557,19 +542,7 @@ export class RChainService {
       
       const isTestQuery = address === 'test' && publicKey === 'test';
       
-      if (!isTestQuery) {
-        console.log('[GraphQL] Fetching transaction history:', {
-          address: address?.substring(0, 20) + '...',
-          addressFull: address,
-          publicKey: publicKey?.substring(0, 20) + '...',
-          publicKeyFull: publicKey,
-          limit,
-          graphqlEndpoint
-        });
-      }
-      
       if (!isTestQuery && (!address || !publicKey)) {
-        console.error('[GraphQL] Missing required parameters:', { address: !!address, publicKey: !!publicKey });
         return [];
       }
       
@@ -579,29 +552,14 @@ export class RChainService {
       
       let response;
       try {
-        if (!isTestQuery) {
-          console.log('[GraphQL] Sending request to:', graphqlEndpoint);
-        }
-        
         response = await axios.post(graphqlEndpoint, graphqlQuery, {
           headers: {
             'Content-Type': 'application/json'
           }
         });
         
-        if (!isTestQuery) {
-          console.log('[GraphQL] Response status:', response.status);
-          console.log('[GraphQL] Response data structure:', {
-            hasData: !!response.data,
-            hasDataData: !!response.data?.data,
-            hasTransfers: !!response.data?.data?.transfers,
-            hasDeployments: !!response.data?.data?.deployments,
-            hasErrors: !!response.data?.errors
-          });
-          
-          if (response.data?.errors) {
-            console.error('[GraphQL] GraphQL errors:', response.data.errors);
-          }
+        if (response.data?.errors) {
+          console.error('[GraphQL] GraphQL errors:', response.data.errors);
         }
       } catch (error: any) {
         console.error('[GraphQL] Request failed:', {
@@ -625,25 +583,6 @@ export class RChainService {
       
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
-      
-      if (!isTestQuery) {
-        console.log('[GraphQL] Parsed results:', {
-          transfersCount: transfers.length,
-          deploymentsCount: deployments.length,
-          firstTransfer: transfers[0] ? {
-            deployId: transfers[0].deploy_id,
-            from: transfers[0].from_address?.substring(0, 20) + '...',
-            to: transfers[0].to_address?.substring(0, 20) + '...',
-            amount: transfers[0].amount_asi,
-            timestamp: transfers[0].timestamp
-          } : null,
-          firstDeployment: deployments[0] ? {
-            deployId: deployments[0].deploy_id,
-            deployer: deployments[0].deployer?.substring(0, 20) + '...',
-            timestamp: deployments[0].timestamp
-          } : null
-        });
-      }
       
       const deployTimestampMap = new Map();
       deployments.forEach((deploy: any) => {
