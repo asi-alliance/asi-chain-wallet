@@ -259,6 +259,23 @@ export const History: React.FC = () => {
     }
 
     try {
+      console.log('[History] Loading transactions:', {
+        account: selectedAccount.name,
+        address: selectedAccount.revAddress,
+        publicKey: selectedAccount.publicKey,
+        network: selectedNetwork.name,
+        graphqlUrl: selectedNetwork.graphqlUrl
+      });
+      
+      if (!selectedAccount.revAddress || !selectedAccount.publicKey) {
+        console.error('[History] Missing account data:', {
+          hasAddress: !!selectedAccount.revAddress,
+          hasPublicKey: !!selectedAccount.publicKey
+        });
+        setTransactions([]);
+        return;
+      }
+      
       const txs = await TransactionHistoryService.getTransactions(
         selectedAccount.revAddress,
         selectedAccount.publicKey,
@@ -266,6 +283,8 @@ export const History: React.FC = () => {
         selectedNetwork.graphqlUrl || '',
         100
       );
+      
+      console.log('[History] Loaded transactions:', txs.length);
       
       let filteredTxs = txs;
       if (filter.type) {
