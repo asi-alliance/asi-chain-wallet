@@ -61,6 +61,10 @@ const parseNetworksFromEnv = (): Network[] => {
 
 const defaultNetworks: Network[] = parseNetworksFromEnv();
 
+const isPredefinedNetwork = (networkId: string): boolean => {
+  return defaultNetworks.some(n => n.id === networkId);
+};
+
 const NETWORKS_STORAGE_KEY = 'asi_wallet_networks';
 const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
@@ -449,6 +453,17 @@ const walletSlice = createSlice({
       state.error = null;
     },
     updateNetwork: (state, action: PayloadAction<Network>) => {
+      const networkToUpdate = action.payload;
+      
+      if (isPredefinedNetwork(networkToUpdate.id)) {
+        console.warn(`Cannot update predefined network "${networkToUpdate.id}". Only custom networks can be edited.`);
+        return;
+      }
+      
+      if (networkToUpdate.id !== 'custom') {
+        console.warn(`Network updates are only allowed for custom network. Attempted to update: "${networkToUpdate.id}"`);
+        return;
+      }
       const index = state.networks.findIndex(n => n.id === action.payload.id);
       if (index !== -1) {
         state.networks[index] = action.payload;
@@ -461,6 +476,17 @@ const walletSlice = createSlice({
       saveNetworks(state.networks);
     },
     addNetwork: (state, action: PayloadAction<Network>) => {
+      const networkToAdd = action.payload;
+      
+      if (networkToAdd.id !== 'custom') {
+        console.warn(`Only custom network can be added. Attempted to add: "${networkToAdd.id}"`);
+        return;
+      }
+      
+      if (isPredefinedNetwork(networkToAdd.id)) {
+        console.warn(`Cannot add predefined network "${networkToAdd.id}" as custom network.`);
+        return;
+      }
       const timestamp = Date.now();
       const newNetwork = {
         ...action.payload,
