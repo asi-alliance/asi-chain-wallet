@@ -46,8 +46,13 @@ class TransactionHistoryService {
       const transactions: Transaction[] = [];
       
       for (const bcTx of blockchainTxs) {
-        const isReceive = bcTx.to && bcTx.to.toLowerCase() === address.toLowerCase();
-        const isSend = bcTx.from && bcTx.from.toLowerCase() === publicKey.toLowerCase();
+        const normalizedAddress = address?.toLowerCase().trim();
+        const normalizedPublicKey = publicKey?.toLowerCase().trim();
+        const normalizedTo = bcTx.to?.toLowerCase().trim();
+        const normalizedFrom = bcTx.from?.toLowerCase().trim();
+        
+        const isReceive = normalizedTo && normalizedTo === normalizedAddress;
+        const isSend = normalizedFrom && normalizedFrom === normalizedPublicKey;
         
         if (!isReceive && !isSend) {
           continue;

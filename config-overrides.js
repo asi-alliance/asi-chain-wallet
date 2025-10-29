@@ -3,7 +3,8 @@ const webpack = require('webpack');
 try {
   const fs = require('fs');
   const path = require('path');
-  const envPath = path.resolve(__dirname, '.env');
+  const envLocalPath = path.resolve(__dirname, '.env.local');
+  const envPath = fs.existsSync(envLocalPath) ? envLocalPath : path.resolve(__dirname, '.env');
   if (fs.existsSync(envPath)) {
     const envFile = fs.readFileSync(envPath, 'utf8');
     const lines = envFile.split('\n');
