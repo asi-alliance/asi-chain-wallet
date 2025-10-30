@@ -58,6 +58,8 @@ class TransactionHistoryService {
             if (!matchesAccount) continue;
             if (seen.has(p.deployId)) continue;
             seen.add(p.deployId);
+            let type: 'send' | 'receive' = 'send';
+            if (pTo === normalizedAddress && pFrom !== normalizedPublicKey) type = 'receive';
             transactions.push({
               id: p.deployId,
               deployId: p.deployId,
@@ -67,6 +69,7 @@ class TransactionHistoryService {
               timestamp: new Date(p.timestamp),
               status: 'pending',
               gasCost: generateRandomGasFee(),
+              type,
               network,
               detectedBy: 'manual'
             } as any);
@@ -115,9 +118,17 @@ class TransactionHistoryService {
 
       try {
         const knownIds = new Set(blockchainTxs.map((t: any) => t.deployId));
-        const pendingOnly = transactions.filter(t => !knownIds.has(t.deployId));
-        // prepend pending to show first
-        return [...pendingOnly, ...transactions.filter(t => knownIds.has(t.deployId))];
+        const pendingOnly = transactions.filter(t => t.status === 'pending' && !knownIds.has(t.deployId));
+        const confirmed = transactions.filter(t => t.status !== 'pending');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const raw = localStorage.getItem('asi_wallet_pending_transactions');
+          const pending: any[] = raw ? JSON.parse(raw) : [];
+          const filtered = pending.filter(p => !knownIds.has(p.deployId));
+          if (filtered.length !== pending.length) {
+            localStorage.setItem('asi_wallet_pending_transactions', JSON.stringify(filtered));
+          }
+        }
+        return [...pendingOnly, ...confirmed];
       } catch {}
 
       return transactions;
