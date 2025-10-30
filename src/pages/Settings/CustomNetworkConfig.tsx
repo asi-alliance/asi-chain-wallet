@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from 'store';
-import { updateNetwork, selectNetwork } from 'store/walletSlice';
+import { updateNetwork, selectNetwork, addNetwork } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
 import { Network } from 'types/wallet';
 
@@ -101,9 +101,12 @@ export const CustomNetworkConfig: React.FC = () => {
   const [readOnlyHttpPort, setReadOnlyHttpPort] = useState('40453');
   const [readOnlyGrpcPort, setReadOnlyGrpcPort] = useState('40451');
   
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
+  const [activeCustomId, setActiveCustomId] = useState<string>('custom');
 
-  const customNetwork = networks.find(n => n.id === 'custom') || {
+  const customNetworks = networks.filter(n => n.id?.startsWith('custom'));
+  const currentCustom = customNetworks.find(n => n.id === activeCustomId);
+  const customNetwork = currentCustom || {
     id: 'custom',
     name: 'Custom Network',
     url: 'http://localhost:40403',
@@ -135,7 +138,7 @@ export const CustomNetworkConfig: React.FC = () => {
 
   const handleSave = () => {
     const updatedNetwork: Network = {
-      id: 'custom',
+      id: activeCustomId || 'custom',
       name: 'Custom Network',
       url: `http://${validatorHost}:${validatorHttpPort}`,
       readOnlyUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
@@ -143,6 +146,17 @@ export const CustomNetworkConfig: React.FC = () => {
     
     dispatch(updateNetwork(updatedNetwork));
     setIsEditing(false);
+  };
+
+  const handleAddCustom = () => {
+    const newNet: Network = {
+      id: 'custom',
+      name: 'Custom Network',
+      url: `http://${validatorHost}:${validatorHttpPort}`,
+      readOnlyUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
+    };
+    dispatch(addNetwork(newNet));
+    setActiveCustomId(`custom-${Date.now()}`);
   };
 
   const handleUseCustomNetwork = () => {
@@ -287,6 +301,9 @@ export const CustomNetworkConfig: React.FC = () => {
             <>
               <Button variant="secondary" onClick={() => setIsEditing(true)}>
                 Edit Configuration
+              </Button>
+              <Button variant="secondary" onClick={handleAddCustom}>
+                Add Custom Network
               </Button>
               {selectedNetwork.id !== 'custom' && (
                 <Button variant="primary" onClick={handleUseCustomNetwork}>

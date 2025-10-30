@@ -83,7 +83,37 @@ class TransactionHistoryService {
         
         transactions.push(transaction);
       }
-      
+
+      // Merge pending transactions from localStorage (written at send time)
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const raw = localStorage.getItem('asi_wallet_pending_transactions');
+          const pending: any[] = raw ? JSON.parse(raw) : [];
+          const knownIds = new Set(transactions.map(t => t.deployId));
+          const normalizedAddress = address?.toLowerCase().trim();
+          const normalizedPublicKey = publicKey?.toLowerCase().trim();
+          for (const p of pending) {
+            const pFrom = (p.from || '').toLowerCase().trim();
+            const pTo = (p.to || '').toLowerCase().trim();
+            const matchesAccount = pTo === normalizedAddress || pFrom === normalizedPublicKey;
+            if (!matchesAccount) continue;
+            if (knownIds.has(p.deployId)) continue;
+            transactions.unshift({
+              id: p.deployId,
+              deployId: p.deployId,
+              from: p.from,
+              to: p.to,
+              amount: p.amount,
+              timestamp: new Date(p.timestamp),
+              status: 'pending',
+              gasCost: generateRandomGasFee(),
+              network,
+              detectedBy: 'manual'
+            } as any);
+          }
+        }
+      } catch {}
+
       return transactions;
     } catch (error: any) {
       return [];

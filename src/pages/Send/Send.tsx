@@ -217,6 +217,7 @@ export const Send: React.FC = () => {
   const [scanError, setScanError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
+  const [copied, setCopied] = useState(false);
 
   const updateEstimatedFee = () => {
     setEstimatedFee(generateRandomGasFee());
@@ -606,8 +607,25 @@ export const Send: React.FC = () => {
         <CardContent>
           {txHash && !isWaitingForBalance && (
             <SuccessMessage>
-              <div>Transaction completed successfully!</div>
-              <div className="deploy-id">Deploy ID: {txHash}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div>
+                  <div>Transaction completed successfully!</div>
+                  <div className="deploy-id">Deploy ID: {txHash}</div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(txHash);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    } catch {}
+                  }}
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </Button>
+              </div>
             </SuccessMessage>
           )}
 

@@ -66,6 +66,8 @@ const isPredefinedNetwork = (networkId: string): boolean => {
 };
 
 const NETWORKS_STORAGE_KEY = 'asi_wallet_networks';
+const getAccountNetworksKey = (accountId?: string | null) =>
+  accountId ? `${NETWORKS_STORAGE_KEY}_${accountId}` : NETWORKS_STORAGE_KEY;
 const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
@@ -129,41 +131,42 @@ const removePendingTransaction = (deployId: string) => {
   }
 };
 
-const loadNetworks = (): Network[] => {
+const loadNetworks = (accountId?: string | null): Network[] => {
   const result: Network[] = [...defaultNetworks];
   const envNetworkIds = new Set(defaultNetworks.map(n => n.id));
   
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
-      if (stored) {
+      const stored = localStorage.getItem(getAccountNetworksKey(accountId)) || localStorage.getItem(NETWORKS_STORAGE_KEY);
+    if (stored) {
         const storedNetworks = JSON.parse(stored) as Network[];
         
         storedNetworks.forEach(n => {
-          if (n.id === 'custom' && !envNetworkIds.has(n.id)) {
+          if (n.id?.startsWith('custom') && !envNetworkIds.has(n.id)) {
             result.push(n);
           }
         });
-      }
-    } catch (error) {
-      console.error('Failed to load networks from localStorage:', error);
     }
+  } catch (error) {
+    console.error('Failed to load networks from localStorage:', error);
+  }
   }
   
   return result;
 };
 
-const saveNetworks = (networks: Network[]) => {
+const saveNetworks = (networks: Network[], accountId?: string | null) => {
   if (typeof window === 'undefined' || !window.localStorage) {
     return;
   }
   
   try {
-    const customNetwork = networks.find(n => n.id === 'custom');
-    if (customNetwork) {
-      localStorage.setItem(NETWORKS_STORAGE_KEY, JSON.stringify([customNetwork]));
+    const customNetworks = networks.filter(n => n.id?.startsWith('custom'));
+    const key = getAccountNetworksKey(accountId);
+    if (customNetworks.length > 0) {
+      localStorage.setItem(key, JSON.stringify(customNetworks));
     } else {
-      localStorage.removeItem(NETWORKS_STORAGE_KEY);
+      localStorage.removeItem(key);
     }
   } catch (error) {
     console.error('Failed to save networks to localStorage:', error);
@@ -460,8 +463,8 @@ const walletSlice = createSlice({
         return;
       }
       
-      if (networkToUpdate.id !== 'custom') {
-        console.warn(`Network updates are only allowed for custom network. Attempted to update: "${networkToUpdate.id}"`);
+      if (!networkToUpdate.id?.startsWith('custom')) {
+        console.warn(`Network updates are only allowed for custom networks (custom-*). Attempted to update: "${networkToUpdate.id}"`);
         return;
       }
       const index = state.networks.findIndex(n => n.id === action.payload.id);
@@ -473,15 +476,10 @@ const walletSlice = createSlice({
       } else {
         state.networks.push(action.payload);
       }
-      saveNetworks(state.networks);
+      saveNetworks(state.networks, state.selectedAccount?.id);
     },
     addNetwork: (state, action: PayloadAction<Network>) => {
       const networkToAdd = action.payload;
-      
-      if (networkToAdd.id !== 'custom') {
-        console.warn(`Only custom network can be added. Attempted to add: "${networkToAdd.id}"`);
-        return;
-      }
       
       if (isPredefinedNetwork(networkToAdd.id)) {
         console.warn(`Cannot add predefined network "${networkToAdd.id}" as custom network.`);
@@ -490,13 +488,13 @@ const walletSlice = createSlice({
       const timestamp = Date.now();
       const newNetwork = {
         ...action.payload,
-        id: `custom-${timestamp}`
+        id: action.payload.id?.startsWith('custom') ? action.payload.id : `custom-${timestamp}`
       };
       state.networks.push(newNetwork);
-      saveNetworks(state.networks);
+      saveNetworks(state.networks, state.selectedAccount?.id);
     },
     loadNetworksFromStorage: (state) => {
-      const loadedNetworks = loadNetworks();
+      const loadedNetworks = loadNetworks(state.selectedAccount?.id);
       state.networks = loadedNetworks;
       
       try {
@@ -504,8 +502,8 @@ const walletSlice = createSlice({
           const selectedNetworkId = localStorage.getItem(SELECTED_NETWORK_KEY);
           if (selectedNetworkId) {
             const selectedNetwork = loadedNetworks.find(n => n.id === selectedNetworkId && n.url && n.url.trim() !== '');
-            if (selectedNetwork) {
-              state.selectedNetwork = selectedNetwork;
+      if (selectedNetwork) {
+        state.selectedNetwork = selectedNetwork;
               return;
             }
           }
