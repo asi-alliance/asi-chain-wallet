@@ -631,9 +631,24 @@ export const Send: React.FC = () => {
 
           {txHash && isWaitingForBalance && (
             <LoadingMessage>
-              <div>
-                <span className="spinner"></span>
-                Transaction sent! Waiting for balance update...
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div>
+                  <span className="spinner"></span>
+                  Transaction sent! Waiting for balance update...
+                </div>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(txHash);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    } catch {}
+                  }}
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </Button>
               </div>
               <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px', wordBreak: 'break-all' }}>
                 Deploy ID: {txHash}
