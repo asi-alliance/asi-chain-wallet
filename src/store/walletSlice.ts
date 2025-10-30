@@ -493,6 +493,24 @@ const walletSlice = createSlice({
       state.networks.push(newNetwork);
       saveNetworks(state.networks, state.selectedAccount?.id);
     },
+    removeNetwork: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      if (!id?.startsWith('custom')) {
+        console.warn(`Only custom networks can be removed. Attempted: "${id}"`);
+        return;
+      }
+      state.networks = state.networks.filter(n => n.id !== id);
+      saveNetworks(state.networks, state.selectedAccount?.id);
+      if (state.selectedNetwork?.id === id) {
+        const firstAvailable = state.networks.find(n => n.url && n.url.trim() !== '') || state.networks[0];
+        if (firstAvailable) {
+          state.selectedNetwork = firstAvailable;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(SELECTED_NETWORK_KEY, firstAvailable.id);
+          }
+        }
+      }
+    },
     loadNetworksFromStorage: (state) => {
       const loadedNetworks = loadNetworks(state.selectedAccount?.id);
       state.networks = loadedNetworks;
@@ -655,6 +673,7 @@ export const {
   clearError,
   updateNetwork,
   addNetwork,
+  removeNetwork,
   loadNetworksFromStorage,
   loadAccountsFromStorage,
   updateTransactionStatus,
