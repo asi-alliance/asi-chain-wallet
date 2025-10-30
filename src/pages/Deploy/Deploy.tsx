@@ -142,7 +142,6 @@ export const Deploy: React.FC = () => {
   const [showDeployConfirmation, setShowDeployConfirmation] = useState(false);
   const [showExploreConfirmation, setShowExploreConfirmation] = useState(false);
 
-  // Helper function to check if account is unlocked
   const isAccountUnlocked = (account: any): boolean => {
     return unlockedAccounts.some(unlockedAcc => unlockedAcc.id === account?.id);
   };
@@ -155,7 +154,6 @@ export const Deploy: React.FC = () => {
   const handleConfirmDeploy = async () => {
     if (!selectedAccount) return;
 
-    // Issue #37 & #38: Final validation before deployment
     const balance = parseFloat(selectedAccount.balance || '0');
     const phloLimitNum = parseInt(phloLimit);
     const minGasCost = phloLimitNum * parseFloat(phloPrice) / 1000000000;
@@ -184,7 +182,6 @@ export const Deploy: React.FC = () => {
       
       const rchain = new RChainService(selectedNetwork.url.trim(), selectedNetwork.readOnlyUrl, selectedNetwork.adminUrl, selectedNetwork.shardId);
       
-      // Find the private key from unlocked accounts
       const unlockedAccount = unlockedAccounts.find(acc => acc.id === selectedAccount.id);
       const privateKey = unlockedAccount?.privateKey;
 
@@ -297,19 +294,19 @@ export const Deploy: React.FC = () => {
         </CardHeader>
         <CardContent>
           {error && <ErrorMessage>{error}</ErrorMessage>}
-          {deployId && (
+          {(deployId || (result && (result as any).deployId)) && (
             <SuccessMessage>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <div>
                   <div>Deploy submitted successfully!</div>
-                  <div className="deploy-id">Deploy ID: {deployId}</div>
+                  <div className="deploy-id">Deploy ID: {deployId || (result as any).deployId}</div>
                 </div>
                 <Button
                   variant="secondary"
                   size="small"
                   onClick={async () => {
                     try {
-                      await navigator.clipboard.writeText(deployId);
+                      await navigator.clipboard.writeText(deployId || (result as any).deployId);
                     } catch {}
                   }}
                 >

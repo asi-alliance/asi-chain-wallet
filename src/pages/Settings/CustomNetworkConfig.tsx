@@ -114,57 +114,52 @@ export const CustomNetworkConfig: React.FC = () => {
   };
 
   useEffect(() => {
-    if (customNetwork.url) {
-      try {
-        const validatorUrl = new URL(customNetwork.url);
-        setValidatorHost(validatorUrl.hostname);
-        setValidatorHttpPort(validatorUrl.port || '40403');
-      } catch (e) {
-        console.error('Error parsing validator URL:', e);
-      }
-    }
+    const existing = customNetworks.find(n => n.id === activeCustomId);
+    if (!existing) return;
 
-    if (customNetwork.readOnlyUrl) {
+    if (existing.url) {
       try {
-        const readOnlyUrl = new URL(customNetwork.readOnlyUrl);
-        setReadOnlyHost(readOnlyUrl.hostname);
-        setReadOnlyHttpPort(readOnlyUrl.port || '40453');
-      } catch (e) {
-        // Default values already set
-      }
+        const validatorUrl = new URL(existing.url);
+        setValidatorHost(validatorUrl.hostname || 'localhost');
+        setValidatorHttpPort(validatorUrl.port || '40403');
+      } catch {}
     }
-  }, [customNetwork]);
+    if (existing.readOnlyUrl) {
+      try {
+        const readOnlyUrl = new URL(existing.readOnlyUrl);
+        setReadOnlyHost(readOnlyUrl.hostname || 'localhost');
+        setReadOnlyHttpPort(readOnlyUrl.port || '40453');
+      } catch {}
+    }
+  }, [activeCustomId, customNetworks]);
 
   const handleSave = () => {
-    const updatedNetwork: Network = {
+    const data: Network = {
       id: activeCustomId || 'custom',
       name: 'Custom Network',
       url: `http://${validatorHost}:${validatorHttpPort}`,
       readOnlyUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
     };
 
-    dispatch(updateNetwork(updatedNetwork));
-    setIsEditing(false);
-  };
+    const exists = customNetworks.some(n => n.id === data.id);
+    if (exists) {
+      dispatch(updateNetwork(data));
+    } else {
+      const id = data.id.startsWith('custom-') ? data.id : `custom-${Date.now()}`;
+      dispatch(addNetwork({ ...data, id }));
+    }
 
-  const handleAddCustom = () => {
-    const id = `custom-${Date.now()}`;
-    const newNet: Network = {
-      id,
-      name: 'Custom Network',
-      url: 'http://localhost:40403',
-      readOnlyUrl: 'http://localhost:40453',
-    };
     setValidatorHost('localhost');
     setValidatorHttpPort('40403');
     setValidatorGrpcPort('40401');
     setReadOnlyHost('localhost');
     setReadOnlyHttpPort('40453');
     setReadOnlyGrpcPort('40451');
-    dispatch(addNetwork(newNet));
-    setActiveCustomId(id);
-    setIsEditing(true);
+    setActiveCustomId('custom');
+    setIsEditing(false);
   };
+
+
 
 
   const handleDelete = (id: string) => {
@@ -214,7 +209,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={validatorHost}
                 onChange={(e) => setValidatorHost(e.target.value)}
                 placeholder="localhost"
-                disabled={!isEditing}
               />
             </FormGroup>
             <FormGroup>
@@ -224,7 +218,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={validatorGrpcPort}
                 onChange={(e) => setValidatorGrpcPort(e.target.value)}
                 placeholder="40401"
-                disabled={!isEditing}
               />
             </FormGroup>
           </FormRow>
@@ -237,7 +230,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={validatorHttpPort}
                 onChange={(e) => setValidatorHttpPort(e.target.value)}
                 placeholder="40403"
-                disabled={!isEditing}
               />
             </FormGroup>
             <div />
@@ -265,7 +257,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={readOnlyHost}
                 onChange={(e) => setReadOnlyHost(e.target.value)}
                 placeholder="localhost"
-                disabled={!isEditing}
               />
             </FormGroup>
             <FormGroup>
@@ -274,7 +265,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={readOnlyGrpcPort}
                 onChange={(e) => setReadOnlyGrpcPort(e.target.value)}
                 placeholder="40451"
-                disabled={!isEditing}
               />
             </FormGroup>
           </FormRow>
@@ -286,7 +276,6 @@ export const CustomNetworkConfig: React.FC = () => {
                 value={readOnlyHttpPort}
                 onChange={(e) => setReadOnlyHttpPort(e.target.value)}
                 placeholder="40453"
-                disabled={!isEditing}
               />
             </FormGroup>
             <div />
@@ -304,25 +293,9 @@ export const CustomNetworkConfig: React.FC = () => {
         </ConfigSection>
 
         <ActionButtons>
-          {!isEditing ? (
-            <>
-              <Button variant="secondary" onClick={() => setIsEditing(true)}>
-                Edit Configuration
-              </Button>
-              <Button variant="secondary" onClick={handleAddCustom}>
-                Add Custom Network
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={() => setIsEditing(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleSave}>
-                Save Configuration
-              </Button>
-            </>
-          )}
+          <Button variant="primary" onClick={handleSave}>
+           Save Custom Network
+          </Button>
         </ActionButtons>
 
         {customNetworks.length > 0 && (
