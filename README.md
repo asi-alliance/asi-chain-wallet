@@ -11,7 +11,7 @@
 
 Part of the [**Artificial Superintelligence Alliance**](https://superintelligence.io) ecosystem
 
-*Uniting Fetch.ai, SingularityNET, and CUDOS*
+*Uniting Fetch.ai, SingularityNET and CUDOS*
 
 </div>
 
@@ -154,4 +154,4 @@ limitations under the License.
 
 ---
 
-ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
+ASI Alliance founding members: Fetch.ai, SingularityNET and CUDOS
