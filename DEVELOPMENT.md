@@ -41,19 +41,13 @@ npm install --legacy-peer-deps
 
 **Note**: The `--legacy-peer-deps` flag is required due to peer dependency conflicts in some packages.
 
-### 3. Configure Environment
+### 3. Configure Environment (Optional)
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your WalletConnect Project ID:
-
-```env
-REACT_APP_WALLETCONNECT_PROJECT_ID=your-project-id-here
-```
-
-Get a free Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com)
+The wallet works with default configuration. Edit `.env` only if you need to customize network endpoints.
 
 ## Development Workflow
 
@@ -143,9 +137,7 @@ Access the wallet at `http://localhost:3000`
 docker build -t asi-wallet:latest .
 
 # Run the container
-docker run -p 3000:80 \
-  -e REACT_APP_WALLETCONNECT_PROJECT_ID=your-project-id \
-  asi-wallet:latest
+docker run -p 3000:80 asi-wallet:latest
 ```
 
 ### Docker Build Process
@@ -241,7 +233,6 @@ Runs Jest tests with React Testing Library.
 
 **Mock Services**:
 - `src/services/__mocks__/secureStorage.ts`
-- `src/services/__mocks__/walletConnect.ts`
 - `src/__mocks__/crypto-js.ts`
 
 ## CI/CD Pipeline
@@ -390,23 +381,7 @@ The production build is optimized automatically:
 npm install --legacy-peer-deps
 ```
 
-#### 2. WalletConnect "No matching key" Errors
-
-**Issue**: Console errors about "No matching key" from WalletConnect
-
-**Solution**: These are handled by the error handler in `src/index.tsx` and can be safely ignored. The wallet includes cleanup logic in `src/services/walletConnect.ts`.
-
-#### 3. Hardware Wallet Not Detected
-
-**Issue**: Ledger or Trezor not connecting
-
-**Solution**: 
-- Ensure device is unlocked and the appropriate app is open
-- Check USB permissions in browser
-- Try reconnecting the device
-- Clear browser cache and reload
-
-#### 4. Build Fails with TypeScript Errors
+#### 2. Build Fails with TypeScript Errors
 
 **Issue**: Type errors during build
 
@@ -415,7 +390,7 @@ npm install --legacy-peer-deps
 npm run type-check
 ```
 
-#### 5. Docker Container Won't Start
+#### 3. Docker Container Won't Start
 
 **Issue**: Container exits immediately
 
@@ -425,16 +400,36 @@ docker-compose logs asi-wallet
 ```
 
 Common causes:
-- Invalid environment variables
 - Port 3000 already in use
 - Insufficient resources
+- Invalid Docker configuration
+
+#### 4. Transaction Not Updating
+
+**Issue**: Transaction status not updating in UI
+
+**Solution**: 
+- Verify network connectivity to F1R3FLY nodes
+- Check polling intervals in environment variables
+- Ensure node endpoints are accessible
+- Review browser console for errors
+
+#### 5. PWA Not Installing
+
+**Issue**: "Install App" option not appearing
+
+**Solution**:
+- Serve over HTTPS (required for PWA)
+- Check service worker registration in DevTools
+- Verify `manifest.json` is accessible
+- Clear browser cache and reload
 
 ### Getting Help
 
 - Check existing issues on GitHub
-- Review WalletConnect documentation for integration issues
 - Verify network connectivity to F1R3FLY nodes
 - Check browser console for detailed error messages
+- Review CI/CD logs for deployment issues
 
 ---
 

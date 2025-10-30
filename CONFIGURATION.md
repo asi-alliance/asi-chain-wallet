@@ -6,46 +6,9 @@ This guide details all environment variables and configuration options for ASI C
 
 ## Table of Contents
 
-1. [Environment Variables](#environment-variables)
-2. [WalletConnect Configuration](#walletconnect-configuration)
-3. [Network Configuration](#network-configuration)
-4. [Performance Settings](#performance-settings)
-5. [Docker Configuration](#docker-configuration)
-
-## Environment Variables
-
-All environment variables should be prefixed with `REACT_APP_` for Create React App to include them in the build.
-
-### Required Variables
-
-#### WalletConnect Project ID
-
-```env
-REACT_APP_WALLETCONNECT_PROJECT_ID=your-project-id-here
-```
-
-**Required for WalletConnect functionality.**
-
-Get your FREE Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com)
-
-**Default in docker-compose.yml**: `8b5b43fbbd61a2852c226ff2eee68ab9`
-
-## WalletConnect Configuration
-
-The wallet uses WalletConnect v2 protocol for DApp connectivity. Configuration is handled through the `REACT_APP_WALLETCONNECT_PROJECT_ID` environment variable.
-
-**Relay URL**: `wss://relay.walletconnect.com` (hardcoded in service)
-
-**Supported Methods**:
-- `rchain_sendTransaction`
-- `rchain_signMessage`
-- `rchain_getBalance`
-
-**Supported Events**:
-- `accountsChanged`
-- `chainChanged`
-
-For production deployments, register your own Project ID at [WalletConnect Cloud](https://cloud.walletconnect.com) to ensure proper functionality and avoid rate limits.
+1. [Network Configuration](#network-configuration)
+2. [Performance Settings](#performance-settings)
+3. [Docker Configuration](#docker-configuration)
 
 ## Network Configuration
 
@@ -145,7 +108,6 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_WALLETCONNECT_PROJECT_ID=${WALLETCONNECT_PROJECT_ID:-8b5b43fbbd61a2852c226ff2eee68ab9}
       - REACT_APP_RCHAIN_HTTP_URL=${RCHAIN_HTTP_URL:-http://44.198.8.24:40413}
       - REACT_APP_RCHAIN_GRPC_URL=${RCHAIN_GRPC_URL:-http://44.198.8.24:40412}
       - REACT_APP_RCHAIN_READONLY_URL=${RCHAIN_READONLY_URL:-http://44.198.8.24:40453}
@@ -163,12 +125,11 @@ You can override any environment variable using a `.env` file in the project roo
 
 ```bash
 # Using environment variables
-export WALLETCONNECT_PROJECT_ID=your-project-id
 export RCHAIN_HTTP_URL=http://your-node:40413
 docker-compose up -d
 
 # Or using .env file
-echo "WALLETCONNECT_PROJECT_ID=your-project-id" > .env
+echo "RCHAIN_HTTP_URL=http://your-node:40413" > .env
 docker-compose up -d
 ```
 
@@ -177,7 +138,6 @@ docker-compose up -d
 The Dockerfile sets default environment variables that can be overridden at runtime:
 
 ```dockerfile
-ENV REACT_APP_WALLETCONNECT_PROJECT_ID=8b5b43fbbd61a2852c226ff2eee68ab9
 ENV REACT_APP_RCHAIN_HTTP_URL=http://44.198.8.24:40413
 ENV REACT_APP_RCHAIN_GRPC_URL=http://44.198.8.24:40412
 ENV REACT_APP_RCHAIN_READONLY_URL=http://44.198.8.24:40453
