@@ -7,8 +7,10 @@ This guide details all environment variables and configuration options for ASI C
 ## Table of Contents
 
 1. [Network Configuration](#network-configuration)
-2. [Performance Settings](#performance-settings)
-3. [Docker Configuration](#docker-configuration)
+2. [Network Management](#network-management)
+3. [Transaction Storage](#transaction-storage)
+4. [Performance Settings](#performance-settings)
+5. [Docker Configuration](#docker-configuration)
 
 ## Network Configuration
 
@@ -79,6 +81,43 @@ REACT_APP_RCHAIN_HTTP_URL=http://localhost:40413
 REACT_APP_RCHAIN_GRPC_URL=http://localhost:40412
 REACT_APP_RCHAIN_READONLY_URL=http://localhost:40453
 ```
+
+## Network Management
+
+The wallet uses a dual approach for managing network configurations:
+
+### Environment-based Networks
+
+- Networks are defined in `process.env.NETWORKS`
+- Create React App receives values through `config-overrides.js` (DefinePlugin + reading `.env`/`.env.local`)
+- These predefined networks are **read-only** and cannot be modified by users
+
+### Custom Networks
+
+- Custom networks are stored in **localStorage** per account
+- Storage key format: `asi_wallet_networks_<accountId>`
+- Users can add, edit, and delete custom networks through Settings → Custom Network Configuration
+- Custom networks are removed when localStorage is cleared
+
+**Note**: Predefined networks from environment variables take precedence and are always available.
+
+## Transaction Storage
+
+The wallet implements a hybrid approach for transaction tracking:
+
+### Pending Transactions
+
+- Transactions are written to **localStorage** immediately after sending
+- This provides instant feedback in the History page
+- Pending transactions display before the indexer confirms them
+
+### Confirmed Transactions
+
+- Once the indexer returns the same `deployId`, the transaction status updates from pending to confirmed
+- Historical transactions are fetched from the indexer
+- The wallet merges pending transactions with confirmed ones for a complete history
+
+**Storage Key**: Transaction data is stored per account in localStorage
 
 ## Performance Settings
 

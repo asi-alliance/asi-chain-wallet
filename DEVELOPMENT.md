@@ -271,7 +271,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::533793137436:role/asi-chain-wallet-codebuild-service-role
+          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/your-codebuild-service-role
           aws-region: us-east-1
       - uses: aws-actions/aws-codebuild-run-build@v1
         with:
