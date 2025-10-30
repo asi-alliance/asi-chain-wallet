@@ -299,8 +299,23 @@ export const Deploy: React.FC = () => {
           {error && <ErrorMessage>{error}</ErrorMessage>}
           {deployId && (
             <SuccessMessage>
-              <div>Deploy submitted successfully!</div>
-              <div className="deploy-id">Deploy ID: {deployId}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div>
+                  <div>Deploy submitted successfully!</div>
+                  <div className="deploy-id">Deploy ID: {deployId}</div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(deployId);
+                    } catch {}
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
             </SuccessMessage>
           )}
 
