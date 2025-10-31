@@ -15,7 +15,6 @@ const InputWrapper = styled.div<{ fullWidth?: boolean }>`
 
 const Label = styled.label`
   display: block;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   line-height: 22px;
   font-weight: 500;
@@ -32,7 +31,6 @@ const Label = styled.label`
 const StyledInput = styled.input<{ hasError?: boolean }>`
   width: 100%;
   padding: 12px 16px;
-  font-family: 'Inter', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;
@@ -75,7 +73,6 @@ const StyledInput = styled.input<{ hasError?: boolean }>`
 
 const ErrorMessage = styled.span`
   display: block;
-  font-family: 'Inter', sans-serif;
   font-size: 13px;
   line-height: 20px;
   font-weight: 500;
@@ -98,7 +95,6 @@ const ErrorMessage = styled.span`
 const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
   width: 100%;
   padding: 12px 16px;
-  font-family: 'Inter', sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 24px;

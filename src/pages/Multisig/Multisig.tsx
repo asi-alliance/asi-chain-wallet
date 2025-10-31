@@ -134,7 +134,6 @@ const ParticipantItem = styled.div`
 `;
 
 const Address = styled.span`
-  font-family: monospace;
   font-size: 0.75rem;
 `;
 

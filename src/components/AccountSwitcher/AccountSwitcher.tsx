@@ -69,7 +69,6 @@ const AccountName = styled.span`
 const AccountAddress = styled.span`
   font-size: 11px;
   color: ${({ theme }) => theme.text.secondary};
-  font-family: monospace;
   opacity: 0.8;
 `;
 

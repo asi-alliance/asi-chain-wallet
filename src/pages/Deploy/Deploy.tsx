@@ -15,7 +15,6 @@ const CodeEditor = styled.textarea`
   width: 100%;
   height: 300px;
   padding: 16px;
-  font-family: 'Courier New', monospace;
   font-size: 14px;
   background: ${({ theme }) => theme.surface};
   border: 2px solid ${({ theme }) => theme.border};
@@ -80,7 +79,6 @@ const ResultTitle = styled.h4`
 
 const ResultContent = styled.pre`
   margin: 0;
-  font-family: 'Courier New', monospace;
   font-size: 12px;
   color: ${({ theme }) => theme.text.secondary};
   white-space: pre-wrap;
@@ -109,7 +107,6 @@ const SuccessMessage = styled.div`
   }
   
   .deploy-id {
-    font-family: monospace;
     font-size: 12px;
     margin-top: 8px;
     padding-top: 8px;

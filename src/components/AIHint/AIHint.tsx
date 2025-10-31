@@ -27,7 +27,6 @@ const AIHintPill = styled.div<{ clickable?: boolean; pulse?: boolean }>`
   background: ${({ theme }) => `${theme.secondary}33`}; /* 20% opacity */
   color: ${({ theme }) => theme.secondary};
   border-radius: 20px;
-  font-family: 'Inter', sans-serif;
   font-size: 14px;
   line-height: 20px;
   font-weight: 500;

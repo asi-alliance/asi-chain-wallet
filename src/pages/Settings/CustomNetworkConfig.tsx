@@ -52,7 +52,6 @@ const LinkTitle = styled.div`
 `;
 
 const Link = styled.div`
-  font-family: monospace;
   font-size: 13px;
   color: ${({ theme }) => theme.primary};
   margin-bottom: 4px;

@@ -58,7 +58,6 @@ export const CardHeader = styled.div`
 `;
 
 export const CardTitle = styled.h2`
-  font-family: 'Inter', sans-serif;
   font-size: 28px;
   line-height: 36px;
   font-weight: 600;
@@ -68,7 +67,6 @@ export const CardTitle = styled.h2`
 `;
 
 export const CardContent = styled.div`
-  font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 26px;
   font-weight: 400;
@@ -84,7 +82,6 @@ export const CardContent = styled.div`
   
   /* For numerical/hash values */
   code, .mono {
-    font-family: 'Fira Mono', monospace;
     font-weight: 500;
     font-size: 13px;
     line-height: 20px;

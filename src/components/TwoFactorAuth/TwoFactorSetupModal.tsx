@@ -92,7 +92,6 @@ const ManualEntry = styled.div`
   padding: 1rem;
   border-radius: 6px;
   margin: 1rem 0;
-  font-family: monospace;
   word-break: break-all;
   font-size: 0.9rem;
 `;
@@ -116,7 +115,6 @@ const BackupCode = styled.div`
   background: ${props => props.theme.colors.background.primary};
   padding: 0.5rem;
   border-radius: 4px;
-  font-family: monospace;
   text-align: center;
   border: 1px solid ${props => props.theme.colors.border};
 `;

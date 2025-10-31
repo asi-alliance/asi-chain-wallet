@@ -69,7 +69,6 @@ const SuccessMessage = styled.div`
   }
   
   .deploy-id {
-    font-family: monospace;
     font-size: 12px;
     margin-top: 8px;
     padding-top: 8px;

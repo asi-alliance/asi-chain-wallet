@@ -28,7 +28,6 @@ const AddressLabel = styled.div`
 `;
 
 const AddressValue = styled.div`
-  font-family: monospace;
   font-size: 18px;
   word-break: break-all;
   background: ${({ theme }) => theme.card};

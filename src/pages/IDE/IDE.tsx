@@ -201,7 +201,6 @@ const OutputContent = styled.div`
   flex: 1;
   padding: 8px 16px;
   overflow-y: auto;
-  font-family: 'Fira Mono', monospace;
   font-size: 13px;
 `;
 
