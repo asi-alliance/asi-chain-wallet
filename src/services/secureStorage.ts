@@ -23,7 +23,6 @@ export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
-  private static readonly WALLET_CONNECT_KEY = hashValue('asi_wallet_connect_v2');
 
   /**
    * Save encrypted accounts to localStorage
@@ -311,41 +310,6 @@ export class SecureStorage {
   }
 
   /**
-   * Instance methods for WalletConnect storage
-   */
-  async getItem(key: string): Promise<string | null> {
-    try {
-      const data = localStorage.getItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`);
-      return data;
-    } catch (error) {
-      console.error('Failed to get item:', error);
-      return null;
-    }
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    try {
-      localStorage.setItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`, value);
-    } catch (error) {
-      console.error('Failed to set item:', error);
-      throw error;
-    }
-  }
-
-  async removeItem(key: string): Promise<void> {
-    try {
-      localStorage.removeItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`);
-    } catch (error) {
-      console.error('Failed to remove item:', error);
-      throw error;
-    }
-  }
-
-  async getKeys(): Promise<string[]> {
-    return Object.keys(localStorage);
-  }
-
-  /**
    * Static methods for general storage operations
    */
   static async setItem(key: string, value: string): Promise<void> {
@@ -377,33 +341,10 @@ export class SecureStorage {
   }
 
   /**
-   * Save WalletConnect data
-   */
-  static saveWalletConnectData(data: any): void {
-    localStorage.setItem(this.WALLET_CONNECT_KEY, JSON.stringify(data));
-  }
-
-  /**
-   * Get WalletConnect data
-   */
-  static getWalletConnectData(): any {
-    const data = localStorage.getItem(this.WALLET_CONNECT_KEY);
-    return data ? JSON.parse(data) : null;
-  }
-
-  /**
-   * Clear all WalletConnect data
-   */
-  static clearWalletConnectData(): void {
-    localStorage.removeItem(this.WALLET_CONNECT_KEY);
-  }
-
-  /**
    * Clear all storage
    */
   static clearAll(): void {
     localStorage.removeItem(this.STORAGE_KEY);
-    localStorage.removeItem(this.WALLET_CONNECT_KEY);
     this.clearSession();
   }
 }
