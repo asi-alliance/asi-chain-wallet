@@ -101,17 +101,9 @@ export const CustomNetworkConfig: React.FC = () => {
   const [readOnlyHttpPort, setReadOnlyHttpPort] = useState('40453');
   const [readOnlyGrpcPort, setReadOnlyGrpcPort] = useState('40451');
 
-  const [isEditing, setIsEditing] = useState(true);
   const [activeCustomId, setActiveCustomId] = useState<string>('custom');
 
   const customNetworks = networks.filter(n => n.id?.startsWith('custom'));
-  const currentCustom = customNetworks.find(n => n.id === activeCustomId);
-  const customNetwork = currentCustom || {
-    id: 'custom',
-    name: 'Custom Network',
-    url: 'http://localhost:40403',
-    readOnlyUrl: 'http://localhost:40453',
-  };
 
   useEffect(() => {
     const existing = customNetworks.find(n => n.id === activeCustomId);
@@ -156,7 +148,6 @@ export const CustomNetworkConfig: React.FC = () => {
     setReadOnlyHttpPort('40453');
     setReadOnlyGrpcPort('40451');
     setActiveCustomId('custom');
-    setIsEditing(false);
   };
 
 

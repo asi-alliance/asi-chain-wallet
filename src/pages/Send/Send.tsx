@@ -607,14 +607,15 @@ export const Send: React.FC = () => {
         <CardContent>
           {txHash && !isWaitingForBalance && (
             <SuccessMessage>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1', minWidth: '200px' }}>
                   <div>Transaction completed successfully!</div>
                   <div className="deploy-id">Deploy ID: {txHash}</div>
                 </div>
                 <Button
                   variant="secondary"
                   size="small"
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(txHash);
@@ -631,14 +632,15 @@ export const Send: React.FC = () => {
 
           {txHash && isWaitingForBalance && (
             <LoadingMessage>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1', minWidth: '200px' }}>
                   <span className="spinner"></span>
                   Transaction sent! Waiting for balance update...
                 </div>
                 <Button
                   variant="secondary"
                   size="small"
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(txHash);
