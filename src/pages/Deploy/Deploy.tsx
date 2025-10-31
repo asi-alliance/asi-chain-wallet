@@ -5,8 +5,6 @@ import styled from 'styled-components';
 import { RootState } from 'store';
 import { RChainService } from 'services/rchain';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, DeploymentConfirmationModal } from 'components';
-import TransactionHistoryService from 'services/transactionHistory';
-import { SuccessIcon, ErrorIcon, PendingIcon } from 'components/Icons';
 
 const DeployContainer = styled.div`
   max-width: 800px;
@@ -296,14 +294,15 @@ export const Deploy: React.FC = () => {
           {error && <ErrorMessage>{error}</ErrorMessage>}
           {(deployId || (result && (result as any).deployId)) && (
             <SuccessMessage>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1', minWidth: '200px' }}>
                   <div>Deploy submitted successfully!</div>
                   <div className="deploy-id">Deploy ID: {deployId || (result as any).deployId}</div>
                 </div>
                 <Button
                   variant="secondary"
                   size="small"
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(deployId || (result as any).deployId);
