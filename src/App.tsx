@@ -5,7 +5,6 @@ import { ThemeProvider } from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
 import { store, RootState } from 'store';
 import { checkAuthentication } from 'store/authSlice';
-import { initializeWalletConnect } from 'store/walletConnectSlice';
 import { loadNetworksFromStorage, loadAccountsFromStorage } from 'store/walletSlice';
 import { GlobalStyles } from 'styles/GlobalStyles';
 import { lightTheme, darkTheme } from 'styles/theme';
@@ -48,9 +47,8 @@ const AppContent: React.FC = () => {
   useDeepLink();
 
   useEffect(() => {
-    console.log('[App] Initializing app, checking auth and WalletConnect...');
+    console.log('[App] Initializing app, checking auth...');
     dispatch(checkAuthentication());
-    dispatch(initializeWalletConnect() as any);
     dispatch(loadNetworksFromStorage());
     dispatch(loadAccountsFromStorage());
   }, [dispatch]);

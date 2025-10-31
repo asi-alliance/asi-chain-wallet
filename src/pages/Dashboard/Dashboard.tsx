@@ -3,19 +3,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import styled from 'styled-components';
 import { RootState } from 'store';
 import { fetchBalance } from 'store/walletSlice';
-import { setSessionProposal, addSessionRequest } from 'store/walletConnectSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button } from 'components';
 import { useNavigate } from 'react-router-dom';
 import { formatBalanceDashboard } from 'utils/balanceUtils';
 import { getAddressLabel } from '../../constants/token';
 import TransactionHistoryService from '../../services/transactionHistory';
-import { 
-  WalletConnectModalV2, 
-  SessionProposalModal, 
-  TransactionApprovalModal, 
-  ConnectedDApps 
-} from 'components/WalletConnect';
-import { SendIcon, ReceiveIcon, AccountsIcon, ContractIcon, IDEIcon, ClipboardIcon, WalletConnectIcon } from 'components/Icons';
+import { SendIcon, ReceiveIcon, AccountsIcon, ContractIcon, IDEIcon, ClipboardIcon } from 'components/Icons';
 
 const DashboardContainer = styled.div`
   display: grid;
@@ -228,11 +221,6 @@ export const Dashboard: React.FC = () => {
   const { selectedAccount, selectedNetwork, isLoading } = useSelector(
     (state: RootState) => state.wallet
   );
-  const { pendingProposal, pendingRequests, error: wcError } = useSelector(
-    (state: RootState) => state.walletConnect
-  );
-  // const [showWalletConnectModal, setShowWalletConnectModal] = useState(false);
-  const [currentRequest, setCurrentRequest] = useState<any>(null);
   const [networkStatus, setNetworkStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
@@ -343,45 +331,6 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [selectedNetwork]);
 
-
-  useEffect(() => {
-    const handleSessionProposal = (event: CustomEvent) => {
-      dispatch(setSessionProposal(event.detail));
-    };
-
-    const handleSessionRequest = (event: CustomEvent) => {
-      dispatch(addSessionRequest(event.detail));
-      setCurrentRequest(event.detail);
-    };
-
-    // const handleOpenWalletConnect = () => {
-    //   setShowWalletConnectModal(true);
-    // };
-
-    const handleSessionDelete = (event: CustomEvent) => {
-      console.log('Session deleted:', event.detail);
-    };
-
-    window.addEventListener('walletconnect_session_proposal', handleSessionProposal as any);
-    window.addEventListener('walletconnect_session_request', handleSessionRequest as any);
-    window.addEventListener('walletconnect_session_delete', handleSessionDelete as any);
-    // window.addEventListener('open_walletconnect_modal', handleOpenWalletConnect);
-
-    return () => {
-      window.removeEventListener('walletconnect_session_proposal', handleSessionProposal as any);
-      window.removeEventListener('walletconnect_session_request', handleSessionRequest as any);
-      window.removeEventListener('walletconnect_session_delete', handleSessionDelete as any);
-      // window.removeEventListener('open_walletconnect_modal', handleOpenWalletConnect);
-    };
-  }, [dispatch]);
-
-  useEffect(() => {
-    // Show transaction approval modal when there are pending requests
-    if (pendingRequests.length > 0 && !currentRequest) {
-      setCurrentRequest(pendingRequests[0]);
-    }
-  }, [pendingRequests, currentRequest]);
-
   const handleRefreshBalance = () => {
     if (selectedAccount && selectedNetwork) {
       dispatch(fetchBalance({ account: selectedAccount, network: selectedNetwork }) as any);
@@ -426,11 +375,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div>
-      {wcError && (
-        <ErrorMessage>
-          <strong>WalletConnect Error:</strong> {wcError}
-        </ErrorMessage>
-      )}
       <NetworkStatusBar id="dashboard-network-status-bar" $connected={networkStatus === 'connected'}>
         <StatusDot $connected={networkStatus === 'connected'} />
         <NetworkInfo id="dashboard-network-info">
@@ -588,38 +532,7 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </ActionCard>
 
-        {/* <ActionCard onClick={() => setShowWalletConnectModal(true)}>
-          <CardHeader>
-            <ActionCardTitle>
-              <WalletConnectIcon size={20} />
-              WalletConnect
-            </ActionCardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Connect to dApps using WalletConnect</p>
-          </CardContent>
-        </ActionCard>
-         */}
       </QuickActions>
-
-      <ConnectedDApps />
-
-      {/* <WalletConnectModalV2
-        isOpen={showWalletConnectModal}
-        onClose={() => setShowWalletConnectModal(false)}
-      /> */}
-
-      <SessionProposalModal
-        proposal={pendingProposal}
-        onClose={() => {
-          dispatch(setSessionProposal(null));
-        }}
-      />
-
-      <TransactionApprovalModal
-        request={currentRequest}
-        onClose={() => setCurrentRequest(null)}
-      />
     </div>
   );
 };
