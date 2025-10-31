@@ -45,7 +45,6 @@ const KeyValue = styled.div`
 const KeyText = styled.input`
   flex: 1;
   padding: 12px;
-  font-family: 'Courier New', monospace;
   font-size: 14px;
   background: ${({ theme }) => theme.background};
   border: 1px solid ${({ theme }) => theme.border};

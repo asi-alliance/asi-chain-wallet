@@ -54,7 +54,6 @@ const KeyContainer = styled.div`
   border: 2px solid ${({ theme }) => theme.border};
   border-radius: 8px;
   padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;
   line-height: 1.4;
   word-break: break-all;

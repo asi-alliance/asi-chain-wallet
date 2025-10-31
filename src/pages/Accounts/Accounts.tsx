@@ -59,7 +59,6 @@ const AccountBalance = styled.div`
 `;
 
 const AccountAddress = styled.div`
-  font-family: monospace;
   font-size: 12px;
   color: ${({ theme }) => theme.text.secondary};
   margin-bottom: 16px;

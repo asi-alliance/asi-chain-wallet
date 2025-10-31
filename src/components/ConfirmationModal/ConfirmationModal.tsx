@@ -82,7 +82,6 @@ const AmountValue = styled(DetailValue)`
 `;
 
 const AddressValue = styled(DetailValue)`
-  font-family: monospace;
   font-size: 12px;
 `;
 

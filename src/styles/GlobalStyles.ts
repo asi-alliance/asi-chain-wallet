@@ -18,9 +18,7 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
+    font-family: 'Roboto Mono', monospace;
     background: ${({ theme }) => theme.background};
     color: ${({ theme }) => theme.text.primary};
     line-height: 1.5;
@@ -88,7 +86,6 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     cursor: pointer;
     border: none;
     outline: none;
-    font-family: inherit;
     font-weight: 500;
     transition: all 0.2s ease;
     
@@ -103,7 +100,6 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   input, textarea, select {
-    font-family: inherit;
     font-size: inherit;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};

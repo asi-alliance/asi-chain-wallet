@@ -90,7 +90,6 @@ const AddressLabel = styled.span`
 
 const AddressValue = styled.span`
   font-size: 14px;
-  font-family: monospace;
   color: ${({ theme }) => theme.text.primary};
   overflow: hidden;
   text-overflow: ellipsis;

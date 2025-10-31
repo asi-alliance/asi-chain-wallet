@@ -12,7 +12,6 @@ const ButtonBase = styled.button<ButtonProps>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Inter', sans-serif;
   font-weight: 500;
   border-radius: 8px; /* ASI Wallet spec: 8px for buttons */
   transition: all 0.2s ease;

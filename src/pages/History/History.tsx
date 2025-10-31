@@ -143,7 +143,6 @@ const TypeBadge = styled.span<{ type: 'send' | 'receive' | 'deploy' }>`
 const AddressLink = styled.a`
   color: ${({ theme }) => theme.primary};
   text-decoration: none;
-  font-family: monospace;
   font-size: 12px;
   
   &:hover {
