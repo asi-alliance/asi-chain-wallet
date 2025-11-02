@@ -7,7 +7,13 @@ import { toggleTheme } from "store/themeSlice";
 import { selectNetwork } from "store/walletSlice";
 import { logout } from "store/authSlice";
 import { AccountSwitcher } from "components/AccountSwitcher";
-import { SunIcon, MoonIcon, MenuIcon, CloseIcon, LogoutIcon } from "components/Icons";
+import {
+    SunIcon,
+    MoonIcon,
+    MenuIcon,
+    CloseIcon,
+    LogoutIcon,
+} from "components/Icons";
 
 const Container = styled.div`
     min-height: 100vh;
@@ -16,27 +22,27 @@ const Container = styled.div`
 `;
 
 const Header = styled.header`
-  background: ${({ theme }) => theme.card};
-  border-bottom: 1px solid ${({ theme }) => theme.border};
-  padding: 12px 16px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  
-  @media (max-width: 480px) {
-    padding: 10px 12px;
-  }
+    background: ${({ theme }) => theme.card};
+    border-bottom: 1px solid ${({ theme }) => theme.border};
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    @media (max-width: 480px) {
+        padding: 10px 12px;
+    }
 `;
 
 const HeaderTop = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  
-  @media (max-width: 480px) {
-    gap: 8px;
-  }
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    @media (max-width: 480px) {
+        gap: 8px;
+    }
 `;
 
 const HeaderBottom = styled.div`
@@ -44,16 +50,16 @@ const HeaderBottom = styled.div`
 `;
 
 const LeftSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  
-  @media (max-width: 480px) {
-    gap: 8px;
-  }
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+
+    @media (max-width: 480px) {
+        gap: 8px;
+    }
 `;
 
 const LogoContainer = styled.div`
@@ -64,7 +70,7 @@ const LogoContainer = styled.div`
 `;
 
 const LogoText = styled.h1`
-    font-family: 'Roboto Mono', monospace;
+    font-family: "Roboto Mono", monospace;
     font-size: 18px;
     font-weight: 700;
     color: ${({ theme }) => theme.text.primary};
@@ -74,7 +80,6 @@ const LogoText = styled.h1`
     @media (min-width: 480px) {
         display: block;
     }
-
 `;
 
 const HeaderActions = styled.div`
@@ -281,20 +286,38 @@ const Main = styled.main<{ $fullWidth?: boolean }>`
 `;
 
 interface LogoImageProps {
-  isDarkMode: boolean;
+    isDarkMode: boolean;
 }
 
-const LogoImage = ({isDarkMode}: LogoImageProps) => {
-  const fillColor = isDarkMode ? "#FFFFFF" : "#000000";
+const LogoImage = ({ isDarkMode }: LogoImageProps) => {
+    const fillColor = isDarkMode ? "#FFFFFF" : "#000000";
 
-  return (
-    <svg width="34" height="23" viewBox="0 0 186 126" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M0.473633 63.0687C0.473633 51.6685 9.70995 42.4211 21.1101 42.4211C32.5103 42.4211 41.7596 33.1829 41.7596 21.7827C41.7596 10.3844 51.0071 1.13504 62.4073 1.13504C73.8075 1.13504 83.0438 10.3844 83.0438 21.7827C83.0438 33.1829 73.8075 42.4211 62.4073 42.4211C51.0071 42.4211 41.7596 51.6685 41.7596 63.0687C41.7596 74.4689 51.0071 83.7052 62.4073 83.7052C73.8075 83.7052 83.0438 92.9545 83.0438 104.355C83.0438 115.753 73.8075 124.991 62.4073 124.991C51.0071 124.991 41.7596 115.753 41.7596 104.355C41.7596 92.9545 32.5103 83.7052 21.1101 83.7052C9.70995 83.7052 0.473633 74.4689 0.473633 63.0687Z" fill={fillColor} fill-opacity="0.87"/>
-      <path d="M185.525 63.0576C185.525 74.4577 176.289 83.7052 164.889 83.7052C153.489 83.7052 144.241 92.9434 144.241 104.344C144.241 115.742 134.992 124.991 123.592 124.991C112.191 124.991 102.955 115.742 102.955 104.344C102.955 92.9434 112.191 83.7052 123.592 83.7052C134.992 83.7052 144.241 74.4577 144.241 63.0576C144.241 51.6574 134.992 42.4211 123.592 42.4211C112.191 42.4211 102.955 33.1717 102.955 21.7716C102.955 10.3732 112.191 1.13504 123.592 1.13504C134.992 1.13504 144.241 10.3732 144.241 21.7716C144.241 33.1717 153.489 42.4211 164.889 42.4211C176.289 42.4211 185.525 51.6574 185.525 63.0576Z" fill={fillColor} fill-opacity="0.87"/>
-      <path d="M93.1989 82.8094C104.278 82.8094 113.26 73.8274 113.26 62.7482C113.26 51.6672 104.278 42.6852 93.1989 42.6852C82.1179 42.6852 73.1377 51.6672 73.1377 62.7482C73.1377 73.8274 82.1179 82.8094 93.1989 82.8094Z" fill={fillColor} fill-opacity="0.87"/>
-    </svg>
-  )
-}
+    return (
+        <svg
+            width="34"
+            height="23"
+            viewBox="0 0 186 126"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                d="M0.473633 63.0687C0.473633 51.6685 9.70995 42.4211 21.1101 42.4211C32.5103 42.4211 41.7596 33.1829 41.7596 21.7827C41.7596 10.3844 51.0071 1.13504 62.4073 1.13504C73.8075 1.13504 83.0438 10.3844 83.0438 21.7827C83.0438 33.1829 73.8075 42.4211 62.4073 42.4211C51.0071 42.4211 41.7596 51.6685 41.7596 63.0687C41.7596 74.4689 51.0071 83.7052 62.4073 83.7052C73.8075 83.7052 83.0438 92.9545 83.0438 104.355C83.0438 115.753 73.8075 124.991 62.4073 124.991C51.0071 124.991 41.7596 115.753 41.7596 104.355C41.7596 92.9545 32.5103 83.7052 21.1101 83.7052C9.70995 83.7052 0.473633 74.4689 0.473633 63.0687Z"
+                fill={fillColor}
+                fill-opacity="0.87"
+            />
+            <path
+                d="M185.525 63.0576C185.525 74.4577 176.289 83.7052 164.889 83.7052C153.489 83.7052 144.241 92.9434 144.241 104.344C144.241 115.742 134.992 124.991 123.592 124.991C112.191 124.991 102.955 115.742 102.955 104.344C102.955 92.9434 112.191 83.7052 123.592 83.7052C134.992 83.7052 144.241 74.4577 144.241 63.0576C144.241 51.6574 134.992 42.4211 123.592 42.4211C112.191 42.4211 102.955 33.1717 102.955 21.7716C102.955 10.3732 112.191 1.13504 123.592 1.13504C134.992 1.13504 144.241 10.3732 144.241 21.7716C144.241 33.1717 153.489 42.4211 164.889 42.4211C176.289 42.4211 185.525 51.6574 185.525 63.0576Z"
+                fill={fillColor}
+                fill-opacity="0.87"
+            />
+            <path
+                d="M93.1989 82.8094C104.278 82.8094 113.26 73.8274 113.26 62.7482C113.26 51.6672 104.278 42.6852 93.1989 42.6852C82.1179 42.6852 73.1377 51.6672 73.1377 62.7482C73.1377 73.8274 82.1179 82.8094 93.1989 82.8094Z"
+                fill={fillColor}
+                fill-opacity="0.87"
+            />
+        </svg>
+    );
+};
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -390,122 +413,149 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
     };
 
     const navItems = useMemo(() => {
-      if (!accounts?.length) {
-        return [{ path: "/accounts", label: "Accounts" }]
-      }
+        if (!accounts?.length) {
+            return [{ path: "/accounts", label: "Accounts" }];
+        }
 
-      return [
-        { path: "/", label: "Dashboard" },
-        { path: "/accounts", label: "Accounts" },
-        { path: "/send", label: "Send" },
-        { path: "/receive", label: "Receive" },
-        { path: "/history", label: "History" },
-        { path: "/deploy", label: "Deploy" },
-        { path: "/ide", label: "IDE" },
-        { path: "/keys", label: "Generate Keys" },
-        { path: "/settings", label: "Settings" },
-    ];
-
-    }, [accounts])
+        return [
+            { path: "/", label: "Dashboard" },
+            { path: "/accounts", label: "Accounts" },
+            { path: "/send", label: "Send" },
+            { path: "/receive", label: "Receive" },
+            { path: "/history", label: "History" },
+            { path: "/deploy", label: "Deploy" },
+            { path: "/ide", label: "IDE" },
+            { path: "/keys", label: "Generate Keys" },
+            { path: "/settings", label: "Settings" },
+        ];
+    }, [accounts]);
 
     return (
-    <Container>
-      <Header>
-        <HeaderTop>
-          <LeftSection>
-            <LogoContainer onClick={() => navigate('/')}>
-              <LogoImage isDarkMode={darkMode} />
-              <LogoText>ASI:Chain Wallet</LogoText>
-            </LogoContainer>
-          </LeftSection>
-          
-          <HeaderActions>
-            <NetworkSelector 
-              id="mobile-header-network-selector"
-              value={selectedNetwork.id} 
-              onChange={handleNetworkChange}
-            >
-              {networks.map((network) => (
-                <option 
-                  key={network.id} 
-                  value={network.id}
-                  disabled={!network.url || network.url.trim() === ''}
-                >
-                  {network.name}
-                </option>
-              ))}
-            </NetworkSelector>
-            
-            <IconButton onClick={handleThemeToggle} title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-              {darkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
-            </IconButton>
+        <Container>
+            <Header>
+                <HeaderTop>
+                    <LeftSection>
+                        <LogoContainer onClick={() => navigate("/")}>
+                            <LogoImage isDarkMode={darkMode} />
+                            <LogoText>ASI:Chain Wallet</LogoText>
+                        </LogoContainer>
+                    </LeftSection>
 
-            {isAuthenticated && (
-              <IconButton onClick={handleLogout} title={'Logout'}>
-                <LogoutIcon size={20} />
-              </IconButton>
-            )}
-            
-            <MenuButton id="sidebar-menu-button" onClick={() => setMobileMenuOpen(true)}>
-              <MenuIcon size={20} />
-            </MenuButton>
-          </HeaderActions>
-        </HeaderTop>
-        
-        {isAuthenticated && accounts.length > 0 && (
-          <HeaderBottom>
-            <AccountSwitcher />
-          </HeaderBottom>
-        )}
-      </Header>
+                    <HeaderActions>
+                        <NetworkSelector
+                            id="mobile-header-network-selector"
+                            value={selectedNetwork.id}
+                            onChange={handleNetworkChange}
+                        >
+                            {networks.map((network) => (
+                                <option
+                                    key={network.id}
+                                    value={network.id}
+                                    disabled={
+                                        !network.url ||
+                                        network.url.trim() === ""
+                                    }
+                                >
+                                    {network.name}
+                                </option>
+                            ))}
+                        </NetworkSelector>
 
-      <DesktopNav>
-        {navItems.map(item => (
-          <NavLink 
-            key={item.path}
-            $active={location.pathname === item.path} 
-            onClick={() => navigate(item.path)}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </DesktopNav>
+                        <IconButton
+                            onClick={handleThemeToggle}
+                            title={
+                                darkMode
+                                    ? "Switch to Light Mode"
+                                    : "Switch to Dark Mode"
+                            }
+                        >
+                            {darkMode ? (
+                                <SunIcon size={20} />
+                            ) : (
+                                <MoonIcon size={20} />
+                            )}
+                        </IconButton>
 
-      <MobileNavOverlay $isOpen={mobileMenuOpen} onClick={() => setMobileMenuOpen(false)} />
-      <MobileNavDrawer $isOpen={mobileMenuOpen}>
-        <MobileNavHeader>
-          <h2 style={{ margin: 0, fontSize: '18px' }}>Menu</h2>
-          <IconButton onClick={() => setMobileMenuOpen(false)}>
-            <CloseIcon size={20} />
-          </IconButton>
-        </MobileNavHeader>
-        
-        <MobileNavContent>
-          <MobileNavSection>
-            <MobileNavSectionTitle>Navigation</MobileNavSectionTitle>
-            {navItems.map(item => (
-              <MobileNavLink
-                key={item.path}
-                $active={location.pathname === item.path}
-                onClick={() => handleNavigation(item.path)}
-              >
-                {item.label}
-              </MobileNavLink>
-            ))}
-          </MobileNavSection>
-          
-          {isAuthenticated && (
-            <MobileNavSection>
-              <MobileNavSectionTitle>Account</MobileNavSectionTitle>
-              <LogoutButton $active={false} onClick={handleLogout}>
-                Logout
-              </LogoutButton>
-            </MobileNavSection>
-          )}
-        </MobileNavContent>
-      </MobileNavDrawer>
+                        {isAuthenticated && (
+                            <IconButton onClick={handleLogout} title={"Logout"}>
+                                <LogoutIcon size={20} />
+                            </IconButton>
+                        )}
 
-      <Main $fullWidth={location.pathname === '/ide'}>{children}</Main>
-    </Container>
-  );
+                        <MenuButton
+                            id="sidebar-menu-button"
+                            onClick={() => setMobileMenuOpen(true)}
+                        >
+                            <MenuIcon size={20} />
+                        </MenuButton>
+                    </HeaderActions>
+                </HeaderTop>
+
+                {isAuthenticated && accounts.length > 0 && (
+                    <HeaderBottom>
+                        <AccountSwitcher />
+                    </HeaderBottom>
+                )}
+            </Header>
+
+            <DesktopNav>
+                {navItems.map((item) => (
+                    <NavLink
+                        className="text-1"
+                        key={item.path}
+                        $active={location.pathname === item.path}
+                        onClick={() => navigate(item.path)}
+                    >
+                        {item.label}
+                    </NavLink>
+                ))}
+            </DesktopNav>
+
+            <MobileNavOverlay
+                $isOpen={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen(false)}
+            />
+            <MobileNavDrawer $isOpen={mobileMenuOpen}>
+                <MobileNavHeader>
+                    <h2 style={{ margin: 0, fontSize: "18px" }}>Menu</h2>
+                    <IconButton onClick={() => setMobileMenuOpen(false)}>
+                        <CloseIcon size={20} />
+                    </IconButton>
+                </MobileNavHeader>
+
+                <MobileNavContent>
+                    <MobileNavSection>
+                        <MobileNavSectionTitle>
+                            Navigation
+                        </MobileNavSectionTitle>
+                        {navItems.map((item) => (
+                            <MobileNavLink
+                                key={item.path}
+                                $active={location.pathname === item.path}
+                                onClick={() => handleNavigation(item.path)}
+                            >
+                                {item.label}
+                            </MobileNavLink>
+                        ))}
+                    </MobileNavSection>
+
+                    {isAuthenticated && (
+                        <MobileNavSection>
+                            <MobileNavSectionTitle>
+                                Account
+                            </MobileNavSectionTitle>
+                            <LogoutButton
+                                $active={false}
+                                onClick={handleLogout}
+                            >
+                                Logout
+                            </LogoutButton>
+                        </MobileNavSection>
+                    )}
+                </MobileNavContent>
+            </MobileNavDrawer>
+
+            <Main $fullWidth={location.pathname === "/ide"}>{children}</Main>
+        </Container>
+    );
 };

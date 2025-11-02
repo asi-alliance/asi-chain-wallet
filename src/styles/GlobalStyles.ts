@@ -1,5 +1,5 @@
-import { createGlobalStyle } from 'styled-components';
-import { Theme } from './theme';
+import { createGlobalStyle } from "styled-components";
+import { Theme } from "./theme";
 
 export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   /* Import modern fonts */
@@ -12,51 +12,9 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   html {
-    font-size: 16px;
+    // font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  body {
-    font-family: 'Roboto Mono', monospace;
-    background: ${({ theme }) => theme.background};
-    color: ${({ theme }) => theme.text.primary};
-    line-height: 1.5;
-    font-weight: 400;
-    transition: background-color 0.3s ease, color 0.3s ease;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Typography scale inspired by Qwello */
-  h1 {
-    font-size: 3rem;
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-    margin-bottom: 1.5rem;
-  }
-
-  h2 {
-    font-size: 2.25rem;
-    font-weight: 600;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-    margin-bottom: 1.25rem;
-  }
-
-  h3 {
-    font-size: 1.75rem;
-    font-weight: 600;
-    line-height: 1.4;
-    margin-bottom: 1rem;
-  }
-
-  h4 {
-    font-size: 1.25rem;
-    font-weight: 500;
-    line-height: 1.4;
-    margin-bottom: 0.75rem;
   }
 
   p {
@@ -100,7 +58,7 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   input, textarea, select {
-    font-size: inherit;
+    // font-size: inherit;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
     border: 2px solid ${({ theme }) => theme.border};
@@ -219,18 +177,6 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     html {
       font-size: 14px;
     }
-
-    h1 {
-      font-size: 2.5rem;
-    }
-
-    h2 {
-      font-size: 2rem;
-    }
-
-    h3 {
-      font-size: 1.5rem;
-    }
   }
 
   /* Disable user select on UI elements */
@@ -248,5 +194,61 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     );
     background-size: 1000px 100%;
     animation: shimmer 1.5s infinite linear;
+  }
+
+  body {
+    background: ${({ theme }) => theme.background};
+    color: ${({ theme }) => theme.text.primary};
+    line-height: 1.5;
+    font-weight: 400;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5 {
+    letter-spacing: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1 {
+    font-size: 2rem;
+    }
+    
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+      font-size: 1.125rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+  }
+  
+  h5 {
+    font-size: 0.875rem;
+  }
+
+  .text-1 {
+    font-size: 1.125rem;
+  }
+
+  .text-2 {
+    font-size: 1rem;
+  }
+      
+  .text-3 {
+    font-size: 0.875rem;
+  }
+        
+  .text-4 {
+    font-size: 0.75rem;
+  }
+          
+  * {
+    font-family: 'Roboto Mono', monospace  !important;
   }
 `;
