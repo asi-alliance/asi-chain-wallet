@@ -52,3 +52,4 @@ temp/
 *.bak
 package-lock.json
 yarn.lock
+build
