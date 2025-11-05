@@ -27,6 +27,7 @@ import { SecureStorage } from "services/secureStorage";
 import { validateAccountName } from "utils/textUtils";
 import { getAddressLabel } from "../../constants/token";
 import { formatBalanceCard } from "utils/balanceUtils";
+import { importPrivateKey, importEthAddress, importRevAddress } from "utils/crypto";
 
 const AccountsContainer = styled.div`
     max-width: 800px;
@@ -193,6 +194,7 @@ export const Accounts: React.FC = () => {
     >("private");
     const [newAccountNameError, setNewAccountNameError] = useState("");
     const [importNameError, setImportNameError] = useState("");
+    const [importValueError, setImportValueError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const infoMessage = !accounts?.length
         ? "Create or import your account to access the wallet functionality"
@@ -291,7 +293,13 @@ export const Accounts: React.FC = () => {
                 setShowImportPassword(false);
             } else if (importAccountWithPassword.rejected.match(resultAction)) {
                 const errorMessage = resultAction.error?.message || 'Failed to import account';
-                setImportNameError(errorMessage);
+                if (errorMessage.includes('already exists')) {
+                    setImportValueError(errorMessage);
+                    setImportNameError("");
+                } else {
+                    setImportValueError(errorMessage);
+                    setImportNameError("");
+                }
                 setShowImportPassword(false);
             }
         }
@@ -319,6 +327,34 @@ export const Accounts: React.FC = () => {
         setShowPrivateKey(false);
     };
 
+    const checkAccountExistsByValue = (value: string, type: string | "private" | "public" | "eth" | "rev"): boolean => {
+        try {
+            let accountData: { revAddress?: string; ethAddress?: string };
+            const normalizedType = (type === getAddressLabel() || type === 'rev') ? 'rev' : type as 'private' | 'eth' | 'rev';
+            
+            switch (normalizedType) {
+                case 'private':
+                    accountData = importPrivateKey(value);
+                    break;
+                case 'eth':
+                    accountData = importEthAddress(value);
+                    break;
+                case 'rev':
+                    accountData = importRevAddress(value);
+                    break;
+                default:
+                    return false;
+            }
+
+            return SecureStorage.accountExists(
+                accountData.revAddress,
+                accountData.ethAddress
+            );
+        } catch (error) {
+            return false;
+        }
+    };
+
     const handleImportAccount = () => {
         const trimmedName = importName.trim();
         const trimmedValue = importValue.trim();
@@ -330,16 +366,26 @@ export const Accounts: React.FC = () => {
         const validation = validateAccountName(trimmedName);
         if (!validation.isValid) {
             setImportNameError(validation.error || "Invalid account name");
+            setImportValueError("");
+            return;
+        }
+
+        const normalizedType = (importType === getAddressLabel() || importType === 'rev') ? 'rev' : importType as 'private' | 'eth' | 'rev';
+
+        if (checkAccountExistsByValue(trimmedValue, normalizedType)) {
+            setImportValueError("Account with this address already exists");
+            setImportNameError("");
             return;
         }
 
         setImportNameError("");
+        setImportValueError("");
 
-        if (importType === "private") {
+        if (normalizedType === "private") {
             setPendingImport({
                 name: trimmedName,
                 value: trimmedValue,
-                type: importType,
+                type: normalizedType,
             });
             setShowImportPassword(true);
         } else {
@@ -347,7 +393,7 @@ export const Accounts: React.FC = () => {
                 importAccountWithPassword({
                     name: trimmedName,
                     value: trimmedValue,
-                    type: importType,
+                    type: normalizedType,
                     password: "",
                 }) as any
             ).then((resultAction: any) => {
@@ -359,7 +405,16 @@ export const Accounts: React.FC = () => {
                     setImportValue("");
                 } else if (importAccountWithPassword.rejected.match(resultAction)) {
                     const errorMessage = resultAction.error?.message || 'Failed to import account';
-                    setImportNameError(errorMessage);
+                    if (errorMessage.includes('already exists')) {
+                        setImportValueError(errorMessage);
+                        setImportNameError("");
+                    } else if (errorMessage.includes('Invalid import type')) {
+                        setImportValueError(errorMessage);
+                        setImportNameError("");
+                    } else {
+                        setImportValueError(errorMessage);
+                        setImportNameError("");
+                    }
                 }
             });
         }
@@ -662,10 +717,17 @@ export const Accounts: React.FC = () => {
 
                             <ImportTypeSelector
                                 id="import-account-type-selector"
-                                value={importType}
-                                onChange={(e) =>
-                                    setImportType(e.target.value as any)
-                                }
+                                value={importType === 'rev' ? getAddressLabel() : importType}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setImportType(value === getAddressLabel() ? 'rev' : value as any);
+                                    if (importValueError) {
+                                        setImportValueError("");
+                                    }
+                                    if (importNameError) {
+                                        setImportNameError("");
+                                    }
+                                }}
                             >
                                 <option value="private">Private Key</option>
                                 <option value="eth">
@@ -681,8 +743,14 @@ export const Accounts: React.FC = () => {
                                 className="import-account-value-input text-3"
                                 label="Value"
                                 value={importValue}
-                                onChange={(e) => setImportValue(e.target.value)}
+                                onChange={(e) => {
+                                    setImportValue(e.target.value);
+                                    if (importValueError) {
+                                        setImportValueError("");
+                                    }
+                                }}
                                 placeholder={getImportPlaceholder()}
+                                error={importValueError}
                                 type={
                                     importType === "private"
                                         ? "password"
