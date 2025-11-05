@@ -599,6 +599,7 @@ export const Accounts: React.FC = () => {
                                 </WarningMessage>
                             )}
                             <Input
+                                id="create-account-name-input"
                                 className="create-account-name-input text-3"
                                 label="Account Name"
                                 value={newAccountName}
@@ -644,6 +645,7 @@ export const Accounts: React.FC = () => {
                                 </WarningMessage>
                             )}
                             <Input
+                                id="import-account-name-input"
                                 className="import-account-name-input text-3"
                                 label="Account Name"
                                 value={importName}
@@ -675,6 +677,7 @@ export const Accounts: React.FC = () => {
                             </ImportTypeSelector>
 
                             <Input
+                                id="import-account-value-input"
                                 className="import-account-value-input text-3"
                                 label="Value"
                                 value={importValue}

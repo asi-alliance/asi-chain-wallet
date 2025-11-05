@@ -419,6 +419,7 @@ export const Deploy: React.FC = () => {
 
                     <FormRow>
                         <Input
+                            id="deploy-phlo-limit-input"
                             className="deploy-phlo-limit-input text-3"
                             label="Phlo Limit"
                             value={phloLimit}
@@ -427,6 +428,7 @@ export const Deploy: React.FC = () => {
                             disabled={isLoading}
                         />
                         <Input
+                            id="deploy-phlo-price-input"
                             className="deploy-phlo-price-input text-3"
                             label="Phlo Price"
                             value={phloPrice}

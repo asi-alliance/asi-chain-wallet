@@ -214,6 +214,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>IP/Domain:</h4>
                             </Label>
                             <Input
+                                id="network-validator-host-input"
                                 className="network-validator-host-input text-3"
                                 value={validatorHost}
                                 onChange={(e) =>
@@ -227,6 +228,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>gRPC Port:</h4>
                             </Label>
                             <Input
+                                id="network-validator-grpc-port-input"
                                 className="network-validator-grpc-port-input text-3"
                                 value={validatorGrpcPort}
                                 onChange={(e) =>
@@ -243,6 +245,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>HTTP Port:</h4>
                             </Label>
                             <Input
+                                id="network-validator-http-port-input"
                                 className="network-validator-http-port-input text-3"
                                 value={validatorHttpPort}
                                 onChange={(e) =>
@@ -289,6 +292,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>IP/Domain:</h4>
                             </Label>
                             <Input
+                                id="network-readonly-host-input"
                                 className="network-readonly-host-input text-3"
                                 value={readOnlyHost}
                                 onChange={(e) =>
@@ -302,6 +306,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>gRPC Port:</h4>
                             </Label>
                             <Input
+                                id="network-readonly-grpc-port-input"
                                 className="network-readonly-grpc-port-input text-3"
                                 value={readOnlyGrpcPort}
                                 onChange={(e) =>
@@ -318,6 +323,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <h4>HTTP Port:</h4>
                             </Label>
                             <Input
+                                id="network-readonly-http-port-input"
                                 className="network-readonly-http-port-input text-3"
                                 value={readOnlyHttpPort}
                                 onChange={(e) =>
