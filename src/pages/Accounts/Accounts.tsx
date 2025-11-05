@@ -281,17 +281,19 @@ export const Accounts: React.FC = () => {
             if (importAccountWithPassword.fulfilled.match(resultAction)) {
                 dispatch(syncAccounts([resultAction.payload.account]));
 
-                // Show success message
                 setSuccessMessage(
                     `Account "${pendingImport.name}" imported successfully! 🎉`
                 );
                 setTimeout(() => setSuccessMessage(""), 5000);
+                setImportName("");
+                setImportValue("");
+                setPendingImport(null);
+                setShowImportPassword(false);
+            } else if (importAccountWithPassword.rejected.match(resultAction)) {
+                const errorMessage = resultAction.error?.message || 'Failed to import account';
+                setImportNameError(errorMessage);
+                setShowImportPassword(false);
             }
-
-            setImportName("");
-            setImportValue("");
-            setPendingImport(null);
-            setShowImportPassword(false);
         }
     };
 
@@ -351,10 +353,15 @@ export const Accounts: React.FC = () => {
             ).then((resultAction: any) => {
                 if (importAccountWithPassword.fulfilled.match(resultAction)) {
                     dispatch(syncAccounts([resultAction.payload.account]));
+                    setSuccessMessage(`Account "${trimmedName}" imported successfully!`);
+                    setTimeout(() => setSuccessMessage(""), 5000);
+                    setImportName("");
+                    setImportValue("");
+                } else if (importAccountWithPassword.rejected.match(resultAction)) {
+                    const errorMessage = resultAction.error?.message || 'Failed to import account';
+                    setImportNameError(errorMessage);
                 }
             });
-            setImportName("");
-            setImportValue("");
         }
     };
 

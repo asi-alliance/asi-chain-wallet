@@ -58,7 +58,30 @@ export const createAccountWithPassword = createAsyncThunk(
   }
 );
 
-// Import account with password
+const normalizeAddress = (address: string | undefined): string => {
+  if (!address) return '';
+  return address.toLowerCase().trim();
+};
+const checkAccountExists = (newAccount: Account): boolean => {
+  const existingAccounts = SecureStorage.getEncryptedAccounts();
+  const normalizedNewRev = normalizeAddress(newAccount.revAddress);
+  const normalizedNewEth = normalizeAddress(newAccount.ethAddress);
+  
+  return existingAccounts.some(existing => {
+    const normalizedExistingRev = normalizeAddress(existing.revAddress);
+    const normalizedExistingEth = normalizeAddress(existing.ethAddress);
+    
+    if (normalizedNewRev && normalizedExistingRev && normalizedNewRev === normalizedExistingRev) {
+      return true;
+    }
+    if (normalizedNewEth && normalizedExistingEth && normalizedNewEth === normalizedExistingEth) {
+      return true;
+    }
+    
+    return false;
+  });
+};
+
 export const importAccountWithPassword = createAsyncThunk(
   'auth/importAccountWithPassword',
   async ({ 
@@ -100,16 +123,17 @@ export const importAccountWithPassword = createAsyncThunk(
       createdAt: new Date(),
     };
 
-    // Check if this is the first account BEFORE saving
+    if (checkAccountExists(account)) {
+      throw new Error('Account with this address already exists');
+    }
+
     const hadAccountsBefore = SecureStorage.hasAccounts();
     
-    // Save encrypted account
     if (account.privateKey) {
       SecureStorage.saveAccount(account, password);
       SecureStorage.unlockAccount(account.id, password);
     }
     
-    // Only set authenticated if this is the first account
     if (!hadAccountsBefore) {
       SecureStorage.setAuthenticated(true);
     }
@@ -118,7 +142,6 @@ export const importAccountWithPassword = createAsyncThunk(
   }
 );
 
-// Import from keyfile
 export const importFromKeyfile = createAsyncThunk(
   'auth/importFromKeyfile',
   async ({ keyfileContent, name }: { keyfileContent: string; name: string }) => {
@@ -127,7 +150,6 @@ export const importFromKeyfile = createAsyncThunk(
   }
 );
 
-// Login with password
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password }: { password: string }) => {

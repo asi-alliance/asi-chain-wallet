@@ -239,9 +239,31 @@ export class SecureStorage {
     return JSON.stringify(exportData, null, 2);
   }
 
-  /**
-   * Import account from encrypted JSON
-   */
+
+  private static normalizeAddress(address: string | undefined): string {
+    if (!address) return '';
+    return address.toLowerCase().trim();
+  }
+
+  static accountExists(revAddress?: string, ethAddress?: string): boolean {
+    const existingAccounts = this.getEncryptedAccounts();
+    const normalizedRev = this.normalizeAddress(revAddress);
+    const normalizedEth = this.normalizeAddress(ethAddress);
+    
+    return existingAccounts.some(existing => {
+      const normalizedExistingRev = this.normalizeAddress(existing.revAddress);
+      const normalizedExistingEth = this.normalizeAddress(existing.ethAddress);
+      
+      if (normalizedRev && normalizedExistingRev && normalizedRev === normalizedExistingRev) {
+        return true;
+      }
+      if (normalizedEth && normalizedExistingEth && normalizedEth === normalizedExistingEth) {
+        return true;
+      }
+      return false;
+    });
+  }
+
   static importFromKeyfile(keyfileContent: string, name: string): SecureAccount {
     try {
       const data = JSON.parse(keyfileContent);
@@ -262,12 +284,19 @@ export class SecureStorage {
         createdAt: new Date()
       };
 
+      if (this.accountExists(account.revAddress, account.ethAddress)) {
+        throw new Error('Account with this address already exists');
+      }
+
       const accounts = this.getEncryptedAccounts();
       accounts.push(account);
       this.saveEncryptedAccounts(accounts);
 
       return account;
     } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        throw error;
+      }
       throw new Error('Failed to import keyfile: Invalid format');
     }
   }

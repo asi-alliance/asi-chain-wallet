@@ -7,25 +7,9 @@ services:
     ports:
       - "3000:80"
     environment:
-      # WalletConnect Project ID
-      - REACT_APP_WALLETCONNECT_PROJECT_ID=${WALLETCONNECT_PROJECT_ID:-8b5b43fbbd61a2852c226ff2eee68ab9}
-      
-      # F1R3FLY Network Configuration (Current AWS Lightsail - Singapore)
-      - REACT_APP_RCHAIN_HTTP_URL=${RCHAIN_HTTP_URL:-http://44.198.8.24:40413}
-      - REACT_APP_RCHAIN_GRPC_URL=${RCHAIN_GRPC_URL:-http://44.198.8.24:40412}
-      - REACT_APP_RCHAIN_READONLY_URL=${RCHAIN_READONLY_URL:-http://44.198.8.24:40453}
-      
-      # GraphQL/Indexer endpoints (Current AWS Lightsail - Singapore)
-      - REACT_APP_GRAPHQL_URL=${GRAPHQL_URL:-http://44.198.8.24:8080/v1/graphql}
-      - REACT_APP_INDEXER_API_URL=${INDEXER_API_URL:-http://44.198.8.24:9090}
-      
-      # Network settings
-      - REACT_APP_NETWORK_NAME=F1R3FLY Network
-      - REACT_APP_NETWORK_ID=f1r3fly-mainnet
-      
-      # Performance optimizations
-      - REACT_APP_BALANCE_POLLING_INTERVAL=30000
-      - REACT_APP_DEPLOY_STATUS_POLLING_INTERVAL=5000
+      # Network Configuration
+      # Configure available networks via JSON string
+      - NETWORKS=${NETWORKS:-"{\"MainNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"TestNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"DevNet\":{\"ValidatorURL\":\"http://localhost:40403\",\"ReadOnlyURL\":\"http://localhost:40453\",\"IndexerURL\":\"http://localhost:8080/v1/graphql\"}}"}
     
     #healthcheck:
     #  test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
