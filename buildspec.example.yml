@@ -7,49 +7,11 @@ phases:
     commands:
       - |
           cat <<EOF > .env
-          # WalletConnect Project ID
-          # Get your FREE project ID from https://cloud.walletconnect.com
-          # Replace with your own Project ID for production use
-          
+          # Network Configuration
+          # Configure available networks via JSON string
+          # Networks with empty ValidatorURL will be disabled in the UI
           NETWORKS="{\"MainNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"TestNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"DevNet\":{\"ValidatorURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_0/HTTP_API\",\"ReadOnlyURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/91e17db5a9020441d38bf4dd3d24df2b/endpoint_0/HTTP_API\",\"IndexerURL\":\"https://2vlbfiujj8.execute-api.us-east-1.amazonaws.com/v1/graphql\"},\"Dev\":{\"ValidatorURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/9a58a8ea5d22e5d33dd36435e9d4b575/endpoint_1/HTTP_API\",\"ReadOnlyURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/9a58a8ea5d22e5d33dd36435e9d4b575/endpoint_5/HTTP_API\",\"IndexerURL\":\"https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql\"}}"
-          
-          MAINNET_ID=mainnet
-          MAINNET_NAME=Mainnet
-          MAINNET_SHARD_ID=root
-          
-          TESTNET_ID=testnet
-          TESTNET_NAME=Devnet
-          TESTNET_SHARD_ID=testnet
-          
-          LOCALNET_ID=local
-          LOCALNET_NAME=Local Network
-          LOCALNET_SHARD_ID=root
-          
-          CUSTOMNET_ID=custom
-          CUSTOMNET_NAME=Custom Network
-          CUSTOMNET_SHARD_ID=root
-          
-          REACT_APP_WALLETCONNECT_PROJECT_ID=8b5b43fbbd61a2852c226ff2eee68ab9
-          
-          # F1R3FLY Network Endpoints - Mainnet (Current Production - Singapore)
-          REACT_APP_FIREFLY_MAINNET_URL=http://54.175.6.183:40413
-          REACT_APP_FIREFLY_MAINNET_READONLY_URL=http://54.175.6.183:40453
-          REACT_APP_FIREFLY_GRAPHQL_URL=http://54.209.17.179:8080/v1/graphql
-          
-          # F1R3FLY Network Endpoints - Testnet (Current - Singapore)
-          REACT_APP_FIREFLY_TESTNET_URL=http://54.175.6.183:40413
-          REACT_APP_FIREFLY_TESTNET_READONLY_URL=http://54.175.6.183:40453
-          
-          # F1R3FLY Network Endpoints - Local Development
-          REACT_APP_FIREFLY_LOCAL_URL=http://localhost:40413
-          REACT_APP_FIREFLY_LOCAL_READONLY_URL=http://localhost:40453
-          REACT_APP_FIREFLY_LOCAL_ADMIN_URL=http://localhost:40405
-          REACT_APP_FIREFLY_LOCAL_GRAPHQL_URL=http://localhost:8080/v1/graphql
-          
-          # Legacy RChain Endpoints (for backward compatibility)
-          # REACT_APP_RCHAIN_HTTP_URL=http://localhost:40413
-          # REACT_APP_RCHAIN_GRPC_URL=http://localhost:40412
-          # REACT_APP_RCHAIN_READONLY_URL=http://localhost:40453          EOF
+          EOF
       - cat .env 
       - |
           # Export NETWORKS as environment variable so it's available to webpack

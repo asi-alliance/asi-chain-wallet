@@ -850,6 +850,7 @@ export const Send: React.FC = () => {
                         <InputWithButton>
                             <div style={{ flex: 1 }}>
                                 <input
+                                    id="send-recipient-input"
                                     className="send-recipient-input text-3"
                                     type="text"
                                     value={recipient}
@@ -928,6 +929,7 @@ export const Send: React.FC = () => {
 
                     <FormGroup>
                         <Input
+                            id="send-amount-input"
                             className="send-amount-input text-3"
                             label="Amount"
                             type="number"
