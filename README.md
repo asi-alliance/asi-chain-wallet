@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-1A1A1A?style=for-the-badge)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-Available-C4F0C1?style=for-the-badge)](https://docs.asichain.io)
 
-<h3>A modern wallet for ASI Chain (based on f1r3fly)</h3>
+<h3>A modern wallet for ASI Chain</h3>
 
 Part of the [**Artificial Superintelligence Alliance**](https://superintelligence.io) ecosystem
 
@@ -30,7 +30,7 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 
 ## Overview
 
-ASI Chain Wallet is a comprehensive web-based cryptocurrency wallet built with React and TypeScript. It provides a secure and user-friendly interface for managing digital assets on ASI Chain (based on f1r3fly).
+ASI Chain Wallet is a comprehensive web-based cryptocurrency wallet built with React and TypeScript. It provides a secure and user-friendly interface for managing digital assets on ASI Chain.
 
 The wallet includes a built-in Rholang IDE powered by Monaco Editor, allowing developers to write, test, and deploy smart contracts directly from the wallet interface.
 
