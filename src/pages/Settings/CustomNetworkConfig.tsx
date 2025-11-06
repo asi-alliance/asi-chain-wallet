@@ -104,7 +104,7 @@ export const CustomNetworkConfig: React.FC = () => {
     const [validatorHost, setValidatorHost] = useState("localhost");
     const [validatorHttpPort, setValidatorHttpPort] = useState("40403");
     const [validatorGrpcPort, setValidatorGrpcPort] = useState("40401");
-
+    const [networkName, setNetworkName] = useState("Custom Network");
     const [readOnlyHost, setReadOnlyHost] = useState("localhost");
     const [readOnlyHttpPort, setReadOnlyHttpPort] = useState("40453");
     const [readOnlyGrpcPort, setReadOnlyGrpcPort] = useState("40451");
@@ -135,8 +135,8 @@ export const CustomNetworkConfig: React.FC = () => {
 
     const handleSave = () => {
         const data: Network = {
+            name: networkName || "Custom Network",
             id: activeCustomId || "custom",
-            name: "Custom Network",
             url: `http://${validatorHost}:${validatorHttpPort}`,
             readOnlyUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
         };
@@ -202,6 +202,18 @@ export const CustomNetworkConfig: React.FC = () => {
                         be edited here.
                     </p>
                 </InfoBox>
+
+                <ConfigSection>
+                    <ConfigTitle>
+                        <h2>Network Name</h2>
+                    </ConfigTitle>
+                    <Input
+                        id="network-name-input"
+                        className="network-name-input text-3"
+                        value={networkName}
+                        onChange={(e) => setNetworkName(e.target.value)}
+                    />
+                </ConfigSection>
 
                 <ConfigSection>
                     <ConfigTitle>
