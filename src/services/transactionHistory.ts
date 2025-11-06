@@ -58,6 +58,24 @@ class TransactionHistoryService {
             if (!matchesAccount) continue;
             if (seen.has(p.deployId)) continue;
             seen.add(p.deployId);
+            
+            if (p.type === 'deploy') {
+              transactions.push({
+                id: p.deployId,
+                deployId: p.deployId,
+                from: p.from,
+                to: undefined,
+                amount: undefined,
+                timestamp: new Date(p.timestamp),
+                status: 'pending',
+                gasCost: generateRandomGasFee(),
+                type: 'deploy',
+                network,
+                detectedBy: 'manual'
+              } as any);
+              continue;
+            }
+            
             let type: 'send' | 'receive' = 'send';
             if (pTo === normalizedAddress && pFrom !== normalizedPublicKey) type = 'receive';
             transactions.push({
@@ -91,11 +109,18 @@ class TransactionHistoryService {
         const normalizedTo = bcTx.to?.toLowerCase().trim();
         const normalizedFrom = bcTx.from?.toLowerCase().trim();
         
-        const isReceive = normalizedTo && normalizedTo === normalizedAddress;
-        const isSend = normalizedFrom && normalizedFrom === normalizedPublicKey;
-        
-        if (!isReceive && !isSend) {
-          continue;
+        if (bcTx.type === 'deploy') {
+          const isDeploy = normalizedFrom && normalizedFrom === normalizedPublicKey;
+          if (!isDeploy) {
+            continue;
+          }
+        } else {
+          const isReceive = normalizedTo && normalizedTo === normalizedAddress;
+          const isSend = normalizedFrom && normalizedFrom === normalizedPublicKey;
+          
+          if (!isReceive && !isSend) {
+            continue;
+          }
         }
         
         const transaction: Transaction = {

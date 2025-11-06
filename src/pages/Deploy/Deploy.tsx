@@ -14,6 +14,40 @@ import {
     DeploymentConfirmationModal,
 } from "components";
 
+const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
+
+interface PendingTransaction {
+    deployId: string;
+    from: string;
+    to?: string;
+    amount?: string;
+    timestamp: string;
+    accountId: string;
+    type: 'send' | 'receive' | 'deploy';
+}
+
+const savePendingTransaction = (tx: PendingTransaction) => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+    
+    try {
+        const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
+        const pendingTxs: PendingTransaction[] = existing ? JSON.parse(existing) : [];
+        
+        const existingIndex = pendingTxs.findIndex(t => t.deployId === tx.deployId);
+        if (existingIndex >= 0) {
+            pendingTxs[existingIndex] = tx;
+        } else {
+            pendingTxs.push(tx);
+        }
+        
+        localStorage.setItem(PENDING_TRANSACTIONS_KEY, JSON.stringify(pendingTxs));
+    } catch (error) {
+        console.error('Failed to save pending transaction to localStorage:', error);
+    }
+};
+
 const DeployContainer = styled.div`
     max-width: 800px;
     margin: 0 auto;
@@ -215,7 +249,14 @@ export const Deploy: React.FC = () => {
             );
             setDeployId(deployResult);
 
-            // Try to get deploy result with enhanced status checking
+            savePendingTransaction({
+                deployId: deployResult,
+                from: selectedAccount.revAddress,
+                timestamp: new Date().toISOString(),
+                accountId: selectedAccount.id,
+                type: 'deploy',
+            });
+
             try {
                 const finalResult = await rchain.waitForDeployResult(
                     deployResult

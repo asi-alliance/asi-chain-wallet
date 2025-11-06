@@ -74,10 +74,11 @@ const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 interface PendingTransaction {
   deployId: string;
   from: string;
-  to: string;
-  amount: string;
+  to?: string;
+  amount?: string;
   timestamp: string;
   accountId: string;
+  type: 'send' | 'receive' | 'deploy';
 }
 
 const savePendingTransaction = (tx: PendingTransaction) => {
@@ -369,6 +370,7 @@ export const sendTransaction = createAsyncThunk(
       amount,
       timestamp: new Date().toISOString(),
       accountId: from.id,
+      type: 'send',
     });
     
     const state = getState() as { wallet: WalletState };

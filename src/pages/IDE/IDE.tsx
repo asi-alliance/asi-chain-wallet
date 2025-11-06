@@ -30,7 +30,39 @@ import IDEStorageService, {
 } from "services/ideStorage";
 import { SecureStorage } from "services/secureStorage";
 import { decrypt } from "utils/encryption";
-import TransactionHistoryService from "services/transactionHistory";
+
+const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
+
+const savePendingDeploy = (deployId: string, accountId: string, revAddress: string) => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+    
+    try {
+        const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
+        const pendingTxs: any[] = existing ? JSON.parse(existing) : [];
+        
+        const pendingDeploy = {
+            deployId,
+            from: revAddress,
+            timestamp: new Date().toISOString(),
+            accountId,
+            type: 'deploy',
+        };
+        
+        const existingIndex = pendingTxs.findIndex((t: any) => t.deployId === deployId);
+        if (existingIndex >= 0) {
+            pendingTxs[existingIndex] = pendingDeploy;
+        } else {
+            pendingTxs.push(pendingDeploy);
+        }
+        
+        localStorage.setItem(PENDING_TRANSACTIONS_KEY, JSON.stringify(pendingTxs));
+    } catch (error) {
+        console.error('Failed to save pending deploy to localStorage:', error);
+    }
+};
+
 
 const IDEContainer = styled.div`
     height: calc(100vh - 120px); // Account for header and nav
@@ -648,6 +680,8 @@ export const IDE: React.FC = () => {
                 `Deploy submitted successfully! Deploy ID: ${deployId}`
             );
 
+            savePendingDeploy(deployId, selectedAccount.id, selectedAccount.revAddress);
+
             // Try to get deploy result with enhanced status checking
             try {
                 addConsoleMessage(
@@ -735,7 +769,8 @@ export const IDE: React.FC = () => {
                 `Deploy submitted successfully! Deploy ID: ${deployId}`
             );
 
-            // Try to get deploy result with enhanced status checking
+            savePendingDeploy(deployId, selectedAccount.id, selectedAccount.revAddress);
+
             try {
                 addConsoleMessage(
                     "info",
