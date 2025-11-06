@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
-import { generateRandomGasFee } from '../constants/gas';
+import { generateRandomGasFee, getGasFeeAsNumber } from '../constants/gas';
 
 interface NetworkConfig {
   name: string;
@@ -253,15 +253,41 @@ const createInitialState = (): WalletState => {
 
 const initialState: WalletState = createInitialState();
 
+const calculateBalanceWithPending = (baseBalance: string, accountId: string, revAddress: string, publicKey: string): string => {
+  const pendingTxs = loadPendingTransactions();
+  const normalizedRevAddress = revAddress?.toLowerCase().trim();
+  const normalizedPublicKey = publicKey?.toLowerCase().trim();
+  
+  let balance = parseFloat(baseBalance || '0');
+  
+  for (const tx of pendingTxs) {
+    if (tx.accountId !== accountId) continue;
+    
+    const txFrom = (tx.from || '').toLowerCase().trim();
+    
+    if (tx.type === 'send' && (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)) {
+      const amount = parseFloat(tx.amount || '0');
+      const gasFee = getGasFeeAsNumber();
+      balance -= (amount + gasFee);
+    } else if (tx.type === 'deploy' && (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)) {
+      const gasFee = getGasFeeAsNumber();
+      balance -= gasFee;
+    }
+  }
+  
+  return Math.max(0, balance).toFixed(8);
+};
+
 export const fetchBalance = createAsyncThunk(
   'wallet/fetchBalance',
   async ({ account, network, forceRefresh = false }: { account: Account; network: Network; forceRefresh?: boolean }) => {
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     const atomicBalance = await rchain.getBalance(account.revAddress, forceRefresh);
     
-    const balance = (parseInt(atomicBalance) / 100000000).toString();
+    const baseBalance = (parseInt(atomicBalance) / 100000000).toString();
+    const balanceWithPending = calculateBalanceWithPending(baseBalance, account.id, account.revAddress, account.publicKey);
     
-    return { accountId: account.id, balance };
+    return { accountId: account.id, balance: balanceWithPending };
   }
 );
 
@@ -343,13 +369,6 @@ export const sendTransaction = createAsyncThunk(
     const amountNum = parseFloat(amount);
     const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();
     
-    console.log(`[Send Transaction] Amount conversion:`, {
-      userInput: amount,
-      amountNum,
-      atomicAmount,
-      expectedDeduction: `${amountNum} ASI`
-    });
-    
     const deployId = await rchain.transfer(from.revAddress, to, atomicAmount, privateKey);
     
     const transaction: Transaction = {
@@ -372,17 +391,6 @@ export const sendTransaction = createAsyncThunk(
       accountId: from.id,
       type: 'send',
     });
-    
-    const state = getState() as { wallet: WalletState };
-    const account = state.wallet.accounts.find(a => a.id === from.id);
-    if (account) {
-      const amountNum = parseFloat(amount);
-      const currentBalance = parseFloat(account.balance || '0');
-      dispatch(updateAccountBalance({ 
-        accountId: from.id, 
-        balance: Math.max(0, currentBalance - amountNum).toString()
-      }));
-    }
     
     return transaction;
   }
@@ -601,18 +609,6 @@ const walletSlice = createSlice({
       })
       .addCase(sendTransaction.fulfilled, (state, action) => {
         state.transactions.unshift(action.payload);
-        
-        const amountNum = parseFloat(action.payload.amount);
-        const account = state.accounts.find(a => a.revAddress === action.payload.from);
-        if (account) {
-          const currentBalance = parseFloat(account.balance || '0');
-          account.balance = Math.max(0, currentBalance - amountNum).toString();
-        }
-        if (state.selectedAccount && state.selectedAccount.revAddress === action.payload.from) {
-          const currentBalance = parseFloat(state.selectedAccount.balance || '0');
-          state.selectedAccount.balance = Math.max(0, currentBalance - amountNum).toString();
-        }
-        
         state.isLoading = false;
       })
       .addCase(sendTransaction.rejected, (state, action) => {

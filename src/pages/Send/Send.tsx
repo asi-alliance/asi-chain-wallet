@@ -560,23 +560,22 @@ export const Send: React.FC = () => {
                 setAmount("");
                 setPassword("");
 
-                try {
-                    console.log(
-                        "[Send] Force refreshing balance after successful transaction..."
-                    );
-                    await dispatch(
-                        fetchBalance({
-                            account: selectedAccount,
-                            network: selectedNetwork,
-                            forceRefresh: true,
-                        }) as any
-                    );
-                } catch (error) {
-                    console.warn(
-                        "[Send] Failed to refresh balance immediately:",
-                        error
-                    );
-                }
+                setTimeout(async () => {
+                    try {
+                        await dispatch(
+                            fetchBalance({
+                                account: selectedAccount,
+                                network: selectedNetwork,
+                                forceRefresh: true,
+                            }) as any
+                        );
+                    } catch (error) {
+                        console.warn(
+                            "[Send] Failed to refresh balance:",
+                            error
+                        );
+                    }
+                }, 2000);
 
                 let pollCount = 0;
                 const maxPolls = 30;
