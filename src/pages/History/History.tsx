@@ -170,6 +170,12 @@ const ActionButtons = styled.div`
     align-items: center;
     margin-bottom: 16px;
 
+    button h3 {
+        font-size: 12px;
+        line-height: 1.4;
+        margin: 0;
+    }
+
     @media (max-width: 768px) {
         flex-direction: column;
         align-items: flex-start;
@@ -177,11 +183,23 @@ const ActionButtons = styled.div`
 `;
 
 const RefreshInfo = styled.div`
-    // font-size: 12px;
-    color: ${({ theme }) => theme.text.secondary};
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    flex-wrap: wrap;
+`;
+
+const RefreshText = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: ${({ theme }) => theme.text.secondary};
+    line-height: 1.4;
+`;
+
+const RefreshTextLine = styled.span`
+    font-size: 12px;
+    white-space: nowrap;
 `;
 
 const formatAddress = (address: string): string => {
@@ -430,13 +448,14 @@ export const History: React.FC = () => {
                 <CardContent>
                     <ActionButtons>
                         <RefreshInfo>
-                            <span className="text-3">
-                                Auto-refresh: every 30s
-                            </span>
-                            <span>•</span>
-                            <span className="text-3">
-                                Last: {lastRefresh.toLocaleTimeString()}
-                            </span>
+                            <RefreshText>
+                                <RefreshTextLine>
+                                    Auto-refresh: every 30s
+                                </RefreshTextLine>
+                                <RefreshTextLine>
+                                    Last: {lastRefresh.toLocaleTimeString()}
+                                </RefreshTextLine>
+                            </RefreshText>
                             <Button
                                 id="history-refresh-button"
                                 size="small"
@@ -450,7 +469,6 @@ export const History: React.FC = () => {
                                         selectedNetwork.graphqlUrl
                                     ) {
                                         try {
-                                            const result =
                                                 await TransactionHistoryService.syncFromBlockchain(
                                                     selectedAccount.revAddress,
                                                     selectedAccount.publicKey,
@@ -611,6 +629,14 @@ export const History: React.FC = () => {
                                 <StatValue>{stats.sent || 0}</StatValue>
                                 <StatLabel>
                                     <h4>Sent</h4>
+                                </StatLabel>
+                            </CardContent>
+                        </StatCard>
+                        <StatCard>
+                            <CardContent>
+                                <StatValue>{stats.received || 0}</StatValue>
+                                <StatLabel>
+                                    <h4>Receive</h4>
                                 </StatLabel>
                             </CardContent>
                         </StatCard>
