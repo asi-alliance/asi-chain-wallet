@@ -420,7 +420,7 @@ export const Dashboard: React.FC = () => {
                         </p>
                         <ActionButtons>
                             <Button onClick={() => navigate("/accounts")}>
-                                Manage Accounts
+                                Accounts
                             </Button>
                         </ActionButtons>
                     </CardContent>
@@ -593,7 +593,7 @@ export const Dashboard: React.FC = () => {
                     <CardHeader>
                         <ActionCardTitle>
                             <AccountsIcon size={20} />
-                            <h3>Manage Accounts</h3>
+                            <h3>Accounts</h3>
                         </ActionCardTitle>
                     </CardHeader>
                     <CardContent>
@@ -635,7 +635,7 @@ export const Dashboard: React.FC = () => {
                     <CardHeader>
                         <ActionCardTitle>
                             <ClipboardIcon size={20} />
-                            <h3>Transaction History</h3>
+                            <h3>Transactions</h3>
                         </ActionCardTitle>
                     </CardHeader>
                     <CardContent>

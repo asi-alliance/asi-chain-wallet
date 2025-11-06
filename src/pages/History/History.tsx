@@ -430,7 +430,7 @@ export const History: React.FC = () => {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        <h1>Transaction History</h1>
+                        <h1>Transactions</h1>
                         {selectedAccount && (
                             <span
                                 style={{
