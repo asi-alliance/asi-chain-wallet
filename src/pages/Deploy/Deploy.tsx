@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { RootState } from "store";
 import { RChainService } from "services/rchain";
+import { getGasFeeAsNumber } from "../../constants/gas";
 import {
     Card,
     CardHeader,
@@ -24,6 +25,7 @@ interface PendingTransaction {
     timestamp: string;
     accountId: string;
     type: 'send' | 'receive' | 'deploy';
+    expectedBalance?: string;
 }
 
 const savePendingTransaction = (tx: PendingTransaction) => {
@@ -242,6 +244,23 @@ export const Deploy: React.FC = () => {
                 );
             }
 
+            let expectedBalanceAfterConfirmation: string | undefined;
+            try {
+                const atomicBalanceBefore = await rchain.getBalance(
+                    selectedAccount.revAddress,
+                    true
+                );
+                const chainBalanceBefore = Number(atomicBalanceBefore) / 100000000;
+                const gasFee = getGasFeeAsNumber();
+                const expected = Math.max(0, chainBalanceBefore - gasFee);
+                expectedBalanceAfterConfirmation = expected.toFixed(8);
+            } catch (error) {
+                console.warn(
+                    "[Deploy] Failed to fetch balance before deploy for pending metadata:",
+                    error
+                );
+            }
+
             const deployResult = await rchain.sendDeploy(
                 code,
                 privateKey,
@@ -255,6 +274,7 @@ export const Deploy: React.FC = () => {
                 timestamp: new Date().toISOString(),
                 accountId: selectedAccount.id,
                 type: 'deploy',
+                expectedBalance: expectedBalanceAfterConfirmation,
             });
 
             try {

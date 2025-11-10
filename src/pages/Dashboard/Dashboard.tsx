@@ -607,7 +607,7 @@ export const Dashboard: React.FC = () => {
                     <CardHeader>
                         <ActionCardTitle>
                             <ContractIcon size={20} />
-                            <h3>Deploy Contract</h3>
+                            <h3>Deploy</h3>
                         </ActionCardTitle>
                     </CardHeader>
                     <CardContent>

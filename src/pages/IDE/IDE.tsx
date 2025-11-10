@@ -30,10 +30,11 @@ import IDEStorageService, {
 } from "services/ideStorage";
 import { SecureStorage } from "services/secureStorage";
 import { decrypt } from "utils/encryption";
+import { getGasFeeAsNumber } from "../../constants/gas";
 
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
-const savePendingDeploy = (deployId: string, accountId: string, revAddress: string) => {
+const savePendingDeploy = (deployId: string, accountId: string, revAddress: string, expectedBalance?: string) => {
     if (typeof window === 'undefined' || !window.localStorage) {
         return;
     }
@@ -48,6 +49,7 @@ const savePendingDeploy = (deployId: string, accountId: string, revAddress: stri
             timestamp: new Date().toISOString(),
             accountId,
             type: 'deploy',
+            expectedBalance,
         };
         
         const existingIndex = pendingTxs.findIndex((t: any) => t.deployId === deployId);
@@ -669,6 +671,23 @@ export const IDE: React.FC = () => {
                 throw new Error("Failed to access private key");
             }
 
+            let expectedBalanceAfterConfirmation: string | undefined;
+            try {
+                const atomicBalanceBefore = await rchain.getBalance(
+                    selectedAccount.revAddress,
+                    true
+                );
+                const chainBalanceBefore = Number(atomicBalanceBefore) / 100000000;
+                const gasFee = getGasFeeAsNumber();
+                const expected = Math.max(0, chainBalanceBefore - gasFee);
+                expectedBalanceAfterConfirmation = expected.toFixed(8);
+            } catch (error) {
+                console.warn(
+                    "[IDE] Failed to fetch balance before deploy for pending metadata:",
+                    error
+                );
+            }
+
             const deployId = await rchain.sendDeploy(
                 activeFile.content,
                 privateKey,
@@ -680,7 +699,12 @@ export const IDE: React.FC = () => {
                 `Deploy submitted successfully! Deploy ID: ${deployId}`
             );
 
-            savePendingDeploy(deployId, selectedAccount.id, selectedAccount.revAddress);
+            savePendingDeploy(
+                deployId,
+                selectedAccount.id,
+                selectedAccount.revAddress,
+                expectedBalanceAfterConfirmation
+            );
 
             // Try to get deploy result with enhanced status checking
             try {
@@ -758,6 +782,23 @@ export const IDE: React.FC = () => {
                 );
             }
 
+            let expectedBalanceAfterConfirmation: string | undefined;
+            try {
+                const atomicBalanceBefore = await rchain.getBalance(
+                    selectedAccount.revAddress,
+                    true
+                );
+                const chainBalanceBefore = Number(atomicBalanceBefore) / 100000000;
+                const gasFee = getGasFeeAsNumber();
+                const expected = Math.max(0, chainBalanceBefore - gasFee);
+                expectedBalanceAfterConfirmation = expected.toFixed(8);
+            } catch (error) {
+                console.warn(
+                    "[IDE] Failed to fetch balance before deploy for pending metadata:",
+                    error
+                );
+            }
+
             const deployId = await rchain.sendDeploy(
                 activeFile.content,
                 privateKey,
@@ -769,7 +810,12 @@ export const IDE: React.FC = () => {
                 `Deploy submitted successfully! Deploy ID: ${deployId}`
             );
 
-            savePendingDeploy(deployId, selectedAccount.id, selectedAccount.revAddress);
+            savePendingDeploy(
+                deployId,
+                selectedAccount.id,
+                selectedAccount.revAddress,
+                expectedBalanceAfterConfirmation
+            );
 
             try {
                 addConsoleMessage(

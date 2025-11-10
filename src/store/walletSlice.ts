@@ -79,6 +79,7 @@ interface PendingTransaction {
   timestamp: string;
   accountId: string;
   type: 'send' | 'receive' | 'deploy';
+  expectedBalance?: string;
 }
 
 const savePendingTransaction = (tx: PendingTransaction) => {
@@ -257,8 +258,11 @@ const calculateBalanceWithPending = (baseBalance: string, accountId: string, rev
   const pendingTxs = loadPendingTransactions();
   const normalizedRevAddress = revAddress?.toLowerCase().trim();
   const normalizedPublicKey = publicKey?.toLowerCase().trim();
+  const chainBalance = parseFloat(baseBalance || '0');
+  const removals: string[] = [];
+  const EPSILON = 0.0000005; // tolerance for floating point comparisons
   
-  let balance = parseFloat(baseBalance || '0');
+  let balance = chainBalance;
   
   for (const tx of pendingTxs) {
     if (tx.accountId !== accountId) continue;
@@ -266,13 +270,27 @@ const calculateBalanceWithPending = (baseBalance: string, accountId: string, rev
     const txFrom = (tx.from || '').toLowerCase().trim();
     
     if (tx.type === 'send' && (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)) {
+      const expected = tx.expectedBalance ? parseFloat(tx.expectedBalance) : undefined;
+      if (expected !== undefined && chainBalance <= expected + EPSILON) {
+        removals.push(tx.deployId);
+        continue;
+      }
       const amount = parseFloat(tx.amount || '0');
       const gasFee = getGasFeeAsNumber();
       balance -= (amount + gasFee);
     } else if (tx.type === 'deploy' && (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)) {
+      const expected = tx.expectedBalance ? parseFloat(tx.expectedBalance) : undefined;
+      if (expected !== undefined && chainBalance <= expected + EPSILON) {
+        removals.push(tx.deployId);
+        continue;
+      }
       const gasFee = getGasFeeAsNumber();
       balance -= gasFee;
     }
+  }
+  
+  if (removals.length > 0) {
+    removals.forEach(removePendingTransaction);
   }
   
   return Math.max(0, balance).toFixed(8);
@@ -369,6 +387,17 @@ export const sendTransaction = createAsyncThunk(
     const amountNum = parseFloat(amount);
     const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();
     
+    let expectedBalanceAfterConfirmation: string | undefined;
+    try {
+      const atomicBalanceBefore = await rchain.getBalance(from.revAddress, true);
+      const chainBalanceBefore = Number(atomicBalanceBefore) / 100000000;
+      const gasFee = getGasFeeAsNumber();
+      const expected = Math.max(0, chainBalanceBefore - amountNum - gasFee);
+      expectedBalanceAfterConfirmation = expected.toFixed(8);
+    } catch (error) {
+      console.warn('[sendTransaction] Failed to fetch balance before transfer for pending metadata:', error);
+    }
+    
     const deployId = await rchain.transfer(from.revAddress, to, atomicAmount, privateKey);
     
     const transaction: Transaction = {
@@ -390,6 +419,7 @@ export const sendTransaction = createAsyncThunk(
       timestamp: new Date().toISOString(),
       accountId: from.id,
       type: 'send',
+      expectedBalance: expectedBalanceAfterConfirmation,
     });
     
     return transaction;

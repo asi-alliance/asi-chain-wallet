@@ -592,6 +592,7 @@ export const History: React.FC = () => {
                             >
                                 <option value="all">All Types</option>
                                 <option value="send">Send</option>
+                                <option value="receive">Receive</option>
                                 <option value="deploy">Deploy</option>
                             </FilterSelect>
                         </FilterGroup>
