@@ -71,6 +71,59 @@ const getAccountNetworksKey = (accountId?: string | null) =>
 const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
+const ensureAccountNetwork = (account: Account, networkId?: string): Account => {
+  if (!networkId) {
+    return account;
+  }
+
+  if (!account.networkId) {
+    SecureStorage.updateAccountNetwork(account.id, networkId);
+    return { ...account, networkId };
+  }
+
+  return account;
+};
+
+const filterAccountsForNetwork = (accounts: Account[], networkId?: string): Account[] => {
+  if (!networkId) {
+    return accounts;
+  }
+
+  return accounts.filter(account => account.networkId === networkId);
+};
+
+const persistSelectedAccountId = (accountId: string | null) => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+
+  if (accountId) {
+    localStorage.setItem('selectedAccountId', accountId);
+  } else {
+    localStorage.removeItem('selectedAccountId');
+  }
+};
+
+const updateSelectedAccountForNetwork = (state: WalletState) => {
+  const networkId = state.selectedNetwork?.id;
+  const availableAccounts = filterAccountsForNetwork(state.accounts, networkId);
+
+  let nextSelected: Account | null = null;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const storedId = localStorage.getItem('selectedAccountId');
+    if (storedId) {
+      nextSelected = availableAccounts.find(acc => acc.id === storedId) || null;
+    }
+  }
+
+  if (!nextSelected && availableAccounts.length > 0) {
+    nextSelected = availableAccounts[0];
+  }
+
+  state.selectedAccount = nextSelected || null;
+  persistSelectedAccountId(nextSelected ? nextSelected.id : null);
+};
+
 interface PendingTransaction {
   deployId: string;
   from: string;
@@ -180,23 +233,6 @@ const getInitialNetworks = () => {
 };
 
 const initialNetworks = getInitialNetworks();
-
-const loadAccountsFromSecureStorage = (): Account[] => {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return [];
-  }
-  
-  try {
-    const secureAccounts = SecureStorage.getEncryptedAccounts();
-    return secureAccounts.map(acc => ({
-      ...acc,
-      privateKey: undefined,
-    } as Account));
-  } catch (error) {
-    console.error('Failed to load accounts from secure storage:', error);
-    return [];
-  }
-};
 
 const createInitialState = (): WalletState => {
   const networks = initialNetworks;
@@ -387,6 +423,10 @@ export const sendTransaction = createAsyncThunk(
     const amountNum = parseFloat(amount);
     const atomicAmount = Math.floor(amountNum * 100000000 + 0.5).toString();
     
+    if (to.trim().toLowerCase().startsWith('0x')) {
+      throw new Error('Sending to Ethereum addresses is not supported');
+    }
+    
     let expectedBalanceAfterConfirmation: string | undefined;
     try {
       const atomicBalanceBefore = await rchain.getBalance(from.revAddress, true);
@@ -431,12 +471,19 @@ const walletSlice = createSlice({
   initialState,
   reducers: {
     syncAccounts: (state, action: PayloadAction<Account[]>) => {
-      const newAccounts = action.payload.map(acc => ({
-        ...acc,
-        privateKey: undefined,
-      }));
-      
-      newAccounts.forEach(newAccount => {
+      const networkId = state.selectedNetwork?.id;
+
+      const incomingAccounts = action.payload
+        .map(acc => {
+          const sanitized: Account = {
+            ...acc,
+            privateKey: undefined,
+          };
+          return ensureAccountNetwork(sanitized, networkId);
+        })
+        .filter(acc => !networkId || acc.networkId === networkId);
+
+      incomingAccounts.forEach(newAccount => {
         const existingIndex = state.accounts.findIndex(a => a.id === newAccount.id);
         if (existingIndex >= 0) {
           state.accounts[existingIndex] = newAccount;
@@ -444,23 +491,15 @@ const walletSlice = createSlice({
           state.accounts.push(newAccount);
         }
       });
-      
-      if (state.selectedAccount) {
-        const updated = state.accounts.find(a => a.id === state.selectedAccount!.id);
-        if (updated) {
-          state.selectedAccount = updated;
-        } else {
-          state.selectedAccount = state.accounts[0] || null;
-        }
-      } else if (state.accounts.length > 0) {
-        state.selectedAccount = state.accounts[0];
-      }
+
+      state.accounts = filterAccountsForNetwork(state.accounts, networkId);
+      updateSelectedAccountForNetwork(state);
     },
     selectAccount: (state, action: PayloadAction<string>) => {
       const account = state.accounts.find(a => a.id === action.payload);
-      if (account) {
+      if (account && (!account.networkId || account.networkId === state.selectedNetwork?.id)) {
         state.selectedAccount = account;
-        localStorage.setItem('selectedAccountId', action.payload);
+        persistSelectedAccountId(action.payload);
       }
     },
     selectNetwork: (state, action: PayloadAction<string>) => {
@@ -470,15 +509,31 @@ const walletSlice = createSlice({
         if (typeof window !== 'undefined' && window.localStorage) {
           localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
         }
+
+        try {
+          const encryptedAccounts = SecureStorage.getEncryptedAccounts();
+          const accounts = encryptedAccounts.map(acc => {
+            const account: Account = {
+              ...acc,
+              privateKey: undefined,
+            };
+            return ensureAccountNetwork(account, network.id);
+          });
+
+          state.accounts = filterAccountsForNetwork(accounts, network.id);
+        } catch (error) {
+          console.error('Failed to reload accounts for selected network:', error);
+          state.accounts = [];
+        }
+
+        updateSelectedAccountForNetwork(state);
       }
     },
     removeAccount: (state, action: PayloadAction<string>) => {
       SecureStorage.removeAccount(action.payload);
       
       state.accounts = state.accounts.filter(a => a.id !== action.payload);
-      if (state.selectedAccount?.id === action.payload) {
-        state.selectedAccount = state.accounts[0] || null;
-      }
+      updateSelectedAccountForNetwork(state);
     },
     updateAccountBalance: (state, action: PayloadAction<{ accountId: string; balance: string }>) => {
       const account = state.accounts.find(a => a.id === action.payload.accountId);
@@ -583,20 +638,18 @@ const walletSlice = createSlice({
     loadAccountsFromStorage: (state) => {
       try {
         const encryptedAccounts = SecureStorage.getEncryptedAccounts();
-        const accounts = encryptedAccounts.map(acc => ({
-          ...acc,
-          privateKey: undefined,
-        } as Account));
-        
-        state.accounts = accounts;
-        
-        const selectedAccountId = localStorage.getItem('selectedAccountId');
-        if (selectedAccountId && accounts.length > 0) {
-          const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-          state.selectedAccount = selectedAccount || accounts[0];
-        } else if (accounts.length > 0) {
-          state.selectedAccount = accounts[0];
-        }
+        const networkId = state.selectedNetwork?.id;
+
+        const accounts = encryptedAccounts.map(acc => {
+          const account: Account = {
+            ...acc,
+            privateKey: undefined,
+          };
+          return ensureAccountNetwork(account, networkId);
+        });
+
+        state.accounts = filterAccountsForNetwork(accounts, networkId);
+        updateSelectedAccountForNetwork(state);
       } catch (error) {
         console.error('Failed to load accounts from storage:', error);
       }

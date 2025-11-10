@@ -244,6 +244,11 @@ export const Send: React.FC = () => {
             return;
         }
 
+        if (value.trim().toLowerCase().startsWith("0x")) {
+            setAddressError("Sending to Ethereum addresses is not supported");
+            return;
+        }
+
         const validation = addressValidation(value);
         if (!validation.isValid) {
             setAddressError(validation.validationMessages.join(", "));
@@ -463,6 +468,11 @@ export const Send: React.FC = () => {
             return false;
         }
 
+        if (recipient.trim().toLowerCase().startsWith("0x")) {
+            setValidationError("Sending to Ethereum addresses is not supported");
+            return false;
+        }
+
         // Validate address format
         const addressValidationResult = addressValidation(recipient);
         if (!addressValidationResult.isValid) {
@@ -536,6 +546,11 @@ export const Send: React.FC = () => {
         if (!selectedAccount) return;
 
         setShowConfirmation(false);
+
+        if (recipient.trim().toLowerCase().startsWith("0x")) {
+            setValidationError("Sending to Ethereum addresses is not supported");
+            return;
+        }
 
         // Clear previous transaction state
         setTxHash("");

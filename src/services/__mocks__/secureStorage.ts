@@ -18,6 +18,7 @@ export class SecureStorage {
   static verifyPassword = jest.fn(() => false);
   static saveAccount = jest.fn();
   static unlockAccount = jest.fn();
+  static updateAccountNetwork = jest.fn();
   static removeAccount = jest.fn();
   static saveEncryptedAccounts = jest.fn();
   static setSessionData = jest.fn();

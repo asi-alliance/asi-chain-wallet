@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
@@ -175,6 +175,17 @@ export const Accounts: React.FC = () => {
         (state: RootState) => state.auth
     );
 
+    const selectedNetworkId = selectedNetwork?.id;
+    const filteredAccounts = useMemo(
+        () =>
+            selectedNetworkId
+                ? accounts.filter(
+                      (account) => account.networkId === selectedNetworkId
+                  )
+                : accounts,
+        [accounts, selectedNetworkId]
+    );
+
     const [showPasswordSetup, setShowPasswordSetup] = useState(false);
     const [showImportPassword, setShowImportPassword] = useState(false);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
@@ -196,7 +207,8 @@ export const Accounts: React.FC = () => {
     const [importNameError, setImportNameError] = useState("");
     const [importValueError, setImportValueError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
-    const infoMessage = !accounts?.length
+
+    const infoMessage = !filteredAccounts?.length
         ? "Create or import your account to access the wallet functionality"
         : null;
 
@@ -207,19 +219,19 @@ export const Accounts: React.FC = () => {
     }, [unlockedAccounts, dispatch]);
 
     useEffect(() => {
-        if (accounts.length > 0 && selectedNetwork) {
-            accounts.forEach((account) => {
+        if (filteredAccounts.length > 0 && selectedNetwork) {
+            filteredAccounts.forEach((account) => {
                 dispatch(
                     fetchBalance({ account, network: selectedNetwork }) as any
                 );
             });
         }
-    }, [accounts, selectedNetwork, dispatch]);
+    }, [filteredAccounts, selectedNetwork, dispatch]);
 
     useEffect(() => {
-        if (accounts.length > 0 && selectedNetwork) {
+        if (filteredAccounts.length > 0 && selectedNetwork) {
             const interval = setInterval(() => {
-                accounts.forEach((account) => {
+                filteredAccounts.forEach((account) => {
                     dispatch(
                         fetchBalance({
                             account,
@@ -230,11 +242,11 @@ export const Accounts: React.FC = () => {
             }, 30000);
             return () => clearInterval(interval);
         }
-    }, [accounts, selectedNetwork, dispatch]);
+    }, [filteredAccounts, selectedNetwork, dispatch]);
 
     const handleRefreshBalances = () => {
-        if (accounts.length > 0 && selectedNetwork) {
-            accounts.forEach((account) => {
+        if (filteredAccounts.length > 0 && selectedNetwork) {
+            filteredAccounts.forEach((account) => {
                 dispatch(
                     fetchBalance({ account, network: selectedNetwork }) as any
                 );
@@ -262,6 +274,7 @@ export const Accounts: React.FC = () => {
                 createAccountWithPassword({
                     name: pendingAccountName,
                     password,
+                    networkId: selectedNetworkId,
                 }) as any
             );
 
@@ -277,6 +290,7 @@ export const Accounts: React.FC = () => {
                 importAccountWithPassword({
                     ...pendingImport,
                     password,
+                    networkId: selectedNetworkId,
                 }) as any
             );
 
@@ -525,11 +539,11 @@ export const Accounts: React.FC = () => {
             )}
 
             {/* Show existing accounts first when they exist */}
-            {accounts.length > 0 && (
+            {filteredAccounts.length > 0 && (
                 <Card style={{ marginBottom: "32px" }}>
                     <CardHeader>
                         <CardTitle>
-                            <h1>Your Accounts ({accounts.length})</h1>
+                            <h1>Your Accounts ({filteredAccounts.length})</h1>
                         </CardTitle>
                         <Button
                             variant="ghost"
@@ -542,7 +556,7 @@ export const Accounts: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <AccountsGrid>
-                            {accounts.map((account) => {
+                            {filteredAccounts.map((account) => {
                                 const isUnlocked = unlockedAccounts.some(
                                     (a) => a.id === account.id
                                 );

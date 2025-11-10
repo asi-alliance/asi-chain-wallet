@@ -26,9 +26,15 @@ const initialState: AuthState = {
 };
 
 // Create account with password
+type CreateAccountPayload = {
+  name: string;
+  password: string;
+  networkId?: string;
+};
+
 export const createAccountWithPassword = createAsyncThunk(
   'auth/createAccountWithPassword',
-  async ({ name, password }: { name: string; password: string }) => {
+  async ({ name, password, networkId }: CreateAccountPayload) => {
     const keyPair = generateKeyPair();
     const account: Account = {
       id: Date.now().toString(),
@@ -39,6 +45,7 @@ export const createAccountWithPassword = createAsyncThunk(
       publicKey: keyPair.publicKey,
       privateKey: keyPair.privateKey,
       balance: '0',
+      ...(networkId ? { networkId } : {}),
       createdAt: new Date(),
     };
 
@@ -82,19 +89,17 @@ const checkAccountExists = (newAccount: Account): boolean => {
   });
 };
 
+type ImportAccountPayload = {
+  name: string;
+  value: string;
+  type: 'private' | 'public' | 'eth' | 'rev';
+  password: string;
+  networkId?: string;
+};
+
 export const importAccountWithPassword = createAsyncThunk(
   'auth/importAccountWithPassword',
-  async ({ 
-    name, 
-    value, 
-    type, 
-    password 
-  }: { 
-    name: string; 
-    value: string; 
-    type: 'private' | 'public' | 'eth' | 'rev';
-    password: string;
-  }) => {
+  async ({ name, value, type, password, networkId }: ImportAccountPayload) => {
     let accountData;
     
     switch (type) {
@@ -120,6 +125,7 @@ export const importAccountWithPassword = createAsyncThunk(
       publicKey: accountData.publicKey || '',
       privateKey: accountData.privateKey,
       balance: '0',
+      ...(networkId ? { networkId } : {}),
       createdAt: new Date(),
     };
 
@@ -142,10 +148,16 @@ export const importAccountWithPassword = createAsyncThunk(
   }
 );
 
+type ImportKeyfilePayload = {
+  keyfileContent: string;
+  name: string;
+  networkId?: string;
+};
+
 export const importFromKeyfile = createAsyncThunk(
   'auth/importFromKeyfile',
-  async ({ keyfileContent, name }: { keyfileContent: string; name: string }) => {
-    const secureAccount = SecureStorage.importFromKeyfile(keyfileContent, name);
+  async ({ keyfileContent, name, networkId }: ImportKeyfilePayload) => {
+    const secureAccount = SecureStorage.importFromKeyfile(keyfileContent, name, networkId);
     return secureAccount;
   }
 );

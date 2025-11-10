@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "store";
@@ -170,6 +170,17 @@ export const AccountSwitcher: React.FC = () => {
     const [isLoadingBalances, setIsLoadingBalances] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    const selectedNetworkId = selectedNetwork?.id;
+    const filteredAccounts = useMemo(
+        () =>
+            selectedNetworkId
+                ? accounts.filter(
+                      (account) => account.networkId === selectedNetworkId
+                  )
+                : accounts,
+        [accounts, selectedNetworkId]
+    );
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -192,12 +203,11 @@ export const AccountSwitcher: React.FC = () => {
     };
 
     const fetchAllBalances = async () => {
-        if (!selectedNetwork || accounts.length === 0) return;
+        if (!selectedNetwork || filteredAccounts.length === 0) return;
 
         setIsLoadingBalances(true);
 
-        // Fetch balances for all accounts
-        const balancePromises = accounts.map((account) =>
+        const balancePromises = filteredAccounts.map((account) =>
             dispatch(fetchBalance({ account, network: selectedNetwork }) as any)
         );
 
@@ -231,9 +241,8 @@ export const AccountSwitcher: React.FC = () => {
             setIsOpen(false);
         }
     };
-
     // Don't render if no accounts
-    if (accounts.length === 0) {
+    if (filteredAccounts.length === 0) {
         return null;
     }
 
@@ -278,8 +287,8 @@ export const AccountSwitcher: React.FC = () => {
             </SwitcherButton>
 
             <Dropdown $isOpen={isOpen}>
-                {accounts.length > 0 ? (
-                    accounts.map((account) => (
+                {filteredAccounts.length > 0 ? (
+                    filteredAccounts.map((account) => (
                         <DropdownItem
                             key={account.id}
                             $isSelected={selectedAccount?.id === account.id}

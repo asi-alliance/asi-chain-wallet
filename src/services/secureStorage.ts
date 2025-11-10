@@ -107,6 +107,35 @@ export class SecureStorage {
     return account;
   }
 
+  static updateAccountNetwork(accountId: string, networkId: string): void {
+    if (!networkId) {
+      return;
+    }
+
+    try {
+      const accounts = this.getEncryptedAccounts();
+      const index = accounts.findIndex(a => a.id === accountId);
+      if (index >= 0) {
+        accounts[index] = {
+          ...accounts[index],
+          networkId,
+        };
+        this.saveEncryptedAccounts(accounts);
+      }
+
+      const sessionData = this.getSessionData();
+      if (sessionData[accountId]) {
+        sessionData[accountId] = {
+          ...sessionData[accountId],
+          networkId,
+        };
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
+      }
+    } catch (error) {
+      console.error('Failed to update account network:', error);
+    }
+  }
+
   /**
    * Check if any accounts exist
    */
@@ -264,7 +293,7 @@ export class SecureStorage {
     });
   }
 
-  static importFromKeyfile(keyfileContent: string, name: string): SecureAccount {
+  static importFromKeyfile(keyfileContent: string, name: string, networkId?: string): SecureAccount {
     try {
       const data = JSON.parse(keyfileContent);
       
@@ -281,6 +310,7 @@ export class SecureStorage {
         publicKey: '', // Will be derived when unlocked
         encryptedPrivateKey: data.encryptedPrivateKey,
         balance: '0',
+        ...(networkId ? { networkId } : {}),
         createdAt: new Date()
       };
 
