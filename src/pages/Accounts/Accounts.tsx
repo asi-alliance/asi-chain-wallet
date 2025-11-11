@@ -208,6 +208,11 @@ export const Accounts: React.FC = () => {
     const [importValueError, setImportValueError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
+    const filteredAccountIds = useMemo(
+        () => filteredAccounts.map((account) => account.id).join(","),
+        [filteredAccounts]
+    );
+
     const infoMessage = !filteredAccounts?.length
         ? "Create or import your account to access the wallet functionality"
         : null;
@@ -226,7 +231,8 @@ export const Accounts: React.FC = () => {
                 );
             });
         }
-    }, [filteredAccounts, selectedNetwork, dispatch]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNetwork?.id, filteredAccountIds]);
 
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
@@ -242,7 +248,8 @@ export const Accounts: React.FC = () => {
             }, 30000);
             return () => clearInterval(interval);
         }
-    }, [filteredAccounts, selectedNetwork, dispatch]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNetwork?.id, filteredAccountIds]);
 
     const handleRefreshBalances = () => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
