@@ -116,18 +116,37 @@ export class SecureStorage {
       return;
     }
 
-    const idSet = new Set(accountIds);
+    const updates = accountIds.map(id => ({ id, networkId }));
+    this.updateAccountsNetworkBulk(updates);
+  }
+
+  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId: string }>): void {
+    if (!updates.length) {
+      return;
+    }
 
     try {
+      const updateMap = new Map<string, string>();
+      updates.forEach(({ id, networkId }) => {
+        if (networkId) {
+          updateMap.set(id, networkId);
+        }
+      });
+
+      if (updateMap.size === 0) {
+        return;
+      }
+
       const accounts = this.getEncryptedAccounts();
       let accountsChanged = false;
 
       const updatedAccounts = accounts.map(account => {
-        if (idSet.has(account.id) && account.networkId !== networkId) {
+        const nextNetworkId = updateMap.get(account.id);
+        if (nextNetworkId && account.networkId !== nextNetworkId) {
           accountsChanged = true;
           return {
             ...account,
-            networkId,
+            networkId: nextNetworkId,
           };
         }
         return account;
@@ -141,10 +160,11 @@ export class SecureStorage {
       let sessionChanged = false;
 
       Object.keys(sessionData).forEach(id => {
-        if (idSet.has(id) && sessionData[id].networkId !== networkId) {
+        const nextNetworkId = updateMap.get(id);
+        if (nextNetworkId && sessionData[id].networkId !== nextNetworkId) {
           sessionData[id] = {
             ...sessionData[id],
-            networkId,
+            networkId: nextNetworkId,
           };
           sessionChanged = true;
         }
@@ -156,27 +176,6 @@ export class SecureStorage {
     } catch (error) {
       console.error('Failed to update account networks:', error);
     }
-  }
-
-  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId: string }>): void {
-    if (!updates.length) {
-      return;
-    }
-
-    const grouped = new Map<string, string[]>();
-    updates.forEach(({ id, networkId }) => {
-      if (!networkId) {
-        return;
-      }
-      if (!grouped.has(networkId)) {
-        grouped.set(networkId, []);
-      }
-      grouped.get(networkId)!.push(id);
-    });
-
-    grouped.forEach((ids, networkId) => {
-      this.updateAccountsNetwork(ids, networkId);
-    });
   }
 
   /**
