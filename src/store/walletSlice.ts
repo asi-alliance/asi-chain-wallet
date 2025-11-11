@@ -71,17 +71,45 @@ const getAccountNetworksKey = (accountId?: string | null) =>
 const SELECTED_NETWORK_KEY = 'asi_wallet_selected_network';
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
-const ensureAccountNetwork = (account: Account, networkId?: string): Account => {
-  if (!networkId) {
-    return account;
-  }
+type AccountNetworkUpdate = { id: string; networkId: string };
 
-  if (!account.networkId) {
-    SecureStorage.updateAccountNetwork(account.id, networkId);
-    return { ...account, networkId };
-  }
+const sanitizeAccountsForNetwork = (accounts: Account[], networkId?: string) => {
+  const updates: AccountNetworkUpdate[] = [];
 
-  return account;
+  const sanitized = accounts.map(acc => {
+    const { encryptedPrivateKey, ...rest } = acc as any;
+    const sanitizedAccount: Account = {
+      ...rest,
+      privateKey: undefined,
+    };
+
+    if (networkId && !sanitizedAccount.networkId) {
+      sanitizedAccount.networkId = networkId;
+      updates.push({ id: sanitizedAccount.id, networkId });
+    }
+
+    return sanitizedAccount;
+  });
+
+  return { sanitized, updates };
+};
+
+const persistAccountNetworkUpdates = (updates: AccountNetworkUpdate[]) => {
+  if (!updates.length) {
+    return;
+  }
+  SecureStorage.updateAccountsNetworkBulk(updates);
+};
+
+const mergeAccounts = (existing: Account[], incoming: Account[]) => {
+  incoming.forEach(account => {
+    const index = existing.findIndex(a => a.id === account.id);
+    if (index >= 0) {
+      existing[index] = account;
+    } else {
+      existing.push(account);
+    }
+  });
 };
 
 const filterAccountsForNetwork = (accounts: Account[], networkId?: string): Account[] => {
@@ -473,24 +501,11 @@ const walletSlice = createSlice({
     syncAccounts: (state, action: PayloadAction<Account[]>) => {
       const networkId = state.selectedNetwork?.id;
 
-      const incomingAccounts = action.payload
-        .map(acc => {
-          const sanitized: Account = {
-            ...acc,
-            privateKey: undefined,
-          };
-          return ensureAccountNetwork(sanitized, networkId);
-        })
-        .filter(acc => !networkId || acc.networkId === networkId);
+      const { sanitized, updates } = sanitizeAccountsForNetwork(action.payload, networkId);
+      persistAccountNetworkUpdates(updates);
 
-      incomingAccounts.forEach(newAccount => {
-        const existingIndex = state.accounts.findIndex(a => a.id === newAccount.id);
-        if (existingIndex >= 0) {
-          state.accounts[existingIndex] = newAccount;
-        } else {
-          state.accounts.push(newAccount);
-        }
-      });
+      const matchingAccounts = filterAccountsForNetwork(sanitized, networkId);
+      mergeAccounts(state.accounts, matchingAccounts);
 
       state.accounts = filterAccountsForNetwork(state.accounts, networkId);
       updateSelectedAccountForNetwork(state);
@@ -512,15 +527,13 @@ const walletSlice = createSlice({
 
         try {
           const encryptedAccounts = SecureStorage.getEncryptedAccounts();
-          const accounts = encryptedAccounts.map(acc => {
-            const account: Account = {
-              ...acc,
-              privateKey: undefined,
-            };
-            return ensureAccountNetwork(account, network.id);
-          });
+          const { sanitized, updates } = sanitizeAccountsForNetwork(
+            encryptedAccounts as unknown as Account[],
+            network.id
+          );
+          persistAccountNetworkUpdates(updates);
 
-          state.accounts = filterAccountsForNetwork(accounts, network.id);
+          state.accounts = filterAccountsForNetwork(sanitized, network.id);
         } catch (error) {
           console.error('Failed to reload accounts for selected network:', error);
           state.accounts = [];
@@ -640,15 +653,13 @@ const walletSlice = createSlice({
         const encryptedAccounts = SecureStorage.getEncryptedAccounts();
         const networkId = state.selectedNetwork?.id;
 
-        const accounts = encryptedAccounts.map(acc => {
-          const account: Account = {
-            ...acc,
-            privateKey: undefined,
-          };
-          return ensureAccountNetwork(account, networkId);
-        });
+        const { sanitized, updates } = sanitizeAccountsForNetwork(
+          encryptedAccounts as unknown as Account[],
+          networkId
+        );
+        persistAccountNetworkUpdates(updates);
 
-        state.accounts = filterAccountsForNetwork(accounts, networkId);
+        state.accounts = filterAccountsForNetwork(sanitized, networkId);
         updateSelectedAccountForNetwork(state);
       } catch (error) {
         console.error('Failed to load accounts from storage:', error);

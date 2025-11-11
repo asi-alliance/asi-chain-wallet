@@ -108,32 +108,75 @@ export class SecureStorage {
   }
 
   static updateAccountNetwork(accountId: string, networkId: string): void {
-    if (!networkId) {
+    this.updateAccountsNetwork([accountId], networkId);
+  }
+
+  static updateAccountsNetwork(accountIds: string[], networkId: string): void {
+    if (!networkId || accountIds.length === 0) {
       return;
     }
 
+    const idSet = new Set(accountIds);
+
     try {
       const accounts = this.getEncryptedAccounts();
-      const index = accounts.findIndex(a => a.id === accountId);
-      if (index >= 0) {
-        accounts[index] = {
-          ...accounts[index],
-          networkId,
-        };
-        this.saveEncryptedAccounts(accounts);
+      let accountsChanged = false;
+
+      const updatedAccounts = accounts.map(account => {
+        if (idSet.has(account.id) && account.networkId !== networkId) {
+          accountsChanged = true;
+          return {
+            ...account,
+            networkId,
+          };
+        }
+        return account;
+      });
+
+      if (accountsChanged) {
+        this.saveEncryptedAccounts(updatedAccounts);
       }
 
       const sessionData = this.getSessionData();
-      if (sessionData[accountId]) {
-        sessionData[accountId] = {
-          ...sessionData[accountId],
-          networkId,
-        };
+      let sessionChanged = false;
+
+      Object.keys(sessionData).forEach(id => {
+        if (idSet.has(id) && sessionData[id].networkId !== networkId) {
+          sessionData[id] = {
+            ...sessionData[id],
+            networkId,
+          };
+          sessionChanged = true;
+        }
+      });
+
+      if (sessionChanged) {
         sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
       }
     } catch (error) {
-      console.error('Failed to update account network:', error);
+      console.error('Failed to update account networks:', error);
     }
+  }
+
+  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId: string }>): void {
+    if (!updates.length) {
+      return;
+    }
+
+    const grouped = new Map<string, string[]>();
+    updates.forEach(({ id, networkId }) => {
+      if (!networkId) {
+        return;
+      }
+      if (!grouped.has(networkId)) {
+        grouped.set(networkId, []);
+      }
+      grouped.get(networkId)!.push(id);
+    });
+
+    grouped.forEach((ids, networkId) => {
+      this.updateAccountsNetwork(ids, networkId);
+    });
   }
 
   /**
