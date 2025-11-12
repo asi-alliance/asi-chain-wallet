@@ -200,10 +200,16 @@ export const AccountSwitcher: React.FC = () => {
     const handleAccountSelect = (accountId: string) => {
         dispatch(selectAccount(accountId));
         setIsOpen(false);
+        fetchAllBalances();
     };
 
     const fetchAllBalances = async () => {
-        if (!selectedNetwork || filteredAccounts.length === 0) return;
+        if (
+            !selectedNetwork ||
+            !selectedNetwork.readOnlyUrl ||
+            filteredAccounts.length === 0
+        )
+            return;
 
         setIsLoadingBalances(true);
 

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
+import { AuthState } from './authSlice';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
 import { generateRandomGasFee, getGasFeeAsNumber } from '../constants/gas';
@@ -73,7 +74,7 @@ const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
 type AccountNetworkUpdate = { id: string; networkId: string };
 
-const sanitizeAccountsForNetwork = (accounts: Account[], networkId?: string) => {
+const sanitizeAccounts = (accounts: Account[], networkId?: string) => {
   const updates: AccountNetworkUpdate[] = [];
 
   const sanitized = accounts.map(acc => {
@@ -362,7 +363,19 @@ const calculateBalanceWithPending = (baseBalance: string, accountId: string, rev
 
 export const fetchBalance = createAsyncThunk(
   'wallet/fetchBalance',
-  async ({ account, network, forceRefresh = false }: { account: Account; network: Network; forceRefresh?: boolean }) => {
+  async (
+    { account, network, forceRefresh = false }: { account: Account; network: Network; forceRefresh?: boolean },
+    { getState }
+  ) => {
+    const state = getState() as { auth: AuthState };
+    if (!state.auth.isAuthenticated || state.auth.unlockedAccounts.length === 0) {
+      return { accountId: account.id, balance: account.balance ?? '0' };
+    }
+
+    if (!network.readOnlyUrl || !network.readOnlyUrl.trim()) {
+      return { accountId: account.id, balance: account.balance ?? '0' };
+    }
+
     const rchain = new RChainService(network.url, network.readOnlyUrl, network.adminUrl, network.shardId, network.graphqlUrl);
     const atomicBalance = await rchain.getBalance(account.revAddress, forceRefresh);
     
@@ -501,7 +514,7 @@ const walletSlice = createSlice({
     syncAccounts: (state, action: PayloadAction<Account[]>) => {
       const networkId = state.selectedNetwork?.id;
 
-      const { sanitized, updates } = sanitizeAccountsForNetwork(action.payload, networkId);
+      const { sanitized, updates } = sanitizeAccounts(action.payload, networkId);
       persistAccountNetworkUpdates(updates);
 
       const matchingAccounts = filterAccountsForNetwork(sanitized, networkId);
@@ -519,28 +532,37 @@ const walletSlice = createSlice({
     },
     selectNetwork: (state, action: PayloadAction<string>) => {
       const network = state.networks.find(n => n.id === action.payload);
-      if (network && network.url && network.url.trim() !== '') {
-        state.selectedNetwork = network;
-        if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
-        }
-
-        try {
-          const encryptedAccounts = SecureStorage.getEncryptedAccounts();
-          const { sanitized, updates } = sanitizeAccountsForNetwork(
-            encryptedAccounts as unknown as Account[],
-            network.id
-          );
-          persistAccountNetworkUpdates(updates);
-
-          state.accounts = filterAccountsForNetwork(sanitized, network.id);
-        } catch (error) {
-          console.error('Failed to reload accounts for selected network:', error);
-          state.accounts = [];
-        }
-
-        updateSelectedAccountForNetwork(state);
+      if (!network || !network.url || network.url.trim() === '') {
+        return;
       }
+
+      if (state.selectedNetwork?.id === network.id) {
+        return;
+      }
+
+      state.selectedNetwork = network;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
+      }
+
+      try {
+        const encryptedAccounts = SecureStorage.getEncryptedAccounts();
+        const { sanitized, updates } = sanitizeAccounts(
+          encryptedAccounts as unknown as Account[],
+          network.id
+        );
+        
+        if (updates.length > 0) {
+          persistAccountNetworkUpdates(updates);
+        }
+
+        state.accounts = filterAccountsForNetwork(sanitized, network.id);
+      } catch (error) {
+        console.error('Failed to reload accounts for selected network:', error);
+        state.accounts = [];
+      }
+
+      updateSelectedAccountForNetwork(state);
     },
     removeAccount: (state, action: PayloadAction<string>) => {
       SecureStorage.removeAccount(action.payload);
@@ -653,7 +675,7 @@ const walletSlice = createSlice({
         const encryptedAccounts = SecureStorage.getEncryptedAccounts();
         const networkId = state.selectedNetwork?.id;
 
-        const { sanitized, updates } = sanitizeAccountsForNetwork(
+        const { sanitized, updates } = sanitizeAccounts(
           encryptedAccounts as unknown as Account[],
           networkId
         );

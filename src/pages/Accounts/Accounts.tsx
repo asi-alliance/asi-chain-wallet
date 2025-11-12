@@ -225,11 +225,15 @@ export const Accounts: React.FC = () => {
 
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account) => {
-                dispatch(
-                    fetchBalance({ account, network: selectedNetwork }) as any
-                );
-            });
+            const timeoutId = setTimeout(() => {
+                filteredAccounts.forEach((account) => {
+                    dispatch(
+                        fetchBalance({ account, network: selectedNetwork }) as any
+                    );
+                });
+            }, 100);
+            
+            return () => clearTimeout(timeoutId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedNetwork?.id, filteredAccountIds]);

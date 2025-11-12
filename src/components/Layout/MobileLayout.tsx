@@ -339,6 +339,10 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
+            if (selectedNetwork?.id && selectedAccount.networkId === selectedNetwork.id) {
+                return;
+            }
+
             const networkByAddressMapRaw = localStorage.getItem(
                 "NETWORKS_BY_ADDRESS"
             );
@@ -355,6 +359,10 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
+            if (selectedNetwork?.id === lastSelectedNetworkId) {
+                return;
+            }
+
             const networkToSet = networks.find(
                 (network) => network.id === lastSelectedNetworkId
             );
@@ -367,7 +375,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         };
 
         setCachedNetwork();
-    }, [isAuthenticated, selectedAccount, networks, dispatch]);
+    }, [isAuthenticated, selectedAccount, networks, dispatch, selectedNetwork?.id]);
 
     const cacheNetworkByAddress = (networkId: string) => {
         if (!isAuthenticated || !selectedAccount?.address) {

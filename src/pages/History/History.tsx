@@ -11,7 +11,6 @@ import TransactionHistoryService, {
 import { RChainService } from "services/rchain";
 import TransactionPollingService from "services/transactionPolling";
 import { getTokenDisplayName } from "../../constants/token";
-import { utils } from "ethers";
 
 const HistoryContainer = styled.div`
     max-width: 1200px;
@@ -230,6 +229,11 @@ export const History: React.FC = () => {
     const { selectedAccount, selectedNetwork } = useSelector(
         (state: RootState) => state.wallet
     );
+    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
+    const isAccountUnlocked = React.useMemo(() => {
+        if (!selectedAccount) return false;
+        return unlockedAccounts.some((account) => account.id === selectedAccount.id);
+    }, [unlockedAccounts, selectedAccount]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filter, setFilter] = useState<TransactionFilter>({});
     const [stats, setStats] = useState<any>({});
@@ -242,20 +246,9 @@ export const History: React.FC = () => {
     }, []);
 
     const checkPendingTransactionStatuses = useCallback(async () => {
-        if (!selectedAccount || !selectedNetwork) return;
+        if (!selectedAccount || !selectedNetwork || !isAccountUnlocked) return;
 
-        const pendingTxs = await TransactionHistoryService.getTransactions(
-            selectedAccount.revAddress,
-            selectedAccount.publicKey,
-            selectedNetwork.name,
-            selectedNetwork.graphqlUrl || "",
-            100
-        ).then((txs) => txs.filter((tx) => tx.status === "pending"));
-
-        if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-            console.error(
-                `Network "${selectedNetwork.name}" has no validator URL configured`
-            );
+        if (!selectedNetwork.graphqlUrl || !selectedNetwork.graphqlUrl.trim()) {
             return;
         }
 
@@ -267,24 +260,26 @@ export const History: React.FC = () => {
             selectedNetwork.graphqlUrl
         );
 
-        for (const tx of pendingTxs) {
-            if (tx.deployId) {
-                try {
-                    const result = await rchain.waitForDeployResult(
-                        tx.deployId,
-                        1
-                    );
-
-                    if (result.status === "completed") {
-                    } else if (
-                        result.status === "errored" ||
-                        result.status === "system_error"
-                    ) {
-                    }
-                } catch (error) {}
-            }
-        }
-    }, [selectedAccount, selectedNetwork]);
+        // Optional: lightweight pending status check disabled to avoid heavy polling
+        // const pendingTxs = await TransactionHistoryService.getTransactions(
+        //     selectedAccount.revAddress,
+        //     selectedAccount.publicKey,
+        //     selectedNetwork.name,
+        //     selectedNetwork.graphqlUrl,
+        //     25
+        // ).then((txs) => txs.filter((tx) => tx.status === "pending"));
+        // for (const tx of pendingTxs) {
+        //     if (!tx.deployId) continue;
+        //     try {
+        //         await rchain.waitForDeployResult(tx.deployId, 1);
+        //     } catch (error) {
+        //         console.error(
+        //             `Error checking deploy status for ${tx.deployId}:`,
+        //             error
+        //         );
+        //     }
+        // }
+    }, [selectedAccount, selectedNetwork, isAccountUnlocked]);
 
     const loadTransactions = useCallback(async () => {
         if (!selectedAccount || !selectedNetwork) {

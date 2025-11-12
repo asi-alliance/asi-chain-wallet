@@ -120,7 +120,7 @@ export class SecureStorage {
     this.updateAccountsNetworkBulk(updates);
   }
 
-  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId: string }>): void {
+  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId?: string }>): void {
     if (!updates.length) {
       return;
     }

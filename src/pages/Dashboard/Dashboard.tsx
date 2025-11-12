@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
@@ -233,13 +233,25 @@ export const Dashboard: React.FC = () => {
     const { selectedAccount, selectedNetwork, isLoading } = useSelector(
         (state: RootState) => state.wallet
     );
+    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
+    const isAccountUnlocked = useMemo(() => {
+        if (!selectedAccount) return false;
+        return unlockedAccounts.some(
+            (account) => account.id === selectedAccount.id
+        );
+    }, [unlockedAccounts, selectedAccount]);
     const [networkStatus, setNetworkStatus] = useState<
         "connected" | "disconnected" | "checking"
     >("checking");
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     useEffect(() => {
-        if (selectedAccount && selectedAccount.revAddress && selectedNetwork) {
+        if (
+            selectedAccount &&
+            selectedAccount.revAddress &&
+            selectedNetwork &&
+            isAccountUnlocked
+        ) {
             const oldBalance = selectedAccount.balance || "0";
 
             if (selectedNetwork.graphqlUrl) {
@@ -264,42 +276,55 @@ export const Dashboard: React.FC = () => {
                     });
             }
 
-            dispatch(
-                fetchBalance({
-                    account: selectedAccount,
-                    network: selectedNetwork,
-                }) as any
-            ).then((result: any) => {
-                if (result.payload) {
-                    const newBalance = result.payload.balance;
+            if (selectedNetwork.readOnlyUrl) {
+                dispatch(
+                    fetchBalance({
+                        account: selectedAccount,
+                        network: selectedNetwork,
+                    }) as any
+                ).then((result: any) => {
+                    if (result.payload) {
+                        const newBalance = result.payload.balance;
 
-                    if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-                        console.log(
-                            `[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`
-                        );
-                        try {
-                            TransactionHistoryService.detectReceivedTransaction(
-                                selectedAccount.revAddress,
-                                oldBalance,
-                                newBalance,
-                                selectedNetwork.name
+                        if (parseFloat(newBalance) > parseFloat(oldBalance)) {
+                            console.log(
+                                `[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`
                             );
-                        } catch (error) {
-                            console.error(
-                                `[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`,
-                                error
-                            );
+                            try {
+                                TransactionHistoryService.detectReceivedTransaction(
+                                    selectedAccount.revAddress,
+                                    oldBalance,
+                                    newBalance,
+                                    selectedNetwork.name
+                                );
+                            } catch (error) {
+                                console.error(
+                                    `[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`,
+                                    error
+                                );
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
 
             setLastRefresh(new Date());
         }
-    }, [dispatch, selectedAccount, selectedNetwork]);
+    }, [
+        dispatch,
+        selectedAccount,
+        selectedNetwork,
+        isAccountUnlocked,
+    ]);
 
     useEffect(() => {
-        if (selectedAccount && selectedAccount.revAddress && selectedNetwork) {
+        if (
+            selectedAccount &&
+            selectedAccount.revAddress &&
+            selectedNetwork &&
+            isAccountUnlocked &&
+            selectedNetwork.readOnlyUrl
+        ) {
             const interval = setInterval(() => {
                 if (selectedAccount && selectedAccount.revAddress) {
                     const oldBalance = selectedAccount.balance || "0";
@@ -342,7 +367,12 @@ export const Dashboard: React.FC = () => {
 
             return () => clearInterval(interval);
         }
-    }, [dispatch, selectedAccount, selectedNetwork]);
+    }, [
+        dispatch,
+        selectedAccount,
+        selectedNetwork,
+        isAccountUnlocked,
+    ]);
 
     // Check network status
     useEffect(() => {
