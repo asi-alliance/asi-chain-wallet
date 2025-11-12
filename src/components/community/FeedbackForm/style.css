@@ -1,0 +1,228 @@
+:root {
+    --background-color: #1b1b1f;
+    --background-elv-color: #202127;
+    --gray-soft-color: rgba(101, 117, 133, 0.16);
+    --gray-1-color: #515c67;
+    --gray-2-color: #414853;
+    --gray-3-color: #32363f;
+    --text-1-color: #dfdfd6;
+    --brand-1-color: #a8b1ff;
+    --brand-2-color: #5c73e7;
+    --accent-border-color: rgba(79, 70, 229, 0.4);
+    --danger-1-color:#f66f81;
+    --green-1-color: #3dd68c;
+    --green-soft-color: #0e2b24;
+    --lightgray-color: #cbd5e1; 
+
+    --transition-fast: 0.3s;
+    --radius-default: 0.5rem;
+    --shadow-soft: 0 0 0.03125rem var(--gray-soft-color);
+}
+
+.feedback-form-holder {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 3.125rem; 
+    position: fixed;
+    bottom: 1.875rem;
+    right: 1.875rem;
+    z-index: 150;
+}
+
+.feedback-form-holder button {
+    border: transparent;
+}
+
+.form-header button {
+    background: none;
+}
+
+.gradient-border::before {
+    border-radius: var(--radius-default);
+}
+
+.feedback-form {
+    max-height: 37.5rem; 
+    border-radius: var(--radius-default);
+    background: var(--background-color);
+    border: 1px solid var(--gray-3-color);
+    width: 25rem; 
+    padding: 1.5625rem; 
+    right: 0;
+    bottom: 0;
+    position: absolute;
+    transition: var(--transition-fast) all;
+    box-shadow: var(--shadow-soft);
+}
+
+.ready-alert.hidden,
+.feedback-form.hidden,
+.feedback-form-launcher.hidden {
+    visibility: hidden;
+    overflow: hidden;
+    padding: 0;
+    width: 0;
+    max-height: 0;
+}
+
+.feedback-form-launcher button {
+    background: none;
+    border: none;
+}
+
+.feedback-form-launcher img {
+    width: 3.4375rem; 
+}
+
+.form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem; 
+}
+
+fieldset,
+form {
+    border: none !important;
+}
+
+.form-header h2 {
+     color: var(--text-1-color) !important;
+    font-size: 1.75rem; 
+    font-style: normal;
+    font-weight: 600;
+}
+
+.form-header svg {
+    transition: var(--transition-fast) all;
+}
+
+.form-header svg:hover {
+    transform: scale(1.3);
+}
+
+.form-header line {
+    stroke-width: 2;
+    stroke: var(--text-1-color);
+}
+
+.form-header:hover line {
+    stroke: var(--brand-1-color);
+}
+
+.form-field {
+    margin-bottom: 1rem; 
+    position: relative;
+}
+
+.form-field label {
+    color: var(--text-1-color) !important;
+    font-size: 0.8125rem; 
+    line-height: 1rem;
+    margin-bottom: 0.4375rem; 
+    font-weight: 500;
+    width: 100%;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    display: block;
+    width: 100%;
+    border-radius: var(--radius-default);
+    font-size: 0.9375rem; 
+    line-height: 1.25rem;
+    padding: 0.5rem 0.75rem; 
+    border: 1px solid var(--gray-2-color);
+    background: var(--gray-soft-color) !important;
+    transition: border var(--transition-fast);
+    color: var(--text-1-color) !important;
+    outline: none;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
+    border: 1px solid var(--brand-1-color);
+}
+
+.form-field select {
+    appearance: auto;
+}
+
+.error-field {
+    border: 1px solid var(--danger-1-color) !important;
+}
+
+.submit-btn-container {
+    position: relative;
+}
+
+.submit-btn-container .submit-button {
+    font-size: 1rem; 
+    font-weight: 500;
+    text-align: center;
+    padding: 0.5rem 0; 
+    border-radius: var(--radius-default);
+    width: 100%;
+    cursor: pointer;
+    color: white;
+    background-color: var(--brand-2-color);
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.submit-btn-container .submit-button:hover {
+    background-color: var(--brand-1-color);
+    box-shadow: 0 0 10px var(--accent-border-color);
+}
+
+.submit-button svg {
+    margin: 0 auto;
+}
+
+.submit-button:disabled {
+    background-color: var(--gray-3-color);
+    color: var(--lightgray-color);
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.form-field textarea {
+    min-height: 4.375rem; 
+    max-height: 9.375rem; 
+}
+
+.feedback-form-launcher {
+    width: 6.25rem; 
+    transition: transform var(--transition-fast);
+}
+
+.feedback-form-launcher:hover {
+    transform: scale(1.05);
+}
+
+.ready-alert {
+    width: 12.5rem; 
+    position: absolute;
+    right: 4rem; 
+    bottom: 1.875rem;
+    padding: 0.625rem;
+    border-radius: var(--radius-default);
+    color: var(--green-1-color);
+    background-color: var(--green-soft-color);
+    transition: var(--transition-fast) all;
+}
+
+@media (max-width: 450px) { 
+    .feedback-form {
+        width: 100vw;
+        border-radius: var(--radius-default) var(--radius-default) 0 0;
+        box-shadow: 0 0 10px var(--accent-border-color);
+    }
+
+    .feedback-form-holder {
+        right: 0;
+        bottom: 0;
+    }
+}
