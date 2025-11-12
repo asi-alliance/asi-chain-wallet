@@ -411,6 +411,7 @@ export const Dashboard: React.FC = () => {
                 fetchBalance({
                     account: selectedAccount,
                     network: selectedNetwork,
+                    forceRefresh: true,
                 }) as any
             );
             setLastRefresh(new Date());

@@ -259,7 +259,11 @@ export const Accounts: React.FC = () => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
             filteredAccounts.forEach((account) => {
                 dispatch(
-                    fetchBalance({ account, network: selectedNetwork }) as any
+                    fetchBalance({ 
+                        account, 
+                        network: selectedNetwork,
+                        forceRefresh: true,
+                    }) as any
                 );
             });
         }

@@ -200,10 +200,10 @@ export const AccountSwitcher: React.FC = () => {
     const handleAccountSelect = (accountId: string) => {
         dispatch(selectAccount(accountId));
         setIsOpen(false);
-        fetchAllBalances();
+        fetchAllBalances(true); // Force refresh when selecting account
     };
 
-    const fetchAllBalances = async () => {
+    const fetchAllBalances = async (forceRefresh = false) => {
         if (
             !selectedNetwork ||
             !selectedNetwork.readOnlyUrl ||
@@ -214,7 +214,11 @@ export const AccountSwitcher: React.FC = () => {
         setIsLoadingBalances(true);
 
         const balancePromises = filteredAccounts.map((account) =>
-            dispatch(fetchBalance({ account, network: selectedNetwork }) as any)
+            dispatch(fetchBalance({ 
+                account, 
+                network: selectedNetwork,
+                forceRefresh,
+            }) as any)
         );
 
         try {
@@ -230,11 +234,9 @@ export const AccountSwitcher: React.FC = () => {
         const newIsOpen = !isOpen;
         setIsOpen(newIsOpen);
 
-        // Fetch balances when dropdown opens
         if (newIsOpen) {
-            // Small delay to ensure dropdown is open before fetching
             setTimeout(() => {
-                fetchAllBalances();
+                fetchAllBalances(true);
             }, 100);
         }
     };
