@@ -116,7 +116,7 @@ class TransactionHistoryService {
           }
         } else {
           const isReceive = normalizedTo && normalizedTo === normalizedAddress;
-          const isSend = normalizedFrom && normalizedFrom === normalizedPublicKey;
+          const isSend = normalizedFrom && normalizedFrom === normalizedAddress;
           
           if (!isReceive && !isSend) {
             continue;

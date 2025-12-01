@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { signDeploy } from 'utils/crypto';
-import { getTokenDisplayName } from '../constants/token';
 
 // Global balance cache to prevent excessive API calls
 const globalBalanceCache: Map<string, { balance: string; timestamp: number }> = new Map();
@@ -592,12 +591,11 @@ export class RChainService {
 
       const transferTxs = transfers.map((tx: any) => {
         const normalizedAddress = address?.toLowerCase().trim();
-        const normalizedPublicKey = publicKey?.toLowerCase().trim();
         const normalizedToAddress = tx.to_address?.toLowerCase().trim();
-        const normalizedFromPublicKey = tx.from_public_key?.toLowerCase().trim();
+        const normalizedFromAddress = tx.from_address?.toLowerCase().trim();
         
         const isReceive = normalizedToAddress && normalizedToAddress === normalizedAddress;
-        const isSend = normalizedFromPublicKey && normalizedFromPublicKey === normalizedPublicKey;
+        const isSend = normalizedFromAddress && normalizedFromAddress === normalizedAddress;
     
         
         let type: 'send' | 'receive' = 'send';
