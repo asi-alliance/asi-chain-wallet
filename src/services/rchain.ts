@@ -502,7 +502,7 @@ export class RChainService {
             transfers(
               where: {
                 _or: [
-                  {from_address: {_eq: $publicKey}},
+                  {from_public_key: {_eq: $publicKey}},
                   {to_address: {_eq: $address}}
                 ]
               },
