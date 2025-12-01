@@ -515,6 +515,7 @@ export class RChainService {
               to_address
               amount_asi
               timestamp
+              from_public_key
             }
             deployments(
               where: {
@@ -593,10 +594,11 @@ export class RChainService {
         const normalizedAddress = address?.toLowerCase().trim();
         const normalizedPublicKey = publicKey?.toLowerCase().trim();
         const normalizedToAddress = tx.to_address?.toLowerCase().trim();
-        const normalizedFromAddress = tx.from_address?.toLowerCase().trim();
+        const normalizedFromPublicKey = tx.from_public_key?.toLowerCase().trim();
         
         const isReceive = normalizedToAddress && normalizedToAddress === normalizedAddress;
-        const isSend = normalizedFromAddress && normalizedFromAddress === normalizedPublicKey;
+        const isSend = normalizedFromPublicKey && normalizedFromPublicKey === normalizedPublicKey;
+    
         
         let type: 'send' | 'receive' = 'send';
         if (isReceive && !isSend) {
