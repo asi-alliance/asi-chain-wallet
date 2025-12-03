@@ -969,6 +969,8 @@ export const Send: React.FC = () => {
                         <FormGroup>
                             <Input
                                 id="send-password-input"
+                                data-testid="send-password-input"
+                                data-cy="send-password-input"
                                 label={
                                     requirePasswordForTransaction
                                         ? "Transaction Password"
@@ -977,6 +979,13 @@ export const Send: React.FC = () => {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                onInput={(e) => {
+                                    const target = e.currentTarget;
+                                    if (target.value !== password) {
+                                        setPassword(target.value);
+                                    }
+                                }}
+                                autoComplete="current-password"
                                 placeholder="Enter password"
                             />
                         </FormGroup>

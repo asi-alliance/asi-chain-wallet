@@ -131,13 +131,22 @@ export const Login: React.FC = () => {
           <FormGroup>
             <Input
               id="login-password-input"
+              data-testid="login-password-input"
+              data-cy="login-password-input"
               type="password"
               label="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInput={(e) => {
+                const target = e.currentTarget;
+                if (target.value !== password) {
+                  setPassword(target.value);
+                }
+              }}
               onKeyPress={handleKeyPress}
               placeholder="Enter your password"
               autoFocus
+              autoComplete="current-password"
             />
           </FormGroup>
 

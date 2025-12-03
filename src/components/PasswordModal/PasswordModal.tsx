@@ -101,12 +101,22 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
         <Description>{description}</Description>
         
         <Input
+          id="password-modal-input"
+          data-testid="password-modal-input"
+          data-cy="password-modal-input"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onInput={(e) => {
+            const target = e.currentTarget;
+            if (target.value !== password) {
+              setPassword(target.value);
+            }
+          }}
           onKeyPress={handleKeyPress}
           placeholder="Enter password"
           autoFocus
+          autoComplete="current-password"
         />
 
         {(error || localError) && (

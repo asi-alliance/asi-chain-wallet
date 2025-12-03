@@ -205,12 +205,23 @@ export const TransactionConfirmationModal: React.FC<TransactionConfirmationProps
         {needsPassword && (
           <div style={{ marginBottom: '24px' }}>
             <Input
+              id="transaction-confirmation-password-input"
+              data-testid="transaction-confirmation-password-input"
+              data-cy="transaction-confirmation-password-input"
               label={requirePasswordForTransaction ? "Transaction Password" : "Account Password"}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInput={(e) => {
+                const target = e.currentTarget;
+                if (target.value !== password) {
+                  setPassword(target.value);
+                }
+              }}
               placeholder="Enter password"
               style={{ marginBottom: '16px' }}
+              autoComplete="current-password"
+              autoFocus={needsPassword}
             />
           </div>
         )}

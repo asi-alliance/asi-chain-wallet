@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import styled from "styled-components";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
     fullWidth?: boolean;
+    'data-testid'?: string;
+    'data-cy'?: string;
 }
 
 const InputWrapper = styled.div<{ fullWidth?: boolean }>`
@@ -146,12 +148,56 @@ export const Input: React.FC<InputProps> = ({
     label,
     error,
     fullWidth = true,
+    'data-testid': dataTestId,
+    'data-cy': dataCy,
+    onChange,
+    onInput,
+    autoFocus,
     ...props
 }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (autoFocus && inputRef.current) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [autoFocus]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (onChange) {
+            onChange(e);
+        }
+    };
+
+    const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+        if (onInput) {
+            onInput(e);
+        }
+        if (onChange) {
+            const changeEvent = {
+                ...e,
+                target: e.currentTarget,
+                currentTarget: e.currentTarget,
+            } as React.ChangeEvent<HTMLInputElement>;
+            onChange(changeEvent);
+        }
+    };
+
     return (
         <InputWrapper fullWidth={fullWidth}>
             <h4>{label && <Label>{label}</Label>}</h4>
-            <StyledInput hasError={!!error} {...props} />
+            <StyledInput
+                ref={inputRef}
+                hasError={!!error}
+                data-testid={dataTestId}
+                data-cy={dataCy}
+                onChange={handleChange}
+                onInput={handleInput}
+                {...props}
+            />
             {error && <ErrorMessage>{error}</ErrorMessage>}
         </InputWrapper>
     );
