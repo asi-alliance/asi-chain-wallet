@@ -346,28 +346,26 @@ export class RChainService {
       try {
         // Query the indexer for this deploy
         const graphqlQuery = {
-          query: `
-            query GetDeployStatus($deployId: String!) {
-              deployments(where: {deploy_id: {_eq: $deployId}}) {
-                deploy_id
-                block_number
-                timestamp
-                status
-                errored
-                error_message
-                block {
-                  block_hash
-                  timestamp
-                }
-                transfers {
-                  from_address
-                  to_address
-                  amount_asi
-                  status
-                }
-              }
-            }
-          `,
+          query: `query GetDeployStatus($deployId: String!) {
+  deployments(where: {deploy_id: {_eq: $deployId}}) {
+    deploy_id
+    block_number
+    timestamp
+    status
+    errored
+    error_message
+    block {
+      block_hash
+      timestamp
+    }
+    transfers {
+      from_address
+      to_address
+      amount_asi
+      status
+    }
+  }
+}`,
           variables: {
             deployId: deployId
           }
