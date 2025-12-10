@@ -39,12 +39,12 @@ export class RChainService {
     } else {
       this.nodeUrl = nodeUrl.trim();
     }
-    
+
     this.readOnlyUrl = (readOnlyUrl && readOnlyUrl.trim()) || this.nodeUrl;
     this.adminUrl = adminUrl;
     this.graphqlUrl = (graphqlUrl && graphqlUrl.trim()) || 'http://18.142.221.192:8080/v1/graphql';
     this.shardId = shardId;
-    
+
     // Validator client for state-changing operations (only if nodeUrl is provided)
     this.validatorClient = axios.create({
       baseURL: this.nodeUrl || 'http://localhost',
@@ -53,7 +53,7 @@ export class RChainService {
         'Content-Type': 'application/json'
       }
     });
-    
+
     // Read-only client for queries
     this.readOnlyClient = axios.create({
       baseURL: this.readOnlyUrl,
@@ -62,7 +62,7 @@ export class RChainService {
         'Content-Type': 'application/json'
       }
     });
-    
+
     // Admin client for propose operations (local networks)
     if (adminUrl) {
       this.adminClient = axios.create({
@@ -85,7 +85,7 @@ export class RChainService {
     // Determine which client to use based on operation type
     let client: AxiosInstance;
     let nodeDescription: string;
-    
+
     if (apiMethod === 'propose' && this.adminClient) {
       // Propose operations use admin client (for local networks)
       client = this.adminClient;
@@ -104,7 +104,7 @@ export class RChainService {
     try {
       // F1R3wallet sends explore-deploy as plain text, not JSON
       const isExploreDeployString = apiMethod === 'explore-deploy' && typeof data === 'string';
-      
+
       const response = await client.request({
         method,
         url,
@@ -124,7 +124,7 @@ export class RChainService {
       }
     }
   }
-  
+
   // Helper method to determine if an operation is read-only
   private isReadOnlyOperation(apiMethod: string): boolean {
     const readOnlyMethods = [
@@ -136,7 +136,7 @@ export class RChainService {
       'deploy-service',
       'data-at-name'
     ];
-    
+
     return readOnlyMethods.includes(apiMethod);
   }
 
@@ -144,7 +144,7 @@ export class RChainService {
     const cacheKey = `${revAddress}_${this.readOnlyUrl}`;
     const cached = globalBalanceCache.get(cacheKey);
     const now = Date.now();
-    
+
     if (!forceRefresh && cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
       return cached.balance;
     }
@@ -166,18 +166,18 @@ export class RChainService {
 
     try {
       const result = await this.exploreDeployData(checkBalanceRho);
-      
+
       if (result && result.length > 0) {
         // F1R3wallet expects the balance to be directly in expr[0].ExprInt.data
         const firstExpr = result[0];
-        
+
         // Check if it's a direct integer (balance)
         if (firstExpr?.ExprInt?.data !== undefined) {
           const balance = firstExpr.ExprInt.data.toString();
           globalBalanceCache.set(cacheKey, { balance, timestamp: now });
           return balance;
         }
-        
+
         // Check if it's an error string
         if (firstExpr?.ExprString?.data !== undefined) {
           console.error('Balance check error:', firstExpr.ExprString.data);
@@ -186,7 +186,7 @@ export class RChainService {
           return '0';
         }
       }
-      
+
       // Cache zero balance for no result case
       globalBalanceCache.set(cacheKey, { balance: '0', timestamp: now });
       return '0';
@@ -282,9 +282,9 @@ export class RChainService {
 
       // Send to RNode
       const result = await this.rnodeHttp('deploy', webDeploy);
-      
+
       console.log('Deploy result:', result);
-      
+
       // The deploy result should contain a signature which is the deploy ID
       // The Web API returns the signature string, sometimes with a prefix
       if (typeof result === 'string') {
@@ -296,7 +296,7 @@ export class RChainService {
         // If no prefix, assume the whole string is the deploy ID
         return result;
       }
-      
+
       return result.signature || result.deployId || result;
     } catch (error: any) {
       console.error('Deploy failed:', error);
@@ -308,10 +308,10 @@ export class RChainService {
   async exploreDeployData(rholangCode: string): Promise<any> {
     try {
       console.log('Sending explore-deploy to:', this.readOnlyUrl);
-      
+
       // F1R3wallet sends the Rholang code directly as a string, not as a deploy object
       const result = await this.rnodeHttp('explore-deploy', rholangCode);
-      
+
       console.log('Explore-deploy result:', result);
       return result.expr;
     } catch (error: any) {
@@ -334,17 +334,19 @@ export class RChainService {
     }
   }
 
-  // Check deploy status using GraphQL indexer API
   async waitForDeployResult(deployId: string, maxAttempts: number = 20): Promise<any> {
     console.log(`[GraphQL] Waiting for deploy result: ${deployId}`);
     console.log(`[GraphQL] Using endpoint: ${this.graphqlUrl}`);
-    
+
     // Use configured GraphQL endpoint
     const graphqlEndpoint = this.graphqlUrl;
-    
+
+    if (maxAttempts > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        // Query the indexer for this deploy
         const graphqlQuery = {
           query: `query GetDeployStatus($deployId: String!) {
   deployments(where: {deploy_id: {_eq: $deployId}}) {
@@ -370,9 +372,9 @@ export class RChainService {
             deployId: deployId
           }
         };
-        
+
         console.log(`[GraphQL] Querying indexer for deploy ${deployId} (attempt ${i + 1}/${maxAttempts})`);
-        
+
         let response;
         try {
           response = await axios.post(graphqlEndpoint, graphqlQuery, {
@@ -382,7 +384,7 @@ export class RChainService {
           });
         } catch (error: any) {
           console.error(`[GraphQL] Request failed for deploy ${deployId}:`, error.message);
-          
+
           if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
             console.warn(`[GraphQL] CORS or network error for deploy ${deployId}. Returning pending status.`);
             return {
@@ -391,17 +393,24 @@ export class RChainService {
               deployId: deployId
             };
           }
-          
+
           throw error;
         }
-        
+
         console.log(`[GraphQL] Response:`, response.data);
-        
+
+        // Check for GraphQL errors in response
+        if (response.data?.errors) {
+          console.error('[GraphQL] GraphQL errors:', response.data.errors);
+          const errorMessages = response.data.errors.map((err: any) => err.message || JSON.stringify(err)).join('; ');
+          throw new Error(`GraphQL query error: ${errorMessages}`);
+        }
+
         if (response.data?.data?.deployments && response.data.data.deployments.length > 0) {
           const deploy = response.data.data.deployments[0];
           console.log(`[GraphQL] ✅ Deploy ${deployId} found in block ${deploy.block_number} after ${i + 1} attempts`);
           console.log(`[GraphQL] Deploy details:`, deploy);
-          
+
           if (deploy.errored) {
             return {
               status: 'errored',
@@ -411,7 +420,7 @@ export class RChainService {
               deployId: deployId
             };
           }
-          
+
           return {
             status: 'completed',
             message: 'Deploy successfully included in block',
@@ -422,23 +431,23 @@ export class RChainService {
             transfers: deploy.transfers
           };
         }
-        
+
         console.log(`[GraphQL] Deploy ${deployId} not found in indexer... (${i + 1}/${maxAttempts})`);
-        
+
       } catch (error: any) {
         console.error(`[GraphQL] Error checking indexer for deploy ${deployId}:`, error.message);
         console.error(`[GraphQL] Full error:`, error);
-        
+
         try {
           const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
-          
+
           if (blocksResult.data && Array.isArray(blocksResult.data)) {
             for (const block of blocksResult.data) {
               if (block.deploys && Array.isArray(block.deploys)) {
-                const foundDeploy = block.deploys.find((deploy: any) => 
+                const foundDeploy = block.deploys.find((deploy: any) =>
                   deploy.sig === deployId || deploy.signature === deployId || deploy.deployId === deployId
                 );
-                
+
                 if (foundDeploy) {
                   console.log(`Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
                   return {
@@ -462,10 +471,10 @@ export class RChainService {
           };
         }
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
-    
+
     console.warn(`[GraphQL] Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
     return {
       status: 'pending',
@@ -476,22 +485,22 @@ export class RChainService {
 
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
     const graphqlEndpoint = this.graphqlUrl;
-    
+
     if (!address || !address.trim()) {
       console.error('[GraphQL] Invalid address provided:', address);
       throw new Error('Address is required for transaction history');
     }
-    
+
     if (!publicKey || !publicKey.trim()) {
       console.error('[GraphQL] Invalid publicKey provided:', publicKey);
       throw new Error('Public key is required for transaction history');
     }
-    
+
     if (!graphqlEndpoint) {
       console.error('[GraphQL] No GraphQL endpoint configured. Current value:', graphqlEndpoint);
       throw new Error('GraphQL endpoint is not configured');
     }
-    
+
     try {
       const graphqlQuery = {
         query: `
@@ -537,17 +546,17 @@ export class RChainService {
           limit: limit
         }
       };
-      
+
       const isTestQuery = address === 'test' && publicKey === 'test';
-      
+
       if (!isTestQuery && (!address || !publicKey)) {
         return [];
       }
-      
+
       if (isTestQuery) {
         return [];
       }
-      
+
       let response;
       try {
         response = await axios.post(graphqlEndpoint, graphqlQuery, {
@@ -555,7 +564,7 @@ export class RChainService {
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (response.data?.errors) {
           console.error('[GraphQL] GraphQL errors:', response.data.errors);
         }
@@ -570,18 +579,18 @@ export class RChainService {
             method: error.config?.method
           }
         });
-        
+
         if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
           console.warn('[GraphQL] CORS or network error detected. Transaction history will be empty until API is configured properly.');
           return [];
         }
-        
+
         throw error;
       }
-      
+
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
-      
+
       const deployTimestampMap = new Map();
       deployments.forEach((deploy: any) => {
         deployTimestampMap.set(deploy.deploy_id, deploy.timestamp);
@@ -591,11 +600,11 @@ export class RChainService {
         const normalizedAddress = address?.toLowerCase().trim();
         const normalizedToAddress = tx.to_address?.toLowerCase().trim();
         const normalizedFromAddress = tx.from_address?.toLowerCase().trim();
-        
+
         const isReceive = normalizedToAddress && normalizedToAddress === normalizedAddress;
         const isSend = normalizedFromAddress && normalizedFromAddress === normalizedAddress;
-    
-        
+
+
         let type: 'send' | 'receive' = 'send';
         if (isReceive && !isSend) {
           type = 'receive';
@@ -606,7 +615,7 @@ export class RChainService {
         } else {
           type = 'receive';
         }
-        
+
         let timestamp: string;
         if (tx.timestamp) {
           const date = new Date(parseInt(tx.timestamp));
@@ -614,7 +623,7 @@ export class RChainService {
         } else {
           timestamp = new Date(0).toISOString();
         }
-        
+
         return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
@@ -627,7 +636,7 @@ export class RChainService {
           type: type
         };
       });
-      
+
       const deployTxs = deployments.map((tx: any) => {
         let timestamp: string;
         if (tx.timestamp) {
@@ -636,7 +645,7 @@ export class RChainService {
         } else {
           timestamp = new Date(0).toISOString();
         }
-        
+
         return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
@@ -649,14 +658,14 @@ export class RChainService {
           type: 'deploy' as const
         };
       });
-      
+
       const allTxs = [...transferTxs, ...deployTxs];
-      
+
       const txMap = new Map();
-      
+
       allTxs.forEach(tx => {
         const existingTx = txMap.get(tx.deployId);
-        
+
         if (!existingTx) {
           txMap.set(tx.deployId, tx);
         } else {
@@ -677,9 +686,9 @@ export class RChainService {
           }
         }
       });
-      
+
       const sortedTxs = Array.from(txMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
+
       return sortedTxs;
     } catch (error) {
       console.error('Error fetching transaction history from indexer:', error);
@@ -691,7 +700,7 @@ export class RChainService {
   async isNodeAccessible(nodeType: 'validator' | 'readOnly' | 'admin' = 'validator'): Promise<boolean> {
     try {
       let client: AxiosInstance;
-      
+
       switch (nodeType) {
         case 'readOnly':
           client = this.readOnlyClient;
@@ -703,20 +712,20 @@ export class RChainService {
         default:
           client = this.validatorClient;
       }
-      
+
       const response = await client.get('/api/status');
       return !!response.data;
     } catch {
       return false;
     }
   }
-  
+
   // Propose block (for local networks with validator nodes)
   async propose(): Promise<any> {
     if (!this.adminClient) {
       throw new Error('Admin URL not configured. Propose is only available for local networks.');
     }
-    
+
     try {
       return await this.rnodeHttp('propose', {});
     } catch (error: any) {
