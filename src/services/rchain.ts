@@ -338,7 +338,6 @@ export class RChainService {
     console.log(`[GraphQL] Waiting for deploy result: ${deployId}`);
     console.log(`[GraphQL] Using endpoint: ${this.graphqlUrl}`);
 
-    // Use configured GraphQL endpoint
     const graphqlEndpoint = this.graphqlUrl;
 
     if (maxAttempts > 0) {
@@ -350,22 +349,34 @@ export class RChainService {
         const graphqlQuery = {
           query: `query GetDeployStatus($deployId: String!) {
   deployments(where: {deploy_id: {_eq: $deployId}}) {
-    deploy_id
-    block_number
-    timestamp
-    status
-    errored
-    error_message
-    block {
-      block_hash
-      timestamp
-    }
-    transfers {
-      from_address
-      to_address
-      amount_asi
-      status
-    }
+          deploy_id
+          deployer
+          deployment_type
+          timestamp
+          errored
+          error_message
+          block_number
+          block_hash
+          seq_num
+          shard_id
+          sig
+          sig_algorithm
+          created_at
+          transfers {
+            id
+            from_address
+            to_address
+            amount_asi
+            status
+            created_at
+          } 
+          block {
+            block_number
+            block_hash
+            timestamp
+            proposer
+          }
+        }
   }
 }`,
           variables: {
