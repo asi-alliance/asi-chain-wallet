@@ -338,7 +338,23 @@ export class RChainService {
     console.log(`[GraphQL] Waiting for deploy result: ${deployId}`);
     console.log(`[GraphQL] Using endpoint: ${this.graphqlUrl}`);
 
-    const graphqlEndpoint = this.graphqlUrl;
+    // Check for mixed-content issue: if page is HTTPS and GraphQL is HTTP, skip GraphQL and use fallback
+    const isMixedContent = typeof window !== 'undefined' && 
+                          window.location.protocol === 'https:' && 
+                          this.graphqlUrl.startsWith('http://');
+    
+    if (isMixedContent) {
+      console.warn(`[GraphQL] Mixed-content detected: page is HTTPS but GraphQL is HTTP. Skipping GraphQL query and using fallback method.`);
+      // Skip GraphQL queries and go directly to fallback
+      return this.waitForDeployResultFallback(deployId);
+    }
+
+    // Auto-convert HTTP to HTTPS if page is on HTTPS to avoid mixed-content errors
+    let graphqlEndpoint = this.graphqlUrl;
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && graphqlEndpoint.startsWith('http://')) {
+      graphqlEndpoint = graphqlEndpoint.replace('http://', 'https://');
+      console.log(`[GraphQL] Converted HTTP to HTTPS to avoid mixed-content: ${graphqlEndpoint}`);
+    }
 
     if (maxAttempts > 0) {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -408,13 +424,27 @@ export class RChainService {
             }
           });
 
+          // Check for mixed-content or SSL/TLS errors
           if (error.message.includes('mixed-content') || 
               error.message.includes('blocked') ||
-              (error.code === 'ERR_NETWORK' && typeof window !== 'undefined' && window.location.protocol === 'https:')) {
-            console.warn(`[GraphQL] Mixed-content error detected. GraphQL endpoint must use HTTPS when page is on HTTPS.`);
+              error.message.includes('SSL') ||
+              error.message.includes('TLS') ||
+              error.message.includes('certificate') ||
+              (error.code === 'ERR_NETWORK' && typeof window !== 'undefined' && window.location.protocol === 'https:' && graphqlEndpoint.startsWith('https://'))) {
+            console.warn(`[GraphQL] Mixed-content or HTTPS error detected.`);
+            console.warn(`[GraphQL] Page protocol: ${typeof window !== 'undefined' ? window.location.protocol : 'unknown'}`);
+            console.warn(`[GraphQL] GraphQL endpoint: ${graphqlEndpoint}`);
+            console.warn(`[GraphQL] Original endpoint: ${this.graphqlUrl}`);
+            
+            // If we tried HTTPS and it failed, the server might not support HTTPS
+            if (graphqlEndpoint.startsWith('https://') && this.graphqlUrl.startsWith('http://')) {
+              console.error(`[GraphQL] HTTPS conversion failed. Server at ${this.graphqlUrl} may not support HTTPS.`);
+              console.error(`[GraphQL] Solution: Configure HTTPS on GraphQL server or use a proxy.`);
+            }
+            
             return {
               status: 'pending',
-              message: 'Deploy status check unavailable due to mixed-content security policy. GraphQL endpoint must use HTTPS.',
+              message: 'Deploy status check unavailable due to mixed-content security policy. GraphQL endpoint must use HTTPS when page is on HTTPS.',
               deployId: deployId
             };
           }
@@ -474,47 +504,54 @@ export class RChainService {
         console.error(`[GraphQL] Error checking indexer for deploy ${deployId}:`, error.message);
         console.error(`[GraphQL] Full error:`, error);
 
-        try {
-          const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
-
-          if (blocksResult.data && Array.isArray(blocksResult.data)) {
-            for (const block of blocksResult.data) {
-              if (block.deploys && Array.isArray(block.deploys)) {
-                const foundDeploy = block.deploys.find((deploy: any) =>
-                  deploy.sig === deployId || deploy.signature === deployId || deploy.deployId === deployId
-                );
-
-                if (foundDeploy) {
-                  console.log(`Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
-                  return {
-                    status: 'completed',
-                    message: 'Deploy successfully included in block',
-                    blockHash: block.blockHash,
-                    deployId: deployId,
-                    cost: foundDeploy.cost,
-                    timestamp: block.timestamp
-                  };
-                }
-              }
-            }
-          }
-        } catch (fallbackError) {
-          console.error('[GraphQL] Fallback method also failed:', fallbackError);
-          return {
-            status: 'pending',
-            message: 'Deploy status check unavailable - both GraphQL and fallback methods failed',
-            deployId: deployId
-          };
-        }
+        // Use fallback method
+        return this.waitForDeployResultFallback(deployId);
       }
 
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     console.warn(`[GraphQL] Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
+    
+    // Try fallback method before giving up
+    return this.waitForDeployResultFallback(deployId);
+  }
+
+  // Fallback method using read-only node API (doesn't require GraphQL)
+  private async waitForDeployResultFallback(deployId: string): Promise<any> {
+    console.log(`[GraphQL] Using fallback method for deploy ${deployId}`);
+    
+    try {
+      const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
+
+      if (blocksResult.data && Array.isArray(blocksResult.data)) {
+        for (const block of blocksResult.data) {
+          if (block.deploys && Array.isArray(block.deploys)) {
+            const foundDeploy = block.deploys.find((deploy: any) =>
+              deploy.sig === deployId || deploy.signature === deployId || deploy.deployId === deployId
+            );
+
+            if (foundDeploy) {
+              console.log(`[GraphQL] Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
+              return {
+                status: 'completed',
+                message: 'Deploy successfully included in block',
+                blockHash: block.blockHash,
+                deployId: deployId,
+                cost: foundDeploy.cost,
+                timestamp: block.timestamp
+              };
+            }
+          }
+        }
+      }
+    } catch (fallbackError) {
+      console.error('[GraphQL] Fallback method also failed:', fallbackError);
+    }
+    
     return {
       status: 'pending',
-      message: `Deploy ${deployId} not found after ${maxAttempts} attempts. It may still be processing.`,
+      message: 'Deploy status check unavailable. The deploy may still be processing.',
       deployId: deployId
     };
   }
