@@ -349,34 +349,33 @@ export class RChainService {
         const graphqlQuery = {
           query: `query GetDeployStatus($deployId: String!) {
   deployments(where: {deploy_id: {_eq: $deployId}}) {
-          deploy_id
-          deployer
-          deployment_type
-          timestamp
-          errored
-          error_message
-          block_number
-          block_hash
-          seq_num
-          shard_id
-          sig
-          sig_algorithm
-          created_at
-          transfers {
-            id
-            from_address
-            to_address
-            amount_asi
-            status
-            created_at
-          } 
-          block {
-            block_number
-            block_hash
-            timestamp
-            proposer
-          }
-        }
+    deploy_id
+    deployer
+    deployment_type
+    timestamp
+    errored
+    error_message
+    block_number
+    block_hash
+    seq_num
+    shard_id
+    sig
+    sig_algorithm
+    created_at
+    transfers {
+      id
+      from_address
+      to_address
+      amount_asi
+      status
+      created_at
+    }
+    block {
+      block_number
+      block_hash
+      timestamp
+      proposer
+    }
   }
 }`,
           variables: {
@@ -385,18 +384,44 @@ export class RChainService {
         };
 
         console.log(`[GraphQL] Querying indexer for deploy ${deployId} (attempt ${i + 1}/${maxAttempts})`);
+        console.log(`[GraphQL] Endpoint:`, graphqlEndpoint);
+        console.log(`[GraphQL] Request payload:`, JSON.stringify(graphqlQuery, null, 2));
 
         let response;
         try {
           response = await axios.post(graphqlEndpoint, graphqlQuery, {
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000,
+            validateStatus: (status) => status < 500 
           });
         } catch (error: any) {
-          console.error(`[GraphQL] Request failed for deploy ${deployId}:`, error.message);
+          console.error(`[GraphQL] Request failed for deploy ${deployId}:`, {
+            message: error.message,
+            code: error.code,
+            response: error.response?.status,
+            responseData: error.response?.data,
+            config: {
+              url: error.config?.url,
+              method: error.config?.method
+            }
+          });
 
-          if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
+          if (error.message.includes('mixed-content') || 
+              error.message.includes('blocked') ||
+              (error.code === 'ERR_NETWORK' && typeof window !== 'undefined' && window.location.protocol === 'https:')) {
+            console.warn(`[GraphQL] Mixed-content error detected. GraphQL endpoint must use HTTPS when page is on HTTPS.`);
+            return {
+              status: 'pending',
+              message: 'Deploy status check unavailable due to mixed-content security policy. GraphQL endpoint must use HTTPS.',
+              deployId: deployId
+            };
+          }
+
+          if (error.code === 'ERR_NETWORK' || 
+              error.message.includes('CORS') || 
+              error.message.includes('ERR_FAILED')) {
             console.warn(`[GraphQL] CORS or network error for deploy ${deployId}. Returning pending status.`);
             return {
               status: 'pending',
