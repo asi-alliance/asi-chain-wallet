@@ -725,6 +725,11 @@ export const IDE: React.FC = () => {
                     if (result.cost) {
                         addConsoleMessage("info", `Gas Cost: ${result.cost}`);
                     }
+                } else if (result.status === "submitted") {
+                    addConsoleMessage(
+                        "info",
+                        `[INFO] ${result.message}`
+                    );
                 } else if (result.status === "errored") {
                     addConsoleMessage(
                         "error",
@@ -734,6 +739,11 @@ export const IDE: React.FC = () => {
                     addConsoleMessage(
                         "error",
                         `[ERROR] System error: ${result.error}`
+                    );
+                } else {
+                    addConsoleMessage(
+                        "info",
+                        result.message || "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
                     );
                 }
             } catch (resultError) {
@@ -835,6 +845,11 @@ export const IDE: React.FC = () => {
                     if (result.cost) {
                         addConsoleMessage("info", `Gas Cost: ${result.cost}`);
                     }
+                } else if (result.status === "submitted") {
+                    addConsoleMessage(
+                        "info",
+                        `[INFO] ${result.message}`
+                    );
                 } else if (result.status === "errored") {
                     addConsoleMessage(
                         "error",
@@ -844,6 +859,11 @@ export const IDE: React.FC = () => {
                     addConsoleMessage(
                         "error",
                         `[ERROR] System error: ${result.error}`
+                    );
+                } else {
+                    addConsoleMessage(
+                        "info",
+                        result.message || "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
                     );
                 }
             } catch (resultError) {

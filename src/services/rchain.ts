@@ -281,7 +281,25 @@ export class RChainService {
       console.log('Web deploy:', JSON.stringify(webDeploy, null, 2));
 
       // Send to RNode
-      const result = await this.rnodeHttp('deploy', webDeploy);
+      let result;
+      try {
+        result = await this.rnodeHttp('deploy', webDeploy);
+      } catch (error: any) {
+        console.error('Deploy failed to send:', error);
+        
+        // Check if it's a network/server error (deploy didn't reach server)
+        if (error.code === 'ERR_NETWORK' || 
+            error.code === 'ECONNREFUSED' || 
+            error.code === 'ETIMEDOUT' ||
+            error.code === 'ENOTFOUND' ||
+            error.message.includes('Network Error') ||
+            error.message.includes('timeout')) {
+          throw new Error(`Deploy failed: Server is unreachable. The deploy was NOT sent to the network. Please check your connection and try again.`);
+        }
+        
+        // For other errors, rethrow with original message
+        throw new Error(`Deploy failed: ${error.message}`);
+      }
 
       console.log('Deploy result:', result);
 
@@ -297,10 +315,18 @@ export class RChainService {
         return result;
       }
 
-      return result.signature || result.deployId || result;
+      const deployId = result.signature || result.deployId || result;
+      
+      // Validate that we got a valid deployId
+      if (!deployId || (typeof deployId === 'string' && deployId.trim().length === 0)) {
+        throw new Error('Deploy failed: Server did not return a valid deploy ID. The deploy may not have been sent.');
+      }
+      
+      return deployId;
     } catch (error: any) {
       console.error('Deploy failed:', error);
-      throw new Error(`Deploy failed: ${error.message}`);
+      // Re-throw the error (it's already formatted above)
+      throw error;
     }
   }
 
@@ -424,43 +450,34 @@ export class RChainService {
             }
           });
 
-          // Check for mixed-content or SSL/TLS errors
           if (error.message.includes('mixed-content') || 
               error.message.includes('blocked') ||
               error.message.includes('SSL') ||
               error.message.includes('TLS') ||
               error.message.includes('certificate') ||
               (error.code === 'ERR_NETWORK' && typeof window !== 'undefined' && window.location.protocol === 'https:' && graphqlEndpoint.startsWith('https://'))) {
-            console.warn(`[GraphQL] Mixed-content or HTTPS error detected.`);
-            console.warn(`[GraphQL] Page protocol: ${typeof window !== 'undefined' ? window.location.protocol : 'unknown'}`);
-            console.warn(`[GraphQL] GraphQL endpoint: ${graphqlEndpoint}`);
-            console.warn(`[GraphQL] Original endpoint: ${this.graphqlUrl}`);
-            
-            // If we tried HTTPS and it failed, the server might not support HTTPS
-            if (graphqlEndpoint.startsWith('https://') && this.graphqlUrl.startsWith('http://')) {
-              console.error(`[GraphQL] HTTPS conversion failed. Server at ${this.graphqlUrl} may not support HTTPS.`);
-              console.error(`[GraphQL] Solution: Configure HTTPS on GraphQL server or use a proxy.`);
-            }
-            
-            return {
-              status: 'pending',
-              message: 'Deploy status check unavailable due to mixed-content security policy. GraphQL endpoint must use HTTPS when page is on HTTPS.',
-              deployId: deployId
-            };
+            console.warn(`[GraphQL] Mixed-content or HTTPS error detected. Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
           }
 
           if (error.code === 'ERR_NETWORK' || 
-              error.message.includes('CORS') || 
-              error.message.includes('ERR_FAILED')) {
-            console.warn(`[GraphQL] CORS or network error for deploy ${deployId}. Returning pending status.`);
-            return {
-              status: 'pending',
-              message: 'Deploy status check unavailable due to CORS/network issues',
-              deployId: deployId
-            };
+              error.code === 'ECONNREFUSED' ||
+              error.code === 'ETIMEDOUT' ||
+              error.code === 'ENOTFOUND' ||
+              error.message.includes('ERR_FAILED') ||
+              error.message.includes('timeout') ||
+              error.message.includes('Network Error')) {
+            console.warn(`[GraphQL] Network error for deploy ${deployId} (server may be down). Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
           }
 
-          throw error;
+          if (error.message.includes('CORS')) {
+            console.warn(`[GraphQL] CORS error for deploy ${deployId}. Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
+          }
+
+          console.warn(`[GraphQL] Unexpected error for deploy ${deployId}. Trying fallback method.`);
+          return this.waitForDeployResultFallback(deployId);
         }
 
         console.log(`[GraphQL] Response:`, response.data);
@@ -522,7 +539,9 @@ export class RChainService {
     console.log(`[GraphQL] Using fallback method for deploy ${deployId}`);
     
     try {
-      const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
+      const blocksResult = await this.readOnlyClient.get('/api/blocks/10', {
+        timeout: 10000
+      });
 
       if (blocksResult.data && Array.isArray(blocksResult.data)) {
         for (const block of blocksResult.data) {
@@ -532,7 +551,7 @@ export class RChainService {
             );
 
             if (foundDeploy) {
-              console.log(`[GraphQL] Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
+              console.log(`[GraphQL] ✅ Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
               return {
                 status: 'completed',
                 message: 'Deploy successfully included in block',
@@ -545,15 +564,22 @@ export class RChainService {
           }
         }
       }
-    } catch (fallbackError) {
+      
+      console.log(`[GraphQL] Deploy ${deployId} not found in recent blocks. It may still be processing.`);
+      return {
+        status: 'pending',
+        message: 'Deploy submitted successfully. Status check unavailable, but deploy may still be processing.',
+        deployId: deployId
+      };
+    } catch (fallbackError: any) {
       console.error('[GraphQL] Fallback method also failed:', fallbackError);
+      
+      return {
+        status: 'submitted',
+        message: 'Deploy submitted successfully. Status check services are unavailable, but the deploy was sent to the network. Status will be checked automatically when services are available.',
+        deployId: deployId
+      };
     }
-    
-    return {
-      status: 'pending',
-      message: 'Deploy status check unavailable. The deploy may still be processing.',
-      deployId: deployId
-    };
   }
 
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {

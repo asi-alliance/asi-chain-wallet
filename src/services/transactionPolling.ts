@@ -55,39 +55,43 @@ class TransactionPollingService {
       return;
     }
 
-    try {
       try {
-        if (!selectedNetwork.graphqlUrl) {
-          return;
-        }
-        
-        const testQuery = {
-          query: `query { __typename }`,
-          variables: {}
-        };
-        
-        const axios = require('axios');
-        await axios.post(selectedNetwork.graphqlUrl, testQuery, {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 5000
-        });
-        
-        this.corsErrorCount = 0;
-      } catch (error: any) {
-        if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
-          this.corsErrorCount++;
-          console.warn(`[Transaction Polling] GraphQL API not accessible due to CORS/network issues. Error count: ${this.corsErrorCount}/${this.MAX_CORS_ERRORS}`);
-          
-          if (this.corsErrorCount >= this.MAX_CORS_ERRORS) {
-            console.warn('[Transaction Polling] Too many CORS errors. Temporarily disabling polling.');
-            this.stop();
+        let graphqlAvailable = false;
+        try {
+          if (!selectedNetwork.graphqlUrl) {
             return;
           }
-          return;
+          
+          const testQuery = {
+            query: `query { __typename }`,
+            variables: {}
+          };
+          
+          const axios = require('axios');
+          await axios.post(selectedNetwork.graphqlUrl, testQuery, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 5000
+          });
+          
+          graphqlAvailable = true;
+          this.corsErrorCount = 0;
+        } catch (error: any) {
+          if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
+            this.corsErrorCount++;
+            console.warn(`[Transaction Polling] GraphQL API not accessible due to CORS/network issues. Error count: ${this.corsErrorCount}/${this.MAX_CORS_ERRORS}`);
+            
+            if (this.corsErrorCount >= this.MAX_CORS_ERRORS) {
+              console.warn('[Transaction Polling] Too many CORS errors. Temporarily disabling polling.');
+              this.stop();
+              return;
+            }
+            return;
+          }
         }
-      }
-      
-      return;
+        
+        if (graphqlAvailable) {
+          await this.checkPendingDeploys(selectedNetwork);
+        }
 
 
     } catch (error) {
@@ -141,6 +145,89 @@ class TransactionPollingService {
   static forceCheck(): void {
     console.log('[Transaction Polling] Force checking pending transactions...');
     this.pollPendingTransactions();
+  }
+
+  private static async checkPendingDeploys(network: any): Promise<void> {
+    try {
+      const pendingTxsJson = localStorage.getItem('asi_wallet_pending_transactions');
+      if (!pendingTxsJson) {
+        return;
+      }
+
+      const pendingTxs = JSON.parse(pendingTxsJson);
+      if (!Array.isArray(pendingTxs) || pendingTxs.length === 0) {
+        return;
+      }
+
+      console.log(`[Transaction Polling] Checking ${pendingTxs.length} pending transactions...`);
+
+      const rchain = new RChainService(
+        network.url,
+        network.readOnlyUrl,
+        network.adminUrl,
+        network.shardId,
+        network.graphqlUrl
+      );
+
+      const updatedTxs: any[] = [];
+      let hasUpdates = false;
+      const MAX_PENDING_AGE_HOURS = 24;
+      const now = Date.now();
+
+      for (const tx of pendingTxs) {
+        if (!tx.deployId || tx.type !== 'deploy') {
+          updatedTxs.push(tx);
+          continue;
+        }
+
+        const txTimestamp = tx.timestamp ? new Date(tx.timestamp).getTime() : 0;
+        const ageHours = (now - txTimestamp) / (1000 * 60 * 60);
+        
+        if (ageHours > MAX_PENDING_AGE_HOURS) {
+          console.warn(`[Transaction Polling] ⚠️ Deploy ${tx.deployId} is ${ageHours.toFixed(1)} hours old. Likely never reached the server. Removing from pending.`);
+          hasUpdates = true;
+          continue;
+        }
+
+        try {
+          const result = await rchain.waitForDeployResult(tx.deployId, 1);
+          
+          if (result.status === 'completed') {
+            console.log(`[Transaction Polling] ✅ Deploy ${tx.deployId} completed!`);
+            hasUpdates = true;
+            continue;
+          } else if (result.status === 'errored') {
+            console.log(`[Transaction Polling] ❌ Deploy ${tx.deployId} errored: ${result.error}`);
+            hasUpdates = true;
+            continue;
+          } else {
+            updatedTxs.push(tx);
+          }
+        } catch (error: any) {
+          console.warn(`[Transaction Polling] Error checking deploy ${tx.deployId}:`, error.message);
+          updatedTxs.push(tx);
+        }
+      }
+
+      if (hasUpdates) {
+        localStorage.setItem('asi_wallet_pending_transactions', JSON.stringify(updatedTxs));
+        console.log(`[Transaction Polling] Updated pending transactions. Remaining: ${updatedTxs.length}`);
+        
+        if (updatedTxs.length < pendingTxs.length) {
+          const state = store.getState();
+          const { accounts } = state.wallet;
+          for (const account of accounts) {
+            try {
+              await store.dispatch(fetchBalance({ account, network }));
+            } catch (error) {
+              console.error(`[Transaction Polling] Error refreshing balance:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Transaction Polling] Error checking pending deploys:', error);
+    }
   }
 
   // Get polling status
