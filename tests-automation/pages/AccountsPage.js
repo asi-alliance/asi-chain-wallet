@@ -65,6 +65,10 @@ class AccountsPage extends BasePage {
         return $("//h2[contains(.,'Your Accounts (2)')]");
     }
 
+    get header(){
+        return $("//h2[contains(., 'Set Password for New Account')]")
+    }
+
     get currentBalance(){
         return $("#dashboard-current-balance");
     }
@@ -82,17 +86,25 @@ class AccountsPage extends BasePage {
     async createAccount(accountName, password) {
         await this.setValue(this.accountNameInput, accountName);
         await this.click(this.createAccountBtn);
+        await this.passwordInput.waitForExist({timeout: 2000});
         await this.setValue(this.passwordInput, password);
         await this.setValue(this.confirmPasswordInput, password);
+        await this.click(this.header);
+        await browser.scroll(0, 1000);
+        await browser.pause(500);
         await this.click(this.continueBtn);
+        await browser.pause(500);
         await this.click(this.showBtn);
+        await browser.pause(500);
         await this.click(this.copyPrivateKeyBtn);
         await this.click(this.savedPrivateKey);
+        await browser.scroll(0, -10000);
     }
 
     async createAccountWithCatchingPrivateKey(accountName, password) {
         await this.setValue(this.accountNameInput, accountName);
         await this.click(this.createAccountBtn);
+        await this.passwordInput.waitForExist({timeout: 20000});
         await this.setValue(this.passwordInput, password);
         await this.setValue(this.confirmPasswordInput, password);
         await this.click(this.continueBtn);
@@ -102,6 +114,7 @@ class AccountsPage extends BasePage {
         console.log('Private Key:', privateKey);
         await this.click(this.copyPrivateKeyBtn);
         await this.click(this.savedPrivateKey);
+        await browser.scroll(0, -10000);
     
         return privateKey;
     }
@@ -117,6 +130,7 @@ class AccountsPage extends BasePage {
         await this.confirmPasswordInput.click();
         await this.setValue(this.confirmPasswordInput, password);
         await this.click(this.continueBtn);
+        await browser.scroll(0, -10000);
     }
 
     async waitForBalanceUpdate(accountName, initialBalance, amount, timeout = 6000000) {

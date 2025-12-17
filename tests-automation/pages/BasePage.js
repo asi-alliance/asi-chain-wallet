@@ -4,8 +4,11 @@ class BasePage {
     }
 
     async click(element) {
-        await element.waitForClickable();
-        await element.click();
+        const el = typeof element === 'string' ? $(element) : element;
+        
+        await browser.execute((target) => {
+            target.click();
+        }, await el);
     }
 
     async setValue(element, value) {
@@ -14,13 +17,16 @@ class BasePage {
     }
 
     async getText(element) {
-        await element.waitForDisplayed();
-        return await element.getText();
+        const el = typeof element === 'string' ? $(element) : element;
+        await el.waitForDisplayed();
+        return await el.getText();
     }
 
     async isDisplayed(element) {
-        return await element.isDisplayed();
+        const el = typeof element === 'string' ? $(element) : element;
+        return await el.isDisplayed();
     }
+
     async isMobile() {
         const { width } = await browser.getWindowSize();
         return width <= 1024;

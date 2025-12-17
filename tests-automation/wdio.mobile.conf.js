@@ -9,16 +9,15 @@ exports.config = {
   path: '/wd/hub',
   protocol: 'https',
 
-  specs: ['./TestSuites/**/*.js'],
+  specs: ['./TestSuites/**/*.test.js'],
   exclude: [],
 
   maxInstances: 1,
 
   capabilities: [
-    // iPhone 12 Pro — iOS + Safari
     {
       browserName: 'Safari',
-      'LT:Options': {
+      'lt:options': {
         platformName: 'iOS',
         deviceName: 'iPhone 12 Pro',
         platformVersion: '16',
@@ -28,58 +27,78 @@ exports.config = {
         network: true,
         video: true,
         visual: true,
-        console: true
+        console: true,
+        project: 'Mobile smoke',
+        w3c: true
       }
     },
-  
-    // Samsung Galaxy S23 — Android + Chrome
     {
       browserName: 'Chrome',
-      'LT:Options': {
+      'lt:options': {
         platformName: 'Android',
-        deviceName: 'Samsung Galaxy S23',
-        platformVersion: '13',
+        deviceName: 'Galaxy S23',
+        platformVersion: '15',
         isRealMobile: true,
         build: 'ASI Wallet Tests - Mobile',
-        name: 'Chrome on Samsung Galaxy S23',
+        name: 'Chrome on Galaxy S23',
+        deviceOrientation: 'portrait',
         network: true,
         video: true,
         visual: true,
-        console: true
+        console: true,
+        project: 'Mobile smoke',
+        w3c: true
       }
     },
-  
-    // OnePlus 11 — Android + Chrome
     {
       browserName: 'Chrome',
-      'LT:Options': {
+      'lt:options': {
+        platformName: 'Android',
+        deviceName: 'Pixel 8 Pro',
+        platformVersion: '14',
+        isRealMobile: true,
+        build: 'ASI Wallet Tests - Mobile',
+        name: 'Chrome on Pixel 8 Pro',
+        network: true,
+        video: true,
+        visual: true,
+        console: true,
+        project: 'Mobile smoke',
+        w3c: true
+      }
+    },
+    {
+      browserName: 'Chrome',
+      'lt:options': {
         platformName: 'Android',
         deviceName: 'OnePlus 11',
-        platformVersion: '13',
+        platformVersion: '14',
         isRealMobile: true,
         build: 'ASI Wallet Tests - Mobile',
         name: 'Chrome on OnePlus 11',
         network: true,
         video: true,
         visual: true,
-        console: true
+        console: true,
+        project: 'Mobile smoke',
+        w3c: true
       }
     },
-  
-    // Xiaomi 13 — Android + Chrome
     {
       browserName: 'Chrome',
-      'LT:Options': {
+      'lt:options': {
         platformName: 'Android',
-        deviceName: 'Xiaomi 13',
-        platformVersion: '13',
+        deviceName: 'Redmi 9',
+        platformVersion: '10',
         isRealMobile: true,
         build: 'ASI Wallet Tests - Mobile',
-        name: 'Chrome on Xiaomi 13',
+        name: 'Chrome on Redmi 9',
         network: true,
         video: true,
         visual: true,
-        console: true
+        console: true,
+        project: 'Mobile smoke',
+        w3c: true
       }
     }
   ],
@@ -89,7 +108,6 @@ exports.config = {
   logLevel: 'info',
   bail: 0,
 
-  baseUrl: 'http://184.73.0.34:3000',
   waitforTimeout: 10000,
   connectionRetryTimeout: 60000,
   connectionRetryCount: 3,
@@ -100,7 +118,7 @@ exports.config = {
 
   mochaOpts: {
     ui: 'bdd',
-    timeout: 120000
+    timeout: 1200000
   },
 
   afterTest: async function (test, context, { error }) {

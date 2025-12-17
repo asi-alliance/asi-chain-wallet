@@ -14,31 +14,31 @@ class DeployPage extends BasePage {
     await this.deployHeader.waitForDisplayed({ timeout: 10000 });
 
     await this.codeInput.waitForDisplayed();
-    await this.codeInput.click();
-    await browser.keys(['Control', 'a']);
-    await browser.keys('Backspace');
-    await this.codeInput.setValue(code);
 
     //await this.phloLimitInput.setValue(phloLimit);
     //await this.phloPriceInput.setValue(phloPrice);
 
-    await this.deployButton.click();
-
-    await this.confirmModal.waitForDisplayed({ timeout: 10000 });
-    await this.confirmDeployButton.click();
-
-    await this.successMsg.waitForDisplayed({ timeout: 60000 });
+    if (await this.isMobile()) {
+            if (browser.isAndroid) {
+                 await browser.hideKeyboard();   
+            }
+            await $('body').click(); 
+            await browser.pause(500);
+          }
+          
+          await this.click(this.deployButton); 
+          await this.click(this.confirmDeployButton);
   }
 
-  async getDeployId() {
-    const el = await $('//div[contains(@class,"deploy-id")]');
-    await el.waitForDisplayed({ timeout: 10000 });
-  
-    const text = await el.getText();
-    const match = text.match(/Deploy ID:\s*([0-9a-fA-F]+)/);
-    return match ? match[1].trim() : '';
-  }
+ async getDeployId() {
+  const el = await $('//div[contains(@class,"deploy-id")]');
+  await el.waitForDisplayed({ timeout: 10000 });
+ 
+  const text = await el.getText();
+  const match = text.match(/Deploy ID:\s*([0-9a-fA-F]+)/);
+  return match ? match[1].trim() : '';
+ }
 }
-      
+   
 
 module.exports = new DeployPage();

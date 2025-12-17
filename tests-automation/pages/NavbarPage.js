@@ -5,8 +5,8 @@ class NavbarPage extends BasePage {
         return $("#sidebar-menu-button");
     }
 
-    get dashboardBtn() {
-        return $("//button[contains(., 'Dashboard')]");
+    get networkSelector(){
+        return $("#mobile-header-network-selector");
     }
 
     get sendBtn() {

@@ -68,82 +68,338 @@ npm install --legacy-peer-deps
 
 # Start development server
 npm start
-
-# Open http://localhost:3000
 ```
 
-## Project Structure
+> **Important**: Use `npm install --legacy-peer-deps` to handle peer dependency conflicts
 
-```
-asi-chain-wallet/
-├── src/
-│   ├── components/          # React components
-│   │   ├── AccountSwitcher/ # Account management
-│   │   ├── PasswordModal/   # Password authentication
-│   │   ├── QRScanner/       # QR code scanner
-│   │   ├── Layout/          # App layout
-│   │   └── ...
-│   ├── pages/               # Main application pages
-│   │   ├── Dashboard/       # Wallet overview
-│   │   ├── Send/            # Send transactions
-│   │   ├── Receive/         # Receive & QR codes
-│   │   ├── History/         # Transaction history
-│   │   ├── Deploy/          # Contract deployment
-│   │   ├── IDE/             # Rholang IDE
-│   │   ├── Accounts/        # Account management
-│   │   ├── Settings/        # Wallet settings
-│   │   └── KeyGenerator/    # Key generation
-│   ├── services/            # Core services
-│   │   ├── rchain.ts            # RChain API client
-│   │   ├── transactionPolling.ts # Transaction status polling
-│   │   ├── secureStorage.ts     # Encrypted storage
-│   │   ├── transactionHistory.ts # Transaction tracking
-│   │   ├── balancePolling.ts    # Balance updates
-│   │   └── ...
-│   ├── store/               # Redux store
-│   │   ├── walletSlice.ts
-│   │   ├── authSlice.ts
-│   │   └── themeSlice.ts
-│   ├── hooks/               # Custom React hooks
-│   │   ├── useIdleTimer.ts      # Auto-lock timer
-│   │   └── useDeepLink.ts       # Deep link handler
-│   └── utils/               # Utility functions
-├── public/
-│   ├── service-worker.js    # PWA service worker
-│   └── manifest.json        # PWA manifest
-├── tests-automation/        # WebdriverIO tests
-│   ├── pages/               # Page objects
-│   └── wdio.*.conf.js       # Test configurations
-├── .github/workflows/       # CI/CD pipelines
-├── docker-compose.yml       # Docker composition
-├── Dockerfile               # Multi-stage build
-└── package.json             # Project dependencies
+The wallet will be available at [http://localhost:3000](http://localhost:3000).
+
+> **Note**: You may see ESLint warnings about unused variables and React Hook dependencies during startup. These are code quality warnings and don't affect the wallet's functionality.
+
+> **Note**: To test WalletConnect features, see the [Testing WalletConnect Integration](#-testing-walletconnect-integration) section below.
+
+### Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Test production build locally
+npm run serve
+
+# Deploy to GitHub Pages
+npm run deploy:gh
+
+# Deploy to IPFS (requires IPFS node)
+npm run deploy:ipfs
 ```
 
-## Documentation
+The production build will be in the `build/` directory, ready for deployment to any static hosting service.
 
-For detailed information, see:
-- [Configuration Guide](CONFIGURATION.md) - Environment variables and network settings
-- [Development Guide](DEVELOPMENT.md) - Setup, testing, deployment, and CI/CD
+## 🚨 Known Issues & Notes
+
+### Development Environment
+1. **npm vulnerabilities**: You may see security warnings during `npm install`. These are common in JavaScript projects and generally safe for development. Run `npm audit` for details.
+2. **ESLint warnings**: The development server shows warnings about React Hooks and unused variables. These don't prevent the wallet from functioning.
+3. **Deprecation warnings**: Some packages show deprecation notices. This is normal in the JavaScript ecosystem.
+
+### Production Considerations
+- Address critical security vulnerabilities before deploying to production
+- Test thoroughly with your specific RChain network configuration
+- Generate your own WalletConnect Project ID for production use
+
+### Recent Updates (September 2025)
+- **Deployed**: Production wallet on AWS Lightsail Singapore (http://13.251.66.61:3000)
+- **Fixed**: Balance caching performance issue - eliminated excessive API calls
+- **Added**: Global balance caching system with 15-second TTL
+- **Improved**: RChain service efficiency with cross-instance caching
+- **Enhanced**: Console logging for cache hit/miss monitoring
+- **Updated**: Network configuration to use Singapore server endpoints (13.251.66.61)
+- **Created**: Comprehensive AWS Lightsail deployment documentation
+- **Improved**: Start script with health checking and current network info
+- **Cleaned**: Workspace organization - moved non-essential files to archive
+
+### Previous Updates (August 2025)
+- **Fixed**: Webpack module resolution for `process/browser` polyfill
+- **Fixed**: TypeScript theme typing with styled-components
+- **Fixed**: QRCode import to use named export from react-qr-code
+- **Added**: Missing SecureStorage static methods for storage operations
+- **Added**: Type declarations for speakeasy and validator modules
+- **Removed**: Unused backend code (rateLimiter.ts) from frontend
+- **Updated**: Installation instructions to use `--legacy-peer-deps`
+
+### Previous Updates (July 2025)
+- **Fixed**: Network settings persistence issue (#12) - Custom networks now save correctly
+- **Added**: Comprehensive test suite with 62.88% store coverage
+- **Improved**: Build configuration to exclude test files from production
+- **Documentation**: Added DEVELOPMENT_WORK_REPORT.md and FINAL_TEST_REPORT.md
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Browser                               │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │   React UI      │  │ Redux Store  │  │ Local Storage │  │
+│  │  Components     │  │    State     │  │  (Encrypted)  │  │
+│  └────────┬────────┘  └──────┬───────┘  └───────┬───────┘  │
+│           │                   │                   │          │
+│  ┌────────▼───────────────────▼──────────────────▼───────┐  │
+│  │              Service Layer (TypeScript)                │  │
+│  ├────────────────────────────────────────────────────────┤  │
+│  │ • RChain Service  • Crypto Service  • Storage Service │  │
+│  │ • WalletConnect   • IDE Service     • Key Management  │  │
+│  └────────────────────────┬──────────────────────────────┘  │
+│                           │                                  │
+└───────────────────────────┼──────────────────────────────────┘
+                            │
+                   Network Layer (HTTPS)
+                            │
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+   ┌────▼─────┐      ┌─────▼──────┐     ┌─────▼──────┐
+   │ Validator│      │ Read-Only  │     │   Admin    │
+   │   Node   │      │    Node    │     │   Node     │
+   └──────────┘      └────────────┘     └────────────┘
+                        RChain Network
+```
+
+## 🔐 Security Features
+
+### Encryption
+- **AES-256-GCM**: Military-grade encryption for private keys
+- **PBKDF2**: Key derivation with 100,000 iterations
+- **Random Salt/IV**: Unique per encryption operation
+- **Memory Cleanup**: Keys cleared after use
+
+### Access Control
+- **Password Protection**: Required for all sensitive operations
+- **Session Timeout**: Automatic lock after 15 minutes
+- **No Recovery**: Lost passwords cannot be recovered
+- **Local Only**: No cloud backup or recovery
+
+### Network Security
+- **HTTPS Only**: All connections encrypted
+- **Direct Connection**: No proxy servers
+- **Certificate Validation**: Verify node authenticity
+- **CORS Protection**: Prevent cross-origin attacks
+
+## 🛠️ Development
+
+### Development Prerequisites
+- Node.js 14+ (recommended: 18+)
+- npm 6+ or yarn
+- Git for version control
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+
+### Tech Stack
+- **React 18**: UI framework
+- **TypeScript**: Type safety
+- **Redux Toolkit**: State management
+- **Styled Components**: Styling
+- **Monaco Editor**: Code editing
+- **Web3 Libraries**: Blockchain interaction
+- **WalletConnect v2**: dApp connectivity protocol
+
+### Project Structure
+```
+asi_wallet_v2/
+├── src/              # Main wallet source code
+│   ├── components/   # React components
+│   ├── pages/        # Page components
+│   ├── services/     # Business logic services
+│   ├── store/        # Redux store and slices
+│   ├── utils/        # Utility functions
+│   └── __tests__/    # Test files
+├── public/           # Static assets
+├── scripts/          # Build and deployment scripts
+├── test-dapp-rchain/ # WalletConnect testing dApp
+├── coverage/         # Test coverage reports
+└── docs/             # Documentation (see ../docs/WALLET.md)
+```
+
+### Commands
+
+```bash
+# Development
+npm start              # Start dev server (default port 3000)
+PORT=3001 npm start   # Start on custom port
+npm test              # Run tests in watch mode
+npm test -- --coverage # Run tests with coverage report
+npm run lint          # Lint code
+npm run type-check    # TypeScript checking
+
+# Building
+npm run build         # Production build
+npm run analyze       # Bundle analysis
+
+# Docker Operations
+./start-wallet.sh     # Start wallet with Docker (recommended)
+docker-compose up -d  # Start Docker container manually
+docker-compose down   # Stop Docker container
+docker-compose build --no-cache  # Rebuild Docker image
+
+# Testing
+npm test -- --watchAll=false         # Run all tests once
+npm test -- --coverage --watchAll=false  # Generate coverage report
+npm test Dashboard    # Run specific test file
+
+# Deployment
+npm run deploy:gh     # Deploy to GitHub Pages
+npm run deploy:ipfs   # Deploy to IPFS
+```
+
+## 📈 Recent Improvements
+
+### Testing Framework (July 2025)
+- ✅ **Comprehensive Test Suite**: Added Jest and React Testing Library
+- ✅ **62.88% Store Coverage**: Exceeded 50% target for Redux store modules
+- ✅ **Component Testing**: Full test coverage for Dashboard, Send, and Settings
+- ✅ **Mock Infrastructure**: Created reusable mock modules for complex services
+
+### Network Persistence Fix (Issue #12)
+- ✅ **Persistent Settings**: Network configurations now survive page reloads
+- ✅ **LocalStorage Integration**: Automatic synchronization with Redux store
+- ✅ **Custom Networks**: Fixed "Add Custom Network" functionality
+- ✅ **Seamless Experience**: Network changes are instantly saved
+
+### Security & User Experience Enhancements
+- ✅ **Authentication Security**: Fixed authentication bypass vulnerability
+- ✅ **Transaction Confirmations**: Added confirmation dialogs for all operations
+- ✅ **Account Switching**: Quick account switcher with dynamic balance updates
+- ✅ **Seamless Deployment**: Removed redundant password prompts for authenticated users
+
+### Enhanced Deployment Tracking
+- ✅ Real-time block inclusion verification
+- ✅ Accurate gas cost reporting
+- ✅ Detailed deployment status messages
+- ✅ Graceful error handling
+
+### IDE Improvements
+- ✅ Consistent example contracts
+- ✅ Better error messages
+- ✅ Deployment confirmation modals
+- ✅ Enhanced console output
+
+### Network Optimization
+- ✅ Intelligent request routing
+- ✅ Separate read/write operations
+- ✅ Network-specific configurations
+- ✅ Connection retry logic
+- ✅ Global balance caching (15s TTL)
+- ✅ Reduced API call frequency
+
+## E2E Testing Guide
+
+### Overview
+
+E2E tests use **WebdriverIO (WDIO)** with **LambdaTest** cloud execution.
+
+### Environment Setup
+
+Create `.env` in `tests-automation/`:
+
+```ini
+URL_TO_TEST=http://localhost:3000
+PROJECT_NAME=ASI Wallet Tests
+LT_USER_NAME=your_username
+LT_ACCESS_KEY=your_access_key
+LT_API_URL=https://api.lambdatest.com/automation/api/v1
+PRIVATE_KEY=your_test_private_key_here
+```
+
+### Running Tests
+
+```bash
+# Web/Desktop tests
+npx wdio run wdio.web.conf.js
+
+# Mobile tests
+npx wdio run wdio.mobile.conf.js
+```
+
+### Test Structure
+
+```
+tests-automation/
+├── TestSuites/
+│   ├── accounts/
+│   │   ├── deployContract.e2e.test.js
+│   │   └── mainIntegtation.e2e.test.js
+│   ├── connection.test.js
+│   ├── navbar.test.js
+│   ├── network.test.js
+│   └── privateKey.test.js
+├── pages/
+│   ├── AccountsPage.js
+│   ├── BasePage.js
+│   ├── DashboardPage.js
+│   ├── DeployPage.js
+│   ├── HistoryPage.js
+│   ├── NavbarPage.js
+│   ├── NetworkPage.js
+│   ├── ReceivePage.js
+│   └── TransactionsPage.js
+├── wdio.web.conf.js
+├── wdio.mobile.conf.js
+└── .env
+```
+
+### LambdaTest Dashboard
+
+View test results: [https://automation.lambdatest.com](https://automation.lambdatest.com)
+
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](../docs/wallet/contributing.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🔧 Quick Troubleshooting
+
+### Installation Issues
+- **Memory error during build**: `export NODE_OPTIONS=--max_old_space_size=4096`
+- **Port already in use**: Kill the process using port 3000 or use `PORT=3001 npm start`
+- **Dependencies won't install**: Delete `node_modules` and `package-lock.json`, then retry with `npm install --legacy-peer-deps`
+- **Module resolution errors**: Ensure `config-overrides.js` has proper webpack polyfills
+- **TypeScript errors**: Check `src/types/modules.d.ts` for missing type declarations
+
+### Docker Issues  
+- **Docker not running**: Ensure Docker Desktop is started before running `./start-wallet.sh`
+- **Container won't start**: Try `docker-compose down` then `./start-wallet.sh` for a clean restart
+- **Build fails**: Use `docker-compose build --no-cache` to force rebuild
+- **Health check failing**: Wait 30-60 seconds after container start for full initialization
+
+### Runtime Issues
+- **Blank screen**: Check browser console for errors, ensure JavaScript is enabled
+- **Network errors**: Verify RChain node is running and CORS is configured
+- **WalletConnect not working**: Ensure `.env` has valid Project ID
+
+For detailed troubleshooting, see [docs/wallet/troubleshooting.md](../docs/wallet/troubleshooting.md)
+
+## 🙏 Acknowledgments
+
+- **RChain Community**: For the blockchain infrastructure
+- **F1R3FLY Wallet**: For inspiration and reference implementation
+- **WalletConnect**: For the excellent dApp connectivity protocol
+- **Open Source Community**: All the libraries and tools that make this possible
+
+## 📞 Support
+
+- **Documentation**: Check our comprehensive [docs](../docs/wallet/)
+- **Issues**: Report bugs on GitHub Issues
+- **Community**: Join the RChain/ASI community channels
 
 ---
 
-## License
-
-Copyright 2025 Artificial Superintelligence Alliance
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at:
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
----
-
-ASI Alliance founding members: Fetch.ai, SingularityNET, and CUDOS
+**Remember**: This is a decentralized wallet with no backend. You control your keys and data. With great power comes great responsibility! 🔐

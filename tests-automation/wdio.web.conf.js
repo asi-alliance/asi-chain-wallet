@@ -23,6 +23,7 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Chrome on Windows 11',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
@@ -33,6 +34,7 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Firefox on Windows 11',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
@@ -43,16 +45,18 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Edge on Windows 11',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
-      browserName: 'Brave',
+      browserName: 'Chrome',
       browserVersion: 'latest',
       'LT:Options': {
         platformName: 'Windows 11',
         build: 'ASI Wallet Full Browser Suite',
         name: 'Brave on Windows 11',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
@@ -63,6 +67,7 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Safari on macOS',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
@@ -73,6 +78,7 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Chrome on macOS',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
@@ -83,16 +89,18 @@ exports.config = {
         build: 'ASI Wallet Full Browser Suite',
         name: 'Firefox on macOS',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
     {
-      browserName: 'Brave',
+      browserName: 'Chrome',
       browserVersion: 'latest',
       'LT:Options': {
         platformName: 'macOS Sonoma',
         build: 'ASI Wallet Full Browser Suite',
         name: 'Brave on macOS',
         selenium_version: '4.21.0',
+        network: true,
       },
     },
   ],
@@ -100,7 +108,6 @@ exports.config = {
   logLevel: 'info',
   bail: 0,
 
-  baseUrl: 'https://wallet.asi-chain.singularitynet.dev/',
   waitforTimeout: 10000,
   connectionRetryTimeout: 60000,
   connectionRetryCount: 3,

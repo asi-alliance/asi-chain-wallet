@@ -5,8 +5,8 @@ class NetworkPage extends BasePage {
         return $("//button[contains(., 'Edit Configuration')]");
     }
 
-    get addCustomNetworkBtn() {
-        return $("//button[contains(., 'Add Custom Network')]");
+    get saveCustomNetworkBtn() {
+        return $("//button[contains(., 'Save Custom Network')]");
     }
 
     get customNetworkNameInput() {
@@ -42,7 +42,7 @@ class NetworkPage extends BasePage {
     }
 
     get passwordInput() {
-        return $("//input[contains(@placeholder, 'Enter password')]");
+        return $("/html/body/div/div[1]/main/div/div[3]/div/div[1]/input");
     }
 
     get showBtn() {
@@ -55,8 +55,14 @@ class NetworkPage extends BasePage {
 
     async viewPrivateKey(password) {
         await this.click(this.viewPrivateKeyBtn);
+        await browser.pause(1500);
+        await this.passwordInput.waitForDisplayed({ timeout: 15000 });
+        await browser.pause(1500);
+        await this.passwordInput.click();
         await this.setValue(this.passwordInput, password);
+        await browser.pause(500);
         await this.click(this.confirmBtn);
+        await browser.pause(500);
         await this.click(this.showBtn);
     }
 
@@ -67,12 +73,8 @@ class NetworkPage extends BasePage {
         await this.click(this.saveConfigBtn);
     }
 
-    async configureCustomNetwork({ networkName, networkUrl, readonlyIP}) {
-        await this.click(this.addCustomNetworkBtn);
-        await this.setValue(this.customNetworkNameInput, networkName);
-        await this.setValue(this.customNetworkUrlInput, networkUrl);
-        await this.setValue(this.customNetworkReadOnlyUrlInput, readonlyIP);
-        await this.click(this.addNetworkBtn);
+    async configureCustomNetwork() {
+        await this.click(this.saveCustomNetworkBtn);
     }
 
     async isNetworkAdded(networkName) {

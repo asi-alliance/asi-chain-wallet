@@ -29,12 +29,10 @@ class TransactionsPage extends BasePage {
         return $('//*[contains(text(),"Transaction sent!")]');
     }
 
-    async sendTransaction(address, amount, password) {
+    async sendTransaction(address, amount) {
         await this.setValue(this.recipientAddressInput, address);
         await this.setValue(this.amountInput, amount);
-        await this.setValue(this.sendPasswordInput, password);
         await this.click(this.sendBtn);
-        await this.setValue(this.sendPasswordInput2, password);
         await this.click(this.confirmSendBtn);
     }
 
