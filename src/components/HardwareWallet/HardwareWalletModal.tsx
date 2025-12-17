@@ -138,7 +138,6 @@ const AccountItem = styled.div<{ isSelected?: boolean }>`
 `;
 
 const AccountAddress = styled.div`
-  font-family: monospace;
   font-size: 0.9rem;
   color: ${props => props.theme.colors.text.primary};
   margin-bottom: 0.25rem;

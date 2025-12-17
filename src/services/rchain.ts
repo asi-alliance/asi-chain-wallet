@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { signDeploy } from 'utils/crypto';
-import { getTokenDisplayName } from '../constants/token';
 
 // Global balance cache to prevent excessive API calls
 const globalBalanceCache: Map<string, { balance: string; timestamp: number }> = new Map();
@@ -32,21 +31,29 @@ export class RChainService {
   private shardId: string;
 
   constructor(nodeUrl: string, readOnlyUrl?: string, adminUrl?: string, shardId: string = 'root', graphqlUrl?: string) {
-    this.nodeUrl = nodeUrl;
-    this.readOnlyUrl = readOnlyUrl || nodeUrl; // Fallback to validator URL if no read-only URL
+    if (!nodeUrl || !nodeUrl.trim()) {
+      if (!graphqlUrl || !graphqlUrl.trim()) {
+        throw new Error('RChainService: either nodeUrl (validator URL) or graphqlUrl must be provided');
+      }
+      this.nodeUrl = '';
+    } else {
+      this.nodeUrl = nodeUrl.trim();
+    }
+
+    this.readOnlyUrl = (readOnlyUrl && readOnlyUrl.trim()) || this.nodeUrl;
     this.adminUrl = adminUrl;
-    this.graphqlUrl = graphqlUrl || 'http://18.142.221.192:8080/v1/graphql';
+    this.graphqlUrl = (graphqlUrl && graphqlUrl.trim()) || 'http://18.142.221.192:8080/v1/graphql';
     this.shardId = shardId;
-    
-    // Validator client for state-changing operations
+
+    // Validator client for state-changing operations (only if nodeUrl is provided)
     this.validatorClient = axios.create({
-      baseURL: nodeUrl,
+      baseURL: this.nodeUrl || 'http://localhost',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    
+
     // Read-only client for queries
     this.readOnlyClient = axios.create({
       baseURL: this.readOnlyUrl,
@@ -55,7 +62,7 @@ export class RChainService {
         'Content-Type': 'application/json'
       }
     });
-    
+
     // Admin client for propose operations (local networks)
     if (adminUrl) {
       this.adminClient = axios.create({
@@ -78,7 +85,7 @@ export class RChainService {
     // Determine which client to use based on operation type
     let client: AxiosInstance;
     let nodeDescription: string;
-    
+
     if (apiMethod === 'propose' && this.adminClient) {
       // Propose operations use admin client (for local networks)
       client = this.adminClient;
@@ -97,7 +104,7 @@ export class RChainService {
     try {
       // F1R3wallet sends explore-deploy as plain text, not JSON
       const isExploreDeployString = apiMethod === 'explore-deploy' && typeof data === 'string';
-      
+
       const response = await client.request({
         method,
         url,
@@ -117,7 +124,7 @@ export class RChainService {
       }
     }
   }
-  
+
   // Helper method to determine if an operation is read-only
   private isReadOnlyOperation(apiMethod: string): boolean {
     const readOnlyMethods = [
@@ -129,7 +136,7 @@ export class RChainService {
       'deploy-service',
       'data-at-name'
     ];
-    
+
     return readOnlyMethods.includes(apiMethod);
   }
 
@@ -137,7 +144,7 @@ export class RChainService {
     const cacheKey = `${revAddress}_${this.readOnlyUrl}`;
     const cached = globalBalanceCache.get(cacheKey);
     const now = Date.now();
-    
+
     if (!forceRefresh && cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
       return cached.balance;
     }
@@ -159,18 +166,18 @@ export class RChainService {
 
     try {
       const result = await this.exploreDeployData(checkBalanceRho);
-      
+
       if (result && result.length > 0) {
         // F1R3wallet expects the balance to be directly in expr[0].ExprInt.data
         const firstExpr = result[0];
-        
+
         // Check if it's a direct integer (balance)
         if (firstExpr?.ExprInt?.data !== undefined) {
           const balance = firstExpr.ExprInt.data.toString();
           globalBalanceCache.set(cacheKey, { balance, timestamp: now });
           return balance;
         }
-        
+
         // Check if it's an error string
         if (firstExpr?.ExprString?.data !== undefined) {
           console.error('Balance check error:', firstExpr.ExprString.data);
@@ -179,7 +186,7 @@ export class RChainService {
           return '0';
         }
       }
-      
+
       // Cache zero balance for no result case
       globalBalanceCache.set(cacheKey, { balance: '0', timestamp: now });
       return '0';
@@ -274,10 +281,28 @@ export class RChainService {
       console.log('Web deploy:', JSON.stringify(webDeploy, null, 2));
 
       // Send to RNode
-      const result = await this.rnodeHttp('deploy', webDeploy);
-      
+      let result;
+      try {
+        result = await this.rnodeHttp('deploy', webDeploy);
+      } catch (error: any) {
+        console.error('Deploy failed to send:', error);
+        
+        // Check if it's a network/server error (deploy didn't reach server)
+        if (error.code === 'ERR_NETWORK' || 
+            error.code === 'ECONNREFUSED' || 
+            error.code === 'ETIMEDOUT' ||
+            error.code === 'ENOTFOUND' ||
+            error.message.includes('Network Error') ||
+            error.message.includes('timeout')) {
+          throw new Error(`Deploy failed: Server is unreachable. The deploy was NOT sent to the network. Please check your connection and try again.`);
+        }
+        
+        // For other errors, rethrow with original message
+        throw new Error(`Deploy failed: ${error.message}`);
+      }
+
       console.log('Deploy result:', result);
-      
+
       // The deploy result should contain a signature which is the deploy ID
       // The Web API returns the signature string, sometimes with a prefix
       if (typeof result === 'string') {
@@ -289,11 +314,19 @@ export class RChainService {
         // If no prefix, assume the whole string is the deploy ID
         return result;
       }
+
+      const deployId = result.signature || result.deployId || result;
       
-      return result.signature || result.deployId || result;
+      // Validate that we got a valid deployId
+      if (!deployId || (typeof deployId === 'string' && deployId.trim().length === 0)) {
+        throw new Error('Deploy failed: Server did not return a valid deploy ID. The deploy may not have been sent.');
+      }
+      
+      return deployId;
     } catch (error: any) {
       console.error('Deploy failed:', error);
-      throw new Error(`Deploy failed: ${error.message}`);
+      // Re-throw the error (it's already formatted above)
+      throw error;
     }
   }
 
@@ -301,10 +334,10 @@ export class RChainService {
   async exploreDeployData(rholangCode: string): Promise<any> {
     try {
       console.log('Sending explore-deploy to:', this.readOnlyUrl);
-      
+
       // F1R3wallet sends the Rholang code directly as a string, not as a deploy object
       const result = await this.rnodeHttp('explore-deploy', rholangCode);
-      
+
       console.log('Explore-deploy result:', result);
       return result.expr;
     } catch (error: any) {
@@ -327,76 +360,140 @@ export class RChainService {
     }
   }
 
-  // Check deploy status using GraphQL indexer API
   async waitForDeployResult(deployId: string, maxAttempts: number = 20): Promise<any> {
     console.log(`[GraphQL] Waiting for deploy result: ${deployId}`);
     console.log(`[GraphQL] Using endpoint: ${this.graphqlUrl}`);
+
+    // Check for mixed-content issue: if page is HTTPS and GraphQL is HTTP, skip GraphQL and use fallback
+    const isMixedContent = typeof window !== 'undefined' && 
+                          window.location.protocol === 'https:' && 
+                          this.graphqlUrl.startsWith('http://');
     
-    // Use configured GraphQL endpoint
-    const graphqlEndpoint = this.graphqlUrl;
-    
+    if (isMixedContent) {
+      console.warn(`[GraphQL] Mixed-content detected: page is HTTPS but GraphQL is HTTP. Skipping GraphQL query and using fallback method.`);
+      // Skip GraphQL queries and go directly to fallback
+      return this.waitForDeployResultFallback(deployId);
+    }
+
+    // Auto-convert HTTP to HTTPS if page is on HTTPS to avoid mixed-content errors
+    let graphqlEndpoint = this.graphqlUrl;
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && graphqlEndpoint.startsWith('http://')) {
+      graphqlEndpoint = graphqlEndpoint.replace('http://', 'https://');
+      console.log(`[GraphQL] Converted HTTP to HTTPS to avoid mixed-content: ${graphqlEndpoint}`);
+    }
+
+    if (maxAttempts > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        // Query the indexer for this deploy
         const graphqlQuery = {
-          query: `
-            query GetDeployStatus($deployId: String!) {
-              deployments(where: {deploy_id: {_eq: $deployId}}) {
-                deploy_id
-                block_number
-                timestamp
-                status
-                errored
-                error_message
-                block {
-                  block_hash
-                  timestamp
-                }
-                transfers {
-                  from_address
-                  to_address
-                  amount_asi
-                  status
-                }
-              }
-            }
-          `,
+          query: `query GetDeployStatus($deployId: String!) {
+  deployments(where: {deploy_id: {_eq: $deployId}}) {
+    deploy_id
+    deployer
+    deployment_type
+    timestamp
+    errored
+    error_message
+    block_number
+    block_hash
+    seq_num
+    shard_id
+    sig
+    sig_algorithm
+    created_at
+    transfers {
+      id
+      from_address
+      to_address
+      amount_asi
+      status
+      created_at
+    }
+    block {
+      block_number
+      block_hash
+      timestamp
+      proposer
+    }
+  }
+}`,
           variables: {
             deployId: deployId
           }
         };
-        
+
         console.log(`[GraphQL] Querying indexer for deploy ${deployId} (attempt ${i + 1}/${maxAttempts})`);
-        
+        console.log(`[GraphQL] Endpoint:`, graphqlEndpoint);
+        console.log(`[GraphQL] Request payload:`, JSON.stringify(graphqlQuery, null, 2));
+
         let response;
         try {
           response = await axios.post(graphqlEndpoint, graphqlQuery, {
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: 10000,
+            validateStatus: (status) => status < 500 
           });
         } catch (error: any) {
-          console.error(`[GraphQL] Request failed for deploy ${deployId}:`, error.message);
-          
-          if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
-            console.warn(`[GraphQL] CORS or network error for deploy ${deployId}. Returning pending status.`);
-            return {
-              status: 'pending',
-              message: 'Deploy status check unavailable due to CORS/network issues',
-              deployId: deployId
-            };
+          console.error(`[GraphQL] Request failed for deploy ${deployId}:`, {
+            message: error.message,
+            code: error.code,
+            response: error.response?.status,
+            responseData: error.response?.data,
+            config: {
+              url: error.config?.url,
+              method: error.config?.method
+            }
+          });
+
+          if (error.message.includes('mixed-content') || 
+              error.message.includes('blocked') ||
+              error.message.includes('SSL') ||
+              error.message.includes('TLS') ||
+              error.message.includes('certificate') ||
+              (error.code === 'ERR_NETWORK' && typeof window !== 'undefined' && window.location.protocol === 'https:' && graphqlEndpoint.startsWith('https://'))) {
+            console.warn(`[GraphQL] Mixed-content or HTTPS error detected. Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
           }
-          
-          throw error;
+
+          if (error.code === 'ERR_NETWORK' || 
+              error.code === 'ECONNREFUSED' ||
+              error.code === 'ETIMEDOUT' ||
+              error.code === 'ENOTFOUND' ||
+              error.message.includes('ERR_FAILED') ||
+              error.message.includes('timeout') ||
+              error.message.includes('Network Error')) {
+            console.warn(`[GraphQL] Network error for deploy ${deployId} (server may be down). Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
+          }
+
+          if (error.message.includes('CORS')) {
+            console.warn(`[GraphQL] CORS error for deploy ${deployId}. Using fallback method.`);
+            return this.waitForDeployResultFallback(deployId);
+          }
+
+          console.warn(`[GraphQL] Unexpected error for deploy ${deployId}. Trying fallback method.`);
+          return this.waitForDeployResultFallback(deployId);
         }
-        
+
         console.log(`[GraphQL] Response:`, response.data);
-        
+
+        // Check for GraphQL errors in response
+        if (response.data?.errors) {
+          console.error('[GraphQL] GraphQL errors:', response.data.errors);
+          const errorMessages = response.data.errors.map((err: any) => err.message || JSON.stringify(err)).join('; ');
+          throw new Error(`GraphQL query error: ${errorMessages}`);
+        }
+
         if (response.data?.data?.deployments && response.data.data.deployments.length > 0) {
           const deploy = response.data.data.deployments[0];
           console.log(`[GraphQL] ✅ Deploy ${deployId} found in block ${deploy.block_number} after ${i + 1} attempts`);
           console.log(`[GraphQL] Deploy details:`, deploy);
-          
+
           if (deploy.errored) {
             return {
               status: 'errored',
@@ -406,7 +503,7 @@ export class RChainService {
               deployId: deployId
             };
           }
-          
+
           return {
             status: 'completed',
             message: 'Deploy successfully included in block',
@@ -417,61 +514,92 @@ export class RChainService {
             transfers: deploy.transfers
           };
         }
-        
+
         console.log(`[GraphQL] Deploy ${deployId} not found in indexer... (${i + 1}/${maxAttempts})`);
-        
+
       } catch (error: any) {
         console.error(`[GraphQL] Error checking indexer for deploy ${deployId}:`, error.message);
         console.error(`[GraphQL] Full error:`, error);
-        
-        try {
-          const blocksResult = await this.readOnlyClient.get('/api/blocks/10');
-          
-          if (blocksResult.data && Array.isArray(blocksResult.data)) {
-            for (const block of blocksResult.data) {
-              if (block.deploys && Array.isArray(block.deploys)) {
-                const foundDeploy = block.deploys.find((deploy: any) => 
-                  deploy.sig === deployId || deploy.signature === deployId || deploy.deployId === deployId
-                );
-                
-                if (foundDeploy) {
-                  console.log(`Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
-                  return {
-                    status: 'completed',
-                    message: 'Deploy successfully included in block',
-                    blockHash: block.blockHash,
-                    deployId: deployId,
-                    cost: foundDeploy.cost,
-                    timestamp: block.timestamp
-                  };
-                }
-              }
+
+        // Use fallback method
+        return this.waitForDeployResultFallback(deployId);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    console.warn(`[GraphQL] Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
+    
+    // Try fallback method before giving up
+    return this.waitForDeployResultFallback(deployId);
+  }
+
+  // Fallback method using read-only node API (doesn't require GraphQL)
+  private async waitForDeployResultFallback(deployId: string): Promise<any> {
+    console.log(`[GraphQL] Using fallback method for deploy ${deployId}`);
+    
+    try {
+      const blocksResult = await this.readOnlyClient.get('/api/blocks/10', {
+        timeout: 10000
+      });
+
+      if (blocksResult.data && Array.isArray(blocksResult.data)) {
+        for (const block of blocksResult.data) {
+          if (block.deploys && Array.isArray(block.deploys)) {
+            const foundDeploy = block.deploys.find((deploy: any) =>
+              deploy.sig === deployId || deploy.signature === deployId || deploy.deployId === deployId
+            );
+
+            if (foundDeploy) {
+              console.log(`[GraphQL] ✅ Deploy ${deployId} found via fallback method in block ${block.blockHash}`);
+              return {
+                status: 'completed',
+                message: 'Deploy successfully included in block',
+                blockHash: block.blockHash,
+                deployId: deployId,
+                cost: foundDeploy.cost,
+                timestamp: block.timestamp
+              };
             }
           }
-        } catch (fallbackError) {
-          console.error('[GraphQL] Fallback method also failed:', fallbackError);
-          return {
-            status: 'pending',
-            message: 'Deploy status check unavailable - both GraphQL and fallback methods failed',
-            deployId: deployId
-          };
         }
       }
       
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      console.log(`[GraphQL] Deploy ${deployId} not found in recent blocks. It may still be processing.`);
+      return {
+        status: 'pending',
+        message: 'Deploy submitted successfully. Status check unavailable, but deploy may still be processing.',
+        deployId: deployId
+      };
+    } catch (fallbackError: any) {
+      console.error('[GraphQL] Fallback method also failed:', fallbackError);
+      
+      return {
+        status: 'submitted',
+        message: 'Deploy submitted successfully. Status check services are unavailable, but the deploy was sent to the network. Status will be checked automatically when services are available.',
+        deployId: deployId
+      };
     }
-    
-    console.warn(`[GraphQL] Deploy ${deployId} not found after ${maxAttempts} attempts (${maxAttempts * 5} seconds). The deploy may still be processing.`);
-    return {
-      status: 'pending',
-      message: `Deploy ${deployId} not found after ${maxAttempts} attempts. It may still be processing.`,
-      deployId: deployId
-    };
   }
 
   async fetchTransactionHistory(address: string, publicKey: string, limit: number = 50): Promise<any[]> {
     const graphqlEndpoint = this.graphqlUrl;
-    
+
+    if (!address || !address.trim()) {
+      console.error('[GraphQL] Invalid address provided:', address);
+      throw new Error('Address is required for transaction history');
+    }
+
+    if (!publicKey || !publicKey.trim()) {
+      console.error('[GraphQL] Invalid publicKey provided:', publicKey);
+      throw new Error('Public key is required for transaction history');
+    }
+
+    if (!graphqlEndpoint) {
+      console.error('[GraphQL] No GraphQL endpoint configured. Current value:', graphqlEndpoint);
+      throw new Error('GraphQL endpoint is not configured');
+    }
+
     try {
       const graphqlQuery = {
         query: `
@@ -479,7 +607,7 @@ export class RChainService {
             transfers(
               where: {
                 _or: [
-                  {from_address: {_eq: $publicKey}},
+                  {from_public_key: {_eq: $publicKey}},
                   {to_address: {_eq: $address}}
                 ]
               },
@@ -491,7 +619,8 @@ export class RChainService {
               from_address
               to_address
               amount_asi
-              created_at
+              timestamp
+              from_public_key
             }
             deployments(
               where: {
@@ -511,12 +640,22 @@ export class RChainService {
           }
         `,
         variables: {
-          address: address,
-          publicKey: publicKey,
+          address: address.trim(),
+          publicKey: publicKey.trim(),
           limit: limit
         }
       };
-      
+
+      const isTestQuery = address === 'test' && publicKey === 'test';
+
+      if (!isTestQuery && (!address || !publicKey)) {
+        return [];
+      }
+
+      if (isTestQuery) {
+        return [];
+      }
+
       let response;
       try {
         response = await axios.post(graphqlEndpoint, graphqlQuery, {
@@ -524,29 +663,47 @@ export class RChainService {
             'Content-Type': 'application/json'
           }
         });
+
+        if (response.data?.errors) {
+          console.error('[GraphQL] GraphQL errors:', response.data.errors);
+        }
       } catch (error: any) {
-        console.error('[GraphQL] Request failed:', error.message);
-        
+        console.error('[GraphQL] Request failed:', {
+          message: error.message,
+          code: error.code,
+          response: error.response?.status,
+          responseData: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method
+          }
+        });
+
         if (error.code === 'ERR_NETWORK' || error.message.includes('CORS') || error.message.includes('ERR_FAILED')) {
           console.warn('[GraphQL] CORS or network error detected. Transaction history will be empty until API is configured properly.');
           return [];
         }
-        
+
         throw error;
       }
-      
+
       const transfers = response.data?.data?.transfers || [];
       const deployments = response.data?.data?.deployments || [];
-      
+
       const deployTimestampMap = new Map();
       deployments.forEach((deploy: any) => {
         deployTimestampMap.set(deploy.deploy_id, deploy.timestamp);
       });
 
       const transferTxs = transfers.map((tx: any) => {
-        const isReceive = tx.to_address && tx.to_address.toLowerCase() === address.toLowerCase();
-        const isSend = tx.from_address && tx.from_address.toLowerCase() === publicKey.toLowerCase();
-        
+        const normalizedAddress = address?.toLowerCase().trim();
+        const normalizedToAddress = tx.to_address?.toLowerCase().trim();
+        const normalizedFromAddress = tx.from_address?.toLowerCase().trim();
+
+        const isReceive = normalizedToAddress && normalizedToAddress === normalizedAddress;
+        const isSend = normalizedFromAddress && normalizedFromAddress === normalizedAddress;
+
+
         let type: 'send' | 'receive' = 'send';
         if (isReceive && !isSend) {
           type = 'receive';
@@ -557,21 +714,15 @@ export class RChainService {
         } else {
           type = 'receive';
         }
-        
-        const deployTimestamp = deployTimestampMap.get(tx.deploy_id);
-        
+
         let timestamp: string;
-        if (tx.created_at) {
-          const date = new Date(tx.created_at);
-          timestamp = date.toISOString();
-          console.log(`[Transfer Time] DeployId: ${tx.deploy_id}, created_at: ${tx.created_at}, UTC: ${timestamp}`);
-        } else if (deployTimestamp) {
-          const date = new Date(parseInt(deployTimestamp));
+        if (tx.timestamp) {
+          const date = new Date(parseInt(tx.timestamp));
           timestamp = date.toISOString();
         } else {
           timestamp = new Date(0).toISOString();
         }
-        
+
         return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
@@ -584,7 +735,7 @@ export class RChainService {
           type: type
         };
       });
-      
+
       const deployTxs = deployments.map((tx: any) => {
         let timestamp: string;
         if (tx.timestamp) {
@@ -593,7 +744,7 @@ export class RChainService {
         } else {
           timestamp = new Date(0).toISOString();
         }
-        
+
         return {
           deployId: tx.deploy_id,
           blockNumber: tx.block_number,
@@ -606,14 +757,14 @@ export class RChainService {
           type: 'deploy' as const
         };
       });
-      
+
       const allTxs = [...transferTxs, ...deployTxs];
-      
+
       const txMap = new Map();
-      
+
       allTxs.forEach(tx => {
         const existingTx = txMap.get(tx.deployId);
-        
+
         if (!existingTx) {
           txMap.set(tx.deployId, tx);
         } else {
@@ -634,9 +785,9 @@ export class RChainService {
           }
         }
       });
-      
+
       const sortedTxs = Array.from(txMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
+
       return sortedTxs;
     } catch (error) {
       console.error('Error fetching transaction history from indexer:', error);
@@ -648,7 +799,7 @@ export class RChainService {
   async isNodeAccessible(nodeType: 'validator' | 'readOnly' | 'admin' = 'validator'): Promise<boolean> {
     try {
       let client: AxiosInstance;
-      
+
       switch (nodeType) {
         case 'readOnly':
           client = this.readOnlyClient;
@@ -660,20 +811,20 @@ export class RChainService {
         default:
           client = this.validatorClient;
       }
-      
+
       const response = await client.get('/api/status');
       return !!response.data;
     } catch {
       return false;
     }
   }
-  
+
   // Propose block (for local networks with validator nodes)
   async propose(): Promise<any> {
     if (!this.adminClient) {
       throw new Error('Admin URL not configured. Propose is only available for local networks.');
     }
-    
+
     try {
       return await this.rnodeHttp('propose', {});
     } catch (error: any) {

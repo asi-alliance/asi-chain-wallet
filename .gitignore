@@ -50,3 +50,6 @@ Thumbs.db
 temp/
 *.tmp
 *.bak
+package-lock.json
+yarn.lock
+build

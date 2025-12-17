@@ -99,12 +99,21 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
       
       <Input
         id="password-setup-password-input"
+        data-testid="password-setup-password-input"
+        data-cy="password-setup-password-input"
         type="password"
         label="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        onInput={(e) => {
+          const target = e.currentTarget;
+          if (target.value !== password) {
+            setPassword(target.value);
+          }
+        }}
         placeholder="Enter password"
         onKeyPress={handleKeyPress}
+        autoComplete="new-password"
       />
 
       {validation && (
@@ -129,12 +138,21 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
 
       <Input
         id="password-setup-confirm-input"
+        data-testid="password-setup-confirm-input"
+        data-cy="password-setup-confirm-input"
         type="password"
         label="Confirm Password"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
+        onInput={(e) => {
+          const target = e.currentTarget;
+          if (target.value !== confirmPassword) {
+            setConfirmPassword(target.value);
+          }
+        }}
         placeholder="Confirm password"
         onKeyPress={handleKeyPress}
+        autoComplete="new-password"
       />
 
       {error && <ErrorMessage>{error}</ErrorMessage>}

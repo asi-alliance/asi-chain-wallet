@@ -18,6 +18,9 @@ export class SecureStorage {
   static verifyPassword = jest.fn(() => false);
   static saveAccount = jest.fn();
   static unlockAccount = jest.fn();
+  static updateAccountNetwork = jest.fn();
+  static updateAccountsNetwork = jest.fn();
+  static updateAccountsNetworkBulk = jest.fn();
   static removeAccount = jest.fn();
   static saveEncryptedAccounts = jest.fn();
   static setSessionData = jest.fn();
@@ -29,21 +32,4 @@ export class SecureStorage {
   static setAuthenticated = jest.fn();
   static updateLastActivity = jest.fn();
   static getLastActivity = jest.fn(() => Date.now());
-  
-  // Instance methods for WalletConnect
-  async getItem(key: string): Promise<string | null> {
-    return null;
-  }
-  
-  async setItem(key: string, value: string): Promise<void> {
-    return;
-  }
-  
-  async removeItem(key: string): Promise<void> {
-    return;
-  }
-  
-  async getKeys(): Promise<string[]> {
-    return [];
-  }
 }

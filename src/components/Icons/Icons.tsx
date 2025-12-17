@@ -155,16 +155,6 @@ export const CheckIcon: React.FC<IconProps> = ({ size = 16, color = 'currentColo
   </svg>
 );
 
-export const WalletConnectIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor', className }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path d="M17 20v-2a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="7" y="4" width="10" height="12" rx="2" stroke={color} strokeWidth="2"/>
-    <path d="M12 8v4" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <circle cx="12" cy="12" r="1" fill={color}/>
-    <path d="M5 10h2M17 10h2" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-  </svg>
-);
-
 export const MenuIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor', className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
     <path d="M3 12h18M3 6h18M3 18h18" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

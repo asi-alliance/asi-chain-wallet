@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Install dependencies for node-gyp, canvas, and USB support
 RUN apk add --no-cache \
-    python3 \
     make \
     g++ \
     cairo-dev \
@@ -51,12 +50,6 @@ RUN chmod +x /docker-entrypoint.sh
 
 # Expose port 80
 EXPOSE 80
-
-# Set environment variables that can be overridden
-ENV REACT_APP_WALLETCONNECT_PROJECT_ID=8b5b43fbbd61a2852c226ff2eee68ab9
-ENV REACT_APP_RCHAIN_HTTP_URL=http://44.198.8.24:40413
-ENV REACT_APP_RCHAIN_GRPC_URL=http://44.198.8.24:40412
-ENV REACT_APP_RCHAIN_READONLY_URL=http://44.198.8.24:40453
 
 # Use custom entrypoint to inject environment variables
 ENTRYPOINT ["/docker-entrypoint.sh"]

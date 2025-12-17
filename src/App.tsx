@@ -5,7 +5,6 @@ import { ThemeProvider } from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
 import { store, RootState } from 'store';
 import { checkAuthentication } from 'store/authSlice';
-import { initializeWalletConnect } from 'store/walletConnectSlice';
 import { loadNetworksFromStorage, loadAccountsFromStorage } from 'store/walletSlice';
 import { GlobalStyles } from 'styles/GlobalStyles';
 import { lightTheme, darkTheme } from 'styles/theme';
@@ -22,6 +21,7 @@ import { Login } from 'pages/Login';
 import { History } from 'pages/History';
 import { useIdleTimer, useDeepLink } from 'hooks';
 import TransactionPollingService from 'services/transactionPolling';
+import FeedbackForm from 'components/community/FeedbackForm';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, hasAccounts } = useSelector((state: RootState) => state.auth);
@@ -48,9 +48,8 @@ const AppContent: React.FC = () => {
   useDeepLink();
 
   useEffect(() => {
-    console.log('[App] Initializing app, checking auth and WalletConnect...');
+    console.log('[App] Initializing app, checking auth...');
     dispatch(checkAuthentication());
-    dispatch(initializeWalletConnect() as any);
     dispatch(loadNetworksFromStorage());
     dispatch(loadAccountsFromStorage());
   }, [dispatch]);
@@ -149,6 +148,7 @@ const AppContent: React.FC = () => {
           <Navigate to={isAuthenticated ? "/" : "/login"} replace />
         } />
       </Routes>
+      <FeedbackForm />
     </ThemeProvider>
   );
 };

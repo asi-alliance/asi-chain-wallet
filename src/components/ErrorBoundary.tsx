@@ -16,26 +16,10 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Check if this is a WalletConnect "No matching key" error
-    if (error.message && error.message.includes('No matching key')) {
-      console.warn('🔧 WalletConnect error caught by boundary:', error.message);
-      // Don't show error UI for WalletConnect cleanup errors
-      return { hasError: false, error: null };
-    }
-    
-    // Show error UI for other errors
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Check if this is a WalletConnect error
-    if (error.message && error.message.includes('No matching key')) {
-      console.warn('🔧 WalletConnect componentDidCatch handled:', error.message);
-      // Reset the error state to recover
-      this.setState({ hasError: false, error: null });
-      return;
-    }
-    
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 

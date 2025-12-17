@@ -1,0 +1,41 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 16
+    commands:
+      - |
+          cat <<EOF > .env
+          # Network Configuration
+          # Configure available networks via JSON string
+          # Networks with empty ValidatorURL will be disabled in the UI
+          NETWORKS="{\"MainNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"TestNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"DevNet\":{\"ValidatorURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/bb93eaa595aaddf6912e372debc73eef/endpoint_1/HTTP_API\",\"ReadOnlyURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/91e17db5a9020441d38bf4dd3d24df2b/endpoint_5/HTTP_API\",\"IndexerURL\":\"https://2vlbfiujj8.execute-api.us-east-1.amazonaws.com/v1/graphql\"},\"Dev\":{\"ValidatorURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/9a58a8ea5d22e5d33dd36435e9d4b575/endpoint_1/HTTP_API\",\"ReadOnlyURL\":\"https://ihmps4dkpg.execute-api.us-east-1.amazonaws.com/prod/f1067e764b590182392e69553839faf1/endpoint_5/HTTP_API\",\"IndexerURL\":\"https://9hwp5vthsd.execute-api.us-east-1.amazonaws.com/v1/graphql\"}}"
+          EOF
+      - cat .env 
+      - |
+          # Export NETWORKS as environment variable so it's available to webpack
+          # Extract NETWORKS value from .env file, handling escaped quotes
+          export NETWORKS=$(grep '^NETWORKS=' .env | cut -d '=' -f2- | sed 's/^"//;s/"$//' | sed 's/\\\\"/\\"/g' | sed 's/\\\\\\\\/\\\\/g')
+          echo "Exported NETWORKS (first 100 chars): ${NETWORKS:0:100}..."
+          echo "NETWORKS length: ${#NETWORKS}"
+          
+          # Verify it's valid JSON
+          if echo "$NETWORKS" | python3 -m json.tool > /dev/null 2>&1; then
+            echo "✅ NETWORKS is valid JSON"
+          else
+            echo "❌ WARNING: NETWORKS is not valid JSON"
+          fi
+      - npm install
+      - echo "Install phase complete..."
+
+  build:
+    commands:
+      - npm run build
+      - cd build
+      - echo "Syncing with $BUCKET_NAME"
+      - aws s3 sync ./ s3://$BUCKET_NAME/ --delete
+
+      - echo "Create invalidation with $CLOUDFRONT_DISTRIBUTION_ID"
+      - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
+

@@ -1,121 +1,70 @@
-# ASI Wallet - DApp Connect Edition
+<div align="center">
 
-A modern, secure, and fully decentralized wallet for the RChain network, featuring WalletConnect integration for seamless dApp connectivity, an integrated Rholang IDE, and enhanced deployment tracking.
+# ASI Chain Wallet
 
-[![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
-[![WalletConnect](https://img.shields.io/badge/WalletConnect-v2-blue.svg)](https://walletconnect.com/)
+[![Status](https://img.shields.io/badge/Status-BETA-FFA500?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-wallet)
+[![Version](https://img.shields.io/badge/Version-0.1.0-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-wallet/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-1A1A1A?style=for-the-badge)](LICENSE)
+[![Docs](https://img.shields.io/badge/Docs-Available-C4F0C1?style=for-the-badge)](https://docs.asichain.io)
 
-## 📚 Documentation
+<h3>A modern wallet for ASI Chain</h3>
 
-Comprehensive documentation is available in the [ASI Wallet Documentation](../docs/WALLET.md).
+Part of the [**Artificial Superintelligence Alliance**](https://superintelligence.io) ecosystem
 
-Quick links:
-- **[Complete Wallet Guide](../docs/WALLET.md)** - All documentation in one place
-- **[Installation](../docs/WALLET.md#installation-guide)** - Setup and deployment
-- **[User Guide](../docs/WALLET.md#user-guide)** - How to use the wallet
-- **[Architecture](../docs/WALLET.md#architecture)** - Technical design
-- **[API Reference](../docs/WALLET.md#api-reference)** - Developer API
-- **[WalletConnect](../docs/WALLET.md#walletconnect-integration)** - dApp connectivity
-- **[Development](../docs/WALLET.md#development)** - Contributing guide
+*Uniting Fetch.ai, SingularityNET, and CUDOS*
 
-## 🐳 Docker Quick Start
+</div>
 
-Run the wallet instantly with Docker:
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Key Features](#key-features)
+3. [Quick Start](#quick-start)
+4. [Project Structure](#project-structure)
+5. [Documentation](#documentation)
+6. [License](#license)
+
+---
+
+## Overview
+
+ASI Chain Wallet is a comprehensive web-based cryptocurrency wallet built with React and TypeScript. It provides a secure and user-friendly interface for managing digital assets on ASI Chain.
+
+The wallet includes a built-in Rholang IDE powered by Monaco Editor, allowing developers to write, test, and deploy smart contracts directly from the wallet interface.
+
+## Key Features
+
+- **Built-in Rholang IDE** - Write and deploy smart contracts with Monaco Editor integration
+- **Progressive Web App** - Installable PWA with offline capabilities and service worker support
+- **Transaction History** - Track all transactions with detailed history and status updates
+- **Multiple Networks** - Support for mainnet, testnet, and local development networks
+- **Dark/Light Theme** - Customizable interface with theme switching
+- **Auto-lock Timer** - Automatic session timeout for improved security
+- **Account Management** - Create and manage multiple accounts with secure key storage
+- **QR Code Support** - Generate and scan QR codes for easy address sharing
+
+## Quick Start
+
+### Using Docker
 
 ```bash
-# Easy start script (recommended)
-./start-wallet.sh
+# Clone the repository
+git clone https://github.com/asi-alliance/asi-chain-wallet.git
+cd asi-chain-wallet
 
-# Or manual start
+# Start with Docker Compose
 docker-compose up -d
 
-# Access at http://localhost:3000
+# Access wallet at http://localhost:3000
 ```
 
-The `start-wallet.sh` script provides automatic image building, health checking, and helpful status information.
-
-## 🌐 Production Deployment
-
-ASI Wallet is currently deployed on AWS Lightsail:
-
-- **Live Wallet**: http://13.251.66.61:3000
-- **Region**: Singapore (ap-southeast-1) for optimal F1R3FLY network performance
-- **Infrastructure**: Docker containerization with nginx, health checks, and auto-restart
-- **Network**: Connected to F1R3FLY blockchain nodes running on the same server
-
-For detailed deployment instructions, see [AWS_LIGHTSAIL_WALLET_DEPLOYMENT.md](../AWS_LIGHTSAIL_WALLET_DEPLOYMENT.md).
-
-## 🚀 Key Features
-
-### 100% Client-Side Architecture
-- **No Backend Required**: Runs entirely in your browser
-- **Direct Blockchain Connection**: Peer-to-peer connection to RChain nodes
-- **Local Encrypted Storage**: All data encrypted with AES-256 in browser
-- **Static Hosting**: Deploy to GitHub Pages, IPFS, or any web server
-- **Offline Capable**: PWA with service worker support
-
-### 🔗 WalletConnect Integration
-- **Multiple Connection Methods**: QR code, URI paste, deep links
-- **Session Management**: Handle multiple dApp connections
-- **Transaction Approval**: Review and sign dApp transactions
-- **Auto-Reconnect**: Persistent sessions across refreshes
-
-### 💼 Advanced Account Management
-- **Multi-Account Support**: Create and manage multiple accounts
-- **Quick Account Switcher**: Fast account switching with real-time balance updates
-- **Import Options**: Private key, ETH address, or REV address
-- **Watch-Only Accounts**: Monitor addresses without private keys
-- **Encrypted Export**: Backup accounts with password protection
-- **Hardware Wallet Ready**: Architecture supports future integration
-
-### 💸 Enhanced Transaction Features
-- **Smart Routing**: Automatic node selection for operations
-- **Real-Time Status**: Track deployment inclusion in blocks
-- **Gas Optimization**: Accurate gas cost estimation
-- **Transaction Confirmation**: Secure confirmation dialogs for all operations
-- **Transaction History**: Comprehensive local transaction log with export
-- **Batch Operations**: Queue multiple transactions
-
-### 💻 Integrated Development Environment
-- **Monaco Editor**: Professional code editor with Rholang support
-- **Syntax Highlighting**: Custom Rholang language support
-- **File Management**: Create, edit, and organize contracts
-- **Direct Deployment**: Deploy contracts with confirmation dialogs
-- **Import/Export**: Share workspaces and contracts
-- **Console Output**: Real-time deployment feedback
-- **Seamless Authentication**: No password re-entry for authenticated users
-
-### 🎨 Modern User Experience
-- **Responsive Design**: Works on desktop, tablet, and mobile
-- **Dark/Light Themes**: Automatic or manual theme switching
-- **Real-Time Updates**: Live balance and status updates
-- **Intuitive Navigation**: Clean, modern interface
-- **Accessibility**: WCAG 2.1 compliant
-
-## 🏃 Quick Start
-
-### Prerequisites
-
-- Node.js 14.0.0 or higher (recommended: 18+)
-- npm 6.0.0 or higher
-- Git
-- A WalletConnect Project ID (free from [WalletConnect Cloud](https://cloud.walletconnect.com))
-
-### Installation
+### Local Development
 
 ```bash
-# Clone the repository (GitLab)
-git clone https://github.com/asi-alliance/asi-chain.git
-cd asi-chain/asi_wallet_v2
-
-# Install dependencies with legacy peer deps flag
+# Install dependencies
 npm install --legacy-peer-deps
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your WalletConnect Project ID
-# Get your free Project ID from https://cloud.walletconnect.com
 
 # Start development server
 npm start

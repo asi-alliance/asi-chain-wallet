@@ -87,10 +87,8 @@ const addressValidation = (value: string): IInputWithValidation => {
         return {
             isValid: false,
             validationMessages: [
-                `Address format not recognized: 
-                    RChain addresses start with "1111"
-                    and Ethereum addresses start with "0x"
-            `]
+                `Address format not recognized: RChain addresses start with "1111"`
+            ]
         };
         }
     }

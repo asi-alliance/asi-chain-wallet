@@ -176,7 +176,6 @@ const ResultLabel = styled.div`
 `;
 
 const ResultValue = styled.div`
-  font-family: monospace;
   font-size: 0.9rem;
   word-break: break-all;
   color: ${props => props.theme.colors.text.primary};

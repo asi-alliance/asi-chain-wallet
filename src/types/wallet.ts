@@ -8,6 +8,7 @@ export interface Account {
   privateKey?: string;
   balance: string;
   isMetamask?: boolean;
+  networkId?: string;
   createdAt: Date;
 }
 

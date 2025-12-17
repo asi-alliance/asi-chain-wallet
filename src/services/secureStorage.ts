@@ -23,7 +23,6 @@ export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
-  private static readonly WALLET_CONNECT_KEY = hashValue('asi_wallet_connect_v2');
 
   /**
    * Save encrypted accounts to localStorage
@@ -106,6 +105,77 @@ export class SecureStorage {
     this.storeInSession(accountId, account);
 
     return account;
+  }
+
+  static updateAccountNetwork(accountId: string, networkId: string): void {
+    this.updateAccountsNetwork([accountId], networkId);
+  }
+
+  static updateAccountsNetwork(accountIds: string[], networkId: string): void {
+    if (!networkId || accountIds.length === 0) {
+      return;
+    }
+
+    const updates = accountIds.map(id => ({ id, networkId }));
+    this.updateAccountsNetworkBulk(updates);
+  }
+
+  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId?: string }>): void {
+    if (!updates.length) {
+      return;
+    }
+
+    try {
+      const updateMap = new Map<string, string>();
+      updates.forEach(({ id, networkId }) => {
+        if (networkId) {
+          updateMap.set(id, networkId);
+        }
+      });
+
+      if (updateMap.size === 0) {
+        return;
+      }
+
+      const accounts = this.getEncryptedAccounts();
+      let accountsChanged = false;
+
+      const updatedAccounts = accounts.map(account => {
+        const nextNetworkId = updateMap.get(account.id);
+        if (nextNetworkId && account.networkId !== nextNetworkId) {
+          accountsChanged = true;
+          return {
+            ...account,
+            networkId: nextNetworkId,
+          };
+        }
+        return account;
+      });
+
+      if (accountsChanged) {
+        this.saveEncryptedAccounts(updatedAccounts);
+      }
+
+      const sessionData = this.getSessionData();
+      let sessionChanged = false;
+
+      Object.keys(sessionData).forEach(id => {
+        const nextNetworkId = updateMap.get(id);
+        if (nextNetworkId && sessionData[id].networkId !== nextNetworkId) {
+          sessionData[id] = {
+            ...sessionData[id],
+            networkId: nextNetworkId,
+          };
+          sessionChanged = true;
+        }
+      });
+
+      if (sessionChanged) {
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
+      }
+    } catch (error) {
+      console.error('Failed to update account networks:', error);
+    }
   }
 
   /**
@@ -240,10 +310,32 @@ export class SecureStorage {
     return JSON.stringify(exportData, null, 2);
   }
 
-  /**
-   * Import account from encrypted JSON
-   */
-  static importFromKeyfile(keyfileContent: string, name: string): SecureAccount {
+
+  private static normalizeAddress(address: string | undefined): string {
+    if (!address) return '';
+    return address.toLowerCase().trim();
+  }
+
+  static accountExists(revAddress?: string, ethAddress?: string): boolean {
+    const existingAccounts = this.getEncryptedAccounts();
+    const normalizedRev = this.normalizeAddress(revAddress);
+    const normalizedEth = this.normalizeAddress(ethAddress);
+    
+    return existingAccounts.some(existing => {
+      const normalizedExistingRev = this.normalizeAddress(existing.revAddress);
+      const normalizedExistingEth = this.normalizeAddress(existing.ethAddress);
+      
+      if (normalizedRev && normalizedExistingRev && normalizedRev === normalizedExistingRev) {
+        return true;
+      }
+      if (normalizedEth && normalizedExistingEth && normalizedEth === normalizedExistingEth) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  static importFromKeyfile(keyfileContent: string, name: string, networkId?: string): SecureAccount {
     try {
       const data = JSON.parse(keyfileContent);
       
@@ -260,8 +352,13 @@ export class SecureStorage {
         publicKey: '', // Will be derived when unlocked
         encryptedPrivateKey: data.encryptedPrivateKey,
         balance: '0',
+        ...(networkId ? { networkId } : {}),
         createdAt: new Date()
       };
+
+      if (this.accountExists(account.revAddress, account.ethAddress)) {
+        throw new Error('Account with this address already exists');
+      }
 
       const accounts = this.getEncryptedAccounts();
       accounts.push(account);
@@ -269,6 +366,9 @@ export class SecureStorage {
 
       return account;
     } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        throw error;
+      }
       throw new Error('Failed to import keyfile: Invalid format');
     }
   }
@@ -311,41 +411,6 @@ export class SecureStorage {
   }
 
   /**
-   * Instance methods for WalletConnect storage
-   */
-  async getItem(key: string): Promise<string | null> {
-    try {
-      const data = localStorage.getItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`);
-      return data;
-    } catch (error) {
-      console.error('Failed to get item:', error);
-      return null;
-    }
-  }
-
-  async setItem(key: string, value: string): Promise<void> {
-    try {
-      localStorage.setItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`, value);
-    } catch (error) {
-      console.error('Failed to set item:', error);
-      throw error;
-    }
-  }
-
-  async removeItem(key: string): Promise<void> {
-    try {
-      localStorage.removeItem(`${SecureStorage.WALLET_CONNECT_KEY}_${key}`);
-    } catch (error) {
-      console.error('Failed to remove item:', error);
-      throw error;
-    }
-  }
-
-  async getKeys(): Promise<string[]> {
-    return Object.keys(localStorage);
-  }
-
-  /**
    * Static methods for general storage operations
    */
   static async setItem(key: string, value: string): Promise<void> {
@@ -377,33 +442,10 @@ export class SecureStorage {
   }
 
   /**
-   * Save WalletConnect data
-   */
-  static saveWalletConnectData(data: any): void {
-    localStorage.setItem(this.WALLET_CONNECT_KEY, JSON.stringify(data));
-  }
-
-  /**
-   * Get WalletConnect data
-   */
-  static getWalletConnectData(): any {
-    const data = localStorage.getItem(this.WALLET_CONNECT_KEY);
-    return data ? JSON.parse(data) : null;
-  }
-
-  /**
-   * Clear all WalletConnect data
-   */
-  static clearWalletConnectData(): void {
-    localStorage.removeItem(this.WALLET_CONNECT_KEY);
-  }
-
-  /**
    * Clear all storage
    */
   static clearAll(): void {
     localStorage.removeItem(this.STORAGE_KEY);
-    localStorage.removeItem(this.WALLET_CONNECT_KEY);
     this.clearSession();
   }
 }
