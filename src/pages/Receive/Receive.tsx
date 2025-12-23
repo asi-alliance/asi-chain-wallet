@@ -201,7 +201,7 @@ export const Receive: React.FC = () => {
                             onClick={() => copyToClipboard(currentAddress)}
                             fullWidth
                         >
-                            <h3>Copy {addressLabel} Address</h3>
+                            <h3>Copy {addressLabel}</h3>
                         </CopyButton>
 
                         <Button

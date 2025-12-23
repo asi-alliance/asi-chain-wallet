@@ -1,0 +1,15 @@
+.copy-container {
+    position: relative;
+}
+
+.copy-button {
+    top: 0;
+    right: 0;
+    position: absolute;
+    display: block;
+    background: none;
+    outline: none;
+    border: none;
+
+    transform: translateX(115%) !important;
+}

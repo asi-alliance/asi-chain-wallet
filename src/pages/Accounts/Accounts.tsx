@@ -28,6 +28,7 @@ import { validateAccountName } from "utils/textUtils";
 import { getAddressLabel } from "../../constants/token";
 import { formatBalanceCard } from "utils/balanceUtils";
 import { importPrivateKey, importEthAddress, importRevAddress } from "utils/crypto";
+import CopyButton from "components/CopyButton";
 
 const AccountsContainer = styled.div`
     max-width: 800px;
@@ -599,6 +600,7 @@ export const Accounts: React.FC = () => {
 
                                         <AccountAddress>
                                             {formatAddress(account.revAddress)}
+                                            <CopyButton dataToCopy={account.revAddress} iconSize={15}/>
                                         </AccountAddress>
 
                                         <AccountActions>
