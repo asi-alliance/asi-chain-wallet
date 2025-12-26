@@ -22,6 +22,7 @@ import { History } from 'pages/History';
 import { useIdleTimer, useDeepLink } from 'hooks';
 import TransactionPollingService from 'services/transactionPolling';
 import FeedbackForm from 'components/community/FeedbackForm';
+import CaptchaModal from 'components/Captcha/modal/CaptchaModal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, hasAccounts } = useSelector((state: RootState) => state.auth);
@@ -149,6 +150,7 @@ const AppContent: React.FC = () => {
         } />
       </Routes>
       <FeedbackForm />
+      <CaptchaModal/>
     </ThemeProvider>
   );
 };

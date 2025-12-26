@@ -1,6 +1,6 @@
 import DropdownList, { OptionType } from "../DropdownList";
 import FeedbackFormTriggerIcon from "../assets/asi-feedback-logo.png";
-import { useState, ReactElement, ChangeEvent } from "react";
+import { useState, ReactElement, ChangeEvent, useEffect } from "react";
 import {
     endpoints,
     FEEDBACK_FORM_SOURCE,
@@ -8,6 +8,8 @@ import {
     MINIMUM_FEEDBACK_TEXT_LENGTH,
 } from "./meta";
 import "./style.css";
+import { loadCaptchaScript } from "components/Captcha/WAFScriptLoad";
+import { captchaFetch } from "components/Captcha/captchaFetchHandler";
 
 enum FeedbackCategory {
     QUESTION = "question",
@@ -44,6 +46,14 @@ const FeedbackForm = (): ReactElement => {
         { value: FeedbackCategory.BUG, title: "Bug" },
         { value: FeedbackCategory.FEEDBACK, title: "Feedback" },
     ];
+
+    useEffect(() => {
+        try {
+            loadCaptchaScript()
+        } catch (err) {
+            console.error('CAPTCHA script error: ', err);
+        }
+    }, []);
 
     const isEmailValid = (value: string): boolean =>
         EMAIL_VALIDATION_REGEX.test(value);
@@ -94,9 +104,8 @@ const FeedbackForm = (): ReactElement => {
         }
 
         try {
-            setIsRequestHandling(true);
-
-            const response = await fetch(endpoints.FEEDBACK, {
+            setIsRequestHandling(true);   
+            const response = captchaFetch(endpoints.FEEDBACK, {
                 method: "POST",
                 mode: "cors",
                 headers: {
