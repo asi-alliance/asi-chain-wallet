@@ -6,7 +6,6 @@ export const captchaFetch = (path: string, init: any): any => {
       throw Error(errors[0])
     }
 
-    document.body.style.cursor = 'wait'
     const modalOverlay = document.getElementById('modalOverlay');
     const modal = document.getElementById('modal');
     const captchaForm = document.getElementById('captchaForm');
