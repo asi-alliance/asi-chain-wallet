@@ -144,24 +144,82 @@ module.exports = function override(config, env) {
   ];
   
   if (env === 'production') {
-    // Set relative paths for static hosting
     config.output.publicPath = './';
     
-    // Note: SubresourceIntegrityPlugin can be added later if needed
+    config.performance = {
+      ...config.performance,
+      maxAssetSize: 1000000,
+      maxEntrypointSize: 1000000,
+      hints: 'warning',
+      assetFilter: function(assetFilename) {
+        return !assetFilename.endsWith('.map');
+      }
+    };
     
-    // Optimize chunk splitting
     config.optimization.splitChunks = {
       chunks: 'all',
+      maxInitialRequests: 25,
+      minSize: 20000,
+      maxSize: 500000,
       cacheGroups: {
+        default: {
+          minChunks: 2,
+          priority: -20,
+          reuseExistingChunk: true
+        },
+        monaco: {
+          test: /[\\/]node_modules[\\/]monaco-editor[\\/]/,
+          name: 'monaco-editor',
+          priority: 30,
+          enforce: true
+        },
+        ethers: {
+          test: /[\\/]node_modules[\\/]ethers[\\/]/,
+          name: 'ethers',
+          priority: 25,
+          enforce: true
+        },
+        walletconnect: {
+          test: /[\\/]node_modules[\\/]@walletconnect[\\/]/,
+          name: 'walletconnect',
+          priority: 25,
+          enforce: true
+        },
+        ledger: {
+          test: /[\\/]node_modules[\\/]@ledgerhq[\\/]/,
+          name: 'ledger',
+          priority: 25,
+          enforce: true
+        },
+        trezor: {
+          test: /[\\/]node_modules[\\/]@trezor[\\/]/,
+          name: 'trezor',
+          priority: 25,
+          enforce: true
+        },
+        react: {
+          test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-redux)[\\/]/,
+          name: 'react',
+          priority: 20,
+          enforce: true
+        },
+        redux: {
+          test: /[\\/]node_modules[\\/]@reduxjs[\\/]/,
+          name: 'redux',
+          priority: 20,
+          enforce: true
+        },
+        crypto: {
+          test: /[\\/]node_modules[\\/](crypto-js|elliptic|ethereumjs-util|blakejs|blake2b|js-sha3)[\\/]/,
+          name: 'crypto',
+          priority: 20,
+          enforce: true
+        },
         vendor: {
           test: /[\\/]node_modules[\\/]/,
           name: 'vendors',
-          priority: 10
-        },
-        monaco: {
-          test: /[\\/]node_modules[\\/]monaco-editor/,
-          name: 'monaco-editor',
-          priority: 20
+          priority: 10,
+          minChunks: 2
         }
       }
     };

@@ -336,9 +336,10 @@ export const Accounts: React.FC = () => {
     };
 
     const handlePrivateKeyAcknowledged = () => {
+        const userId = SecureStorage.getCurrentUserId();
         dispatch(
             syncAccounts(
-                SecureStorage.getEncryptedAccounts().map((acc) => ({
+                SecureStorage.getEncryptedAccounts(userId || undefined).map((acc) => ({
                     ...acc,
                     privateKey: undefined,
                 }))
@@ -376,9 +377,11 @@ export const Accounts: React.FC = () => {
                     return false;
             }
 
+            const userId = SecureStorage.getCurrentUserId();
             return SecureStorage.accountExists(
                 accountData.revAddress,
-                accountData.ethAddress
+                accountData.ethAddress,
+                userId || undefined
             );
         } catch (error) {
             return false;

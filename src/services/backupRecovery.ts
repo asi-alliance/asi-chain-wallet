@@ -399,8 +399,8 @@ export class BackupRecoveryService {
 
   private static async getAccountsForBackup(): Promise<EncryptedAccount[]> {
     try {
-      // Get accounts from secure storage
-      const accountsData = await SecureStorage.getEncryptedAccounts();
+      const userId = SecureStorage.getCurrentUserId();
+      const accountsData = await SecureStorage.getEncryptedAccounts(userId || undefined);
       return accountsData
         .filter(account => account.encryptedPrivateKey) // Only include accounts with encrypted keys
         .map(account => ({

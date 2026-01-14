@@ -14,9 +14,10 @@ export interface AuthState {
   error: string | null;
 }
 
+const initUserId = SecureStorage.getCurrentUserId();
 const initUnlockedAccounts = SecureStorage.getAllUnlockedAccounts();
 const initHasUnlocked = initUnlockedAccounts.length > 0;
-const initIsAuthenticated = SecureStorage.isAuthenticated() && initHasUnlocked;
+const initIsAuthenticated = SecureStorage.isAuthenticated() && initHasUnlocked && !!initUserId;
 
 if (!initIsAuthenticated && SecureStorage.isAuthenticated()) {
   SecureStorage.setAuthenticated(false);
@@ -24,7 +25,7 @@ if (!initIsAuthenticated && SecureStorage.isAuthenticated()) {
 
 const initialState: AuthState = {
   isAuthenticated: initIsAuthenticated,
-  hasAccounts: SecureStorage.hasAccounts(),
+  hasAccounts: SecureStorage.hasAccounts(initUserId || undefined),
   unlockedAccounts: initUnlockedAccounts,
   requirePasswordForTransaction: SecureStorage.getSettings().requirePasswordForTransaction,
   idleTimeout: SecureStorage.getSettings().idleTimeout,
@@ -46,6 +47,12 @@ export const createAccountWithPassword = createAsyncThunk(
     const state = getState() as { wallet: { selectedNetwork: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
     
+    let userId = SecureStorage.getCurrentUserId();
+    if (!userId) {
+      userId = SecureStorage.generateUserIdFromPassword(password);
+      SecureStorage.setCurrentUserId(userId);
+    }
+    
     const keyPair = generateKeyPair();
     const account: Account = {
       id: Date.now().toString(),
@@ -60,10 +67,10 @@ export const createAccountWithPassword = createAsyncThunk(
       createdAt: new Date(),
     };
 
-    const hadAccountsBefore = SecureStorage.hasAccounts();
+    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
 
-    SecureStorage.saveAccount(account, password);
-    SecureStorage.unlockAccount(account.id, password);
+    SecureStorage.saveAccount(account, password, userId);
+    SecureStorage.unlockAccount(account.id, password, userId);
     
     if (!hadAccountsBefore) {
       SecureStorage.setAuthenticated(true);
@@ -77,8 +84,8 @@ const normalizeAddress = (address: string | undefined): string => {
   if (!address) return '';
   return address.toLowerCase().trim();
 };
-const checkAccountExists = (newAccount: Account): boolean => {
-  const existingAccounts = SecureStorage.getEncryptedAccounts();
+const checkAccountExists = (newAccount: Account, userId?: string | null): boolean => {
+  const existingAccounts = userId ? SecureStorage.getEncryptedAccounts(userId) : SecureStorage.getEncryptedAccounts();
   const normalizedNewRev = normalizeAddress(newAccount.revAddress);
   const normalizedNewEth = normalizeAddress(newAccount.ethAddress);
   
@@ -110,6 +117,13 @@ export const importAccountWithPassword = createAsyncThunk(
   async ({ name, value, type, password, networkId }: ImportAccountPayload, { getState }) => {
     const state = getState() as { wallet: { selectedNetwork: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
+    
+    let userId = SecureStorage.getCurrentUserId();
+    if (!userId) {
+      userId = SecureStorage.generateUserIdFromPassword(password);
+      SecureStorage.setCurrentUserId(userId);
+    }
+    
     let accountData;
     
     switch (type) {
@@ -139,15 +153,15 @@ export const importAccountWithPassword = createAsyncThunk(
       createdAt: new Date(),
     };
 
-    if (checkAccountExists(account)) {
+    if (checkAccountExists(account, userId)) {
       throw new Error('Account with this address already exists');
     }
 
-    const hadAccountsBefore = SecureStorage.hasAccounts();
+    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
     
     if (account.privateKey) {
-      SecureStorage.saveAccount(account, password);
-      SecureStorage.unlockAccount(account.id, password);
+      SecureStorage.saveAccount(account, password, userId);
+      SecureStorage.unlockAccount(account.id, password, userId);
     }
     
     if (!hadAccountsBefore) {
@@ -169,7 +183,13 @@ export const importFromKeyfile = createAsyncThunk(
   async ({ keyfileContent, name, networkId }: ImportKeyfilePayload, { getState }) => {
     const state = getState() as { wallet: { selectedNetwork: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
-    const secureAccount = SecureStorage.importFromKeyfile(keyfileContent, name, selectedNetworkId);
+    
+    let userId = SecureStorage.getCurrentUserId();
+    if (!userId) {
+      throw new Error('Please login first before importing a keyfile');
+    }
+    
+    const secureAccount = SecureStorage.importFromKeyfile(keyfileContent, name, selectedNetworkId, userId);
     return secureAccount;
   }
 );
@@ -177,15 +197,43 @@ export const importFromKeyfile = createAsyncThunk(
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password }: { password: string }) => {
-    const accounts = SecureStorage.getEncryptedAccounts();
+    const userId = SecureStorage.generateUserIdFromPassword(password);
+    
+    const allAccounts = SecureStorage.getEncryptedAccounts();
     const unlockedAccounts: Account[] = [];
     let hasValidPassword = false;
+    const accountsToMigrate: string[] = [];
 
-    for (const account of accounts) {
-      const unlocked = SecureStorage.unlockAccount(account.id, password);
+    for (const account of allAccounts) {
+      if (account.userId && account.userId !== userId) {
+        continue;
+      }
+      
+      const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
       if (unlocked) {
         unlockedAccounts.push(unlocked);
         hasValidPassword = true;
+        
+        if (!account.userId) {
+          accountsToMigrate.push(account.id);
+        }
+      }
+    }
+
+    if (accountsToMigrate.length > 0) {
+      const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
+      let needsUpdate = false;
+      
+      const updatedAccounts = allAccountsForUpdate.map(acc => {
+        if (accountsToMigrate.includes(acc.id) && !acc.userId) {
+          needsUpdate = true;
+          return { ...acc, userId };
+        }
+        return acc;
+      });
+      
+      if (needsUpdate) {
+        SecureStorage.saveEncryptedAccounts(updatedAccounts);
       }
     }
 
@@ -193,6 +241,7 @@ export const loginWithPassword = createAsyncThunk(
       throw new Error('Invalid password');
     }
 
+    SecureStorage.setCurrentUserId(userId);
     SecureStorage.setAuthenticated(true);
     return unlockedAccounts;
   }
@@ -202,7 +251,12 @@ export const loginWithPassword = createAsyncThunk(
 export const unlockAccount = createAsyncThunk(
   'auth/unlockAccount',
   async ({ accountId, password }: { accountId: string; password: string }) => {
-    const account = SecureStorage.unlockAccount(accountId, password);
+    const userId = SecureStorage.getCurrentUserId();
+    if (!userId) {
+      throw new Error('Please login first');
+    }
+    
+    const account = SecureStorage.unlockAccount(accountId, password, userId);
     if (!account) {
       throw new Error('Invalid password or account not found');
     }
@@ -265,12 +319,13 @@ const authSlice = createSlice({
       state.error = null;
     },
     checkAuthentication: (state) => {
+      const userId = SecureStorage.getCurrentUserId();
       const unlockedAccounts = SecureStorage.getAllUnlockedAccounts();
       const hasUnlocked = unlockedAccounts.length > 0;
-      const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked;
+      const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked && !!userId;
 
       state.isAuthenticated = isAuthenticated;
-      state.hasAccounts = SecureStorage.hasAccounts();
+      state.hasAccounts = SecureStorage.hasAccounts(userId || undefined);
       state.unlockedAccounts = unlockedAccounts;
 
       if (!isAuthenticated && SecureStorage.isAuthenticated()) {

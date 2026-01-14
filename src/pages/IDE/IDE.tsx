@@ -652,9 +652,9 @@ export const IDE: React.FC = () => {
             );
             let privateKey = selectedAccount.privateKey;
 
-            // If no private key in memory, decrypt it
             if (!privateKey && password) {
-                const accounts = SecureStorage.getEncryptedAccounts();
+                const userId = SecureStorage.getCurrentUserId();
+                const accounts = SecureStorage.getEncryptedAccounts(userId || undefined);
                 const secureAccount = accounts.find(
                     (acc: any) => acc.id === selectedAccount.id
                 );

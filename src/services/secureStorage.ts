@@ -3,9 +3,10 @@ import { Account } from 'types/wallet';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
   encryptedPrivateKey?: string;
-  privateKey?: never; // Ensure privateKey is never stored
+  privateKey?: never; // Ensure privateKey is nev                                                                                                                                                                                                                                                                                                                    er stored
   derivationPath?: string;
   isHardwareWallet?: boolean;
+  userId?: string;
 }
 
 export interface SecureStorageData {
@@ -23,6 +24,7 @@ export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
+  private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
 
   /**
    * Save encrypted accounts to localStorage
@@ -38,13 +40,16 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Get all encrypted accounts from localStorage
-   */
-  static getEncryptedAccounts(): SecureAccount[] {
+  static getEncryptedAccounts(userId?: string): SecureAccount[] {
     try {
       const data = this.getStorageData();
-      return data.accounts;
+      const accounts = data.accounts;
+      
+      if (userId) {
+        return accounts.filter(account => account.userId === userId);
+      }
+      
+      return accounts;
     } catch (error) {
       console.error('Failed to get encrypted accounts:', error);
       return [];
@@ -54,39 +59,51 @@ export class SecureStorage {
   /**
    * Encrypt and save a new account
    */
-  static saveAccount(account: Account, password: string): SecureAccount {
+  static saveAccount(account: Account, password: string, userId?: string): SecureAccount {
     if (!account.privateKey) {
       throw new Error('Private key is required');
+    }
+
+    const currentUserId = userId || this.getCurrentUserId();
+    if (!currentUserId) {
+      throw new Error('User ID is required. Please login first.');
     }
 
     const encryptedPrivateKey = encrypt(account.privateKey, password);
     const { privateKey, ...accountWithoutKey } = account;
     const secureAccount: SecureAccount = {
       ...accountWithoutKey,
-      encryptedPrivateKey
+      encryptedPrivateKey,
+      userId: currentUserId
     };
 
-    const accounts = this.getEncryptedAccounts();
-    const existingIndex = accounts.findIndex(a => a.id === account.id);
+    const allAccounts = this.getEncryptedAccounts();
+    const existingIndex = allAccounts.findIndex(a => a.id === account.id);
     
     if (existingIndex >= 0) {
-      accounts[existingIndex] = secureAccount;
+      allAccounts[existingIndex] = secureAccount;
     } else {
-      accounts.push(secureAccount);
+      allAccounts.push(secureAccount);
     }
 
-    this.saveEncryptedAccounts(accounts);
+    this.saveEncryptedAccounts(allAccounts);
     return secureAccount;
   }
 
-  /**
-   * Unlock an account with password
-   */
-  static unlockAccount(accountId: string, password: string): Account | null {
-    const accounts = this.getEncryptedAccounts();
+  static unlockAccount(accountId: string, password: string, userId?: string): Account | null {
+    const currentUserId = userId || this.getCurrentUserId();
+    if (!currentUserId) {
+      return null;
+    }
+
+    const accounts = this.getEncryptedAccounts(currentUserId);
     const secureAccount = accounts.find(a => a.id === accountId);
 
     if (!secureAccount?.encryptedPrivateKey) {
+      return null;
+    }
+
+    if (secureAccount.userId !== currentUserId) {
       return null;
     }
 
@@ -95,13 +112,12 @@ export class SecureStorage {
       return null;
     }
 
-    const { encryptedPrivateKey, ...accountData } = secureAccount;
+    const { encryptedPrivateKey, userId: _, ...accountData } = secureAccount;
     const account: Account = {
       ...accountData,
       privateKey
     };
 
-    // Store in session storage (will be cleared on browser close)
     this.storeInSession(accountId, account);
 
     return account;
@@ -178,11 +194,8 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Check if any accounts exist
-   */
-  static hasAccounts(): boolean {
-    return this.getEncryptedAccounts().length > 0;
+  static hasAccounts(userId?: string): boolean {
+    return this.getEncryptedAccounts(userId).length > 0;
   }
 
   /**
@@ -242,6 +255,7 @@ export class SecureStorage {
   static clearSession(): void {
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
+    sessionStorage.removeItem(this.USER_ID_KEY);
   }
 
   /**
@@ -316,8 +330,9 @@ export class SecureStorage {
     return address.toLowerCase().trim();
   }
 
-  static accountExists(revAddress?: string, ethAddress?: string): boolean {
-    const existingAccounts = this.getEncryptedAccounts();
+  static accountExists(revAddress?: string, ethAddress?: string, userId?: string): boolean {
+    const currentUserId = userId || this.getCurrentUserId();
+    const existingAccounts = currentUserId ? this.getEncryptedAccounts(currentUserId) : this.getEncryptedAccounts();
     const normalizedRev = this.normalizeAddress(revAddress);
     const normalizedEth = this.normalizeAddress(ethAddress);
     
@@ -335,12 +350,17 @@ export class SecureStorage {
     });
   }
 
-  static importFromKeyfile(keyfileContent: string, name: string, networkId?: string): SecureAccount {
+  static importFromKeyfile(keyfileContent: string, name: string, networkId?: string, userId?: string): SecureAccount {
     try {
       const data = JSON.parse(keyfileContent);
       
       if (data.type !== 'asi-wallet-keyfile') {
         throw new Error('Invalid keyfile format');
+      }
+
+      const currentUserId = userId || this.getCurrentUserId();
+      if (!currentUserId) {
+        throw new Error('User ID is required. Please login first.');
       }
 
       const account: SecureAccount = {
@@ -352,17 +372,18 @@ export class SecureStorage {
         publicKey: '', // Will be derived when unlocked
         encryptedPrivateKey: data.encryptedPrivateKey,
         balance: '0',
+        userId: currentUserId,
         ...(networkId ? { networkId } : {}),
         createdAt: new Date()
       };
 
-      if (this.accountExists(account.revAddress, account.ethAddress)) {
+      if (this.accountExists(account.revAddress, account.ethAddress, currentUserId)) {
         throw new Error('Account with this address already exists');
       }
 
-      const accounts = this.getEncryptedAccounts();
-      accounts.push(account);
-      this.saveEncryptedAccounts(accounts);
+      const allAccounts = this.getEncryptedAccounts();
+      allAccounts.push(account);
+      this.saveEncryptedAccounts(allAccounts);
 
       return account;
     } catch (error) {
@@ -447,5 +468,26 @@ export class SecureStorage {
   static clearAll(): void {
     localStorage.removeItem(this.STORAGE_KEY);
     this.clearSession();
+  }
+
+  static getCurrentUserId(): string | null {
+    try {
+      return sessionStorage.getItem(this.USER_ID_KEY);
+    } catch (error) {
+      console.error('Failed to get current user ID:', error);
+      return null;
+    }
+  }
+
+  static setCurrentUserId(userId: string): void {
+    try {
+      sessionStorage.setItem(this.USER_ID_KEY, userId);
+    } catch (error) {
+      console.error('Failed to set current user ID:', error);
+    }
+  }
+
+  static generateUserIdFromPassword(password: string): string {
+    return hashValue(`user_${password}`);
   }
 }
