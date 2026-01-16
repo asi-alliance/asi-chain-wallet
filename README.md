@@ -24,7 +24,8 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 3. [Quick Start](#quick-start)
 4. [Project Structure](#project-structure)
 5. [Documentation](#documentation)
-6. [License](#license)
+6. [Contributing](#contributing)
+7. [License](#license)
 
 ---
 
