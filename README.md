@@ -353,6 +353,9 @@ View test results: [https://automation.lambdatest.com](https://automation.lambda
 
 ## 🤝 Contributing
 
+Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-wallet/issues) section.  
+If you encounter a problem that is not listed, please feel free to open a new issue and provide as much detail as possible.
+
 We welcome contributions! Please see our [Contributing Guide](../docs/wallet/contributing.md) for details.
 
 1. Fork the repository
