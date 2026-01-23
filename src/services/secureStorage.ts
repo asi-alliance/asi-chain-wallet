@@ -108,6 +108,13 @@ export class SecureStorage {
           return null;
         }
       }
+    } else {
+      if (secureAccount.name) {
+        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
+        if (expectedUserId !== currentUserId) {
+          return null;
+        }
+      }
     }
 
     const privateKey = decrypt(secureAccount.encryptedPrivateKey, password);

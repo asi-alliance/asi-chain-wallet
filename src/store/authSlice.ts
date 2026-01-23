@@ -195,40 +195,62 @@ export const loginWithPassword = createAsyncThunk(
     let foundUserId: string | null = null;
     const accountsToMigrate: string[] = [];
 
-    const uniqueAccountNames = Array.from(new Set(
-      allAccounts
-        .filter(acc => acc.name)
-        .map(acc => acc.name!)
-    ));
-
-    const namesToTry = accountName 
-      ? [accountName, ...uniqueAccountNames.filter(n => n !== accountName)]
-      : uniqueAccountNames;
-
-    for (const accountNameToTry of namesToTry) {
-      const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
+    if (accountName) {
+      const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
+      const account = allAccounts.find(acc => acc.name === accountName);
       
-      for (const account of allAccounts) {
+      if (account) {
         const userIdMatches = !account.userId || account.userId === userId;
-        const nameMatches = account.name === accountNameToTry;
         
-        if (!userIdMatches || !nameMatches) {
-          continue;
-        }
-        
-        const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-        if (unlocked) {
-          unlockedAccounts.push(unlocked);
-          foundUserId = userId;
-          
-          if (!account.userId) {
-            accountsToMigrate.push(account.id);
+        if (userIdMatches) {
+          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+          if (unlocked) {
+            unlockedAccounts.push(unlocked);
+            foundUserId = userId;
+            
+            if (!account.userId) {
+              accountsToMigrate.push(account.id);
+            }
           }
         }
       }
+    } else {
+      const uniqueAccountNames = Array.from(new Set(
+        allAccounts
+          .filter(acc => acc.name)
+          .map(acc => acc.name!)
+      ));
 
-      if (foundUserId && unlockedAccounts.length > 0) {
-        break;
+      for (const accountNameToTry of uniqueAccountNames) {
+        const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
+        
+        for (const account of allAccounts) {
+          if (account.name !== accountNameToTry) {
+            continue;
+          }
+          
+          const userIdMatches = !account.userId || account.userId === userId;
+          
+          if (!userIdMatches) {
+            continue;
+          }
+          
+          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+          if (unlocked) {
+            unlockedAccounts.push(unlocked);
+            if (!foundUserId) {
+              foundUserId = userId;
+            }
+            
+            if (!account.userId) {
+              accountsToMigrate.push(account.id);
+            }
+          }
+        }
+
+        if (foundUserId && unlockedAccounts.length > 0) {
+          break;
+        }
       }
     }
 
