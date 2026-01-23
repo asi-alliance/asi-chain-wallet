@@ -207,14 +207,15 @@ export const loginWithPassword = createAsyncThunk(
 
     for (const accountNameToTry of namesToTry) {
       const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
-      const accountsForThisUser = allAccounts.filter(acc => {
-        if (acc.userId) {
-          return acc.userId === userId;
-        }
-        return acc.name === accountNameToTry;
-      });
       
-      for (const account of accountsForThisUser) {
+      for (const account of allAccounts) {
+        const userIdMatches = !account.userId || account.userId === userId;
+        const nameMatches = account.name === accountNameToTry;
+        
+        if (!userIdMatches || !nameMatches) {
+          continue;
+        }
+        
         const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
         if (unlocked) {
           unlockedAccounts.push(unlocked);

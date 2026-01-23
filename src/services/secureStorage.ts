@@ -98,8 +98,16 @@ export class SecureStorage {
       return null;
     }
 
-    if (secureAccount.userId && secureAccount.userId !== currentUserId) {
-      return null;
+    if (secureAccount.userId) {
+      if (secureAccount.userId !== currentUserId) {
+        return null;
+      }
+      if (secureAccount.name) {
+        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
+        if (expectedUserId !== secureAccount.userId) {
+          return null;
+        }
+      }
     }
 
     const privateKey = decrypt(secureAccount.encryptedPrivateKey, password);
