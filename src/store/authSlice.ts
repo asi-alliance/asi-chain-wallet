@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { SecureStorage } from 'services/secureStorage';
 import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
+import { withWalletLoginLock } from 'utils/loginLock';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -71,6 +72,7 @@ export const createAccountWithPassword = createAsyncThunk(
     }
 
     SecureStorage.setCurrentUserId(userId);
+    SecureStorage.setActiveSessionToken(SecureStorage.generateSessionToken());
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -160,6 +162,7 @@ export const importAccountWithPassword = createAsyncThunk(
     }
 
     SecureStorage.setCurrentUserId(userId);
+    SecureStorage.setActiveSessionToken(SecureStorage.generateSessionToken());
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -190,94 +193,97 @@ export const importFromKeyfile = createAsyncThunk(
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
-    const allAccounts = SecureStorage.getEncryptedAccounts();
-    const unlockedAccounts: Account[] = [];
-    let foundUserId: string | null = null;
-    const accountsToMigrate: string[] = [];
+    return withWalletLoginLock(async () => {
+      const allAccounts = SecureStorage.getEncryptedAccounts();
+      const unlockedAccounts: Account[] = [];
+      let foundUserId: string | null = null;
+      const accountsToMigrate: string[] = [];
 
-    if (accountName) {
-      const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
-      const account = allAccounts.find(acc => acc.name === accountName);
-      
-      if (account) {
-        const userIdMatches = !account.userId || account.userId === userId;
+      if (accountName) {
+        const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
+        const account = allAccounts.find(acc => acc.name === accountName);
         
-        if (userIdMatches) {
-          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-          if (unlocked) {
-            unlockedAccounts.push(unlocked);
-            foundUserId = userId;
-            
-            if (!account.userId) {
-              accountsToMigrate.push(account.id);
-            }
-          }
-        }
-      }
-    } else {
-      const uniqueAccountNames = Array.from(new Set(
-        allAccounts
-          .filter(acc => acc.name)
-          .map(acc => acc.name!)
-      ));
-
-      for (const accountNameToTry of uniqueAccountNames) {
-        const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
-        
-        for (const account of allAccounts) {
-          if (account.name !== accountNameToTry) {
-            continue;
-          }
-          
+        if (account) {
           const userIdMatches = !account.userId || account.userId === userId;
           
-          if (!userIdMatches) {
-            continue;
-          }
-          
-          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-          if (unlocked) {
-            unlockedAccounts.push(unlocked);
-            if (!foundUserId) {
+          if (userIdMatches) {
+            const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+            if (unlocked) {
+              unlockedAccounts.push(unlocked);
               foundUserId = userId;
+              
+              if (!account.userId) {
+                accountsToMigrate.push(account.id);
+              }
+            }
+          }
+        }
+      } else {
+        const uniqueAccountNames = Array.from(new Set(
+          allAccounts
+            .filter(acc => acc.name)
+            .map(acc => acc.name!)
+        ));
+
+        for (const accountNameToTry of uniqueAccountNames) {
+          const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
+          
+          for (const account of allAccounts) {
+            if (account.name !== accountNameToTry) {
+              continue;
             }
             
-            if (!account.userId) {
-              accountsToMigrate.push(account.id);
+            const userIdMatches = !account.userId || account.userId === userId;
+            
+            if (!userIdMatches) {
+              continue;
+            }
+            
+            const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+            if (unlocked) {
+              unlockedAccounts.push(unlocked);
+              if (!foundUserId) {
+                foundUserId = userId;
+              }
+              
+              if (!account.userId) {
+                accountsToMigrate.push(account.id);
+              }
             }
           }
-        }
 
-        if (foundUserId && unlockedAccounts.length > 0) {
-          break;
+          if (foundUserId && unlockedAccounts.length > 0) {
+            break;
+          }
         }
       }
-    }
 
-    if (accountsToMigrate.length > 0 && foundUserId) {
-      const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
-      let needsUpdate = false;
-      
-      const updatedAccounts = allAccountsForUpdate.map(acc => {
-        if (accountsToMigrate.includes(acc.id) && !acc.userId) {
-          needsUpdate = true;
-          return { ...acc, userId: foundUserId! };
+      if (accountsToMigrate.length > 0 && foundUserId) {
+        const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
+        let needsUpdate = false;
+        
+        const updatedAccounts = allAccountsForUpdate.map(acc => {
+          if (accountsToMigrate.includes(acc.id) && !acc.userId) {
+            needsUpdate = true;
+            return { ...acc, userId: foundUserId! };
+          }
+          return acc;
+        });
+        
+        if (needsUpdate) {
+          SecureStorage.saveEncryptedAccounts(updatedAccounts);
         }
-        return acc;
-      });
-      
-      if (needsUpdate) {
-        SecureStorage.saveEncryptedAccounts(updatedAccounts);
       }
-    }
 
-    if (!foundUserId || unlockedAccounts.length === 0) {
-      throw new Error('Invalid password');
-    }
+      if (!foundUserId || unlockedAccounts.length === 0) {
+        throw new Error('Invalid password');
+      }
 
-    SecureStorage.setCurrentUserId(foundUserId);
-    SecureStorage.setAuthenticated(true);
-    return unlockedAccounts;
+      SecureStorage.setCurrentUserId(foundUserId);
+      SecureStorage.setAuthenticated(true);
+      SecureStorage.setActiveSessionToken(SecureStorage.generateSessionToken());
+      return unlockedAccounts;
+    });
   }
 );
 
@@ -327,6 +333,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.unlockedAccounts = [];
       state.error = null;
+      SecureStorage.clearActiveSessionIfCurrent();
       SecureStorage.clearSession();
       SecureStorage.setAuthenticated(false);
     },
@@ -353,7 +360,11 @@ const authSlice = createSlice({
       const userId = SecureStorage.getCurrentUserId();
       const unlockedAccounts = SecureStorage.getAllUnlockedAccounts();
       const hasUnlocked = unlockedAccounts.length > 0;
-      const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked && !!userId;
+      const isAuthenticated =
+        SecureStorage.isAuthenticated() &&
+        hasUnlocked &&
+        !!userId &&
+        SecureStorage.isCurrentSessionActive();
 
       state.isAuthenticated = isAuthenticated;
       state.hasAccounts = SecureStorage.hasAccounts(userId || undefined);

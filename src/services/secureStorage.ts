@@ -22,6 +22,8 @@ export class SecureStorage {
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
   private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
+  private static readonly ACTIVE_SESSION_KEY = hashValue('asi_wallet_active_session_v2');
+  private static readonly SESSION_TOKEN_KEY = hashValue('asi_wallet_session_token_v2');
 
   static saveEncryptedAccounts(accounts: SecureAccount[]): void {
     try {
@@ -263,6 +265,7 @@ export class SecureStorage {
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
     sessionStorage.removeItem(this.USER_ID_KEY);
+    sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
   }
 
   /**
@@ -492,6 +495,43 @@ export class SecureStorage {
     } catch (error) {
       console.error('Failed to set current user ID:', error);
     }
+  }
+
+  static setActiveSessionToken(token: string): void {
+    try {
+      localStorage.setItem(this.ACTIVE_SESSION_KEY, token);
+      sessionStorage.setItem(this.SESSION_TOKEN_KEY, token);
+    } catch (error) {
+      console.error('Failed to set active session token:', error);
+    }
+  }
+
+  static clearActiveSessionIfCurrent(): void {
+    try {
+      const sessionToken = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
+      if (!sessionToken) return;
+      const activeToken = localStorage.getItem(this.ACTIVE_SESSION_KEY);
+      if (activeToken && activeToken === sessionToken) {
+        localStorage.removeItem(this.ACTIVE_SESSION_KEY);
+      }
+    } catch (error) {
+      console.error('Failed to clear active session token:', error);
+    }
+  }
+
+  static isCurrentSessionActive(): boolean {
+    try {
+      const sessionToken = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
+      const activeToken = localStorage.getItem(this.ACTIVE_SESSION_KEY);
+      return !!sessionToken && !!activeToken && sessionToken === activeToken;
+    } catch (error) {
+      console.error('Failed to check active session token:', error);
+      return false;
+    }
+  }
+
+  static generateSessionToken(): string {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
   static generateUserIdFromPassword(password: string, profileName?: string): string {

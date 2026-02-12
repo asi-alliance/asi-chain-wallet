@@ -4,7 +4,8 @@ import { Provider } from 'react-redux';
 import { ThemeProvider } from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
 import { store, RootState } from 'store';
-import { checkAuthentication } from 'store/authSlice';
+import { checkAuthentication, logout } from 'store/authSlice';
+import { SecureStorage } from 'services/secureStorage';
 import { loadNetworksFromStorage, loadAccountsFromStorage } from 'store/walletSlice';
 import { GlobalStyles } from 'styles/GlobalStyles';
 import { lightTheme, darkTheme } from 'styles/theme';
@@ -54,6 +55,20 @@ const AppContent: React.FC = () => {
     dispatch(loadNetworksFromStorage());
     dispatch(loadAccountsFromStorage());
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      if (isAuthenticated && !SecureStorage.isCurrentSessionActive()) {
+        dispatch(logout());
+      }
+    };
+
+    handleStorage();
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
