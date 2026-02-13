@@ -630,6 +630,49 @@ export const IDE: React.FC = () => {
     setShowDeployConfirmation(true);
   };
 
+  const logDeployResult = (result: any) => {
+    if (result.status === "completed") {
+      addConsoleMessage("success", `[SUCCESS] ${result.message}`);
+      if (result.blockHash) addConsoleMessage("info", `Block Hash: ${result.blockHash}`);
+      if (result.cost) addConsoleMessage("info", `Gas Cost: ${result.cost}`);
+      return;
+    }
+
+    if (result.status === "submitted") {
+      addConsoleMessage("info", `[INFO] ${result.message}`);
+      return;
+    }
+
+    if (result.status === "errored") {
+      addConsoleMessage("error", `[ERROR] Deploy execution failed: ${result.error}`);
+      return;
+    }
+
+    if (result.status === "system_error") {
+      addConsoleMessage("error", `[ERROR] System error: ${result.error}`);
+      return;
+    }
+
+    addConsoleMessage(
+      "info",
+      result.message ||
+        "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
+    );
+  };
+
+  const waitForDeployAndLog = async (rchain: RChainService, deployId: string) => {
+    try {
+      addConsoleMessage("info", "Waiting for deploy to be included in block...");
+      const result = await rchain.waitForDeployResult(deployId);
+      logDeployResult(result);
+    } catch {
+      addConsoleMessage(
+        "info",
+        "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
+      );
+    }
+  };
+
   const handleDeployWithPassword = async (password: string) => {
     if (!selectedAccount || !activeFile) return;
     if (!SecureStorage.hasValidSessionToken()) {
@@ -710,52 +753,7 @@ export const IDE: React.FC = () => {
                 expectedBalanceAfterConfirmation
             );
       
-      // Try to get deploy result with enhanced status checking
-      try {
-                addConsoleMessage(
-                    "info",
-                    "Waiting for deploy to be included in block..."
-                );
-        const result = await rchain.waitForDeployResult(deployId);
-        
-                if (result.status === "completed") {
-                    addConsoleMessage("success", `[SUCCESS] ${result.message}`);
-          if (result.blockHash) {
-                        addConsoleMessage(
-                            "info",
-                            `Block Hash: ${result.blockHash}`
-                        );
-          }
-          if (result.cost) {
-                        addConsoleMessage("info", `Gas Cost: ${result.cost}`);
-          }
-                } else if (result.status === "submitted") {
-                    addConsoleMessage(
-                        "info",
-                        `[INFO] ${result.message}`
-                    );
-                } else if (result.status === "errored") {
-                    addConsoleMessage(
-                        "error",
-                        `[ERROR] Deploy execution failed: ${result.error}`
-                    );
-                } else if (result.status === "system_error") {
-                    addConsoleMessage(
-                        "error",
-                        `[ERROR] System error: ${result.error}`
-                    );
-                } else {
-                    addConsoleMessage(
-                        "info",
-                        result.message || "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
-                    );
-        }
-      } catch (resultError) {
-                addConsoleMessage(
-                    "info",
-                    "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
-                );
-      }
+      await waitForDeployAndLog(rchain, deployId);
     } catch (error: any) {
             addConsoleMessage("error", `Deploy failed: ${error.message}`);
     } finally {
@@ -835,51 +833,7 @@ export const IDE: React.FC = () => {
                 expectedBalanceAfterConfirmation
             );
 
-      try {
-                addConsoleMessage(
-                    "info",
-                    "Waiting for deploy to be included in block..."
-                );
-        const result = await rchain.waitForDeployResult(deployId);
-        
-                if (result.status === "completed") {
-                    addConsoleMessage("success", `[SUCCESS] ${result.message}`);
-          if (result.blockHash) {
-                        addConsoleMessage(
-                            "info",
-                            `Block Hash: ${result.blockHash}`
-                        );
-          }
-          if (result.cost) {
-                        addConsoleMessage("info", `Gas Cost: ${result.cost}`);
-          }
-                } else if (result.status === "submitted") {
-                    addConsoleMessage(
-                        "info",
-                        `[INFO] ${result.message}`
-                    );
-                } else if (result.status === "errored") {
-                    addConsoleMessage(
-                        "error",
-                        `[ERROR] Deploy execution failed: ${result.error}`
-                    );
-                } else if (result.status === "system_error") {
-                    addConsoleMessage(
-                        "error",
-                        `[ERROR] System error: ${result.error}`
-                    );
-                } else {
-                    addConsoleMessage(
-                        "info",
-                        result.message || "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
-                    );
-        }
-      } catch (resultError) {
-                addConsoleMessage(
-                    "info",
-                    "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
-                );
-      }
+      await waitForDeployAndLog(rchain, deployId);
     } catch (error: any) {
             addConsoleMessage("error", `Deploy failed: ${error.message}`);
     } finally {
