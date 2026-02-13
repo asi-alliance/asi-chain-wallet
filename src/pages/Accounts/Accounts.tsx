@@ -7,6 +7,7 @@ import {
     removeAccount,
     syncAccounts,
     fetchBalance,
+    loadAccountsFromStorage,
 } from "store/walletSlice";
 import {
     createAccountWithPassword,
@@ -219,6 +220,10 @@ export const Accounts: React.FC = () => {
         : null;
 
     useEffect(() => {
+        dispatch(loadAccountsFromStorage());
+    }, [dispatch]);
+
+    useEffect(() => {
         if (unlockedAccounts.length > 0) {
             dispatch(syncAccounts(unlockedAccounts));
         }
@@ -336,10 +341,9 @@ export const Accounts: React.FC = () => {
     };
 
     const handlePrivateKeyAcknowledged = () => {
-        const userId = SecureStorage.getCurrentUserId();
         dispatch(
             syncAccounts(
-                SecureStorage.getEncryptedAccounts(userId || undefined).map((acc) => ({
+                SecureStorage.getEncryptedAccounts().map((acc) => ({
                     ...acc,
                     privateKey: undefined,
                 }))
@@ -629,6 +633,17 @@ export const Accounts: React.FC = () => {
                                                     }}
                                                 >
                                                     UNLOCKED
+                                                </h5>
+                                            )}
+                                            {!isUnlocked && (
+                                                <h5
+                                                    style={{
+                                                        color: "#999",
+                                                        fontWeight: "600",
+                                                        marginLeft: "8px",
+                                                    }}
+                                                >
+                                                    LOCKED
                                                 </h5>
                                             )}
                                             <Button

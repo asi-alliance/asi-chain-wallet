@@ -19,7 +19,7 @@ import { Settings } from 'pages/Settings';
 import { KeyGenerator } from 'pages/KeyGenerator';
 import { Login } from 'pages/Login';
 import { History } from 'pages/History';
-import { useIdleTimer, useDeepLink } from 'hooks';
+import { useIdleTimer, useDeepLink, useSessionGuard } from 'hooks';
 import TransactionPollingService from 'services/transactionPolling';
 import FeedbackForm from 'components/community/FeedbackForm';
 import CaptchaModal from 'components/Captcha/modal/CaptchaModal';
@@ -45,8 +45,8 @@ const AppContent: React.FC = () => {
   const theme = darkMode ? darkTheme : lightTheme;
 
   useIdleTimer();
-  
   useDeepLink();
+  useSessionGuard();
 
   useEffect(() => {
     console.log('[App] Initializing app, checking auth...');
