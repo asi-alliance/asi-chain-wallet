@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'styled-components';
 import { useSelector, useDispatch } from 'react-redux';
@@ -41,6 +41,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AppContent: React.FC = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { darkMode } = useSelector((state: RootState) => state.theme);
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const theme = darkMode ? darkTheme : lightTheme;
@@ -60,6 +61,7 @@ const AppContent: React.FC = () => {
     const handleStorage = () => {
       if (isAuthenticated && !SecureStorage.isCurrentSessionActive()) {
         dispatch(logout());
+        navigate('/login', { replace: true });
       }
     };
 
@@ -68,7 +70,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('storage', handleStorage);
     };
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (isAuthenticated) {

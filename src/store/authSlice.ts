@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { SecureStorage } from 'services/secureStorage';
+import { SecureStorage, SecureAccount } from 'services/secureStorage';
 import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withWalletLoginLock } from 'utils/loginLock';
@@ -190,100 +190,145 @@ export const importFromKeyfile = createAsyncThunk(
   }
 );
 
+type LoginAttemptState = {
+  unlockedAccounts: Account[];
+  foundUserId: string | null;
+  accountsToMigrate: string[];
+};
+
+const initLoginAttemptState = (): LoginAttemptState => ({
+  unlockedAccounts: [],
+  foundUserId: null,
+  accountsToMigrate: [],
+});
+
+const isAccountMatchingUser = (account: SecureAccount, userId: string): boolean => {
+  return !account.userId || account.userId === userId;
+};
+
+const recordUnlockedAccount = (
+  state: LoginAttemptState,
+  account: SecureAccount,
+  unlocked: Account,
+  userId: string
+): void => {
+  state.unlockedAccounts.push(unlocked);
+  if (!state.foundUserId) {
+    state.foundUserId = userId;
+  }
+  if (!account.userId) {
+    state.accountsToMigrate.push(account.id);
+  }
+};
+
+const tryUnlockAccount = (
+  account: SecureAccount,
+  password: string,
+  userId: string,
+  state: LoginAttemptState
+): void => {
+  if (!isAccountMatchingUser(account, userId)) {
+    return;
+  }
+
+  const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+  if (!unlocked) {
+    return;
+  }
+
+  recordUnlockedAccount(state, account, unlocked, userId);
+};
+
+const attemptLoginWithSpecificAccountName = (
+  allAccounts: SecureAccount[],
+  password: string,
+  accountName: string,
+  state: LoginAttemptState
+): void => {
+  const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
+  const account = allAccounts.find(acc => acc.name === accountName);
+  if (!account) {
+    return;
+  }
+
+  tryUnlockAccount(account, password, userId, state);
+};
+
+const getUniqueAccountNames = (accounts: SecureAccount[]): string[] => {
+  return Array.from(new Set(
+    accounts
+      .filter(acc => acc.name)
+      .map(acc => acc.name!)
+  ));
+};
+
+const attemptLoginAcrossAllAccountNames = (
+  allAccounts: SecureAccount[],
+  password: string,
+  state: LoginAttemptState
+): void => {
+  const uniqueAccountNames = getUniqueAccountNames(allAccounts);
+
+  for (const accountNameToTry of uniqueAccountNames) {
+    const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
+    const accountsForName = allAccounts.filter(account => account.name === accountNameToTry);
+
+    for (const account of accountsForName) {
+      tryUnlockAccount(account, password, userId, state);
+    }
+
+    if (state.foundUserId && state.unlockedAccounts.length > 0) {
+      return;
+    }
+  }
+};
+
+const migrateAccountsUserIdIfNeeded = (state: LoginAttemptState): void => {
+  if (state.accountsToMigrate.length === 0 || !state.foundUserId) {
+    return;
+  }
+
+  const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
+  let needsUpdate = false;
+  const updatedAccounts = allAccountsForUpdate.map(acc => {
+    if (state.accountsToMigrate.includes(acc.id) && !acc.userId) {
+      needsUpdate = true;
+      return { ...acc, userId: state.foundUserId! };
+    }
+    return acc;
+  });
+
+  if (needsUpdate) {
+    SecureStorage.saveEncryptedAccounts(updatedAccounts);
+  }
+};
+
+const executePasswordLogin = (password: string, accountName?: string): Account[] => {
+  const allAccounts = SecureStorage.getEncryptedAccounts();
+  const state = initLoginAttemptState();
+
+  if (accountName) {
+    attemptLoginWithSpecificAccountName(allAccounts, password, accountName, state);
+  } else {
+    attemptLoginAcrossAllAccountNames(allAccounts, password, state);
+  }
+
+  migrateAccountsUserIdIfNeeded(state);
+
+  if (!state.foundUserId || state.unlockedAccounts.length === 0) {
+    throw new Error('Invalid password');
+  }
+
+  SecureStorage.setCurrentUserId(state.foundUserId);
+  SecureStorage.setAuthenticated(true);
+  SecureStorage.setActiveSessionToken(SecureStorage.generateSessionToken());
+  return state.unlockedAccounts;
+};
+
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
-    return withWalletLoginLock(async () => {
-      const allAccounts = SecureStorage.getEncryptedAccounts();
-      const unlockedAccounts: Account[] = [];
-      let foundUserId: string | null = null;
-      const accountsToMigrate: string[] = [];
-
-      if (accountName) {
-        const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
-        const account = allAccounts.find(acc => acc.name === accountName);
-        
-        if (account) {
-          const userIdMatches = !account.userId || account.userId === userId;
-          
-          if (userIdMatches) {
-            const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-            if (unlocked) {
-              unlockedAccounts.push(unlocked);
-              foundUserId = userId;
-              
-              if (!account.userId) {
-                accountsToMigrate.push(account.id);
-              }
-            }
-          }
-        }
-      } else {
-        const uniqueAccountNames = Array.from(new Set(
-          allAccounts
-            .filter(acc => acc.name)
-            .map(acc => acc.name!)
-        ));
-
-        for (const accountNameToTry of uniqueAccountNames) {
-          const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
-          
-          for (const account of allAccounts) {
-            if (account.name !== accountNameToTry) {
-              continue;
-            }
-            
-            const userIdMatches = !account.userId || account.userId === userId;
-            
-            if (!userIdMatches) {
-              continue;
-            }
-            
-            const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-            if (unlocked) {
-              unlockedAccounts.push(unlocked);
-              if (!foundUserId) {
-                foundUserId = userId;
-              }
-              
-              if (!account.userId) {
-                accountsToMigrate.push(account.id);
-              }
-            }
-          }
-
-          if (foundUserId && unlockedAccounts.length > 0) {
-            break;
-          }
-        }
-      }
-
-      if (accountsToMigrate.length > 0 && foundUserId) {
-        const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
-        let needsUpdate = false;
-        
-        const updatedAccounts = allAccountsForUpdate.map(acc => {
-          if (accountsToMigrate.includes(acc.id) && !acc.userId) {
-            needsUpdate = true;
-            return { ...acc, userId: foundUserId! };
-          }
-          return acc;
-        });
-        
-        if (needsUpdate) {
-          SecureStorage.saveEncryptedAccounts(updatedAccounts);
-        }
-      }
-
-      if (!foundUserId || unlockedAccounts.length === 0) {
-        throw new Error('Invalid password');
-      }
-
-      SecureStorage.setCurrentUserId(foundUserId);
-      SecureStorage.setAuthenticated(true);
-      SecureStorage.setActiveSessionToken(SecureStorage.generateSessionToken());
-      return unlockedAccounts;
-    });
+    return withWalletLoginLock(() => executePasswordLogin(password, accountName));
   }
 );
 
