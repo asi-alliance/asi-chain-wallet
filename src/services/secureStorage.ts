@@ -22,6 +22,7 @@ export class SecureStorage {
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
   private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
+  private static readonly SESSION_TOKEN_KEY = hashValue('asi_wallet_session_token_v2');
 
   static saveEncryptedAccounts(accounts: SecureAccount[]): void {
     try {
@@ -263,6 +264,7 @@ export class SecureStorage {
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
     sessionStorage.removeItem(this.USER_ID_KEY);
+    sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
   }
 
   /**
@@ -492,6 +494,54 @@ export class SecureStorage {
     } catch (error) {
       console.error('Failed to set current user ID:', error);
     }
+  }
+
+  static generateSessionToken(): string {
+    try {
+      if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+        return (crypto as any).randomUUID();
+      }
+      if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch {}
+
+    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+
+  static setSessionToken(token: string): void {
+    try {
+      sessionStorage.setItem(this.SESSION_TOKEN_KEY, token);
+    } catch (e) {
+      console.error('Failed to set session token:', e);
+    }
+  }
+
+  static getSessionToken(): string | null {
+    try {
+      return sessionStorage.getItem(this.SESSION_TOKEN_KEY);
+    } catch (e) {
+      console.error('Failed to get session token:', e);
+      return null;
+    }
+  }
+
+  static clearSessionToken(): void {
+    try {
+      sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
+    } catch (e) {
+      console.error('Failed to clear session token:', e);
+    }
+  }
+
+  /**
+   * Helper for sensitive actions.
+   * If token is missing -> treat session as expired.
+   */
+  static hasValidSessionToken(): boolean {
+    return !!this.getSessionToken();
   }
 
   static generateUserIdFromPassword(password: string, profileName?: string): string {

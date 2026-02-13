@@ -17,7 +17,9 @@ export interface AuthState {
 const initUserId = SecureStorage.getCurrentUserId();
 const initUnlockedAccounts = SecureStorage.getAllUnlockedAccounts();
 const initHasUnlocked = initUnlockedAccounts.length > 0;
-const initIsAuthenticated = SecureStorage.isAuthenticated() && initHasUnlocked && !!initUserId;
+const initSessionToken = SecureStorage.getSessionToken();
+const initIsAuthenticated =
+  SecureStorage.isAuthenticated() && initHasUnlocked && !!initUserId && !!initSessionToken;
 
 if (!initIsAuthenticated && SecureStorage.isAuthenticated()) {
   SecureStorage.setAuthenticated(false);
@@ -71,6 +73,7 @@ export const createAccountWithPassword = createAsyncThunk(
     }
 
     SecureStorage.setCurrentUserId(userId);
+    SecureStorage.setSessionToken(SecureStorage.generateSessionToken());
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -160,6 +163,7 @@ export const importAccountWithPassword = createAsyncThunk(
     }
 
     SecureStorage.setCurrentUserId(userId);
+    SecureStorage.setSessionToken(SecureStorage.generateSessionToken());
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -277,6 +281,7 @@ export const loginWithPassword = createAsyncThunk(
 
     SecureStorage.setCurrentUserId(foundUserId);
     SecureStorage.setAuthenticated(true);
+    SecureStorage.setSessionToken(SecureStorage.generateSessionToken());
     return unlockedAccounts;
   }
 );
@@ -352,8 +357,9 @@ const authSlice = createSlice({
     checkAuthentication: (state) => {
       const userId = SecureStorage.getCurrentUserId();
       const unlockedAccounts = SecureStorage.getAllUnlockedAccounts();
+      const token = SecureStorage.getSessionToken();
       const hasUnlocked = unlockedAccounts.length > 0;
-      const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked && !!userId;
+      const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked && !!userId && !!token;
 
       state.isAuthenticated = isAuthenticated;
       state.hasAccounts = SecureStorage.hasAccounts(userId || undefined);

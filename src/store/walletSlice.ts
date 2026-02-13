@@ -438,6 +438,10 @@ export const sendTransaction = createAsyncThunk(
     password?: string;
     network: Network;
   }, { dispatch, getState }) => {
+    if (!SecureStorage.hasValidSessionToken()) {
+      throw new Error('Session expired. Please login again.');
+    }
+
     let privateKey: string | undefined;
     
     const unlockedAccount = SecureStorage.getUnlockedAccount(from.id);

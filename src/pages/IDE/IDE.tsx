@@ -632,6 +632,10 @@ export const IDE: React.FC = () => {
 
   const handleDeployWithPassword = async (password: string) => {
     if (!selectedAccount || !activeFile) return;
+    if (!SecureStorage.hasValidSessionToken()) {
+      addConsoleMessage("error", "Session expired. Please login again.");
+      return;
+    }
     
     setIsDeploying(true);
     setShowPasswordModal(false); // Close password modal immediately
@@ -761,6 +765,10 @@ export const IDE: React.FC = () => {
 
   const handleConfirmDeploy = async () => {
     if (!selectedAccount || !activeFile) return;
+    if (!SecureStorage.hasValidSessionToken()) {
+      addConsoleMessage("error", "Session expired. Please login again.");
+      return;
+    }
     
     setShowDeployConfirmation(false);
     setIsDeploying(true);

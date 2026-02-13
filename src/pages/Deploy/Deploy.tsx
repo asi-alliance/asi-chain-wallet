@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { RootState } from "store";
 import { RChainService } from "services/rchain";
+import { SecureStorage } from "services/secureStorage";
 import { getGasFeeAsNumber } from "../../constants/gas";
 import {
     Card,
@@ -197,6 +198,10 @@ export const Deploy: React.FC = () => {
 
     const handleConfirmDeploy = async () => {
         if (!selectedAccount) return;
+        if (!SecureStorage.hasValidSessionToken()) {
+            setError("Session expired. Please login again.");
+            return;
+        }
 
         const balance = parseFloat(selectedAccount.balance || "0");
         const phloLimitNum = parseInt(phloLimit);
