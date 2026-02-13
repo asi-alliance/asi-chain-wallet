@@ -17,6 +17,10 @@ export interface SecureStorageData {
   };
 }
 
+type CryptoWithOptionalRandomUUID = Crypto & {
+  randomUUID?: () => string;
+};
+
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
@@ -498,12 +502,13 @@ export class SecureStorage {
 
   static generateSessionToken(): string {
     try {
-      if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
-        return (crypto as any).randomUUID();
+      const cryptoApi = globalThis.crypto as CryptoWithOptionalRandomUUID | undefined;
+      if (cryptoApi?.randomUUID) {
+        return cryptoApi.randomUUID();
       }
-      if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      if (cryptoApi?.getRandomValues) {
         const bytes = new Uint8Array(32);
-        crypto.getRandomValues(bytes);
+        cryptoApi.getRandomValues(bytes);
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
       }
     } catch {}
@@ -540,7 +545,7 @@ export class SecureStorage {
    * Helper for sensitive actions.
    * If token is missing -> treat session as expired.
    */
-  static hasValidSessionToken(): boolean {
+  static hasSessionToken(): boolean {
     return !!this.getSessionToken();
   }
 

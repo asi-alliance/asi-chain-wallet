@@ -438,7 +438,7 @@ export const sendTransaction = createAsyncThunk(
     password?: string;
     network: Network;
   }, { dispatch, getState }) => {
-    if (!SecureStorage.hasValidSessionToken()) {
+    if (!SecureStorage.hasSessionToken()) {
       throw new Error('Session expired. Please login again.');
     }
 

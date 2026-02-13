@@ -328,6 +328,22 @@ interface ConsoleMessage {
   timestamp: Date;
 }
 
+enum DeployResultStatus {
+    Completed = "completed",
+    Submitted = "submitted",
+    Errored = "errored",
+    SystemError = "system_error",
+    Pending = "pending",
+}
+
+type DeployResultData = {
+    status: DeployResultStatus;
+    message?: string;
+    error?: string;
+    blockHash?: string;
+    cost?: string;
+};
+
 export const IDE: React.FC = () => {
   const navigate = useNavigate();
     const { selectedAccount, selectedNetwork } = useSelector(
@@ -630,25 +646,25 @@ export const IDE: React.FC = () => {
     setShowDeployConfirmation(true);
   };
 
-  const logDeployResult = (result: any) => {
-    if (result.status === "completed") {
+  const logDeployResult = (result: DeployResultData) => {
+    if (result.status === DeployResultStatus.Completed) {
       addConsoleMessage("success", `[SUCCESS] ${result.message}`);
       if (result.blockHash) addConsoleMessage("info", `Block Hash: ${result.blockHash}`);
       if (result.cost) addConsoleMessage("info", `Gas Cost: ${result.cost}`);
       return;
     }
 
-    if (result.status === "submitted") {
+    if (result.status === DeployResultStatus.Submitted) {
       addConsoleMessage("info", `[INFO] ${result.message}`);
       return;
     }
 
-    if (result.status === "errored") {
+    if (result.status === DeployResultStatus.Errored) {
       addConsoleMessage("error", `[ERROR] Deploy execution failed: ${result.error}`);
       return;
     }
 
-    if (result.status === "system_error") {
+    if (result.status === DeployResultStatus.SystemError) {
       addConsoleMessage("error", `[ERROR] System error: ${result.error}`);
       return;
     }
@@ -675,7 +691,7 @@ export const IDE: React.FC = () => {
 
   const handleDeployWithPassword = async (password: string) => {
     if (!selectedAccount || !activeFile) return;
-    if (!SecureStorage.hasValidSessionToken()) {
+    if (!SecureStorage.hasSessionToken()) {
       addConsoleMessage("error", "Session expired. Please login again.");
       return;
     }
@@ -763,7 +779,7 @@ export const IDE: React.FC = () => {
 
   const handleConfirmDeploy = async () => {
     if (!selectedAccount || !activeFile) return;
-    if (!SecureStorage.hasValidSessionToken()) {
+    if (!SecureStorage.hasSessionToken()) {
       addConsoleMessage("error", "Session expired. Please login again.");
       return;
     }

@@ -29,6 +29,23 @@ interface PendingTransaction {
     expectedBalance?: string;
 }
 
+enum DeployResultStatus {
+    Completed = "completed",
+    Errored = "errored",
+    SystemError = "system_error",
+    Pending = "pending",
+    Submitted = "submitted",
+}
+
+type DeployResultData = {
+    status: DeployResultStatus;
+    message?: string;
+    error?: string;
+    blockHash?: string;
+    cost?: string;
+    [key: string]: unknown;
+};
+
 const savePendingTransaction = (tx: PendingTransaction) => {
     if (typeof window === 'undefined' || !window.localStorage) {
         return;
@@ -196,8 +213,11 @@ export const Deploy: React.FC = () => {
         setShowDeployConfirmation(true);
     };
 
-    const applyFinalDeployResult = (finalResult: any, deployId: string) => {
-        if (finalResult.status === "completed") {
+    const applyFinalDeployResult = (
+        finalResult: DeployResultData,
+        deployId: string
+    ) => {
+        if (finalResult.status === DeployResultStatus.Completed) {
             setResult({
                 ...finalResult,
                 deployId,
@@ -208,12 +228,12 @@ export const Deploy: React.FC = () => {
             return;
         }
 
-        if (finalResult.status === "errored") {
+        if (finalResult.status === DeployResultStatus.Errored) {
             setError(`[ERROR] Deploy execution failed: ${finalResult.error}`);
             return;
         }
 
-        if (finalResult.status === "system_error") {
+        if (finalResult.status === DeployResultStatus.SystemError) {
             setError(`[ERROR] System error: ${finalResult.error}`);
             return;
         }
@@ -221,14 +241,16 @@ export const Deploy: React.FC = () => {
         setResult(finalResult);
     };
 
-    const applyFallbackDeployResult = (deployId: string, err: any) => {
-        const msg = err?.message || "";
+    const applyFallbackDeployResult = (deployId: string, err: unknown) => {
+        const msg = err instanceof Error ? err.message : "";
         const isCorsOrNetwork =
             msg.includes("CORS") || msg.includes("network");
 
         setResult({
             deployId,
-            status: isCorsOrNetwork ? "pending" : "submitted",
+            status: isCorsOrNetwork
+                ? DeployResultStatus.Pending
+                : DeployResultStatus.Submitted,
             message: isCorsOrNetwork
                 ? "[PENDING] Deploy submitted successfully. Status check unavailable due to CORS/network issues."
                 : "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.",
@@ -237,7 +259,7 @@ export const Deploy: React.FC = () => {
 
     const handleConfirmDeploy = async () => {
         if (!selectedAccount) return;
-        if (!SecureStorage.hasValidSessionToken()) {
+        if (!SecureStorage.hasSessionToken()) {
             setError("Session expired. Please login again.");
             return;
         }
@@ -324,7 +346,7 @@ export const Deploy: React.FC = () => {
             try {
                 const finalResult = await rchain.waitForDeployResult(deployResult);
                 applyFinalDeployResult(finalResult, deployResult);
-            } catch (resultError: any) {
+            } catch (resultError: unknown) {
                 applyFallbackDeployResult(deployResult, resultError);
             }
         } catch (err: any) {
