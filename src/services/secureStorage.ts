@@ -3,7 +3,7 @@ import { Account } from 'types/wallet';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
   encryptedPrivateKey?: string;
-  privateKey?: never; // Ensure privateKey is nev                                                                                                                                                                                                                                                                                                                    er stored
+  privateKey?: never;
   derivationPath?: string;
   isHardwareWallet?: boolean;
   userId?: string;
@@ -13,22 +13,16 @@ export interface SecureStorageData {
   accounts: SecureAccount[];
   settings: {
     requirePasswordForTransaction: boolean;
-    idleTimeout: number; // in minutes
+    idleTimeout: number;
   };
 }
 
-/**
- * Secure storage service for managing encrypted wallet data
- */
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
   private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
   private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
 
-  /**
-   * Save encrypted accounts to localStorage
-   */
   static saveEncryptedAccounts(accounts: SecureAccount[]): void {
     try {
       const data = this.getStorageData();
@@ -56,17 +50,18 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Encrypt and save a new account
-   */
-  static saveAccount(account: Account, password: string, userId?: string): SecureAccount {
+  static saveAccount(account: Account, password: string, userId?: string, profileName?: string): SecureAccount {
     if (!account.privateKey) {
       throw new Error('Private key is required');
     }
 
-    const currentUserId = userId || this.getCurrentUserId();
+    let currentUserId = userId;
     if (!currentUserId) {
-      throw new Error('User ID is required. Please login first.');
+      const nameToUse = profileName || account.name;
+      if (!nameToUse) {
+        throw new Error('Account name is required to generate user ID');
+      }
+      currentUserId = this.generateUserIdFromPassword(password, nameToUse);
     }
 
     const encryptedPrivateKey = encrypt(account.privateKey, password);
@@ -96,15 +91,30 @@ export class SecureStorage {
       return null;
     }
 
-    const accounts = this.getEncryptedAccounts(currentUserId);
-    const secureAccount = accounts.find(a => a.id === accountId);
+    const allAccounts = this.getEncryptedAccounts();
+    const secureAccount = allAccounts.find(a => a.id === accountId);
 
     if (!secureAccount?.encryptedPrivateKey) {
       return null;
     }
 
-    if (secureAccount.userId !== currentUserId) {
-      return null;
+    if (secureAccount.userId) {
+      if (secureAccount.userId !== currentUserId) {
+        return null;
+      }
+      if (secureAccount.name) {
+        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
+        if (expectedUserId !== secureAccount.userId) {
+          return null;
+        }
+      }
+    } else {
+      if (secureAccount.name) {
+        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
+        if (expectedUserId !== currentUserId) {
+          return null;
+        }
+      }
     }
 
     const privateKey = decrypt(secureAccount.encryptedPrivateKey, password);
@@ -198,9 +208,6 @@ export class SecureStorage {
     return this.getEncryptedAccounts(userId).length > 0;
   }
 
-  /**
-   * Get settings from storage
-   */
   static getSettings(): SecureStorageData['settings'] {
     const data = this.getStorageData();
     return data.settings;
@@ -487,7 +494,10 @@ export class SecureStorage {
     }
   }
 
-  static generateUserIdFromPassword(password: string): string {
+  static generateUserIdFromPassword(password: string, profileName?: string): string {
+    if (profileName) {
+      return hashValue(`user_${profileName}_${password}`);
+    }
     return hashValue(`user_${password}`);
   }
 }

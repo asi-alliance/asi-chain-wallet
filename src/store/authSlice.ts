@@ -34,7 +34,6 @@ const initialState: AuthState = {
   error: null,
 };
 
-// Create account with password
 type CreateAccountPayload = {
   name: string;
   password: string;
@@ -44,14 +43,11 @@ type CreateAccountPayload = {
 export const createAccountWithPassword = createAsyncThunk(
   'auth/createAccountWithPassword',
   async ({ name, password, networkId }: CreateAccountPayload, { getState }) => {
-    const state = getState() as { wallet: { selectedNetwork: Network } };
+    const state = getState() as { wallet: { selectedNetwork?: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
     
-    let userId = SecureStorage.getCurrentUserId();
-    if (!userId) {
-      userId = SecureStorage.generateUserIdFromPassword(password);
-      SecureStorage.setCurrentUserId(userId);
-    }
+    const userId = SecureStorage.generateUserIdFromPassword(password, name);
+    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
     
     const keyPair = generateKeyPair();
     const account: Account = {
@@ -67,14 +63,14 @@ export const createAccountWithPassword = createAsyncThunk(
       createdAt: new Date(),
     };
 
-    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
-
-    SecureStorage.saveAccount(account, password, userId);
+    SecureStorage.saveAccount(account, password, userId, name);
     SecureStorage.unlockAccount(account.id, password, userId);
     
     if (!hadAccountsBefore) {
       SecureStorage.setAuthenticated(true);
     }
+
+    SecureStorage.setCurrentUserId(userId);
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -115,14 +111,11 @@ type ImportAccountPayload = {
 export const importAccountWithPassword = createAsyncThunk(
   'auth/importAccountWithPassword',
   async ({ name, value, type, password, networkId }: ImportAccountPayload, { getState }) => {
-    const state = getState() as { wallet: { selectedNetwork: Network } };
+    const state = getState() as { wallet: { selectedNetwork?: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
     
-    let userId = SecureStorage.getCurrentUserId();
-    if (!userId) {
-      userId = SecureStorage.generateUserIdFromPassword(password);
-      SecureStorage.setCurrentUserId(userId);
-    }
+    const userId = SecureStorage.generateUserIdFromPassword(password, name);
+    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
     
     let accountData;
     
@@ -156,17 +149,17 @@ export const importAccountWithPassword = createAsyncThunk(
     if (checkAccountExists(account, userId)) {
       throw new Error('Account with this address already exists');
     }
-
-    const hadAccountsBefore = SecureStorage.hasAccounts(userId);
     
     if (account.privateKey) {
-      SecureStorage.saveAccount(account, password, userId);
+      SecureStorage.saveAccount(account, password, userId, name);
       SecureStorage.unlockAccount(account.id, password, userId);
     }
     
     if (!hadAccountsBefore) {
       SecureStorage.setAuthenticated(true);
     }
+
+    SecureStorage.setCurrentUserId(userId);
 
     return { account, isFirstAccount: !hadAccountsBefore };
   }
@@ -181,7 +174,7 @@ type ImportKeyfilePayload = {
 export const importFromKeyfile = createAsyncThunk(
   'auth/importFromKeyfile',
   async ({ keyfileContent, name, networkId }: ImportKeyfilePayload, { getState }) => {
-    const state = getState() as { wallet: { selectedNetwork: Network } };
+    const state = getState() as { wallet: { selectedNetwork?: Network } };
     const selectedNetworkId = networkId || state.wallet?.selectedNetwork?.id;
     
     let userId = SecureStorage.getCurrentUserId();
@@ -196,38 +189,79 @@ export const importFromKeyfile = createAsyncThunk(
 
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
-  async ({ password }: { password: string }) => {
-    const userId = SecureStorage.generateUserIdFromPassword(password);
-    
+  async ({ password, accountName }: { password: string; accountName?: string }) => {
     const allAccounts = SecureStorage.getEncryptedAccounts();
     const unlockedAccounts: Account[] = [];
-    let hasValidPassword = false;
+    let foundUserId: string | null = null;
     const accountsToMigrate: string[] = [];
 
-    for (const account of allAccounts) {
-      if (account.userId && account.userId !== userId) {
-        continue;
-      }
+    if (accountName) {
+      const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
+      const account = allAccounts.find(acc => acc.name === accountName);
       
-      const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
-      if (unlocked) {
-        unlockedAccounts.push(unlocked);
-        hasValidPassword = true;
+      if (account) {
+        const userIdMatches = !account.userId || account.userId === userId;
         
-        if (!account.userId) {
-          accountsToMigrate.push(account.id);
+        if (userIdMatches) {
+          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+          if (unlocked) {
+            unlockedAccounts.push(unlocked);
+            foundUserId = userId;
+            
+            if (!account.userId) {
+              accountsToMigrate.push(account.id);
+            }
+          }
+        }
+      }
+    } else {
+      const uniqueAccountNames = Array.from(new Set(
+        allAccounts
+          .filter(acc => acc.name)
+          .map(acc => acc.name!)
+      ));
+
+      for (const accountNameToTry of uniqueAccountNames) {
+        const userId = SecureStorage.generateUserIdFromPassword(password, accountNameToTry);
+        
+        for (const account of allAccounts) {
+          if (account.name !== accountNameToTry) {
+            continue;
+          }
+          
+          const userIdMatches = !account.userId || account.userId === userId;
+          
+          if (!userIdMatches) {
+            continue;
+          }
+          
+          const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+          if (unlocked) {
+            unlockedAccounts.push(unlocked);
+            if (!foundUserId) {
+              foundUserId = userId;
+            }
+            
+            if (!account.userId) {
+              accountsToMigrate.push(account.id);
+            }
+          }
+        }
+
+        if (foundUserId && unlockedAccounts.length > 0) {
+          break;
         }
       }
     }
 
-    if (accountsToMigrate.length > 0) {
+    if (accountsToMigrate.length > 0 && foundUserId) {
       const allAccountsForUpdate = SecureStorage.getEncryptedAccounts();
       let needsUpdate = false;
       
       const updatedAccounts = allAccountsForUpdate.map(acc => {
         if (accountsToMigrate.includes(acc.id) && !acc.userId) {
           needsUpdate = true;
-          return { ...acc, userId };
+          return { ...acc, userId: foundUserId! };
         }
         return acc;
       });
@@ -237,17 +271,16 @@ export const loginWithPassword = createAsyncThunk(
       }
     }
 
-    if (!hasValidPassword) {
+    if (!foundUserId || unlockedAccounts.length === 0) {
       throw new Error('Invalid password');
     }
 
-    SecureStorage.setCurrentUserId(userId);
+    SecureStorage.setCurrentUserId(foundUserId);
     SecureStorage.setAuthenticated(true);
     return unlockedAccounts;
   }
 );
 
-// Unlock specific account
 export const unlockAccount = createAsyncThunk(
   'auth/unlockAccount',
   async ({ accountId, password }: { accountId: string; password: string }) => {
@@ -264,7 +297,6 @@ export const unlockAccount = createAsyncThunk(
   }
 );
 
-// Export account keyfile
 export const exportAccountKeyfile = createAsyncThunk(
   'auth/exportAccountKeyfile',
   async ({ accountId }: { accountId: string }) => {
@@ -273,7 +305,6 @@ export const exportAccountKeyfile = createAsyncThunk(
       throw new Error('Account not found');
     }
 
-    // Create and download file
     const blob = new Blob([keyfile], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -335,7 +366,6 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Create account
       .addCase(createAccountWithPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -343,7 +373,6 @@ const authSlice = createSlice({
       .addCase(createAccountWithPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.hasAccounts = true;
-        // Only set authenticated if this was the first account
         if (action.payload.isFirstAccount) {
           state.isAuthenticated = true;
         }
@@ -353,7 +382,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Failed to create account';
       })
-      // Import account
       .addCase(importAccountWithPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -361,7 +389,6 @@ const authSlice = createSlice({
       .addCase(importAccountWithPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.hasAccounts = true;
-        // Only set authenticated if this was the first account
         if (action.payload.isFirstAccount) {
           state.isAuthenticated = true;
         }
@@ -371,7 +398,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Failed to import account';
       })
-      // Import keyfile
       .addCase(importFromKeyfile.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -384,7 +410,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Failed to import keyfile';
       })
-      // Login
       .addCase(loginWithPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -398,7 +423,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Login failed';
       })
-      // Unlock account
       .addCase(unlockAccount.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -414,7 +438,6 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message || 'Failed to unlock account';
       })
-      // Export keyfile
       .addCase(exportAccountKeyfile.pending, (state) => {
         state.isLoading = true;
       })

@@ -24,7 +24,8 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 3. [Quick Start](#quick-start)
 4. [Project Structure](#project-structure)
 5. [Documentation](#documentation)
-6. [License](#license)
+6. [Contributing](#contributing)
+7. [License](#license)
 
 ---
 
@@ -76,8 +77,6 @@ The wallet will be available at [http://localhost:3000](http://localhost:3000).
 
 > **Note**: You may see ESLint warnings about unused variables and React Hook dependencies during startup. These are code quality warnings and don't affect the wallet's functionality.
 
-> **Note**: To test WalletConnect features, see the [Testing WalletConnect Integration](#-testing-walletconnect-integration) section below.
-
 ### Production Build
 
 ```bash
@@ -105,8 +104,7 @@ The production build will be in the `build/` directory, ready for deployment to 
 
 ### Production Considerations
 - Address critical security vulnerabilities before deploying to production
-- Test thoroughly with your specific RChain network configuration
-- Generate your own WalletConnect Project ID for production use
+- Test thoroughly with your specific RChain network configuration (see CONFIGURATION.md and NETWORKS env)
 
 ### Recent Updates (September 2025)
 - **Deployed**: Production wallet on AWS Lightsail Singapore (http://13.251.66.61:3000)
@@ -138,21 +136,21 @@ The production build will be in the `build/` directory, ready for deployment to 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Browser                               │
+│                        Browser                              │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │   React UI      │  │ Redux Store  │  │ Local Storage │  │
-│  │  Components     │  │    State     │  │  (Encrypted)  │  │
-│  └────────┬────────┘  └──────┬───────┘  └───────┬───────┘  │
-│           │                   │                   │          │
+│  ┌─────────────────┐  ┌──────────────┐  ┌───────────────┐   │
+│  │   React UI      │  │ Redux Store  │  │ Local Storage │   │
+│  │  Components     │  │    State     │  │  (Encrypted)  │   │
+│  └────────┬────────┘  └──────┬───────┘  └───────┬───────┘   │
+│           │                  │                  │           │
 │  ┌────────▼───────────────────▼──────────────────▼───────┐  │
-│  │              Service Layer (TypeScript)                │  │
-│  ├────────────────────────────────────────────────────────┤  │
-│  │ • RChain Service  • Crypto Service  • Storage Service │  │
-│  │ • WalletConnect   • IDE Service     • Key Management  │  │
+│  │              Service Layer (TypeScript)               │  │
+│  ├───────────────────────────────────────────────────────┤  │
+│  │ • RChain Service  • Crypto Service  • SecureStorage   │  │
+│  │ • IDE (Rholang)  • Transaction Polling  • Key Mgmt    │  │
 │  └────────────────────────┬──────────────────────────────┘  │
-│                           │                                  │
-└───────────────────────────┼──────────────────────────────────┘
+│                           │                                 │
+└───────────────────────────┼────────────────────────────────-┘
                             │
                    Network Layer (HTTPS)
                             │
@@ -168,10 +166,10 @@ The production build will be in the `build/` directory, ready for deployment to 
 ## 🔐 Security Features
 
 ### Encryption
-- **AES-256-GCM**: Military-grade encryption for private keys
-- **PBKDF2**: Key derivation with 100,000 iterations
-- **Random Salt/IV**: Unique per encryption operation
-- **Memory Cleanup**: Keys cleared after use
+- **Password-based encryption** (CryptoJS AES) for private keys stored in localStorage
+- **User isolation**: Accounts tied to `userId` (derived from wallet name + password); different users on the same device cannot unlock each other's wallets
+- **Memory cleanup**: Keys cleared from memory after use and on logout
+- A phased plan for stronger encryption (Web Crypto API, PBKDF2, IndexedDB) is documented in the repo
 
 ### Access Control
 - **Password Protection**: Required for all sensitive operations
@@ -198,25 +196,24 @@ The production build will be in the `build/` directory, ready for deployment to 
 - **TypeScript**: Type safety
 - **Redux Toolkit**: State management
 - **Styled Components**: Styling
-- **Monaco Editor**: Code editing
-- **Web3 Libraries**: Blockchain interaction
-- **WalletConnect v2**: dApp connectivity protocol
+- **Monaco Editor**: Rholang IDE
+- **Axios**: RChain node and GraphQL requests
 
 ### Project Structure
 ```
-asi_wallet_v2/
-├── src/              # Main wallet source code
+asi-chain-wallet/
+├── src/
 │   ├── components/   # React components
-│   ├── pages/        # Page components
-│   ├── services/     # Business logic services
-│   ├── store/        # Redux store and slices
-│   ├── utils/        # Utility functions
-│   └── __tests__/    # Test files
+│   ├── pages/        # Page components (Dashboard, Send, IDE, etc.)
+│   ├── services/     # RChain, SecureStorage, transactionPolling, etc.
+│   ├── store/        # Redux slices (auth, wallet, theme, …)
+│   ├── utils/        # Crypto, encryption, validation
+│   └── __mocks__/    # Test mocks
 ├── public/           # Static assets
-├── scripts/          # Build and deployment scripts
-├── test-dapp-rchain/ # WalletConnect testing dApp
-├── coverage/         # Test coverage reports
-└── docs/             # Documentation (see ../docs/WALLET.md)
+├── tests-automation/ # WebdriverIO E2E tests
+├── CONFIGURATION.md  # Env and networks
+├── DEVELOPMENT.md    # Setup, CI/CD, troubleshooting
+└── buildspec.example.yml  # AWS CodeBuild example
 ```
 
 ### Commands
@@ -247,7 +244,7 @@ npm test Dashboard    # Run specific test file
 
 # Deployment
 npm run deploy:gh     # Deploy to GitHub Pages
-npm run deploy:ipfs   # Deploy to IPFS
+npm run deploy:ipfs   # Deploy to IPFS (requires IPFS node and scripts/deploy-ipfs.js)
 ```
 
 ## 📈 Recent Improvements
@@ -311,10 +308,12 @@ PRIVATE_KEY=your_test_private_key_here
 
 ### Running Tests
 
+From the `tests-automation/` directory:
+
 ```bash
+cd tests-automation
 # Web/Desktop tests
 npx wdio run wdio.web.conf.js
-
 # Mobile tests
 npx wdio run wdio.mobile.conf.js
 ```
@@ -323,37 +322,28 @@ npx wdio run wdio.mobile.conf.js
 
 ```
 tests-automation/
-├── TestSuites/
-│   ├── accounts/
-│   │   ├── deployContract.e2e.test.js
-│   │   └── mainIntegtation.e2e.test.js
-│   ├── connection.test.js
-│   ├── navbar.test.js
-│   ├── network.test.js
-│   └── privateKey.test.js
-├── pages/
-│   ├── AccountsPage.js
-│   ├── BasePage.js
-│   ├── DashboardPage.js
-│   ├── DeployPage.js
-│   ├── HistoryPage.js
-│   ├── NavbarPage.js
-│   ├── NetworkPage.js
-│   ├── ReceivePage.js
-│   └── TransactionsPage.js
+├── pages/           # Page objects (AccountsPage, DashboardPage, etc.)
 ├── wdio.web.conf.js
 ├── wdio.mobile.conf.js
-└── .env
+└── .env             # URL_TO_TEST, LambdaTest credentials, etc. (see .env.example)
 ```
 
 ### LambdaTest Dashboard
 
 View test results: [https://automation.lambdatest.com](https://automation.lambdatest.com)
 
+## Documentation
+
+- **[CONFIGURATION.md](CONFIGURATION.md)** — Environment variables, NETWORKS, GraphQL and read-only URLs
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** — Setup, scripts, Docker, CI/CD, troubleshooting
+- **[docs.asichain.io](https://docs.asichain.io)** — User-facing docs and wallet usage
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](../docs/wallet/contributing.md) for details.
+Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-wallet/issues) section.  
+If you encounter a problem that is not listed, please feel free to open a new issue and provide as much detail as possible.
+
+We welcome contributions. Open an issue or PR; for workflow see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -363,7 +353,7 @@ We welcome contributions! Please see our [Contributing Guide](../docs/wallet/con
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 ## 🔧 Quick Troubleshooting
 
@@ -382,21 +372,19 @@ This project is licensed under the MIT License.
 
 ### Runtime Issues
 - **Blank screen**: Check browser console for errors, ensure JavaScript is enabled
-- **Network errors**: Verify RChain node is running and CORS is configured
-- **WalletConnect not working**: Ensure `.env` has valid Project ID
+- **Network errors**: Verify RChain node is running and CORS is configured; check NETWORKS / GraphQL and read-only URLs in CONFIGURATION.md
 
-For detailed troubleshooting, see [docs/wallet/troubleshooting.md](../docs/wallet/troubleshooting.md)
+For more details, see [CONFIGURATION.md](CONFIGURATION.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 🙏 Acknowledgments
 
 - **RChain Community**: For the blockchain infrastructure
 - **F1R3FLY Wallet**: For inspiration and reference implementation
-- **WalletConnect**: For the excellent dApp connectivity protocol
 - **Open Source Community**: All the libraries and tools that make this possible
 
 ## 📞 Support
 
-- **Documentation**: Check our comprehensive [docs](../docs/wallet/)
+- **Documentation**: [CONFIGURATION.md](CONFIGURATION.md), [DEVELOPMENT.md](DEVELOPMENT.md), and [docs.asichain.io](https://docs.asichain.io)
 - **Issues**: Report bugs on GitHub Issues
 - **Community**: Join the RChain/ASI community channels
 

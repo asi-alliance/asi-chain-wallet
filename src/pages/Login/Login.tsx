@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { RootState } from 'store';
+import { RootState, AppDispatch } from 'store';
 import { loginWithPassword } from 'store/authSlice';
-import { syncAccounts } from 'store/walletSlice';
+import { syncAccounts, selectAccount } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
+import { SecureStorage } from 'services/secureStorage';
 
 const LoginContainer = styled.div`
   max-width: 400px;
@@ -42,28 +43,66 @@ const LinkButton = styled(Button)`
   text-align: center;
 `;
 
+const AccountSelector = styled.select`
+  padding: 12px 16px;
+  border: 2px solid ${({ theme }) => theme.border};
+  border-radius: 8px;
+  background: ${({ theme }) => theme.surface};
+  color: ${({ theme }) => theme.text.primary};
+  font-size: 16px;
+  margin-bottom: 16px;
+  width: 100%;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.primary};
+  }
+`;
+
+const InfoText = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.text.secondary};
+  margin-top: -8px;
+  margin-bottom: 16px;
+`;
+
 export const Login: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { isAuthenticated, hasAccounts, isLoading, error } = useSelector(
     (state: RootState) => state.auth
   );
 
   const [password, setPassword] = useState('');
+  const [selectedAccountName, setSelectedAccountName] = useState<string>('');
   const [showError, setShowError] = useState(false);
 
+  const availableAccountNames = useMemo(() => {
+    const accounts = SecureStorage.getEncryptedAccounts();
+    const uniqueNames = Array.from(new Set(
+      accounts
+        .filter(acc => acc.name)
+        .map(acc => acc.name!)
+    ));
+    return uniqueNames;
+  }, []);
+
   useEffect(() => {
-    // Redirect if already authenticated
+    if (availableAccountNames.length > 0 && !selectedAccountName) {
+      setSelectedAccountName(availableAccountNames[0]);
+    }
+  }, [availableAccountNames, selectedAccountName]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    // Show error message
     if (error) {
       setShowError(true);
-      // Hide error after 5 seconds
       const timer = setTimeout(() => setShowError(false), 5000);
       return () => clearTimeout(timer);
     }
@@ -73,11 +112,25 @@ export const Login: React.FC = () => {
     if (!password.trim()) return;
 
     try {
-      const resultAction = await dispatch(loginWithPassword({ password }) as any);
+      const resultAction = await dispatch(loginWithPassword({ 
+        password,
+        accountName: selectedAccountName || undefined 
+      }));
       
       if (loginWithPassword.fulfilled.match(resultAction)) {
-        // Sync accounts to wallet state
         dispatch(syncAccounts(resultAction.payload));
+        
+        if (selectedAccountName) {
+          const accountToSelect = resultAction.payload.find(
+            acc => acc.name === selectedAccountName
+          );
+          if (accountToSelect) {
+            dispatch(selectAccount(accountToSelect.id));
+          }
+        } else if (resultAction.payload.length > 0) {
+          dispatch(selectAccount(resultAction.payload[0].id));
+        }
+        
         navigate('/');
       }
     } catch (err) {
@@ -128,6 +181,34 @@ export const Login: React.FC = () => {
             <ErrorMessage>{error}</ErrorMessage>
           )}
 
+          {availableAccountNames.length > 1 && (
+            <FormGroup>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontSize: '14px', 
+                fontWeight: 500,
+                color: 'inherit'
+              }}>
+                Select Wallet
+              </label>
+              <AccountSelector
+                id="login-account-selector"
+                value={selectedAccountName}
+                onChange={(e) => setSelectedAccountName(e.target.value)}
+              >
+                {availableAccountNames.map(name => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </AccountSelector>
+              <InfoText>
+                Different wallets can have the same password. Select the wallet you want to unlock.
+              </InfoText>
+            </FormGroup>
+          )}
+
           <FormGroup>
             <Input
               id="login-password-input"
@@ -145,7 +226,7 @@ export const Login: React.FC = () => {
               }}
               onKeyPress={handleKeyPress}
               placeholder="Enter your password"
-              autoFocus
+              autoFocus={availableAccountNames.length <= 1}
               autoComplete="current-password"
             />
           </FormGroup>
