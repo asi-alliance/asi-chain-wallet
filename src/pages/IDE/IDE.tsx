@@ -671,7 +671,7 @@ export const IDE: React.FC = () => {
 
     addConsoleMessage(
       "info",
-      result.message ||
+      result.message ??
         "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion."
     );
   };
