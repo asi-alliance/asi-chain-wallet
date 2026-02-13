@@ -235,7 +235,7 @@ const tryUnlockAllNames = (
   allAccounts: SecureAccount[],
 ): LoginAttemptResult => {
   const uniqueNames = Array.from(
-    new Set(allAccounts.filter(acc => acc.name).map(acc => acc.name!))
+    new Set(allAccounts.filter(acc => acc.name).map(acc => acc.name))
   );
 
   for (const name of uniqueNames) {
