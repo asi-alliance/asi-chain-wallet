@@ -50,7 +50,7 @@ export function recordLoginAttempt(
   const entry: LoginAuditEntry = {
     timestamp: new Date().toISOString(),
     status,
-    accountName: accountName || UNKNOWN_ACCOUNT,
+    accountName: accountName ?? UNKNOWN_ACCOUNT,
   };
 
   const entries = appendAndTrim(readLog(), entry);
