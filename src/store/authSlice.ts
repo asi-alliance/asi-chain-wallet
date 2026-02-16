@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { SecureStorage } from 'services/secureStorage';
 import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
+import { recordLoginAttempt, LoginAttemptStatus } from 'services/loginAuditLog';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -276,12 +277,14 @@ export const loginWithPassword = createAsyncThunk(
     }
 
     if (!foundUserId || unlockedAccounts.length === 0) {
+      recordLoginAttempt(LoginAttemptStatus.Failure, accountName);
       throw new Error('Invalid password');
     }
 
     SecureStorage.setCurrentUserId(foundUserId);
     SecureStorage.setAuthenticated(true);
     SecureStorage.setSessionToken(SecureStorage.generateSessionToken());
+    recordLoginAttempt(LoginAttemptStatus.Success, accountName);
     return unlockedAccounts;
   }
 );
