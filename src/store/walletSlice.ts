@@ -550,7 +550,8 @@ const walletSlice = createSlice({
       }
 
       try {
-        const encryptedAccounts = SecureStorage.getEncryptedAccounts();
+        const userId = SecureStorage.getCurrentUserId();
+        const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId || undefined);
         const { sanitized, updates } = sanitizeAccounts(
           encryptedAccounts as unknown as Account[],
           network.id
@@ -676,7 +677,8 @@ const walletSlice = createSlice({
     },
     loadAccountsFromStorage: (state) => {
       try {
-        const encryptedAccounts = SecureStorage.getEncryptedAccounts();
+        const userId = SecureStorage.getCurrentUserId();
+        const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId || undefined);
         const networkId = state.selectedNetwork?.id;
 
         const { sanitized, updates } = sanitizeAccounts(

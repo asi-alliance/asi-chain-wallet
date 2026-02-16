@@ -68,9 +68,11 @@ export const createAccountWithPassword = createAsyncThunk(
     };
 
     SecureStorage.saveAccount(account, password, userId, name);
-    SecureStorage.clearSession();
     SecureStorage.unlockAccount(account.id, password, userId);
-    SecureStorage.setAuthenticated(true);
+    
+    if (!hadAccountsBefore) {
+      SecureStorage.setAuthenticated(true);
+    }
 
     SecureStorage.setCurrentUserId(userId);
     const sessionToken = SecureStorage.generateSessionToken();
@@ -157,11 +159,12 @@ export const importAccountWithPassword = createAsyncThunk(
     
     if (account.privateKey) {
       SecureStorage.saveAccount(account, password, userId, name);
-      SecureStorage.clearSession();
       SecureStorage.unlockAccount(account.id, password, userId);
     }
     
-    SecureStorage.setAuthenticated(true);
+    if (!hadAccountsBefore) {
+      SecureStorage.setAuthenticated(true);
+    }
 
     SecureStorage.setCurrentUserId(userId);
     const sessionToken = SecureStorage.generateSessionToken();
@@ -387,8 +390,10 @@ const authSlice = createSlice({
       .addCase(createAccountWithPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.hasAccounts = true;
-        state.isAuthenticated = true;
-        state.unlockedAccounts = [action.payload.account];
+        if (action.payload.isFirstAccount) {
+          state.isAuthenticated = true;
+        }
+        state.unlockedAccounts.push(action.payload.account);
       })
       .addCase(createAccountWithPassword.rejected, (state, action) => {
         state.isLoading = false;
@@ -401,8 +406,10 @@ const authSlice = createSlice({
       .addCase(importAccountWithPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.hasAccounts = true;
-        state.isAuthenticated = true;
-        state.unlockedAccounts = [action.payload.account];
+        if (action.payload.isFirstAccount) {
+          state.isAuthenticated = true;
+        }
+        state.unlockedAccounts.push(action.payload.account);
       })
       .addCase(importAccountWithPassword.rejected, (state, action) => {
         state.isLoading = false;

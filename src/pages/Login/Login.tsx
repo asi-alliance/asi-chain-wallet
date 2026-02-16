@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { RootState, AppDispatch } from 'store';
 import { loginWithPassword } from 'store/authSlice';
-import { syncAccounts, selectAccount, loadAccountsFromStorage } from 'store/walletSlice';
+import { syncAccounts, selectAccount } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
 import { SecureStorage } from 'services/secureStorage';
 
@@ -119,7 +119,6 @@ export const Login: React.FC = () => {
       
       if (loginWithPassword.fulfilled.match(resultAction)) {
         dispatch(syncAccounts(resultAction.payload));
-        dispatch(loadAccountsFromStorage());
         
         if (selectedAccountName) {
           const accountToSelect = resultAction.payload.find(
