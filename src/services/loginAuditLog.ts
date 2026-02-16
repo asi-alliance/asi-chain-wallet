@@ -36,11 +36,8 @@ function writeLog(entries: LoginAuditEntry[]): void {
 }
 
 function appendAndTrim(entries: LoginAuditEntry[], entry: LoginAuditEntry): LoginAuditEntry[] {
-  entries.push(entry);
-  while (entries.length > MAX_ENTRIES) {
-    entries.shift();
-  }
-  return entries;
+  const updated = [...entries, entry];
+  return updated.length > MAX_ENTRIES ? updated.slice(updated.length - MAX_ENTRIES) : updated;
 }
 
 export function recordLoginAttempt(
