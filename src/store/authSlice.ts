@@ -3,7 +3,7 @@ import { SecureStorage, SecureAccount } from 'services/secureStorage';
 import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withLoginLock } from 'services/loginLock';
-import { broadcastSessionLogin } from 'services/sessionChannel';
+import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -345,6 +345,7 @@ const authSlice = createSlice({
       state.error = null;
       SecureStorage.clearSession();
       SecureStorage.setAuthenticated(false);
+      clearSessionBroadcast();
     },
     updateActivity: (state) => {
       state.lastActivity = Date.now();
