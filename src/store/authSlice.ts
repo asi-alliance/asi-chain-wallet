@@ -4,6 +4,7 @@ import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
+import { recordLoginAttempt, LoginAttemptStatus } from 'services/loginAuditLog';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -281,9 +282,10 @@ export const loginWithPassword = createAsyncThunk(
         : tryUnlockAllNames(password, allAccounts);
 
       if (!foundUserId || unlockedAccounts.length === 0) {
+        recordLoginAttempt(LoginAttemptStatus.Failure, accountName);
         throw new Error('Invalid password');
       }
-
+      
       migrateAccountUserIds(accountsToMigrate, foundUserId);
       SecureStorage.setCurrentUserId(foundUserId);
       SecureStorage.setAuthenticated(true);
@@ -291,6 +293,7 @@ export const loginWithPassword = createAsyncThunk(
       const sessionToken = SecureStorage.generateSessionToken();
       SecureStorage.setSessionToken(sessionToken);
       broadcastSessionLogin(sessionToken);
+      recordLoginAttempt(LoginAttemptStatus.Success, accountName);
 
       return unlockedAccounts;
     });
