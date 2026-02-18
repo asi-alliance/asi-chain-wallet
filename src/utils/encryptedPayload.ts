@@ -90,6 +90,32 @@ function isV2Json(value: string): boolean {
   }
 }
 
+/** Parse and validate all required V2 fields. Always throws DecryptionError. */
+function parseAndValidate(sealed: string): EncryptedPayloadV2 {
+  let raw: Record<string, unknown>;
+
+  try {
+    raw = JSON.parse(sealed) as Record<string, unknown>;
+  } catch {
+    throw new DecryptionError('Invalid payload: not valid JSON');
+  }
+
+  if (raw['v'] !== PayloadVersion.V2) {
+    throw new DecryptionError('Invalid payload: unsupported version');
+  }
+
+  if (
+    typeof raw['salt'] !== 'string' ||
+    typeof raw['iv'] !== 'string' ||
+    typeof raw['tag'] !== 'string' ||
+    typeof raw['ct'] !== 'string'
+  ) {
+    throw new DecryptionError('Invalid payload: missing required fields');
+  }
+
+  return raw as unknown as EncryptedPayloadV2;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -124,17 +150,7 @@ export async function sealV2(plaintext: string, password: string): Promise<strin
 
 /** Decrypt a V2 JSON string → plaintext. Throws DecryptionError on failure. */
 export async function openV2(sealed: string, password: string): Promise<string> {
-  let parsed: EncryptedPayloadV2;
-
-  try {
-    parsed = JSON.parse(sealed) as EncryptedPayloadV2;
-  } catch {
-    throw new DecryptionError('Invalid payload: not valid JSON');
-  }
-
-  if (parsed.v !== PayloadVersion.V2) {
-    throw new DecryptionError('Invalid payload: unsupported version');
-  }
+  const parsed = parseAndValidate(sealed);
 
   const salt = fromBase64(parsed.salt);
   const iv = fromBase64(parsed.iv);
