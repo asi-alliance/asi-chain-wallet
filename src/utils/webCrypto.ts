@@ -53,6 +53,17 @@ function getSubtleCrypto(): SubtleCrypto {
   return subtle;
 }
 
+/**
+ * Copy bytes into a new, dedicated ArrayBuffer.
+ * Guarantees the result is a plain ArrayBuffer (not SharedArrayBuffer)
+ * which satisfies the BufferSource constraint in TS 5.6+.
+ */
+function copyToArrayBuffer(src: Uint8Array): ArrayBuffer {
+  const buf = new ArrayBuffer(src.byteLength);
+  new Uint8Array(buf).set(src);
+  return buf;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -67,11 +78,9 @@ export async function deriveKey(
   const iterations = options?.iterations ?? DEFAULT_ITERATIONS;
   const keyLength = options?.keyLength ?? DEFAULT_KEY_LENGTH;
 
-  const passwordBytes = new TextEncoder().encode(password);
-
   const baseKey = await subtle.importKey(
     'raw',
-    passwordBytes.buffer as ArrayBuffer,
+    copyToArrayBuffer(new TextEncoder().encode(password)),
     { name: 'PBKDF2' },
     false,
     ['deriveKey'],
@@ -80,7 +89,7 @@ export async function deriveKey(
   return subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt.buffer as ArrayBuffer,
+      salt: copyToArrayBuffer(salt),
       iterations,
       hash: 'SHA-256',
     },
@@ -99,15 +108,14 @@ export async function encryptData(
 ): Promise<EncryptedPayload> {
   const subtle = getSubtleCrypto();
 
-  const iv =
-    options?.iv ?? globalThis.crypto.getRandomValues(new Uint8Array(DEFAULT_IV_BYTE_LENGTH));
-
-  const encoded = new TextEncoder().encode(plaintext);
+  const iv = options?.iv
+    ? options.iv
+    : globalThis.crypto.getRandomValues(new Uint8Array(DEFAULT_IV_BYTE_LENGTH));
 
   const ciphertext = await subtle.encrypt(
-    { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+    { name: 'AES-GCM', iv: copyToArrayBuffer(iv) },
     key,
-    encoded.buffer as ArrayBuffer,
+    copyToArrayBuffer(new TextEncoder().encode(plaintext)),
   );
 
   return { ciphertext, iv };
@@ -123,7 +131,7 @@ export async function decryptData(
 
   try {
     const decrypted = await subtle.decrypt(
-      { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+      { name: 'AES-GCM', iv: copyToArrayBuffer(iv) },
       key,
       ciphertext,
     );
