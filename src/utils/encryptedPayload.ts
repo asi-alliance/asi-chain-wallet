@@ -36,20 +36,12 @@ export interface EncryptedPayloadV2 {
 // ---------------------------------------------------------------------------
 
 function toBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+  return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
 }
 
 function fromBase64(encoded: string): Uint8Array {
   const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
 function copyToArrayBuffer(src: Uint8Array): ArrayBuffer {
