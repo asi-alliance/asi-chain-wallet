@@ -1,6 +1,6 @@
 import DropdownList, { OptionType } from "../DropdownList";
 import FeedbackFormTriggerIcon from "../assets/asi-feedback-logo.png";
-import { useState, ReactElement, ChangeEvent, useEffect } from "react";
+import { Fragment, useState, ReactElement, ChangeEvent } from "react";
 import {
     endpoints,
     FEEDBACK_FORM_SOURCE,
@@ -8,8 +8,7 @@ import {
     MINIMUM_FEEDBACK_TEXT_LENGTH,
 } from "./meta";
 import "./style.css";
-import { loadCaptchaScript } from "components/Captcha/WAFScriptLoad";
-import { captchaFetch } from "components/Captcha/captchaFetchHandler";
+import { getCaptchaFetch } from "utils/captchaFetch";
 
 enum FeedbackCategory {
     QUESTION = "question",
@@ -37,7 +36,7 @@ const initialFormFields: TFormFields = {
 const FeedbackForm = (): ReactElement => {
     const [isRequestHandling, setIsRequestHandling] = useState(false);
     const [isRequestSent, setIsRequestSent] = useState(false);
-    const [isFormDisplayed, setIsFormDisplayed] = useState(false);
+    const [isFormDisplayed, setIsFormDisplayed] = useState<boolean>(false);
     const [formFields, setFormFields] =
         useState<TFormFields>(initialFormFields);
 
@@ -46,14 +45,6 @@ const FeedbackForm = (): ReactElement => {
         { value: FeedbackCategory.BUG, title: "Bug" },
         { value: FeedbackCategory.FEEDBACK, title: "Feedback" },
     ];
-
-    useEffect(() => {
-        try {
-            loadCaptchaScript()
-        } catch (err) {
-            console.error('CAPTCHA script error: ', err);
-        }
-    }, []);
 
     const isEmailValid = (value: string): boolean =>
         EMAIL_VALIDATION_REGEX.test(value);
@@ -98,14 +89,16 @@ const FeedbackForm = (): ReactElement => {
         setIsRequestSent(false);
     };
 
+    const captchaFetch = getCaptchaFetch();
+
     const sendFeedback = async () => {
         if (isRequestHandling) {
             return;
         }
 
         try {
-            setIsRequestHandling(true);   
-            const response = captchaFetch(endpoints.FEEDBACK, {
+            setIsRequestHandling(true);
+            const response = await captchaFetch(endpoints.FEEDBACK, {
                 method: "POST",
                 mode: "cors",
                 headers: {
@@ -144,119 +137,120 @@ const FeedbackForm = (): ReactElement => {
     };
 
     return (
-        <div className="feedback-form-holder">
-            <div
-                className={`feedback-form ${!isFormDisplayed ? "hidden" : ""}`}
-            >
-                <div className="form-header">
-                    <h2>Feedback form</h2>
-                    <button onClick={toggleFormVisibility} type="button">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            id="close-icon"
-                            height="15px"
-                            width="15px"
-                            viewBox="0 0 20 20"
-                        >
-                            <line
-                                x1="0"
-                                y1="0"
-                                x2="20"
-                                y2="20"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                            />
-                            <line
-                                x1="0"
-                                y1="20"
-                                x2="20"
-                                y2="0"
-                                stroke="currentColor"
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                    </button>
-                </div>
-                <form>
-                    <fieldset>
-                        <div className="form-field">
-                            <label htmlFor="category">Support category</label>
-                            <DropdownList
-                                options={options}
-                                onSelect={selectCategory}
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label htmlFor="name">Name</label>
-                            <input
-                                id="name"
-                                name="name"
-                                value={formFields.name}
-                                onChange={handleInputChange}
-                                placeholder="Enter your name"
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label htmlFor="email">Email</label>
-                            <input
-                                id="email"
-                                name="email"
-                                value={formFields.email}
-                                onChange={handleInputChange}
-                                className={
-                                    formFields.email &&
-                                    !isEmailValid(formFields.email)
-                                        ? "error-field"
-                                        : ""
-                                }
-                                placeholder="Enter your email"
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label htmlFor="feedback">Your text</label>
-                            <textarea
-                                id="feedback"
-                                name="feedback"
-                                value={formFields.feedback}
-                                onChange={handleInputChange}
-                                placeholder="Enter your text"
-                            />
-                        </div>
-                    </fieldset>
-                    <div
-                        className={`submit-btn-container ${
-                            isSubmitAvailable ? "gradient-border" : ""
-                        }`}
-                    >
-                        <button
-                            className="submit-button"
-                            type="button"
-                            disabled={!isSubmitAvailable || isRequestHandling}
-                            onClick={sendFeedback}
-                        >
-                            {isRequestHandling ? (
-                                <span>Loading...</span>
-                            ) : (
-                                <span>Submit</span>
-                            )}
+        <Fragment>
+            <div id="captchaContainer" />
+            <div className="feedback-form-holder">
+                <div
+                    className={`feedback-form ${!isFormDisplayed ? "hidden" : ""}`}
+                >
+                    <div className="form-header">
+                        <h2>Feedback form</h2>
+                        <button onClick={toggleFormVisibility} type="button">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                id="close-icon"
+                                height="15px"
+                                width="15px"
+                                viewBox="0 0 20 20"
+                            >
+                                <line
+                                    x1="0"
+                                    y1="0"
+                                    x2="20"
+                                    y2="20"
+                                    stroke="currentColor"
+                                    strokeLinecap="round"
+                                />
+                                <line
+                                    x1="0"
+                                    y1="20"
+                                    x2="20"
+                                    y2="0"
+                                    stroke="currentColor"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
                         </button>
                     </div>
-                </form>
+                    <form>
+                        <fieldset>
+                            <div className="form-field">
+                                <label htmlFor="category">Support category</label>
+                                <DropdownList
+                                    options={options}
+                                    onSelect={selectCategory}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label htmlFor="name">Name</label>
+                                <input
+                                    id="name"
+                                    name="name"
+                                    value={formFields.name}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter your name"
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label htmlFor="email">Email</label>
+                                <input
+                                    id="email"
+                                    name="email"
+                                    value={formFields.email}
+                                    onChange={handleInputChange}
+                                    className={
+                                        formFields.email &&
+                                            !isEmailValid(formFields.email)
+                                            ? "error-field"
+                                            : ""
+                                    }
+                                    placeholder="Enter your email"
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label htmlFor="feedback">Your text</label>
+                                <textarea
+                                    id="feedback"
+                                    name="feedback"
+                                    value={formFields.feedback}
+                                    onChange={handleInputChange}
+                                    placeholder="Enter your text"
+                                />
+                            </div>
+                        </fieldset>
+                        <div
+                            className={`submit-btn-container ${isSubmitAvailable ? "gradient-border" : ""
+                                }`}
+                        >
+                            <button
+                                className="submit-button"
+                                type="button"
+                                disabled={!isSubmitAvailable || isRequestHandling}
+                                onClick={sendFeedback}
+                            >
+                                {isRequestHandling ? (
+                                    <span>Loading...</span>
+                                ) : (
+                                    <span>Submit</span>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div className={`ready-alert ${!isRequestSent ? "hidden" : ""}`}>
+                    Thank you! Our technical support will get in touch with you
+                    soon!
+                </div>
+                <div
+                    className={`feedback-form-launcher ${isFormDisplayed ? "hidden" : ""
+                        }`}
+                >
+                    <button onClick={toggleFormVisibility} type="button">
+                        <img src={FeedbackFormTriggerIcon} alt="feedback" />
+                    </button>
+                </div>
             </div>
-            <div className={`ready-alert ${!isRequestSent ? "hidden" : ""}`}>
-                Thank you! Our technical support will get in touch with you
-                soon!
-            </div>
-            <div
-                className={`feedback-form-launcher ${
-                    isFormDisplayed ? "hidden" : ""
-                }`}
-            >
-                <button onClick={toggleFormVisibility} type="button">
-                    <img src={FeedbackFormTriggerIcon} alt="feedback" />
-                </button>
-            </div>
-        </div>
+        </Fragment>
     );
 };
 
