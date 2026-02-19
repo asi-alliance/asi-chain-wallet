@@ -152,10 +152,19 @@ export async function sealV2(plaintext: string, password: string): Promise<strin
 export async function openV2(sealed: string, password: string): Promise<string> {
   const parsed = parseAndValidate(sealed);
 
-  const salt = fromBase64(parsed.salt);
-  const iv = fromBase64(parsed.iv);
-  const tag = fromBase64(parsed.tag);
-  const ct = fromBase64(parsed.ct);
+  let salt: Uint8Array;
+  let iv: Uint8Array;
+  let tag: Uint8Array;
+  let ct: Uint8Array;
+
+  try {
+    salt = fromBase64(parsed.salt);
+    iv = fromBase64(parsed.iv);
+    tag = fromBase64(parsed.tag);
+    ct = fromBase64(parsed.ct);
+  } catch {
+    throw new DecryptionError('Invalid payload: malformed base64 data');
+  }
 
   const key = await deriveKey(password, salt, {
     iterations: V2_PBKDF2_ITERATIONS,
