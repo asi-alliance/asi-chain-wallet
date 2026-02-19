@@ -1,4 +1,5 @@
-import { encrypt, decrypt, hashValue } from 'utils/encryption';
+import { decrypt, hashValue } from 'utils/encryption';
+import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
@@ -55,21 +56,21 @@ export class SecureStorage {
     }
   }
 
-  static saveAccount(account: Account, password: string, userId?: string, profileName?: string): SecureAccount {
+  static async saveAccount(account: Account, password: string, userId?: string, profileName?: string): Promise<SecureAccount> {
     if (!account.privateKey) {
       throw new Error('Private key is required');
     }
 
     let currentUserId = userId;
     if (!currentUserId) {
-      const nameToUse = profileName || account.name;
+      const nameToUse = profileName ?? account.name;
       if (!nameToUse) {
         throw new Error('Account name is required to generate user ID');
       }
       currentUserId = this.generateUserIdFromPassword(password, nameToUse);
     }
 
-    const encryptedPrivateKey = encrypt(account.privateKey, password);
+    const encryptedPrivateKey = await sealV2(account.privateKey, password);
     const { privateKey, ...accountWithoutKey } = account;
     const secureAccount: SecureAccount = {
       ...accountWithoutKey,
@@ -90,8 +91,8 @@ export class SecureStorage {
     return secureAccount;
   }
 
-  static unlockAccount(accountId: string, password: string, userId?: string): Account | null {
-    const currentUserId = userId || this.getCurrentUserId();
+  static async unlockAccount(accountId: string, password: string, userId?: string): Promise<Account | null> {
+    const currentUserId = userId ?? this.getCurrentUserId();
     if (!currentUserId) {
       return null;
     }
@@ -103,28 +104,19 @@ export class SecureStorage {
       return null;
     }
 
-    if (secureAccount.userId) {
-      if (secureAccount.userId !== currentUserId) {
-        return null;
-      }
-      if (secureAccount.name) {
-        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
-        if (expectedUserId !== secureAccount.userId) {
-          return null;
-        }
-      }
-    } else {
-      if (secureAccount.name) {
-        const expectedUserId = this.generateUserIdFromPassword(password, secureAccount.name);
-        if (expectedUserId !== currentUserId) {
-          return null;
-        }
-      }
+    if (!this.validateAccountOwnership(secureAccount, password, currentUserId)) {
+      return null;
     }
 
-    const privateKey = decrypt(secureAccount.encryptedPrivateKey, password);
+    const version = detectVersion(secureAccount.encryptedPrivateKey);
+    const privateKey = await this.decryptPrivateKey(secureAccount.encryptedPrivateKey, password, version);
     if (!privateKey) {
       return null;
+    }
+
+    // Lazy V1 → V2 migration (fire-and-forget)
+    if (version === PayloadVersion.V1) {
+      this.reEncryptToV2(secureAccount.id, privateKey, password);
     }
 
     const { encryptedPrivateKey, userId: _, ...accountData } = secureAccount;
@@ -136,6 +128,52 @@ export class SecureStorage {
     this.storeInSession(accountId, account);
 
     return account;
+  }
+
+  /** Validate that the account belongs to the current user. */
+  private static validateAccountOwnership(
+    secureAccount: SecureAccount,
+    password: string,
+    currentUserId: string,
+  ): boolean {
+    if (secureAccount.userId) {
+      if (secureAccount.userId !== currentUserId) return false;
+      if (!secureAccount.name) return true;
+      return this.generateUserIdFromPassword(password, secureAccount.name) === secureAccount.userId;
+    }
+    if (!secureAccount.name) return true;
+    return this.generateUserIdFromPassword(password, secureAccount.name) === currentUserId;
+  }
+
+  /** Decrypt with V2 (Web Crypto) or V1 (legacy CryptoJS) based on version. */
+  private static async decryptPrivateKey(
+    encrypted: string,
+    password: string,
+    version: PayloadVersion,
+  ): Promise<string | undefined> {
+    if (version === PayloadVersion.V2) {
+      try {
+        return await openV2(encrypted, password);
+      } catch {
+        return undefined;
+      }
+    }
+    return decrypt(encrypted, password);
+  }
+
+  /** Re-encrypt a V1 payload to V2 format. Fire-and-forget; silent on failure. */
+  private static reEncryptToV2(accountId: string, privateKey: string, password: string): void {
+    sealV2(privateKey, password)
+      .then(encrypted => {
+        const accounts = this.getEncryptedAccounts();
+        const updated = accounts.map(a =>
+          a.id === accountId ? { ...a, encryptedPrivateKey: encrypted } : a
+        );
+        this.saveEncryptedAccounts(updated);
+      })
+      .catch(() => {
+        // Silent: will retry on next unlock
+      });
   }
 
   static updateAccountNetwork(accountId: string, networkId: string): void {

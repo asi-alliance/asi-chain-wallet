@@ -448,7 +448,7 @@ export const sendTransaction = createAsyncThunk(
     if (unlockedAccount?.privateKey) {
       privateKey = unlockedAccount.privateKey;
     } else if (password) {
-      const unlocked = SecureStorage.unlockAccount(from.id, password);
+      const unlocked = await SecureStorage.unlockAccount(from.id, password);
       if (unlocked?.privateKey) {
         privateKey = unlocked.privateKey;
       }
