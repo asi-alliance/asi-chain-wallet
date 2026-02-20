@@ -68,8 +68,8 @@ export const createAccountWithPassword = createAsyncThunk(
       createdAt: new Date(),
     };
 
-    SecureStorage.saveAccount(account, password, userId, name);
-    SecureStorage.unlockAccount(account.id, password, userId);
+    await SecureStorage.saveAccount(account, password, userId, name);
+    await SecureStorage.unlockAccount(account.id, password, userId);
     
     if (!hadAccountsBefore) {
       SecureStorage.setAuthenticated(true);
@@ -159,8 +159,8 @@ export const importAccountWithPassword = createAsyncThunk(
     }
     
     if (account.privateKey) {
-      SecureStorage.saveAccount(account, password, userId, name);
-      SecureStorage.unlockAccount(account.id, password, userId);
+      await SecureStorage.saveAccount(account, password, userId, name);
+      await SecureStorage.unlockAccount(account.id, password, userId);
     }
     
     if (!hadAccountsBefore) {
@@ -204,11 +204,11 @@ interface LoginAttemptResult {
   accountsToMigrate: string[];
 }
 
-const tryUnlockByName = (
+const tryUnlockByName = async (
   accountName: string,
   password: string,
   allAccounts: SecureAccount[],
-): LoginAttemptResult => {
+): Promise<LoginAttemptResult> => {
   const userId = SecureStorage.generateUserIdFromPassword(password, accountName);
   const matchingAccounts = allAccounts.filter(acc => acc.name === accountName);
   const unlockedAccounts: Account[] = [];
@@ -218,7 +218,7 @@ const tryUnlockByName = (
     const userIdMatches = !account.userId || account.userId === userId;
     if (!userIdMatches) continue;
 
-    const unlocked = SecureStorage.unlockAccount(account.id, password, userId);
+    const unlocked = await SecureStorage.unlockAccount(account.id, password, userId);
     if (!unlocked) continue;
 
     unlockedAccounts.push(unlocked);
@@ -234,16 +234,16 @@ const tryUnlockByName = (
   };
 };
 
-const tryUnlockAllNames = (
+const tryUnlockAllNames = async (
   password: string,
   allAccounts: SecureAccount[],
-): LoginAttemptResult => {
+): Promise<LoginAttemptResult> => {
   const uniqueNames = Array.from(
     new Set(allAccounts.filter(acc => acc.name).map(acc => acc.name))
   );
 
   for (const name of uniqueNames) {
-    const result = tryUnlockByName(name, password, allAccounts);
+    const result = await tryUnlockByName(name, password, allAccounts);
     if (result.foundUserId && result.unlockedAccounts.length > 0) {
       return result;
     }
@@ -278,8 +278,8 @@ export const loginWithPassword = createAsyncThunk(
       const allAccounts = SecureStorage.getEncryptedAccounts();
 
       const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
-        ? tryUnlockByName(accountName, password, allAccounts)
-        : tryUnlockAllNames(password, allAccounts);
+        ? await tryUnlockByName(accountName, password, allAccounts)
+        : await tryUnlockAllNames(password, allAccounts);
 
       if (!foundUserId || unlockedAccounts.length === 0) {
         recordLoginAttempt(LoginAttemptStatus.Failure, accountName);
@@ -308,7 +308,7 @@ export const unlockAccount = createAsyncThunk(
       throw new Error('Please login first');
     }
     
-    const account = SecureStorage.unlockAccount(accountId, password, userId);
+    const account = await SecureStorage.unlockAccount(accountId, password, userId);
     if (!account) {
       throw new Error('Invalid password or account not found');
     }
