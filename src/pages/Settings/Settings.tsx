@@ -48,9 +48,9 @@ export const Settings: React.FC = () => {
         setShowPasswordModal(true);
     };
 
-    const handlePasswordSubmit = (password: string) => {
+    const handlePasswordSubmit = async (password: string) => {
         if (selectedAccountForPrivateKey) {
-            const account = SecureStorage.unlockAccount(
+            const account = await SecureStorage.unlockAccount(
                 selectedAccountForPrivateKey,
                 password
             );
@@ -185,10 +185,9 @@ export const Settings: React.FC = () => {
                     <div style={{ maxWidth: "600px", width: "100%" }}>
                         <PrivateKeyDisplay
                             privateKey={
-                                SecureStorage.unlockAccount(
-                                    selectedAccountForPrivateKey,
-                                    privateKeyPassword
-                                )?.privateKey || ""
+                                SecureStorage.getUnlockedAccount(
+                                    selectedAccountForPrivateKey ?? ''
+                                )?.privateKey ?? ""
                             }
                             accountName={
                                 accounts.find(
