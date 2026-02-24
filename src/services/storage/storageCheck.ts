@@ -21,7 +21,7 @@ function openProbeDatabase(name: string): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(name, 1);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(new Error(request.error?.message ?? 'Failed to open probe database'));
   });
 }
 
@@ -29,6 +29,6 @@ function deleteProbeDatabase(name: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase(name);
     request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(new Error(request.error?.message ?? 'Failed to delete probe database'));
   });
 }

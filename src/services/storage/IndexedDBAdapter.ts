@@ -10,18 +10,25 @@ const DB_NAME = 'asi_wallet_db';
 const DB_VERSION = 1;
 const DEFAULT_SETTINGS_ID = 'default';
 
+function toError(domError: DOMException | null, fallbackMessage: string): Error {
+  if (domError) {
+    return new Error(domError.message);
+  }
+  return new Error(fallbackMessage);
+}
+
 function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(toError(request.error, 'IDBRequest failed'));
   });
 }
 
 function promisifyTransaction(tx: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error('Transaction aborted'));
+    tx.onerror = () => reject(toError(tx.error, 'Transaction failed'));
+    tx.onabort = () => reject(toError(tx.error, 'Transaction aborted'));
   });
 }
 
@@ -35,7 +42,7 @@ function openDatabase(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(toError(request.error, 'Failed to open database'));
   });
 }
 
@@ -55,10 +62,14 @@ function createStores(db: IDBDatabase): void {
 }
 
 export class IndexedDBAdapter implements StorageAdapter {
-  private dbPromise: Promise<IDBDatabase>;
+  private readonly dbPromise: Promise<IDBDatabase>;
 
-  constructor() {
-    this.dbPromise = openDatabase();
+  private constructor(dbPromise: Promise<IDBDatabase>) {
+    this.dbPromise = dbPromise;
+  }
+
+  static create(): IndexedDBAdapter {
+    return new IndexedDBAdapter(openDatabase());
   }
 
   private async getStore(
