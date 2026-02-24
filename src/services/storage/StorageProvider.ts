@@ -43,7 +43,9 @@ export class StorageProvider {
     }
 
     try {
-      this.adapter = IndexedDBAdapter.create();
+      const adapter = IndexedDBAdapter.create();
+      await adapter.ready();
+      this.adapter = adapter;
       this.status = StorageStatus.Available;
     } catch (error: unknown) {
       this.status = StorageStatus.Unavailable;

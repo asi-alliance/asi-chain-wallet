@@ -43,8 +43,11 @@ export interface StoredAccountRecord {
   createdAt: string;
 }
 
-
 export interface StorageAdapter {
+  ready(): Promise<void>;
+  close(): Promise<void>;
+  clear(): Promise<void>;
+
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
@@ -58,6 +61,4 @@ export interface StorageAdapter {
 
   getSettings(): Promise<SettingsRecord | null>;
   putSettings(settings: SettingsRecord): Promise<void>;
-
-  clear(): Promise<void>;
 }

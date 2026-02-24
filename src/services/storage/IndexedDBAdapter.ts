@@ -24,11 +24,12 @@ function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-function promisifyTransaction(tx: IDBTransaction): Promise<void> {
+function commitTransaction(tx: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(toError(tx.error, 'Transaction failed'));
     tx.onabort = () => reject(toError(tx.error, 'Transaction aborted'));
+    tx.commit();
   });
 }
 
@@ -72,6 +73,15 @@ export class IndexedDBAdapter implements StorageAdapter {
     return new IndexedDBAdapter(openDatabase());
   }
 
+  async ready(): Promise<void> {
+    await this.dbPromise;
+  }
+
+  async close(): Promise<void> {
+    const db = await this.dbPromise;
+    db.close();
+  }
+
   private async getStore(
     name: StoreName,
     mode: TransactionMode,
@@ -106,13 +116,13 @@ export class IndexedDBAdapter implements StorageAdapter {
   async setItem(key: string, value: string): Promise<void> {
     const { store, tx } = await this.getStore(StoreName.General, TransactionMode.ReadWrite);
     store.put({ key, value });
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async removeItem(key: string): Promise<void> {
     const { store, tx } = await this.getStore(StoreName.General, TransactionMode.ReadWrite);
     store.delete(key);
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async getAllAccounts(): Promise<StoredAccountRecord[]> {
@@ -135,7 +145,7 @@ export class IndexedDBAdapter implements StorageAdapter {
   async putAccount(account: StoredAccountRecord): Promise<void> {
     const { store, tx } = await this.getStore(StoreName.Accounts, TransactionMode.ReadWrite);
     store.put(account);
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async putAccounts(accounts: StoredAccountRecord[]): Promise<void> {
@@ -143,13 +153,13 @@ export class IndexedDBAdapter implements StorageAdapter {
     for (const account of accounts) {
       store.put(account);
     }
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async deleteAccount(id: string): Promise<void> {
     const { store, tx } = await this.getStore(StoreName.Accounts, TransactionMode.ReadWrite);
     store.delete(id);
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async getSettings(): Promise<SettingsRecord | null> {
@@ -164,7 +174,7 @@ export class IndexedDBAdapter implements StorageAdapter {
     const record: SettingsRecord = { ...settings, id: DEFAULT_SETTINGS_ID };
     const { store, tx } = await this.getStore(StoreName.Settings, TransactionMode.ReadWrite);
     store.put(record);
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 
   async clear(): Promise<void> {
@@ -173,6 +183,6 @@ export class IndexedDBAdapter implements StorageAdapter {
     stores.forEach((store) => {
       store.clear();
     });
-    await promisifyTransaction(tx);
+    await commitTransaction(tx);
   }
 }
