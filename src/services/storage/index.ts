@@ -2,6 +2,7 @@ export {
   StoreName,
   TransactionMode,
   StorageStatus,
+  StorageError,
 } from './types';
 
 export type {

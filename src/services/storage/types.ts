@@ -15,6 +15,14 @@ export enum StorageStatus {
   Pending = 'pending',
 }
 
+export enum StorageError {
+  AdapterClosed = 'IndexedDBAdapter is closed and cannot process requests',
+  IDBRequestFailed = 'IDBRequest failed',
+  TransactionFailed = 'Transaction failed',
+  TransactionAborted = 'Transaction aborted',
+  DatabaseOpenFailed = 'Failed to open database',
+}
+
 export interface GeneralRecord {
   key: string;
   value: string;

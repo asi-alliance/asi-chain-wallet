@@ -4,6 +4,7 @@ import {
   SettingsRecord,
   StoreName,
   TransactionMode,
+  StorageError,
 } from './types';
 
 const DB_NAME = 'asi_wallet_db';
@@ -20,15 +21,15 @@ function toError(domError: DOMException | null, fallbackMessage: string): Error 
 function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(toError(request.error, 'IDBRequest failed'));
+    request.onerror = () => reject(toError(request.error, StorageError.IDBRequestFailed));
   });
 }
 
 function commitTransaction(tx: IDBTransaction): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(toError(tx.error, 'Transaction failed'));
-    tx.onabort = () => reject(toError(tx.error, 'Transaction aborted'));
+    tx.onerror = () => reject(toError(tx.error, StorageError.TransactionFailed));
+    tx.onabort = () => reject(toError(tx.error, StorageError.TransactionAborted));
     tx.commit();
   });
 }
@@ -43,7 +44,7 @@ function openDatabase(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(toError(request.error, 'Failed to open database'));
+    request.onerror = () => reject(toError(request.error, StorageError.DatabaseOpenFailed));
   });
 }
 
@@ -64,6 +65,7 @@ function createStores(db: IDBDatabase): void {
 
 export class IndexedDBAdapter implements StorageAdapter {
   private readonly dbPromise: Promise<IDBDatabase>;
+  private isClosed: boolean = false;
 
   private constructor(dbPromise: Promise<IDBDatabase>) {
     this.dbPromise = dbPromise;
@@ -73,19 +75,31 @@ export class IndexedDBAdapter implements StorageAdapter {
     return new IndexedDBAdapter(openDatabase());
   }
 
+  private ensureOpen(): void {
+    if (this.isClosed) {
+      throw new Error(StorageError.AdapterClosed);
+    }
+  }
+
   async ready(): Promise<void> {
+    this.ensureOpen();
     await this.dbPromise;
   }
 
   async close(): Promise<void> {
+    if (this.isClosed) {
+      return;
+    }
     const db = await this.dbPromise;
     db.close();
+    this.isClosed = true;
   }
 
   private async getStore(
     name: StoreName,
     mode: TransactionMode,
   ): Promise<{ store: IDBObjectStore; tx: IDBTransaction }> {
+    this.ensureOpen();
     const db = await this.dbPromise;
     const tx = db.transaction(name, mode);
     const store = tx.objectStore(name);
@@ -96,6 +110,7 @@ export class IndexedDBAdapter implements StorageAdapter {
     names: StoreName[],
     mode: TransactionMode,
   ): Promise<{ stores: Map<StoreName, IDBObjectStore>; tx: IDBTransaction }> {
+    this.ensureOpen();
     const db = await this.dbPromise;
     const tx = db.transaction(names, mode);
     const stores = new Map<StoreName, IDBObjectStore>();
