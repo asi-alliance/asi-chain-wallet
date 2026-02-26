@@ -30,7 +30,7 @@ if (!initIsAuthenticated && SecureStorage.isAuthenticated()) {
 
 const initialState: AuthState = {
   isAuthenticated: initIsAuthenticated,
-  hasAccounts: SecureStorage.hasAccounts(initUserId || undefined),
+  hasAccounts: SecureStorage.hasAccounts(initUserId ?? undefined),
   unlockedAccounts: initUnlockedAccounts,
   requirePasswordForTransaction: SecureStorage.getSettings().requirePasswordForTransaction,
   idleTimeout: SecureStorage.getSettings().idleTimeout,
@@ -377,7 +377,7 @@ const authSlice = createSlice({
       const isAuthenticated = SecureStorage.isAuthenticated() && hasUnlocked && !!userId && !!token;
 
       state.isAuthenticated = isAuthenticated;
-      state.hasAccounts = SecureStorage.hasAccounts(userId || undefined);
+      state.hasAccounts = SecureStorage.hasAccounts(userId ?? undefined);
       state.unlockedAccounts = unlockedAccounts;
 
       if (!isAuthenticated && SecureStorage.isAuthenticated()) {

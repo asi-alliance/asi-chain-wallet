@@ -9,6 +9,7 @@ export type {
   StorageAdapter,
   StoredAccountRecord,
   SettingsRecord,
+  SessionRecord,
   GeneralRecord,
 } from './types';
 

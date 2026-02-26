@@ -2,13 +2,14 @@ import {
   StorageAdapter,
   StoredAccountRecord,
   SettingsRecord,
+  SessionRecord,
   StoreName,
   TransactionMode,
   StorageError,
 } from './types';
 
 const DB_NAME = 'asi_wallet_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const DEFAULT_SETTINGS_ID = 'default';
 
 function toError(domError: DOMException | null, fallbackMessage: string): Error {
@@ -60,6 +61,11 @@ function createStores(db: IDBDatabase): void {
 
   if (!db.objectStoreNames.contains(StoreName.General)) {
     db.createObjectStore(StoreName.General, { keyPath: 'key' });
+  }
+
+  if (!db.objectStoreNames.contains(StoreName.Sessions)) {
+    const sessionStore = db.createObjectStore(StoreName.Sessions, { keyPath: 'token' });
+    sessionStore.createIndex('createdAt', 'createdAt', { unique: false });
   }
 }
 
@@ -192,8 +198,46 @@ export class IndexedDBAdapter implements StorageAdapter {
     await commitTransaction(tx);
   }
 
+  async getSession(token: string): Promise<SessionRecord | null> {
+    const { store } = await this.getStore(StoreName.Sessions, TransactionMode.ReadOnly);
+    const result = await promisifyRequest<SessionRecord | undefined>(store.get(token));
+    return result ?? null;
+  }
+
+  async putSession(session: SessionRecord): Promise<void> {
+    const { store, tx } = await this.getStore(StoreName.Sessions, TransactionMode.ReadWrite);
+    store.put(session);
+    await commitTransaction(tx);
+  }
+
+  async deleteSession(token: string): Promise<void> {
+    const { store, tx } = await this.getStore(StoreName.Sessions, TransactionMode.ReadWrite);
+    store.delete(token);
+    await commitTransaction(tx);
+  }
+
+  async deleteSessionsOlderThan(maxAgeMs: number): Promise<number> {
+    const cutoff = Date.now() - maxAgeMs;
+    const { store, tx } = await this.getStore(StoreName.Sessions, TransactionMode.ReadWrite);
+    const index = store.index('createdAt');
+    const range = IDBKeyRange.upperBound(cutoff);
+    const staleRecords = await promisifyRequest<SessionRecord[]>(index.getAll(range));
+
+    for (const record of staleRecords) {
+      store.delete(record.token);
+    }
+
+    await commitTransaction(tx);
+    return staleRecords.length;
+  }
+
   async clear(): Promise<void> {
-    const allStores: StoreName[] = [StoreName.Accounts, StoreName.Settings, StoreName.General];
+    const allStores: StoreName[] = [
+      StoreName.Accounts,
+      StoreName.Settings,
+      StoreName.General,
+      StoreName.Sessions,
+    ];
     const { stores, tx } = await this.getMultiStore(allStores, TransactionMode.ReadWrite);
     stores.forEach((store) => {
       store.clear();

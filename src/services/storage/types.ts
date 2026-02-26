@@ -2,6 +2,7 @@ export enum StoreName {
   Accounts = 'accounts',
   Settings = 'settings',
   General = 'general',
+  Sessions = 'sessions',
 }
 
 export enum TransactionMode {
@@ -32,6 +33,15 @@ export interface SettingsRecord {
   id: string;
   requirePasswordForTransaction: boolean;
   idleTimeout: number;
+}
+
+export interface SessionRecord {
+  token: string;
+  userId: string;
+  isAuthenticated: boolean;
+  lastActivity: number;
+  unlockedAccounts: string; // JSON-serialised Account[]
+  createdAt: number;
 }
 
 export interface StoredAccountRecord {
@@ -69,4 +79,9 @@ export interface StorageAdapter {
 
   getSettings(): Promise<SettingsRecord | null>;
   putSettings(settings: SettingsRecord): Promise<void>;
+
+  getSession(token: string): Promise<SessionRecord | null>;
+  putSession(session: SessionRecord): Promise<void>;
+  deleteSession(token: string): Promise<void>;
+  deleteSessionsOlderThan(maxAgeMs: number): Promise<number>;
 }
