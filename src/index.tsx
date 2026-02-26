@@ -2,18 +2,25 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { SecureStorage } from 'services/secureStorage';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+const renderApp = () => {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+};
+
+SecureStorage.init()
+  .then(() => { renderApp(); })
+  .catch((err) => { console.error('[index] SecureStorage.init failed:', err); renderApp(); });
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {

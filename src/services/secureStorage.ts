@@ -1,6 +1,7 @@
 import { decrypt, hashValue } from 'utils/encryption';
 import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
+import { StorageProvider, StoredAccountRecord, StorageAdapter } from './storage';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
   encryptedPrivateKey?: string;
@@ -22,6 +23,51 @@ type CryptoWithOptionalRandomUUID = Crypto & {
   randomUUID?: () => string;
 };
 
+function toStoredRecord(account: SecureAccount): StoredAccountRecord {
+  return {
+    id: account.id,
+    name: account.name,
+    address: account.address,
+    revAddress: account.revAddress,
+    ethAddress: account.ethAddress,
+    publicKey: account.publicKey,
+    encryptedPrivateKey: account.encryptedPrivateKey,
+    balance: account.balance,
+    isMetamask: account.isMetamask,
+    networkId: account.networkId,
+    userId: account.userId,
+    derivationPath: account.derivationPath,
+    isHardwareWallet: account.isHardwareWallet,
+    createdAt: account.createdAt instanceof Date
+      ? account.createdAt.toISOString()
+      : String(account.createdAt ?? new Date().toISOString()),
+  };
+}
+
+function fromStoredRecord(record: StoredAccountRecord): SecureAccount {
+  return {
+    id: record.id,
+    name: record.name,
+    address: record.address,
+    revAddress: record.revAddress,
+    ethAddress: record.ethAddress,
+    publicKey: record.publicKey,
+    encryptedPrivateKey: record.encryptedPrivateKey,
+    balance: record.balance,
+    isMetamask: record.isMetamask,
+    networkId: record.networkId,
+    userId: record.userId,
+    derivationPath: record.derivationPath,
+    isHardwareWallet: record.isHardwareWallet,
+    createdAt: new Date(record.createdAt),
+  };
+}
+
+const DEFAULT_SETTINGS: SecureStorageData['settings'] = {
+  requirePasswordForTransaction: false,
+  idleTimeout: 15,
+};
+
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
   private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
@@ -29,11 +75,133 @@ export class SecureStorage {
   private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
   private static readonly SESSION_TOKEN_KEY = hashValue('asi_wallet_session_token_v2');
 
+  private static cache: SecureStorageData = SecureStorage.readLocalStorage();
+  private static initialized = false;
+  private static initPromise: Promise<void> | null = null;
+
+  static async init(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = this.performInit();
+    return this.initPromise;
+  }
+
+  private static async performInit(): Promise<void> {
+    try {
+      await StorageProvider.init();
+      const adapter = StorageProvider.getAdapter();
+      if (!adapter) {
+        this.initialized = true;
+        return;
+      }
+
+      await this.migrateFromLocalStorage(adapter);
+      await this.loadCacheFromIDB(adapter);
+      this.initialized = true;
+    } catch (error) {
+      console.error('[SecureStorage] init failed, falling back to localStorage cache:', error);
+      this.initialized = true;
+    }
+  }
+
+  private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
+    const existingAccounts = await adapter.getAllAccounts();
+    if (existingAccounts.length > 0) {
+      return;
+    }
+
+    const lsData = this.readLocalStorage();
+    if (lsData.accounts.length === 0) {
+      return;
+    }
+
+    const records = lsData.accounts.map(toStoredRecord);
+    await adapter.putAccounts(records);
+    await adapter.putSettings({
+      id: 'default',
+      ...lsData.settings,
+    });
+
+    console.info('[SecureStorage] Migrated localStorage data to IndexedDB');
+    localStorage.removeItem(this.STORAGE_KEY);
+  }
+
+  private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
+    const [records, settingsRecord] = await Promise.all([
+      adapter.getAllAccounts(),
+      adapter.getSettings(),
+    ]);
+
+    const accounts = records.map(fromStoredRecord);
+    const settings: SecureStorageData['settings'] = settingsRecord
+      ? {
+          requirePasswordForTransaction: settingsRecord.requirePasswordForTransaction,
+          idleTimeout: settingsRecord.idleTimeout,
+        }
+      : { ...DEFAULT_SETTINGS };
+
+    this.cache = { accounts, settings };
+  }
+
+  private static readLocalStorage(): SecureStorageData {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored) as SecureStorageData;
+      }
+    } catch (error) {
+      console.error('Failed to parse storage data:', error);
+    }
+    return { accounts: [], settings: { ...DEFAULT_SETTINGS } };
+  }
+
+  private static persistAccounts(): void {
+    const adapter = StorageProvider.getAdapter();
+    if (!adapter) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.cache));
+      return;
+    }
+
+    const records = this.cache.accounts.map(toStoredRecord);
+    adapter.putAccounts(records).catch((err: unknown) => {
+      console.error('[SecureStorage] Failed to persist accounts to IDB:', err);
+    });
+  }
+
+  private static persistSettings(): void {
+    const adapter = StorageProvider.getAdapter();
+    if (!adapter) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.cache));
+      return;
+    }
+
+    adapter
+      .putSettings({ id: 'default', ...this.cache.settings })
+      .catch((err: unknown) => {
+        console.error('[SecureStorage] Failed to persist settings to IDB:', err);
+      });
+  }
+
+  /**
+   * Explicitly await pending IDB writes for critical operations
+   * where fire-and-forget is not acceptable.
+   */
+  static async flush(): Promise<void> {
+    const adapter = StorageProvider.getAdapter();
+    if (!adapter) {
+      return;
+    }
+
+    const records = this.cache.accounts.map(toStoredRecord);
+    await adapter.putAccounts(records);
+    await adapter.putSettings({ id: 'default', ...this.cache.settings });
+  }
+
   static saveEncryptedAccounts(accounts: SecureAccount[]): void {
     try {
-      const data = this.getStorageData();
-      data.accounts = accounts;
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      this.cache.accounts = accounts;
+      this.persistAccounts();
     } catch (error) {
       console.error('Failed to save encrypted accounts:', error);
       throw new Error('Failed to save accounts');
@@ -42,13 +210,10 @@ export class SecureStorage {
 
   static getEncryptedAccounts(userId?: string): SecureAccount[] {
     try {
-      const data = this.getStorageData();
-      const accounts = data.accounts;
-      
+      const accounts = this.cache.accounts;
       if (userId) {
         return accounts.filter(account => account.userId === userId);
       }
-      
       return accounts;
     } catch (error) {
       console.error('Failed to get encrypted accounts:', error);
@@ -75,12 +240,12 @@ export class SecureStorage {
     const secureAccount: SecureAccount = {
       ...accountWithoutKey,
       encryptedPrivateKey,
-      userId: currentUserId
+      userId: currentUserId,
     };
 
     const allAccounts = this.getEncryptedAccounts();
     const existingIndex = allAccounts.findIndex(a => a.id === account.id);
-    
+
     if (existingIndex >= 0) {
       allAccounts[existingIndex] = secureAccount;
     } else {
@@ -88,6 +253,7 @@ export class SecureStorage {
     }
 
     this.saveEncryptedAccounts(allAccounts);
+    await this.flush();
     return secureAccount;
   }
 
@@ -126,7 +292,6 @@ export class SecureStorage {
     };
 
     this.storeInSession(accountId, account);
-
     return account;
   }
 
@@ -184,7 +349,6 @@ export class SecureStorage {
     if (!networkId || accountIds.length === 0) {
       return;
     }
-
     const updates = accountIds.map(id => ({ id, networkId }));
     this.updateAccountsNetworkBulk(updates);
   }
@@ -206,44 +370,48 @@ export class SecureStorage {
         return;
       }
 
-      const accounts = this.getEncryptedAccounts();
-      let accountsChanged = false;
+      this.applyAccountNetworkUpdates(updateMap);
+      this.applySessionNetworkUpdates(updateMap);
+    } catch (error) {
+      console.error('Failed to update account networks:', error);
+    }
+  }
 
-      const updatedAccounts = accounts.map(account => {
-        const nextNetworkId = updateMap.get(account.id);
-        if (nextNetworkId && account.networkId !== nextNetworkId) {
-          accountsChanged = true;
+  private static applyAccountNetworkUpdates(updateMap: Map<string, string>): void {
+    const accounts = this.getEncryptedAccounts();
+    let accountsChanged = false;
+
+    const updatedAccounts = accounts.map(account => {
+      const nextNetworkId = updateMap.get(account.id);
+      if (nextNetworkId && account.networkId !== nextNetworkId) {
+        accountsChanged = true;
           return {
             ...account,
             networkId: nextNetworkId,
           };
-        }
-        return account;
-      });
-
-      if (accountsChanged) {
-        this.saveEncryptedAccounts(updatedAccounts);
       }
+      return account;
+    });
 
-      const sessionData = this.getSessionData();
-      let sessionChanged = false;
+    if (accountsChanged) {
+      this.saveEncryptedAccounts(updatedAccounts);
+    }
+  }
 
-      Object.keys(sessionData).forEach(id => {
-        const nextNetworkId = updateMap.get(id);
-        if (nextNetworkId && sessionData[id].networkId !== nextNetworkId) {
-          sessionData[id] = {
-            ...sessionData[id],
-            networkId: nextNetworkId,
-          };
-          sessionChanged = true;
-        }
-      });
+  private static applySessionNetworkUpdates(updateMap: Map<string, string>): void {
+    const sessionData = this.getSessionData();
+    let sessionChanged = false;
 
-      if (sessionChanged) {
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
+    Object.keys(sessionData).forEach(id => {
+      const nextNetworkId = updateMap.get(id);
+      if (nextNetworkId && sessionData[id].networkId !== nextNetworkId) {
+        sessionData[id] = { ...sessionData[id], networkId: nextNetworkId };
+        sessionChanged = true;
       }
-    } catch (error) {
-      console.error('Failed to update account networks:', error);
+    });
+
+    if (sessionChanged) {
+      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
     }
   }
 
@@ -252,56 +420,38 @@ export class SecureStorage {
   }
 
   static getSettings(): SecureStorageData['settings'] {
-    const data = this.getStorageData();
-    return data.settings;
+    return this.cache.settings;
   }
 
-  /**
-   * Update settings
-   */
   static updateSettings(settings: Partial<SecureStorageData['settings']>): void {
-    const data = this.getStorageData();
-    data.settings = { ...data.settings, ...settings };
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    this.cache.settings = { ...this.cache.settings, ...settings };
+    this.persistSettings();
   }
 
-  /**
-   * Store unlocked account in session
-   */
+  // ── Session (stays in sessionStorage) ───────────────────────────────
+
   private static storeInSession(accountId: string, account: Account): void {
     const sessionData = this.getSessionData();
     sessionData[accountId] = account;
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
   }
 
-  /**
-   * Get unlocked account from session
-   */
   static getUnlockedAccount(accountId: string): Account | null {
     const sessionData = this.getSessionData();
-    return sessionData[accountId] || null;
+    return sessionData[accountId] ?? null;
   }
 
-  /**
-   * Get all unlocked accounts from session
-   */
   static getAllUnlockedAccounts(): Account[] {
     const sessionData = this.getSessionData();
     return Object.values(sessionData);
   }
 
-  /**
-   * Clear specific account from session
-   */
   static clearAccountFromSession(accountId: string): void {
     const sessionData = this.getSessionData();
     delete sessionData[accountId];
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
   }
 
-  /**
-   * Clear all session data
-   */
   static clearSession(): void {
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
@@ -309,9 +459,6 @@ export class SecureStorage {
     sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
   }
 
-  /**
-   * Set authentication state
-   */
   static setAuthenticated(isAuthenticated: boolean): void {
     if (isAuthenticated) {
       sessionStorage.setItem(this.AUTH_KEY, 'true');
@@ -321,31 +468,21 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Check if user is authenticated
-   */
   static isAuthenticated(): boolean {
     return sessionStorage.getItem(this.AUTH_KEY) === 'true';
   }
 
-  /**
-   * Update last activity timestamp
-   */
   static updateLastActivity(): void {
     sessionStorage.setItem('lastActivity', Date.now().toString());
   }
 
-  /**
-   * Get last activity timestamp
-   */
   static getLastActivity(): number {
     const timestamp = sessionStorage.getItem('lastActivity');
     return timestamp ? parseInt(timestamp, 10) : Date.now();
   }
 
-  /**
-   * Remove an account completely
-   */
+  // ── Account management ──────────────────────────────────────────────
+
   static removeAccount(accountId: string): void {
     const accounts = this.getEncryptedAccounts();
     const filtered = accounts.filter(a => a.id !== accountId);
@@ -353,13 +490,10 @@ export class SecureStorage {
     this.clearAccountFromSession(accountId);
   }
 
-  /**
-   * Export account as encrypted JSON
-   */
   static exportAccount(accountId: string): string | null {
     const accounts = this.getEncryptedAccounts();
     const account = accounts.find(a => a.id === accountId);
-    
+
     if (!account) return null;
 
     const exportData = {
@@ -369,12 +503,11 @@ export class SecureStorage {
       revAddress: account.revAddress,
       ethAddress: account.ethAddress,
       encryptedPrivateKey: account.encryptedPrivateKey,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     return JSON.stringify(exportData, null, 2);
   }
-
 
   private static normalizeAddress(address: string | undefined): string {
     if (!address) return '';
@@ -382,15 +515,17 @@ export class SecureStorage {
   }
 
   static accountExists(revAddress?: string, ethAddress?: string, userId?: string): boolean {
-    const currentUserId = userId || this.getCurrentUserId();
-    const existingAccounts = currentUserId ? this.getEncryptedAccounts(currentUserId) : this.getEncryptedAccounts();
+    const currentUserId = userId ?? this.getCurrentUserId();
+    const existingAccounts = currentUserId
+      ? this.getEncryptedAccounts(currentUserId)
+      : this.getEncryptedAccounts();
     const normalizedRev = this.normalizeAddress(revAddress);
     const normalizedEth = this.normalizeAddress(ethAddress);
-    
+
     return existingAccounts.some(existing => {
       const normalizedExistingRev = this.normalizeAddress(existing.revAddress);
       const normalizedExistingEth = this.normalizeAddress(existing.ethAddress);
-      
+
       if (normalizedRev && normalizedExistingRev && normalizedRev === normalizedExistingRev) {
         return true;
       }
@@ -401,15 +536,26 @@ export class SecureStorage {
     });
   }
 
-  static importFromKeyfile(keyfileContent: string, name: string, networkId?: string, userId?: string): SecureAccount {
+  static async importFromKeyfile(
+    keyfileContent: string,
+    name: string,
+    networkId?: string,
+    userId?: string,
+  ): Promise<SecureAccount> {
     try {
-      const data = JSON.parse(keyfileContent);
-      
+      const data = JSON.parse(keyfileContent) as {
+        type: string;
+        address?: string;
+        revAddress?: string;
+        ethAddress?: string;
+        encryptedPrivateKey?: string;
+      };
+
       if (data.type !== 'asi-wallet-keyfile') {
         throw new Error('Invalid keyfile format');
       }
 
-      const currentUserId = userId || this.getCurrentUserId();
+      const currentUserId = userId ?? this.getCurrentUserId();
       if (!currentUserId) {
         throw new Error('User ID is required. Please login first.');
       }
@@ -417,15 +563,15 @@ export class SecureStorage {
       const account: SecureAccount = {
         id: Date.now().toString(),
         name,
-        address: data.address || data.revAddress,
-        revAddress: data.revAddress,
-        ethAddress: data.ethAddress,
-        publicKey: '', // Will be derived when unlocked
+        address: data.address ?? data.revAddress ?? '',
+        revAddress: data.revAddress ?? '',
+        ethAddress: data.ethAddress ?? '',
+        publicKey: '',
         encryptedPrivateKey: data.encryptedPrivateKey,
         balance: '0',
         userId: currentUserId,
         ...(networkId ? { networkId } : {}),
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       if (this.accountExists(account.revAddress, account.ethAddress, currentUserId)) {
@@ -435,6 +581,7 @@ export class SecureStorage {
       const allAccounts = this.getEncryptedAccounts();
       allAccounts.push(account);
       this.saveEncryptedAccounts(allAccounts);
+      await this.flush();
 
       return account;
     } catch (error) {
@@ -445,36 +592,17 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Get storage data with defaults
-   */
-  private static getStorageData(): SecureStorageData {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Failed to parse storage data:', error);
-    }
+  // ── Internal: get storage data (reads from cache) ───────────────────
 
-    return {
-      accounts: [],
-      settings: {
-        requirePasswordForTransaction: false,
-        idleTimeout: 15
-      }
-    };
+  private static getStorageData(): SecureStorageData {
+    return this.cache;
   }
 
-  /**
-   * Get session data
-   */
   private static getSessionData(): Record<string, Account> {
     try {
       const stored = sessionStorage.getItem(this.SESSION_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        return JSON.parse(stored) as Record<string, Account>;
       }
     } catch (error) {
       console.error('Failed to parse session data:', error);
@@ -482,44 +610,74 @@ export class SecureStorage {
     return {};
   }
 
-  /**
-   * Static methods for general storage operations
-   */
+  // ── General key-value storage (now async via IDB) ───────────────────
+
   static async setItem(key: string, value: string): Promise<void> {
-    localStorage.setItem(hashValue(key), value);
+    const hashedKey = hashValue(key);
+    const adapter = StorageProvider.getAdapter();
+    if (adapter) {
+      await adapter.setItem(hashedKey, value);
+      return;
+    }
+    localStorage.setItem(hashedKey, value);
   }
 
   static async getItem(key: string): Promise<string | null> {
-    return localStorage.getItem(hashValue(key));
+    const hashedKey = hashValue(key);
+    const adapter = StorageProvider.getAdapter();
+    if (adapter) {
+      const idbValue = await adapter.getItem(hashedKey);
+      if (idbValue !== null) {
+        return idbValue;
+      }
+      // Fallback: check localStorage for data not yet migrated
+      return localStorage.getItem(hashedKey);
+    }
+    return localStorage.getItem(hashedKey);
   }
 
   static async removeItem(key: string): Promise<void> {
-    localStorage.removeItem(hashValue(key));
+    const hashedKey = hashValue(key);
+    const adapter = StorageProvider.getAdapter();
+    if (adapter) {
+      await adapter.removeItem(hashedKey);
+    }
+    // Also clean up localStorage
+    localStorage.removeItem(hashedKey);
   }
 
-  /**
-   * Store encrypted account (alternative method name)
-   */
+  // ── Store encrypted account (alternative method name) ───────────────
+
   static async storeEncryptedAccount(account: SecureAccount): Promise<void> {
     const accounts = this.getEncryptedAccounts();
-    const existingIndex = accounts.findIndex(a => a.id === account.id || a.address === account.address);
-    
+    const existingIndex = accounts.findIndex(
+      a => a.id === account.id || a.address === account.address,
+    );
+
     if (existingIndex >= 0) {
       accounts[existingIndex] = account;
     } else {
       accounts.push(account);
     }
-    
+
     this.saveEncryptedAccounts(accounts);
+    await this.flush();
   }
 
-  /**
-   * Clear all storage
-   */
-  static clearAll(): void {
+  // ── Clear all persistent storage ────────────────────────────────────
+
+  static async clearAll(): Promise<void> {
     localStorage.removeItem(this.STORAGE_KEY);
+    this.cache = { accounts: [], settings: { ...DEFAULT_SETTINGS } };
     this.clearSession();
+
+    const adapter = StorageProvider.getAdapter();
+    if (adapter) {
+      await adapter.clear();
+    }
   }
+
+  // ── User ID (session-scoped) ────────────────────────────────────────
 
   static getCurrentUserId(): string | null {
     try {
@@ -538,6 +696,8 @@ export class SecureStorage {
     }
   }
 
+  // ── Session token ───────────────────────────────────────────────────
+
   static generateSessionToken(): string {
     try {
       const cryptoApi = globalThis.crypto as CryptoWithOptionalRandomUUID | undefined;
@@ -549,7 +709,7 @@ export class SecureStorage {
         cryptoApi.getRandomValues(bytes);
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
       }
-    } catch {}
+    } catch { /* fall through */ }
 
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
@@ -579,10 +739,6 @@ export class SecureStorage {
     }
   }
 
-  /**
-   * Helper for sensitive actions.
-   * If token is missing -> treat session as expired.
-   */
   static hasSessionToken(): boolean {
     return !!this.getSessionToken();
   }

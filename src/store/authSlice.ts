@@ -193,7 +193,7 @@ export const importFromKeyfile = createAsyncThunk(
       throw new Error('Please login first before importing a keyfile');
     }
     
-    const secureAccount = SecureStorage.importFromKeyfile(keyfileContent, name, selectedNetworkId, userId);
+    const secureAccount = await SecureStorage.importFromKeyfile(keyfileContent, name, selectedNetworkId, userId);
     return secureAccount;
   }
 );
