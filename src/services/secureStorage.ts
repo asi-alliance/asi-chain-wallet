@@ -253,6 +253,7 @@ export class SecureStorage {
     }
 
     this.saveEncryptedAccounts(allAccounts);
+    await this.flush();
     return secureAccount;
   }
 
@@ -535,12 +536,12 @@ export class SecureStorage {
     });
   }
 
-  static importFromKeyfile(
+  static async importFromKeyfile(
     keyfileContent: string,
     name: string,
     networkId?: string,
     userId?: string,
-  ): SecureAccount {
+  ): Promise<SecureAccount> {
     try {
       const data = JSON.parse(keyfileContent) as {
         type: string;
@@ -580,6 +581,7 @@ export class SecureStorage {
       const allAccounts = this.getEncryptedAccounts();
       allAccounts.push(account);
       this.saveEncryptedAccounts(allAccounts);
+      await this.flush();
 
       return account;
     } catch (error) {
@@ -659,6 +661,7 @@ export class SecureStorage {
     }
 
     this.saveEncryptedAccounts(accounts);
+    await this.flush();
   }
 
   // ── Clear all persistent storage ────────────────────────────────────
