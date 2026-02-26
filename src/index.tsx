@@ -2,10 +2,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { SecureStorage } from 'services/secureStorage';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
+// Initialise IndexedDB storage (migrates localStorage data on first run).
+// The app renders immediately using the in-memory cache; IDB syncs in the background.
+SecureStorage.init().catch((err) => {
+  console.error('[index] SecureStorage.init failed:', err);
+});
 
 root.render(
   <React.StrictMode>
