@@ -8,19 +8,19 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
-// Initialise IndexedDB storage (migrates localStorage data on first run).
-// The app renders immediately using the in-memory cache; IDB syncs in the background.
-SecureStorage.init().catch((err) => {
-  console.error('[index] SecureStorage.init failed:', err);
-});
+const renderApp = () => {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+};
 
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+SecureStorage.init()
+  .then(() => { renderApp(); })
+  .catch((err) => { console.error('[index] SecureStorage.init failed:', err); renderApp(); });
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {

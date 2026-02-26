@@ -124,6 +124,7 @@ export class SecureStorage {
     });
 
     console.info('[SecureStorage] Migrated localStorage data to IndexedDB');
+    localStorage.removeItem(this.STORAGE_KEY);
   }
 
   private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
@@ -180,6 +181,21 @@ export class SecureStorage {
       .catch((err: unknown) => {
         console.error('[SecureStorage] Failed to persist settings to IDB:', err);
       });
+  }
+
+  /**
+   * Explicitly await pending IDB writes for critical operations
+   * where fire-and-forget is not acceptable.
+   */
+  static async flush(): Promise<void> {
+    const adapter = StorageProvider.getAdapter();
+    if (!adapter) {
+      return;
+    }
+
+    const records = this.cache.accounts.map(toStoredRecord);
+    await adapter.putAccounts(records);
+    await adapter.putSettings({ id: 'default', ...this.cache.settings });
   }
 
   static saveEncryptedAccounts(accounts: SecureAccount[]): void {
@@ -471,13 +487,6 @@ export class SecureStorage {
     const filtered = accounts.filter(a => a.id !== accountId);
     this.saveEncryptedAccounts(filtered);
     this.clearAccountFromSession(accountId);
-
-    const adapter = StorageProvider.getAdapter();
-    if (adapter) {
-      adapter.deleteAccount(accountId).catch((err: unknown) => {
-        console.error('[SecureStorage] Failed to delete account from IDB:', err);
-      });
-    }
   }
 
   static exportAccount(accountId: string): string | null {
@@ -654,16 +663,14 @@ export class SecureStorage {
 
   // ── Clear all persistent storage ────────────────────────────────────
 
-  static clearAll(): void {
+  static async clearAll(): Promise<void> {
     localStorage.removeItem(this.STORAGE_KEY);
     this.cache = { accounts: [], settings: { ...DEFAULT_SETTINGS } };
     this.clearSession();
 
     const adapter = StorageProvider.getAdapter();
     if (adapter) {
-      adapter.clear().catch((err: unknown) => {
-        console.error('[SecureStorage] Failed to clear IDB:', err);
-      });
+      await adapter.clear();
     }
   }
 
