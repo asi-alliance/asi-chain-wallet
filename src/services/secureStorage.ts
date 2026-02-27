@@ -1,7 +1,8 @@
 import { decrypt, hashValue } from 'utils/encryption';
 import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
-import { StorageProvider, StoredAccountRecord, StorageAdapter, SessionRecord } from './storage';
+import { StorageProvider, StoredAccountRecord, StorageAdapter } from './storage';
+import { SessionPersistence } from './sessionPersistence';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
   encryptedPrivateKey?: string;
@@ -79,9 +80,6 @@ export class SecureStorage {
   private static initialized = false;
   private static initPromise: Promise<void> | null = null;
 
-  /** Max age for stale session cleanup (24 hours). */
-  private static readonly SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
   static async init(): Promise<void> {
     if (this.initialized) return;
     if (this.initPromise) return this.initPromise;
@@ -101,8 +99,8 @@ export class SecureStorage {
 
       await this.migrateFromLocalStorage(adapter);
       await this.loadCacheFromIDB(adapter);
-      await this.restoreSessionFromIDB(adapter);
-      this.cleanupStaleSessions(adapter);
+      await SessionPersistence.restore(adapter);
+      SessionPersistence.cleanupStale(adapter);
       this.initialized = true;
     } catch (error) {
       console.error('[SecureStorage] init failed, falling back to localStorage cache:', error);
@@ -147,88 +145,6 @@ export class SecureStorage {
       : { ...DEFAULT_SETTINGS };
 
     this.cache = { accounts, settings };
-  }
-
-  /**
-   * If this tab has a session token in sessionStorage, load its
-   * session record from IDB back into sessionStorage.
-   * Handles the case where sessionStorage lost data (e.g. browser restart
-   * with session restore) but IDB still holds the session.
-   */
-  private static async restoreSessionFromIDB(adapter: StorageAdapter): Promise<void> {
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
-
-    const record = await adapter.getSession(token);
-    if (!record) {
-      return;
-    }
-
-    // Only write back fields that are missing from sessionStorage
-    if (!sessionStorage.getItem(this.AUTH_KEY) && record.isAuthenticated) {
-      sessionStorage.setItem(this.AUTH_KEY, 'true');
-    }
-    if (!sessionStorage.getItem(this.USER_ID_KEY) && record.userId) {
-      sessionStorage.setItem(this.USER_ID_KEY, record.userId);
-    }
-    if (!sessionStorage.getItem(this.SESSION_KEY) && record.unlockedAccounts) {
-      sessionStorage.setItem(this.SESSION_KEY, record.unlockedAccounts);
-    }
-    if (!sessionStorage.getItem('lastActivity') && record.lastActivity) {
-      sessionStorage.setItem('lastActivity', record.lastActivity.toString());
-    }
-  }
-
-  /** Fire-and-forget cleanup of sessions older than SESSION_MAX_AGE_MS. */
-  private static cleanupStaleSessions(adapter: StorageAdapter): void {
-    adapter.deleteSessionsOlderThan(this.SESSION_MAX_AGE_MS).catch(() => {
-      // Non-critical; will retry on next init
-    });
-  }
-
-  /** Persist current session state to IDB under this tab's token. */
-  private static persistSession(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      return;
-    }
-
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
-
-    const record: SessionRecord = {
-      token,
-      userId: sessionStorage.getItem(this.USER_ID_KEY) ?? '',
-      isAuthenticated: sessionStorage.getItem(this.AUTH_KEY) === 'true',
-      lastActivity: Date.now(),
-      unlockedAccounts: sessionStorage.getItem(this.SESSION_KEY) ?? '{}',
-      createdAt: Date.now(),
-    };
-
-    adapter.putSession(record).catch((err: unknown) => {
-      console.error('[SecureStorage] Failed to persist session to IDB:', err);
-    });
-  }
-
-  /** Remove this tab's session record from IDB. */
-  private static deleteSessionFromIDB(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      return;
-    }
-
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
-
-    adapter.deleteSession(token).catch((err: unknown) => {
-      console.error('[SecureStorage] Failed to delete session from IDB:', err);
-    });
   }
 
   private static readLocalStorage(): SecureStorageData {
@@ -521,7 +437,7 @@ export class SecureStorage {
     const sessionData = this.getSessionData();
     sessionData[accountId] = account;
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    this.persistSession();
+    SessionPersistence.persist();
   }
 
   static getUnlockedAccount(accountId: string): Account | null {
@@ -538,11 +454,11 @@ export class SecureStorage {
     const sessionData = this.getSessionData();
     delete sessionData[accountId];
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    this.persistSession();
+    SessionPersistence.persist();
   }
 
   static clearSession(): void {
-    this.deleteSessionFromIDB();
+    SessionPersistence.remove();
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
     sessionStorage.removeItem(this.USER_ID_KEY);
@@ -556,7 +472,7 @@ export class SecureStorage {
     } else {
       sessionStorage.removeItem(this.AUTH_KEY);
     }
-    this.persistSession();
+    SessionPersistence.persist();
   }
 
   static isAuthenticated(): boolean {
@@ -565,6 +481,7 @@ export class SecureStorage {
 
   static updateLastActivity(): void {
     sessionStorage.setItem('lastActivity', Date.now().toString());
+    SessionPersistence.persistThrottled();
   }
 
   static getLastActivity(): number {
@@ -782,7 +699,7 @@ export class SecureStorage {
   static setCurrentUserId(userId: string): void {
     try {
       sessionStorage.setItem(this.USER_ID_KEY, userId);
-      this.persistSession();
+      SessionPersistence.persist();
     } catch (error) {
       console.error('Failed to set current user ID:', error);
     }
@@ -809,7 +726,7 @@ export class SecureStorage {
   static setSessionToken(token: string): void {
     try {
       sessionStorage.setItem(this.SESSION_TOKEN_KEY, token);
-      this.persistSession();
+      SessionPersistence.persist();
     } catch (e) {
       console.error('Failed to set session token:', e);
     }

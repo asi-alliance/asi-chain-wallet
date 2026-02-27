@@ -9,7 +9,7 @@ import {
 } from './types';
 
 const DB_NAME = 'asi_wallet_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const DEFAULT_SETTINGS_ID = 'default';
 
 function toError(domError: DOMException | null, fallbackMessage: string): Error {
@@ -41,7 +41,8 @@ function openDatabase(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      createStores(db);
+      const tx = (event.target as IDBOpenDBRequest).transaction;
+      createStores(db, event.oldVersion, tx);
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -49,7 +50,11 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-function createStores(db: IDBDatabase): void {
+function createStores(
+  db: IDBDatabase,
+  oldVersion: number,
+  tx: IDBTransaction | null,
+): void {
   if (!db.objectStoreNames.contains(StoreName.Accounts)) {
     const accountStore = db.createObjectStore(StoreName.Accounts, { keyPath: 'id' });
     accountStore.createIndex('userId', 'userId', { unique: false });
@@ -65,7 +70,16 @@ function createStores(db: IDBDatabase): void {
 
   if (!db.objectStoreNames.contains(StoreName.Sessions)) {
     const sessionStore = db.createObjectStore(StoreName.Sessions, { keyPath: 'token' });
-    sessionStore.createIndex('createdAt', 'createdAt', { unique: false });
+    sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+  } else if (oldVersion < 3 && tx) {
+    // v2 → v3: rename createdAt index to updatedAt
+    const sessionStore = tx.objectStore(StoreName.Sessions);
+    if (sessionStore.indexNames.contains('createdAt')) {
+      sessionStore.deleteIndex('createdAt');
+    }
+    if (!sessionStore.indexNames.contains('updatedAt')) {
+      sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+    }
   }
 }
 
@@ -219,7 +233,7 @@ export class IndexedDBAdapter implements StorageAdapter {
   async deleteSessionsOlderThan(maxAgeMs: number): Promise<number> {
     const cutoff = Date.now() - maxAgeMs;
     const { store, tx } = await this.getStore(StoreName.Sessions, TransactionMode.ReadWrite);
-    const index = store.index('createdAt');
+    const index = store.index('updatedAt');
     const range = IDBKeyRange.upperBound(cutoff);
     const staleRecords = await promisifyRequest<SessionRecord[]>(index.getAll(range));
 

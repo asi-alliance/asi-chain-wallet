@@ -41,7 +41,7 @@ export interface SessionRecord {
   isAuthenticated: boolean;
   lastActivity: number;
   unlockedAccounts: string; // JSON-serialised Account[]
-  createdAt: number;
+  updatedAt: number;
 }
 
 export interface StoredAccountRecord {
