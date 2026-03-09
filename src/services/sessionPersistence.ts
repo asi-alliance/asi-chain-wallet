@@ -81,7 +81,8 @@ export class SessionPersistence {
 
     const userId = sessionStorage.getItem(this.USER_ID_KEY) ?? '';
     const isAuthenticated = sessionStorage.getItem(this.AUTH_KEY) === 'true';
-    const lastActivity = Date.now();
+    const lastActivityStr = sessionStorage.getItem('lastActivity');
+    const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
     const unlockedAccounts = sessionStorage.getItem(this.SESSION_KEY) ?? '{}';
 
     const record: SessionRecord = {
