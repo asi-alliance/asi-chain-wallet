@@ -1,89 +1,90 @@
 import { hashValue } from 'utils/encryption';
-import { StorageProvider, StorageAdapter, SessionRecord } from './storage';
+import { StorageAdapter, SessionRecord } from './storage';
+
+export const SESSION_STORAGE_KEYS = {
+  SESSION:       hashValue('asi_wallet_session_v2'),
+  AUTH:          hashValue('asi_wallet_auth_v2'),
+  USER_ID:       hashValue('asi_wallet_user_id_v2'),
+  SESSION_TOKEN: hashValue('asi_wallet_session_token_v2'),
+} as const;
+
+export interface SessionPersistencePort {
+  persist(): void;
+  persistThrottled(): void;
+  remove(): void;
+}
+
+export const NullSessionPersistence: SessionPersistencePort = {
+  persist() { /* no-op */ },
+  persistThrottled() { /* no-op */ },
+  remove() { /* no-op */ },
+};
 
 /**
  * Manages session durability in IndexedDB.
- *
- * Each browser tab holds a unique session token in sessionStorage.
- * SessionPersistence mirrors that data to IDB so a tab can recover
- * its session after a browser restart (session restore) and so stale
- * sessions are cleaned up automatically.
- *
- * Extracted from SecureStorage to keep account/settings persistence
- * and session persistence as separate concerns.
  */
-export class SessionPersistence {
-  private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
-  private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
-  private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
-  private static readonly SESSION_TOKEN_KEY = hashValue('asi_wallet_session_token_v2');
+export class SessionPersistence implements SessionPersistencePort {
 
-  /** Max age for stale session cleanup (24 hours). */
-  private static readonly SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+  static readonly SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+  static readonly ACTIVITY_THROTTLE_MS = 60 * 1000;
 
-  /** Throttle interval for activity-driven IDB writes (60 seconds). */
-  private static readonly ACTIVITY_THROTTLE_MS = 60 * 1000;
-  private static lastActivityPersistTime = 0;
+  private static _instance: SessionPersistence | null = null;
 
-  // ── Init-time operations ────────────────────────────────────────────
+  static init(adapter: StorageAdapter | null): SessionPersistence {
+    SessionPersistence._instance = new SessionPersistence(adapter);
+    return SessionPersistence._instance;
+  }
 
-  /**
-   * If this tab has a session token in sessionStorage, load its
-   * session record from IDB back into sessionStorage.
-   * Handles the case where sessionStorage lost data (e.g. browser restart
-   * with session restore) but IDB still holds the session.
-   */
+  static getInstance(): SessionPersistence | null {
+    return SessionPersistence._instance;
+  }
+
+  private readonly adapter: StorageAdapter | null;
+
+  private lastActivityPersistTime = 0;
+
+  private constructor(adapter: StorageAdapter | null) {
+    this.adapter = adapter;
+  }
+
   static async restore(adapter: StorageAdapter): Promise<void> {
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
+    const token = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_TOKEN);
+    if (!token) return;
 
     const record = await adapter.getSession(token);
-    if (!record) {
-      return;
-    }
+    if (!record) return;
 
-    if (!sessionStorage.getItem(this.AUTH_KEY) && record.isAuthenticated) {
-      sessionStorage.setItem(this.AUTH_KEY, 'true');
+    if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) && record.isAuthenticated) {
+      sessionStorage.setItem(SESSION_STORAGE_KEYS.AUTH, 'true');
     }
-    if (!sessionStorage.getItem(this.USER_ID_KEY) && record.userId) {
-      sessionStorage.setItem(this.USER_ID_KEY, record.userId);
+    if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) && record.userId) {
+      sessionStorage.setItem(SESSION_STORAGE_KEYS.USER_ID, record.userId);
     }
-    if (!sessionStorage.getItem(this.SESSION_KEY) && record.unlockedAccounts) {
-      sessionStorage.setItem(this.SESSION_KEY, record.unlockedAccounts);
+    if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) && record.unlockedAccounts) {
+      sessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION, record.unlockedAccounts);
     }
     if (!sessionStorage.getItem('lastActivity') && record.lastActivity) {
       sessionStorage.setItem('lastActivity', record.lastActivity.toString());
     }
   }
 
-  /** Fire-and-forget cleanup of sessions older than SESSION_MAX_AGE_MS. */
   static cleanupStale(adapter: StorageAdapter): void {
-    adapter.deleteSessionsOlderThan(this.SESSION_MAX_AGE_MS).catch(() => {
+    adapter.deleteSessionsOlderThan(SessionPersistence.SESSION_MAX_AGE_MS).catch(() => {
       // Non-critical; will retry on next init
     });
   }
 
-  // ── Runtime persistence ─────────────────────────────────────────────
+  persist(): void {
+    if (!this.adapter) return;
 
-  /** Persist current session state to IDB under this tab's token. */
-  static persist(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      return;
-    }
+    const token = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_TOKEN);
+    if (!token) return;
 
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
-
-    const userId = sessionStorage.getItem(this.USER_ID_KEY) ?? '';
-    const isAuthenticated = sessionStorage.getItem(this.AUTH_KEY) === 'true';
-    const lastActivityStr = sessionStorage.getItem('lastActivity');
-    const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
-    const unlockedAccounts = sessionStorage.getItem(this.SESSION_KEY) ?? '{}';
+    const userId           = sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) ?? '';
+    const isAuthenticated  = sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) === 'true';
+    const lastActivityStr  = sessionStorage.getItem('lastActivity');
+    const lastActivity     = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+    const unlockedAccounts = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) ?? '{}';
 
     const record: SessionRecord = {
       token,
@@ -94,37 +95,27 @@ export class SessionPersistence {
       updatedAt: Date.now(),
     };
 
-    adapter.putSession(record).catch((err: unknown) => {
+    this.adapter.putSession(record).catch((err: unknown) => {
       console.error('[SessionPersistence] Failed to persist session to IDB:', err);
     });
   }
 
-  /**
-   * Throttled persist — used by updateLastActivity which fires on every
-   * user interaction. Writes to IDB at most once per ACTIVITY_THROTTLE_MS.
-   */
-  static persistThrottled(): void {
+  persistThrottled(): void {
     const now = Date.now();
-    if (now - this.lastActivityPersistTime < this.ACTIVITY_THROTTLE_MS) {
+    if (now - this.lastActivityPersistTime < SessionPersistence.ACTIVITY_THROTTLE_MS) {
       return;
     }
     this.lastActivityPersistTime = now;
     this.persist();
   }
 
-  /** Remove this tab's session record from IDB. */
-  static remove(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      return;
-    }
+  remove(): void {
+    if (!this.adapter) return;
 
-    const token = sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
+    const token = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_TOKEN);
+    if (!token) return;
 
-    adapter.deleteSession(token).catch((err: unknown) => {
+    this.adapter.deleteSession(token).catch((err: unknown) => {
       console.error('[SessionPersistence] Failed to delete session from IDB:', err);
     });
   }

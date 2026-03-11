@@ -72,13 +72,14 @@ function createStores(
     const sessionStore = db.createObjectStore(StoreName.Sessions, { keyPath: 'token' });
     sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
   } else if (oldVersion < 3 && tx) {
-    // v2 → v3: rename createdAt index to updatedAt
-    const sessionStore = tx.objectStore(StoreName.Sessions);
-    if (sessionStore.indexNames.contains('createdAt')) {
-      sessionStore.deleteIndex('createdAt');
-    }
-    if (!sessionStore.indexNames.contains('updatedAt')) {
-      sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+    if (db.objectStoreNames.contains(StoreName.Sessions)) {
+      const sessionStore = tx.objectStore(StoreName.Sessions);
+      if (sessionStore.indexNames.contains('createdAt')) {
+        sessionStore.deleteIndex('createdAt');
+      }
+      if (!sessionStore.indexNames.contains('updatedAt')) {
+        sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+      }
     }
   }
 }

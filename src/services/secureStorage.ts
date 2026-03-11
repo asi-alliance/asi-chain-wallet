@@ -2,7 +2,12 @@ import { decrypt, hashValue } from 'utils/encryption';
 import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
 import { StorageProvider, StoredAccountRecord, StorageAdapter } from './storage';
-import { SessionPersistence } from './sessionPersistence';
+import {
+  SessionPersistence,
+  SessionPersistencePort,
+  NullSessionPersistence,
+  SESSION_STORAGE_KEYS,
+} from './sessionPersistence';
 
 export interface SecureAccount extends Omit<Account, 'privateKey'> {
   encryptedPrivateKey?: string;
@@ -71,10 +76,13 @@ const DEFAULT_SETTINGS: SecureStorageData['settings'] = {
 
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
-  private static readonly SESSION_KEY = hashValue('asi_wallet_session_v2');
-  private static readonly AUTH_KEY = hashValue('asi_wallet_auth_v2');
-  private static readonly USER_ID_KEY = hashValue('asi_wallet_user_id_v2');
-  private static readonly SESSION_TOKEN_KEY = hashValue('asi_wallet_session_token_v2');
+
+  private static readonly SESSION_KEY       = SESSION_STORAGE_KEYS.SESSION;
+  private static readonly AUTH_KEY          = SESSION_STORAGE_KEYS.AUTH;
+  private static readonly USER_ID_KEY       = SESSION_STORAGE_KEYS.USER_ID;
+  private static readonly SESSION_TOKEN_KEY = SESSION_STORAGE_KEYS.SESSION_TOKEN;
+
+  private static sessionPort: SessionPersistencePort = NullSessionPersistence;
 
   private static cache: SecureStorageData = SecureStorage.readLocalStorage();
   private static initialized = false;
@@ -96,6 +104,8 @@ export class SecureStorage {
         this.initialized = true;
         return;
       }
+
+      this.sessionPort = SessionPersistence.init(adapter);
 
       await this.migrateFromLocalStorage(adapter);
       await this.loadCacheFromIDB(adapter);
@@ -437,7 +447,7 @@ export class SecureStorage {
     const sessionData = this.getSessionData();
     sessionData[accountId] = account;
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    SessionPersistence.persist();
+    this.sessionPort.persist();
   }
 
   static getUnlockedAccount(accountId: string): Account | null {
@@ -454,11 +464,11 @@ export class SecureStorage {
     const sessionData = this.getSessionData();
     delete sessionData[accountId];
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    SessionPersistence.persist();
+    this.sessionPort.persist();
   }
 
   static clearSession(): void {
-    SessionPersistence.remove();
+    this.sessionPort.remove();
     sessionStorage.removeItem(this.SESSION_KEY);
     sessionStorage.removeItem(this.AUTH_KEY);
     sessionStorage.removeItem(this.USER_ID_KEY);
@@ -472,7 +482,7 @@ export class SecureStorage {
     } else {
       sessionStorage.removeItem(this.AUTH_KEY);
     }
-    SessionPersistence.persist();
+    this.sessionPort.persist();
   }
 
   static isAuthenticated(): boolean {
@@ -481,7 +491,7 @@ export class SecureStorage {
 
   static updateLastActivity(): void {
     sessionStorage.setItem('lastActivity', Date.now().toString());
-    SessionPersistence.persistThrottled();
+    this.sessionPort.persistThrottled();
   }
 
   static getLastActivity(): number {
@@ -699,7 +709,7 @@ export class SecureStorage {
   static setCurrentUserId(userId: string): void {
     try {
       sessionStorage.setItem(this.USER_ID_KEY, userId);
-      SessionPersistence.persist();
+      this.sessionPort.persist();
     } catch (error) {
       console.error('Failed to set current user ID:', error);
     }
@@ -726,7 +736,7 @@ export class SecureStorage {
   static setSessionToken(token: string): void {
     try {
       sessionStorage.setItem(this.SESSION_TOKEN_KEY, token);
-      SessionPersistence.persist();
+      this.sessionPort.persist();
     } catch (e) {
       console.error('Failed to set session token:', e);
     }
