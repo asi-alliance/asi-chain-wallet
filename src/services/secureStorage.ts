@@ -76,6 +76,7 @@ const DEFAULT_SETTINGS: SecureStorageData['settings'] = {
 
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
+  private static readonly MIGRATION_FLAG_KEY = 'migration_from_localStorage_v1';
 
   private static readonly SESSION_KEY       = SESSION_STORAGE_KEYS.SESSION;
   private static readonly AUTH_KEY          = SESSION_STORAGE_KEYS.AUTH;
@@ -83,6 +84,7 @@ export class SecureStorage {
   private static readonly SESSION_TOKEN_KEY = SESSION_STORAGE_KEYS.SESSION_TOKEN;
 
   private static sessionPort: SessionPersistencePort = NullSessionPersistence;
+  private static migrationComplete = false;
 
   private static cache: SecureStorageData = SecureStorage.readLocalStorage();
   private static initialized = false;
@@ -119,25 +121,51 @@ export class SecureStorage {
   }
 
   private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
+    const flag = await adapter.getItem(this.MIGRATION_FLAG_KEY);
+    if (flag === 'true') {
+      this.migrationComplete = true;
+      return;
+    }
+
+    const keysToRemove: string[] = [];
+
     const existingAccounts = await adapter.getAllAccounts();
-    if (existingAccounts.length > 0) {
-      return;
+    if (existingAccounts.length === 0) {
+      const lsData = this.readLocalStorage();
+      if (lsData.accounts.length > 0) {
+        await adapter.putAccounts(lsData.accounts.map(toStoredRecord));
+        await adapter.putSettings({ id: 'default', ...lsData.settings });
+      }
+    }
+    keysToRemove.push(this.STORAGE_KEY);
+
+    const allLsKeys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k !== null) allLsKeys.push(k);
     }
 
-    const lsData = this.readLocalStorage();
-    if (lsData.accounts.length === 0) {
-      return;
+    for (const key of allLsKeys) {
+      if (key === this.STORAGE_KEY || key === this.MIGRATION_FLAG_KEY) {
+        keysToRemove.push(key);
+        continue;
+      }
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        const existing = await adapter.getItem(key);
+        if (existing === null) {
+          await adapter.setItem(key, value);
+        }
+        keysToRemove.push(key);
+      }
     }
 
-    const records = lsData.accounts.map(toStoredRecord);
-    await adapter.putAccounts(records);
-    await adapter.putSettings({
-      id: 'default',
-      ...lsData.settings,
-    });
+    await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
+    this.migrationComplete = true;
 
-    console.info('[SecureStorage] Migrated localStorage data to IndexedDB');
-    localStorage.removeItem(this.STORAGE_KEY);
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
   }
 
   private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
@@ -645,10 +673,8 @@ export class SecureStorage {
     const adapter = StorageProvider.getAdapter();
     if (adapter) {
       const idbValue = await adapter.getItem(hashedKey);
-      if (idbValue !== null) {
-        return idbValue;
-      }
-      // Fallback: check localStorage for data not yet migrated
+      if (idbValue !== null) return idbValue;
+      if (this.migrationComplete) return null;
       return localStorage.getItem(hashedKey);
     }
     return localStorage.getItem(hashedKey);
