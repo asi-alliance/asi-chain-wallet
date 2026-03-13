@@ -120,6 +120,41 @@ export class SecureStorage {
     }
   }
 
+  private static getLocalStorageKeys(): string[] {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k !== null) keys.push(k);
+    }
+    return keys;
+  }
+
+  private static async migrateAccountsToIDB(adapter: StorageAdapter): Promise<void> {
+    const existingAccounts = await adapter.getAllAccounts();
+    if (existingAccounts.length > 0) return;
+    const lsData = this.readLocalStorage();
+    if (lsData.accounts.length === 0) return;
+    await adapter.putAccounts(lsData.accounts.map(toStoredRecord));
+    await adapter.putSettings({ id: 'default', ...lsData.settings });
+  }
+
+  private static async migrateGeneralKeysToIDB(adapter: StorageAdapter): Promise<string[]> {
+    const reserved = new Set([this.STORAGE_KEY, this.MIGRATION_FLAG_KEY]);
+    const keysToRemove = [this.STORAGE_KEY];
+    for (const key of this.getLocalStorageKeys()) {
+      if (reserved.has(key)) {
+        keysToRemove.push(key);
+        continue;
+      }
+      const value = localStorage.getItem(key);
+      if (value === null) continue;
+      const existing = await adapter.getItem(key);
+      if (existing === null) await adapter.setItem(key, value);
+      keysToRemove.push(key);
+    }
+    return keysToRemove;
+  }
+
   private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
     const flag = await adapter.getItem(this.MIGRATION_FLAG_KEY);
     if (flag === 'true') {
@@ -127,38 +162,8 @@ export class SecureStorage {
       return;
     }
 
-    const keysToRemove: string[] = [];
-
-    const existingAccounts = await adapter.getAllAccounts();
-    if (existingAccounts.length === 0) {
-      const lsData = this.readLocalStorage();
-      if (lsData.accounts.length > 0) {
-        await adapter.putAccounts(lsData.accounts.map(toStoredRecord));
-        await adapter.putSettings({ id: 'default', ...lsData.settings });
-      }
-    }
-    keysToRemove.push(this.STORAGE_KEY);
-
-    const allLsKeys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k !== null) allLsKeys.push(k);
-    }
-
-    for (const key of allLsKeys) {
-      if (key === this.STORAGE_KEY || key === this.MIGRATION_FLAG_KEY) {
-        keysToRemove.push(key);
-        continue;
-      }
-      const value = localStorage.getItem(key);
-      if (value !== null) {
-        const existing = await adapter.getItem(key);
-        if (existing === null) {
-          await adapter.setItem(key, value);
-        }
-        keysToRemove.push(key);
-      }
-    }
+    await this.migrateAccountsToIDB(adapter);
+    const keysToRemove = await this.migrateGeneralKeysToIDB(adapter);
 
     await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
     this.migrationComplete = true;
