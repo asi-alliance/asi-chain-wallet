@@ -76,7 +76,7 @@ const DEFAULT_SETTINGS: SecureStorageData['settings'] = {
 
 export class SecureStorage {
   private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
-  private static readonly MIGRATION_FLAG_KEY = 'migration_from_localStorage_v1';
+  private static readonly MIGRATION_FLAG_KEY = hashValue('asi_wallet_migration_from_localStorage_v1');
 
   private static readonly SESSION_KEY       = SESSION_STORAGE_KEYS.SESSION;
   private static readonly AUTH_KEY          = SESSION_STORAGE_KEYS.AUTH;
@@ -138,21 +138,19 @@ export class SecureStorage {
     await adapter.putSettings({ id: 'default', ...lsData.settings });
   }
 
-  private static async migrateGeneralKeysToIDB(adapter: StorageAdapter): Promise<string[]> {
+  private static collectMigratableKeys(): string[] {
     const reserved = new Set([this.STORAGE_KEY, this.MIGRATION_FLAG_KEY]);
-    const keysToRemove = [this.STORAGE_KEY];
-    for (const key of this.getLocalStorageKeys()) {
-      if (reserved.has(key)) {
-        keysToRemove.push(key);
-        continue;
-      }
+    return this.getLocalStorageKeys().filter(key => !reserved.has(key));
+  }
+
+  private static async transferKeysToIDB(adapter: StorageAdapter, keys: string[]): Promise<void> {
+    for (const key of keys) {
       const value = localStorage.getItem(key);
-      if (value === null) continue;
-      const existing = await adapter.getItem(key);
-      if (existing === null) await adapter.setItem(key, value);
-      keysToRemove.push(key);
+      if (value !== null) {
+        const existing = await adapter.getItem(key);
+        if (existing === null) await adapter.setItem(key, value);
+      }
     }
-    return keysToRemove;
   }
 
   private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
@@ -162,15 +160,15 @@ export class SecureStorage {
       return;
     }
 
+    const keysToMigrate = this.collectMigratableKeys();
+
     await this.migrateAccountsToIDB(adapter);
-    const keysToRemove = await this.migrateGeneralKeysToIDB(adapter);
+    await this.transferKeysToIDB(adapter, keysToMigrate);
 
     await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
     this.migrationComplete = true;
 
-    for (const key of keysToRemove) {
-      localStorage.removeItem(key);
-    }
+    [this.STORAGE_KEY, ...keysToMigrate].forEach(key => localStorage.removeItem(key));
   }
 
   private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
