@@ -120,15 +120,6 @@ export class SecureStorage {
     }
   }
 
-  private static getLocalStorageKeys(): string[] {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k !== null) keys.push(k);
-    }
-    return keys;
-  }
-
   private static async migrateAccountsToIDB(adapter: StorageAdapter): Promise<void> {
     const existingAccounts = await adapter.getAllAccounts();
     if (existingAccounts.length > 0) return;
@@ -138,21 +129,6 @@ export class SecureStorage {
     await adapter.putSettings({ id: 'default', ...lsData.settings });
   }
 
-  private static collectMigratableKeys(): string[] {
-    const reserved = new Set([this.STORAGE_KEY, this.MIGRATION_FLAG_KEY]);
-    return this.getLocalStorageKeys().filter(key => !reserved.has(key));
-  }
-
-  private static async transferKeysToIDB(adapter: StorageAdapter, keys: string[]): Promise<void> {
-    for (const key of keys) {
-      const value = localStorage.getItem(key);
-      if (value !== null) {
-        const existing = await adapter.getItem(key);
-        if (existing === null) await adapter.setItem(key, value);
-      }
-    }
-  }
-
   private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
     const flag = await adapter.getItem(this.MIGRATION_FLAG_KEY);
     if (flag === 'true') {
@@ -160,15 +136,11 @@ export class SecureStorage {
       return;
     }
 
-    const keysToMigrate = this.collectMigratableKeys();
-
     await this.migrateAccountsToIDB(adapter);
-    await this.transferKeysToIDB(adapter, keysToMigrate);
-
     await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
-    this.migrationComplete = true;
 
-    [this.STORAGE_KEY, ...keysToMigrate].forEach(key => localStorage.removeItem(key));
+    this.migrationComplete = true;
+    localStorage.removeItem(this.STORAGE_KEY);
   }
 
   private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
