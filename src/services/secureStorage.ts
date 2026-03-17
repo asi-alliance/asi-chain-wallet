@@ -84,8 +84,6 @@ export class SecureStorage {
   private static readonly SESSION_TOKEN_KEY = SESSION_STORAGE_KEYS.SESSION_TOKEN;
 
   private static sessionPort: SessionPersistencePort = NullSessionPersistence;
-  private static migrationComplete = false;
-
   private static cache: SecureStorageData = SecureStorage.readLocalStorage();
   private static initialized = false;
   private static initPromise: Promise<void> | null = null;
@@ -132,14 +130,12 @@ export class SecureStorage {
   private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
     const flag = await adapter.getItem(this.MIGRATION_FLAG_KEY);
     if (flag === 'true') {
-      this.migrationComplete = true;
       return;
     }
 
     await this.migrateAccountsToIDB(adapter);
     await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
 
-    this.migrationComplete = true;
     localStorage.removeItem(this.STORAGE_KEY);
   }
 
@@ -649,7 +645,6 @@ export class SecureStorage {
     if (adapter) {
       const idbValue = await adapter.getItem(hashedKey);
       if (idbValue !== null) return idbValue;
-      if (this.migrationComplete) return null;
       return localStorage.getItem(hashedKey);
     }
     return localStorage.getItem(hashedKey);
