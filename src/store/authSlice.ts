@@ -4,7 +4,7 @@ import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
-import { recordLoginAttempt, LoginAttemptStatus } from 'services/loginAuditLog';
+import { recordLoginAttempt, LoginAttemptStatus, LoginType, FailureReason } from 'services/loginAuditLog';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -274,29 +274,45 @@ const migrateAccountUserIds = (accountIds: string[], userId: string): void => {
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
-    return withLoginLock(async () => {
-      const allAccounts = SecureStorage.getEncryptedAccounts();
+    const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
+    let failureReason: FailureReason | undefined;
 
-      const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
-        ? await tryUnlockByName(accountName, password, allAccounts)
-        : await tryUnlockAllNames(password, allAccounts);
+    try {
+      return await withLoginLock(async () => {
+        const allAccounts = SecureStorage.getEncryptedAccounts();
 
-      if (!foundUserId || unlockedAccounts.length === 0) {
-        recordLoginAttempt(LoginAttemptStatus.Failure, accountName);
-        throw new Error('Invalid password');
-      }
-      
-      migrateAccountUserIds(accountsToMigrate, foundUserId);
-      SecureStorage.setCurrentUserId(foundUserId);
-      SecureStorage.setAuthenticated(true);
+        if (allAccounts.length === 0) {
+          failureReason = FailureReason.NoAccount;
+          throw new Error('No accounts found');
+        }
 
-      const sessionToken = SecureStorage.generateSessionToken();
-      SecureStorage.setSessionToken(sessionToken);
-      broadcastSessionLogin(sessionToken);
-      recordLoginAttempt(LoginAttemptStatus.Success, accountName);
+        const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
+          ? await tryUnlockByName(accountName, password, allAccounts)
+          : await tryUnlockAllNames(password, allAccounts);
 
-      return unlockedAccounts;
-    });
+        if (!foundUserId || unlockedAccounts.length === 0) {
+          failureReason = FailureReason.WrongPassword;
+          throw new Error('Incorrect password');
+        }
+
+        migrateAccountUserIds(accountsToMigrate, foundUserId);
+        SecureStorage.setCurrentUserId(foundUserId);
+        SecureStorage.setAuthenticated(true);
+
+        const sessionToken = SecureStorage.generateSessionToken();
+        SecureStorage.setSessionToken(sessionToken);
+        broadcastSessionLogin(sessionToken);
+
+        await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
+        return unlockedAccounts;
+      });
+    } catch (err) {
+      const isLockError = err instanceof Error && err.message.toLowerCase().includes('lock');
+      const defaultReason = isLockError ? FailureReason.LockContention : FailureReason.Unknown;
+      const reason = failureReason ?? defaultReason;
+      await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason);
+      throw err;
+    }
   }
 );
 
@@ -310,7 +326,7 @@ export const unlockAccount = createAsyncThunk(
     
     const account = await SecureStorage.unlockAccount(accountId, password, userId);
     if (!account) {
-      throw new Error('Invalid password or account not found');
+      throw new Error('Incorrect password or account not found');
     }
     return account;
   }

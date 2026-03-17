@@ -1,4 +1,5 @@
-import { decrypt, hashValue } from 'utils/encryption';
+import { hashValue } from 'utils/encryption';
+import { legacyDecrypt } from 'utils/legacyCrypto';
 import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
 import { StorageProvider, StoredAccountRecord, StorageAdapter } from './storage';
@@ -335,7 +336,7 @@ export class SecureStorage {
         return undefined;
       }
     }
-    return decrypt(encrypted, password);
+    return legacyDecrypt(encrypted, password);
   }
 
   /** Re-encrypt a V1 payload to V2 format. Fire-and-forget; silent on failure. */

@@ -29,7 +29,6 @@ import IDEStorageService, {
     IDEFolder,
 } from "services/ideStorage";
 import { SecureStorage } from "services/secureStorage";
-import { decrypt } from "utils/encryption";
 import { getGasFeeAsNumber } from "../../constants/gas";
 
 const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
@@ -716,18 +715,9 @@ export const IDE: React.FC = () => {
       let privateKey = selectedAccount.privateKey;
 
       if (!privateKey && password) {
-                const userId = SecureStorage.getCurrentUserId();
-                const accounts = SecureStorage.getEncryptedAccounts(userId || undefined);
-                const secureAccount = accounts.find(
-                    (acc: any) => acc.id === selectedAccount.id
-                );
-        if (secureAccount?.encryptedPrivateKey) {
-                    const decrypted = decrypt(
-                        secureAccount.encryptedPrivateKey,
-                        password
-                    );
-          privateKey = decrypted || undefined;
-        }
+        const userId = SecureStorage.getCurrentUserId();
+        const unlockedAccount = await SecureStorage.unlockAccount(selectedAccount.id, password, userId ?? undefined);
+        privateKey = unlockedAccount?.privateKey;
       }
 
       if (!privateKey) {
