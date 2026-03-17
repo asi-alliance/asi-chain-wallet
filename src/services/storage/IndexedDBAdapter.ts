@@ -13,10 +13,7 @@ const DB_VERSION = 3;
 const DEFAULT_SETTINGS_ID = 'default';
 
 function toError(domError: DOMException | null, fallbackMessage: string): Error {
-  if (domError) {
-    return new Error(domError.message);
-  }
-  return new Error(fallbackMessage);
+  return domError ? new Error(domError.message) : new Error(fallbackMessage);
 }
 
 function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
@@ -50,11 +47,7 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-function createStores(
-  db: IDBDatabase,
-  oldVersion: number,
-  tx: IDBTransaction | null,
-): void {
+function createStores(db: IDBDatabase, oldVersion: number, tx: IDBTransaction | null): void {
   if (!db.objectStoreNames.contains(StoreName.Accounts)) {
     const accountStore = db.createObjectStore(StoreName.Accounts, { keyPath: 'id' });
     accountStore.createIndex('userId', 'userId', { unique: false });
@@ -72,21 +65,19 @@ function createStores(
     const sessionStore = db.createObjectStore(StoreName.Sessions, { keyPath: 'token' });
     sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
   } else if (oldVersion < 3 && tx) {
-    if (db.objectStoreNames.contains(StoreName.Sessions)) {
-      const sessionStore = tx.objectStore(StoreName.Sessions);
-      if (sessionStore.indexNames.contains('createdAt')) {
-        sessionStore.deleteIndex('createdAt');
-      }
-      if (!sessionStore.indexNames.contains('updatedAt')) {
-        sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
-      }
+    const sessionStore = tx.objectStore(StoreName.Sessions);
+    if (sessionStore.indexNames.contains('createdAt')) {
+      sessionStore.deleteIndex('createdAt');
+    }
+    if (!sessionStore.indexNames.contains('updatedAt')) {
+      sessionStore.createIndex('updatedAt', 'updatedAt', { unique: false });
     }
   }
 }
 
 export class IndexedDBAdapter implements StorageAdapter {
   private readonly dbPromise: Promise<IDBDatabase>;
-  private isClosed: boolean = false;
+  private isClosed = false;
 
   private constructor(dbPromise: Promise<IDBDatabase>) {
     this.dbPromise = dbPromise;
@@ -97,9 +88,7 @@ export class IndexedDBAdapter implements StorageAdapter {
   }
 
   private ensureOpen(): void {
-    if (this.isClosed) {
-      throw new Error(StorageError.AdapterClosed);
-    }
+    if (this.isClosed) throw new Error(StorageError.AdapterClosed);
   }
 
   async ready(): Promise<void> {
@@ -108,9 +97,7 @@ export class IndexedDBAdapter implements StorageAdapter {
   }
 
   async close(): Promise<void> {
-    if (this.isClosed) {
-      return;
-    }
+    if (this.isClosed) return;
     const db = await this.dbPromise;
     db.close();
     this.isClosed = true;
@@ -123,8 +110,7 @@ export class IndexedDBAdapter implements StorageAdapter {
     this.ensureOpen();
     const db = await this.dbPromise;
     const tx = db.transaction(name, mode);
-    const store = tx.objectStore(name);
-    return { store, tx };
+    return { store: tx.objectStore(name), tx };
   }
 
   private async getMultiStore(
@@ -143,9 +129,7 @@ export class IndexedDBAdapter implements StorageAdapter {
 
   async getItem(key: string): Promise<string | null> {
     const { store } = await this.getStore(StoreName.General, TransactionMode.ReadOnly);
-    const record = await promisifyRequest<{ key: string; value: string } | undefined>(
-      store.get(key),
-    );
+    const record = await promisifyRequest<{ key: string; value: string } | undefined>(store.get(key));
     return record?.value ?? null;
   }
 
@@ -164,18 +148,6 @@ export class IndexedDBAdapter implements StorageAdapter {
   async getAllAccounts(): Promise<StoredAccountRecord[]> {
     const { store } = await this.getStore(StoreName.Accounts, TransactionMode.ReadOnly);
     return promisifyRequest<StoredAccountRecord[]>(store.getAll());
-  }
-
-  async getAccountById(id: string): Promise<StoredAccountRecord | null> {
-    const { store } = await this.getStore(StoreName.Accounts, TransactionMode.ReadOnly);
-    const result = await promisifyRequest<StoredAccountRecord | undefined>(store.get(id));
-    return result ?? null;
-  }
-
-  async getAccountsByUserId(userId: string): Promise<StoredAccountRecord[]> {
-    const { store } = await this.getStore(StoreName.Accounts, TransactionMode.ReadOnly);
-    const index = store.index('userId');
-    return promisifyRequest<StoredAccountRecord[]>(index.getAll(userId));
   }
 
   async putAccount(account: StoredAccountRecord): Promise<void> {
@@ -200,9 +172,7 @@ export class IndexedDBAdapter implements StorageAdapter {
 
   async getSettings(): Promise<SettingsRecord | null> {
     const { store } = await this.getStore(StoreName.Settings, TransactionMode.ReadOnly);
-    const result = await promisifyRequest<SettingsRecord | undefined>(
-      store.get(DEFAULT_SETTINGS_ID),
-    );
+    const result = await promisifyRequest<SettingsRecord | undefined>(store.get(DEFAULT_SETTINGS_ID));
     return result ?? null;
   }
 
@@ -237,11 +207,9 @@ export class IndexedDBAdapter implements StorageAdapter {
     const index = store.index('updatedAt');
     const range = IDBKeyRange.upperBound(cutoff);
     const staleRecords = await promisifyRequest<SessionRecord[]>(index.getAll(range));
-
     for (const record of staleRecords) {
       store.delete(record.token);
     }
-
     await commitTransaction(tx);
     return staleRecords.length;
   }
@@ -254,9 +222,7 @@ export class IndexedDBAdapter implements StorageAdapter {
       StoreName.Sessions,
     ];
     const { stores, tx } = await this.getMultiStore(allStores, TransactionMode.ReadWrite);
-    stores.forEach((store) => {
-      store.clear();
-    });
+    stores.forEach((store) => store.clear());
     await commitTransaction(tx);
   }
 }

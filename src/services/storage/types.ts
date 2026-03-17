@@ -40,7 +40,7 @@ export interface SessionRecord {
   userId: string;
   isAuthenticated: boolean;
   lastActivity: number;
-  unlockedAccounts: string; // JSON-serialised Account[]
+  unlockedAccounts: string; // JSON-serialised Record<string, Account>
   updatedAt: number;
 }
 
@@ -71,8 +71,6 @@ export interface StorageAdapter {
   removeItem(key: string): Promise<void>;
 
   getAllAccounts(): Promise<StoredAccountRecord[]>;
-  getAccountById(id: string): Promise<StoredAccountRecord | null>;
-  getAccountsByUserId(userId: string): Promise<StoredAccountRecord[]>;
   putAccount(account: StoredAccountRecord): Promise<void>;
   putAccounts(accounts: StoredAccountRecord[]): Promise<void>;
   deleteAccount(id: string): Promise<void>;

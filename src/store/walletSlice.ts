@@ -74,13 +74,27 @@ const PENDING_TRANSACTIONS_KEY = 'asi_wallet_pending_transactions';
 
 type AccountNetworkUpdate = { id: string; networkId: string };
 
-const sanitizeAccounts = (accounts: Account[], networkId?: string) => {
+// Accepts both Account (unlocked, from session) and SecureAccount (from storage)
+type SanitizableAccount = Omit<Account, 'privateKey'> & {
+  privateKey?: string;
+  encryptedPrivateKey?: string;
+};
+
+const sanitizeAccounts = (accounts: SanitizableAccount[], networkId?: string) => {
   const updates: AccountNetworkUpdate[] = [];
 
   const sanitized = accounts.map(acc => {
-    const { encryptedPrivateKey, ...rest } = acc as any;
     const sanitizedAccount: Account = {
-      ...rest,
+      id: acc.id,
+      name: acc.name,
+      address: acc.address,
+      revAddress: acc.revAddress,
+      ethAddress: acc.ethAddress,
+      publicKey: acc.publicKey,
+      balance: acc.balance,
+      isMetamask: acc.isMetamask,
+      networkId: acc.networkId,
+      createdAt: acc.createdAt,
       privateKey: undefined,
     };
 
@@ -152,6 +166,19 @@ const updateSelectedAccountForNetwork = (state: WalletState) => {
   state.selectedAccount = nextSelected || null;
   persistSelectedAccountId(nextSelected ? nextSelected.id : null);
 };
+
+// Raw shape returned by RChainService.fetchTransactionHistory
+interface RChainTx {
+  deployId: string;
+  blockNumber?: number;
+  blockHash?: string;
+  from: string;
+  to?: string;
+  amount?: string;
+  status: string;
+  timestamp: string;
+  type: 'send' | 'receive' | 'deploy';
+}
 
 interface PendingTransaction {
   deployId: string;
@@ -407,7 +434,7 @@ export const fetchTransactionHistory = createAsyncThunk(
     const pendingTxs = loadPendingTransactions();
     const pendingDeployIds = new Set(pendingTxs.map(t => t.deployId));
     
-    transactions.forEach((tx: any) => {
+    transactions.forEach((tx: RChainTx) => {
       if (pendingDeployIds.has(tx.deployId)) {
         const pendingTx = pendingTxs.find(t => t.deployId === tx.deployId);
         if (pendingTx) {
@@ -553,7 +580,7 @@ const walletSlice = createSlice({
         const userId = SecureStorage.getCurrentUserId();
         const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId || undefined);
         const { sanitized, updates } = sanitizeAccounts(
-          encryptedAccounts as unknown as Account[],
+          encryptedAccounts,
           network.id
         );
         
@@ -682,7 +709,7 @@ const walletSlice = createSlice({
         const networkId = state.selectedNetwork?.id;
 
         const { sanitized, updates } = sanitizeAccounts(
-          encryptedAccounts as unknown as Account[],
+          encryptedAccounts,
           networkId
         );
         persistAccountNetworkUpdates(updates);
@@ -742,7 +769,7 @@ const walletSlice = createSlice({
         const pendingDeployIds = new Set(pendingTxs.map(t => t.deployId));
         const confirmedDeployIds: string[] = [];
         
-        const newTransactions = action.payload.map((tx: any) => {
+        const newTransactions = (action.payload as RChainTx[]).map((tx) => {
           const isPendingInStorage = pendingDeployIds.has(tx.deployId);
           
           if (isPendingInStorage) {
@@ -757,14 +784,12 @@ const walletSlice = createSlice({
             id: tx.deployId,
             deployId: tx.deployId,
             from: tx.from,
-            to: tx.to,
-            amount: tx.amount,
+            to: tx.to ?? '',
+            amount: tx.amount ?? '',
             timestamp: new Date(tx.timestamp),
-            status: isPendingInStorage ? 'completed' : tx.status,
+            status: (isPendingInStorage ? 'completed' : tx.status) as Transaction['status'],
             blockNumber: tx.blockNumber,
-            blockHash: tx.blockHash,
-            type: tx.type,
-            gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined
+            gasCost: tx.type === 'send' ? generateRandomGasFee() : undefined,
           };
         });
         

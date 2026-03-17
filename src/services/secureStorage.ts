@@ -196,10 +196,7 @@ export class SecureStorage {
       });
   }
 
-  /**
-   * Explicitly await pending IDB writes for critical operations
-   * where fire-and-forget is not acceptable.
-   */
+  // Await pending IDB writes; use for critical operations where fire-and-forget is not acceptable
   static async flush(): Promise<void> {
     const adapter = StorageProvider.getAdapter();
     if (!adapter) {
@@ -308,7 +305,7 @@ export class SecureStorage {
     return account;
   }
 
-  /** Validate that the account belongs to the current user. */
+  // Validates account belongs to the user derived from password + name
   private static validateAccountOwnership(
     secureAccount: SecureAccount,
     password: string,
@@ -323,7 +320,7 @@ export class SecureStorage {
     return this.generateUserIdFromPassword(password, secureAccount.name) === currentUserId;
   }
 
-  /** Decrypt with V2 (Web Crypto) or V1 (legacy CryptoJS) based on version. */
+  // Decrypts with V2 (Web Crypto) or V1 (legacy CryptoJS) based on detected version
   private static async decryptPrivateKey(
     encrypted: string,
     password: string,
@@ -339,7 +336,7 @@ export class SecureStorage {
     return legacyDecrypt(encrypted, password);
   }
 
-  /** Re-encrypt a V1 payload to V2 format. Fire-and-forget; silent on failure. */
+  // Re-encrypts V1 payload to V2 format; fire-and-forget, retries on next unlock
   private static reEncryptToV2(accountId: string, privateKey: string, password: string): void {
     sealV2(privateKey, password)
       .then(encrypted => {
@@ -610,12 +607,6 @@ export class SecureStorage {
     }
   }
 
-  // ── Internal: get storage data (reads from cache) ───────────────────
-
-  private static getStorageData(): SecureStorageData {
-    return this.cache;
-  }
-
   private static getSessionData(): Record<string, Account> {
     try {
       const stored = sessionStorage.getItem(this.SESSION_KEY);
@@ -745,14 +736,6 @@ export class SecureStorage {
     } catch (e) {
       console.error('Failed to get session token:', e);
       return null;
-    }
-  }
-
-  static clearSessionToken(): void {
-    try {
-      sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
-    } catch (e) {
-      console.error('Failed to clear session token:', e);
     }
   }
 

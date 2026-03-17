@@ -20,9 +20,7 @@ export const NullSessionPersistence: SessionPersistencePort = {
   remove() { /* no-op */ },
 };
 
-/**
- * Manages session durability in IndexedDB.
- */
+// Manages session durability in IndexedDB
 export class SessionPersistence implements SessionPersistencePort {
 
   static readonly SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -35,12 +33,7 @@ export class SessionPersistence implements SessionPersistencePort {
     return SessionPersistence._instance;
   }
 
-  static getInstance(): SessionPersistence | null {
-    return SessionPersistence._instance;
-  }
-
   private readonly adapter: StorageAdapter | null;
-
   private lastActivityPersistTime = 0;
 
   private constructor(adapter: StorageAdapter | null) {
@@ -70,7 +63,7 @@ export class SessionPersistence implements SessionPersistencePort {
 
   static cleanupStale(adapter: StorageAdapter): void {
     adapter.deleteSessionsOlderThan(SessionPersistence.SESSION_MAX_AGE_MS).catch(() => {
-      // Non-critical; will retry on next init
+      // non-critical
     });
   }
 
@@ -80,10 +73,10 @@ export class SessionPersistence implements SessionPersistencePort {
     const token = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION_TOKEN);
     if (!token) return;
 
-    const userId           = sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) ?? '';
-    const isAuthenticated  = sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) === 'true';
-    const lastActivityStr  = sessionStorage.getItem('lastActivity');
-    const lastActivity     = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+    const userId          = sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) ?? '';
+    const isAuthenticated = sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) === 'true';
+    const lastActivityStr = sessionStorage.getItem('lastActivity');
+    const lastActivity    = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
     const unlockedAccounts = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) ?? '{}';
 
     const record: SessionRecord = {
@@ -102,9 +95,7 @@ export class SessionPersistence implements SessionPersistencePort {
 
   persistThrottled(): void {
     const now = Date.now();
-    if (now - this.lastActivityPersistTime < SessionPersistence.ACTIVITY_THROTTLE_MS) {
-      return;
-    }
+    if (now - this.lastActivityPersistTime < SessionPersistence.ACTIVITY_THROTTLE_MS) return;
     this.lastActivityPersistTime = now;
     this.persist();
   }
