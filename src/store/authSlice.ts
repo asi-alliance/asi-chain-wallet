@@ -5,6 +5,13 @@ import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress }
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
 import { recordLoginAttempt, LoginAttemptStatus, LoginType, FailureReason } from 'services/loginAuditLog';
+import {
+  buildRateLimitKey,
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit,
+  LOCKOUT_DURATION_MS,
+} from 'services/loginRateLimit';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -39,6 +46,76 @@ const initialState: AuthState = {
   error: null,
 };
 
+// ── Typed login error ──────────────────────────────────────────────────────
+class LoginError extends Error {
+  constructor(message: string, readonly failureReason: FailureReason) {
+    super(message);
+    this.name = 'LoginError';
+  }
+}
+
+// ── Helper: map unknown catch value → FailureReason ───────────────────────
+function resolveUnknownFailureReason(err: unknown): FailureReason {
+  if (err instanceof Error && err.message.toLowerCase().includes('lock')) {
+    return FailureReason.LockContention;
+  }
+  return FailureReason.Unknown;
+}
+
+// ── Helper: format lockout duration for display ────────────────────────────
+function formatLockoutMinutes(remainingMs: number): string {
+  const minutes = Math.ceil(remainingMs / 60_000);
+  return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+}
+
+// ── Inner login logic (called under Web Lock) ──────────────────────────────
+async function performLoginUnderLock(
+  password: string,
+  accountName: string | undefined,
+): Promise<Account[]> {
+  const allAccounts = SecureStorage.getEncryptedAccounts();
+
+  if (allAccounts.length === 0) {
+    throw new LoginError('No accounts found', FailureReason.NoAccount);
+  }
+
+  // ── Rate-limit gate ──────────────────────────────────────────────────────
+  const accountNames = allAccounts.map(a => a.name);
+  const contextKey = buildRateLimitKey(accountName, accountNames);
+  const rateLimitCheck = await checkRateLimit(contextKey);
+
+  if (rateLimitCheck.isLocked) {
+    const remaining = formatLockoutMinutes(rateLimitCheck.remainingMs ?? LOCKOUT_DURATION_MS);
+    throw new LoginError(
+      `Too many failed attempts. Try again in ${remaining}.`,
+      FailureReason.RateLimited,
+    );
+  }
+
+  // ── Password check ───────────────────────────────────────────────────────
+  const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
+    ? await tryUnlockByName(accountName, password, allAccounts)
+    : await tryUnlockAllNames(password, allAccounts);
+
+  if (unlockedAccounts.length === 0 || !foundUserId) {
+    await recordFailedAttempt(contextKey);
+    throw new LoginError('Incorrect password', FailureReason.WrongPassword);
+  }
+
+  // ── Success path ─────────────────────────────────────────────────────────
+  await resetRateLimit(contextKey);
+  migrateAccountUserIds(accountsToMigrate, foundUserId);
+  SecureStorage.setCurrentUserId(foundUserId);
+  SecureStorage.setAuthenticated(true);
+
+  const sessionToken = SecureStorage.generateSessionToken();
+  SecureStorage.setSessionToken(sessionToken);
+  broadcastSessionLogin(sessionToken);
+
+  return unlockedAccounts;
+}
+
+// ── Thunks ─────────────────────────────────────────────────────────────────
 type CreateAccountPayload = {
   name: string;
   password: string;
@@ -88,8 +165,11 @@ const normalizeAddress = (address: string | undefined): string => {
   if (!address) return '';
   return address.toLowerCase().trim();
 };
+
 const checkAccountExists = (newAccount: Account, userId?: string | null): boolean => {
-  const existingAccounts = userId ? SecureStorage.getEncryptedAccounts(userId) : SecureStorage.getEncryptedAccounts();
+  const existingAccounts = userId
+    ? SecureStorage.getEncryptedAccounts(userId)
+    : SecureStorage.getEncryptedAccounts();
   const normalizedNewRev = normalizeAddress(newAccount.revAddress);
   const normalizedNewEth = normalizeAddress(newAccount.ethAddress);
   
@@ -275,41 +355,15 @@ export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
     const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
-    let failureReason: FailureReason | undefined;
 
     try {
-      return await withLoginLock(async () => {
-        const allAccounts = SecureStorage.getEncryptedAccounts();
-
-        if (allAccounts.length === 0) {
-          failureReason = FailureReason.NoAccount;
-          throw new Error('No accounts found');
-        }
-
-        const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
-          ? await tryUnlockByName(accountName, password, allAccounts)
-          : await tryUnlockAllNames(password, allAccounts);
-
-        if (!foundUserId || unlockedAccounts.length === 0) {
-          failureReason = FailureReason.WrongPassword;
-          throw new Error('Incorrect password');
-        }
-
-        migrateAccountUserIds(accountsToMigrate, foundUserId);
-        SecureStorage.setCurrentUserId(foundUserId);
-        SecureStorage.setAuthenticated(true);
-
-        const sessionToken = SecureStorage.generateSessionToken();
-        SecureStorage.setSessionToken(sessionToken);
-        broadcastSessionLogin(sessionToken);
-
-        await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
-        return unlockedAccounts;
-      });
+      const result = await withLoginLock(() => performLoginUnderLock(password, accountName));
+      await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
+      return result;
     } catch (err) {
-      const isLockError = err instanceof Error && err.message.toLowerCase().includes('lock');
-      const defaultReason = isLockError ? FailureReason.LockContention : FailureReason.Unknown;
-      const reason = failureReason ?? defaultReason;
+      const reason = err instanceof LoginError
+        ? err.failureReason
+        : resolveUnknownFailureReason(err);
       await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason);
       throw err;
     }

@@ -10,15 +10,16 @@ export enum LoginAttemptStatus {
 }
 
 export enum LoginType {
-  ByName = 'by_name',
+  ByName      = 'by_name',
   AllAccounts = 'all_accounts',
 }
 
 export enum FailureReason {
-  WrongPassword = 'wrong_password',
-  NoAccount = 'no_account',
+  WrongPassword  = 'wrong_password',
+  NoAccount      = 'no_account',
   LockContention = 'lock_contention',
-  Unknown = 'unknown',
+  RateLimited    = 'rate_limited',
+  Unknown        = 'unknown',
 }
 
 export interface LoginAuditEntry {

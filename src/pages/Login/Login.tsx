@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
@@ -7,6 +7,13 @@ import { loginWithPassword } from 'store/authSlice';
 import { syncAccounts, selectAccount } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
 import { SecureStorage } from 'services/secureStorage';
+import {
+  checkRateLimit,
+  buildRateLimitKey,
+  type RateLimitCheckResult,
+} from 'services/loginRateLimit';
+
+// ── Styled components ──────────────────────────────────────────────────────
 
 const LoginContainer = styled.div`
   max-width: 400px;
@@ -32,6 +39,15 @@ const ErrorMessage = styled.div`
   border-radius: 8px;
   margin-bottom: 16px;
   font-size: 14px;
+`;
+
+const WarningMessage = styled.div`
+  background: ${({ theme }) => theme.warning ?? '#f59e0b'};
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
 `;
 
 const ActionButtons = styled.div`
@@ -67,6 +83,65 @@ const InfoText = styled.p`
   margin-bottom: 16px;
 `;
 
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const IDB_SYNC_INTERVAL_MS = 30_000;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0
+    ? `${minutes}m ${seconds.toString().padStart(2, '0')}s`
+    : `${seconds}s`;
+}
+
+// ── useLockoutCountdown ────────────────────────────────────────────────────
+
+function useLockoutCountdown(
+  rateLimitState: RateLimitCheckResult | null,
+  refreshFromStorage: () => Promise<void>,
+): string {
+  const [displayMs, setDisplayMs] = useState<number>(rateLimitState?.remainingMs ?? 0);
+  const refreshRef = useRef(refreshFromStorage);
+  refreshRef.current = refreshFromStorage;
+
+  // Sync display whenever the IDB re-read returns a new remainingMs
+  useEffect(() => {
+    if (rateLimitState?.isLocked && rateLimitState.remainingMs !== undefined) {
+      setDisplayMs(rateLimitState.remainingMs);
+    }
+  }, [rateLimitState?.isLocked, rateLimitState?.remainingMs]);
+
+  // 1-second local tick
+  useEffect(() => {
+    if (!rateLimitState?.isLocked) return;
+
+    const tick = setInterval(() => {
+      setDisplayMs(prev => {
+        const next = Math.max(0, prev - 1000);
+        if (next === 0) refreshRef.current();
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(tick);
+  }, [rateLimitState?.isLocked]);
+
+  // Slower IDB re-sync to detect expiry from other tabs
+  useEffect(() => {
+    if (!rateLimitState?.isLocked) return;
+    const sync = setInterval(() => refreshRef.current(), IDB_SYNC_INTERVAL_MS);
+    return () => clearInterval(sync);
+  }, [rateLimitState?.isLocked]);
+
+  return formatCountdown(displayMs);
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 export const Login: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -77,16 +152,43 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [selectedAccountName, setSelectedAccountName] = useState<string>('');
   const [showError, setShowError] = useState(false);
+  const [rateLimitState, setRateLimitState] = useState<RateLimitCheckResult | null>(null);
 
   const availableAccountNames = useMemo(() => {
     const accounts = SecureStorage.getEncryptedAccounts();
-    const uniqueNames = Array.from(new Set(
-      accounts
-        .filter(acc => acc.name)
-        .map(acc => acc.name!)
+    return Array.from(new Set(
+      accounts.filter(acc => acc.name).map(acc => acc.name!)
     ));
-    return uniqueNames;
   }, []);
+
+  // ── Rate-limit state management ──────────────────────────────────────────
+
+  const refreshRateLimitState = useCallback(async () => {
+    const accounts = SecureStorage.getEncryptedAccounts();
+    const names = accounts.map(a => a.name);
+    const contextKey = buildRateLimitKey(selectedAccountName || undefined, names);
+    try {
+      const result = await checkRateLimit(contextKey);
+      setRateLimitState(result);
+    } catch {
+      // Non-critical: leave previous state intact
+    }
+  }, [selectedAccountName]);
+
+  // Check on mount and whenever the selected account changes
+  useEffect(() => {
+    refreshRateLimitState();
+  }, [refreshRateLimitState]);
+
+  // Re-check after each failed login attempt
+  useEffect(() => {
+    if (error) refreshRateLimitState();
+  }, [error, refreshRateLimitState]);
+
+  // Live countdown — ticks locally every 1s, re-syncs from IDB every 30s
+  const countdownDisplay = useLockoutCountdown(rateLimitState, refreshRateLimitState);
+
+  // ── Navigation & defaults ─────────────────────────────────────────────────
 
   useEffect(() => {
     if (availableAccountNames.length > 0 && !selectedAccountName) {
@@ -95,58 +197,51 @@ export const Login: React.FC = () => {
   }, [availableAccountNames, selectedAccountName]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
-    }
+    if (isAuthenticated) navigate('/');
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (error) {
-      setShowError(true);
-      const timer = setTimeout(() => setShowError(false), 5000);
-      return () => clearTimeout(timer);
-    }
+    if (!error) return;
+    setShowError(true);
+    const timer = setTimeout(() => setShowError(false), 5000);
+    return () => clearTimeout(timer);
   }, [error]);
 
   const handleLogin = async () => {
-    if (!password.trim()) return;
+    if (!password.trim() || rateLimitState?.isLocked) return;
 
     try {
-      const resultAction = await dispatch(loginWithPassword({ 
+      const resultAction = await dispatch(loginWithPassword({
         password,
-        accountName: selectedAccountName || undefined 
+        accountName: selectedAccountName || undefined,
       }));
-      
-      if (loginWithPassword.fulfilled.match(resultAction)) {
-        dispatch(syncAccounts(resultAction.payload));
-        
-        if (selectedAccountName) {
-          const accountToSelect = resultAction.payload.find(
-            acc => acc.name === selectedAccountName
-          );
-          if (accountToSelect) {
-            dispatch(selectAccount(accountToSelect.id));
-          }
-        } else if (resultAction.payload.length > 0) {
-          dispatch(selectAccount(resultAction.payload[0].id));
-        }
-        
-        navigate('/');
-      }
+
+      if (!loginWithPassword.fulfilled.match(resultAction)) return;
+
+      dispatch(syncAccounts(resultAction.payload));
+
+      const targetAccount = selectedAccountName
+        ? resultAction.payload.find(acc => acc.name === selectedAccountName)
+        : resultAction.payload[0];
+
+      if (targetAccount) dispatch(selectAccount(targetAccount.id));
+
+      navigate('/');
     } catch (err) {
       console.error('Login failed:', err);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && password.trim()) {
-      handleLogin();
-    }
+    if (e.key === 'Enter' && password.trim()) handleLogin();
   };
 
-  const handleCreateAccount = () => {
-    navigate('/accounts');
-  };
+  const handleCreateAccount = () => navigate('/accounts');
+
+  // ── Derived UI state ──────────────────────────────────────────────────────
+
+  const isLocked = rateLimitState?.isLocked ?? false;
+  const isSubmitDisabled = !password.trim() || isLocked;
 
   if (!hasAccounts) {
     return (
@@ -169,6 +264,8 @@ export const Login: React.FC = () => {
     );
   }
 
+  // ── Render: login form ────────────────────────────────────────────────────
+
   return (
     <LoginContainer>
       <Logo>ASI Wallet</Logo>
@@ -177,18 +274,36 @@ export const Login: React.FC = () => {
           <CardTitle>Unlock Wallet</CardTitle>
         </CardHeader>
         <CardContent>
-          {showError && error && (
+
+          {/* Lockout banner with live 1-second countdown */}
+          {isLocked && (
+            <ErrorMessage>
+              Too many failed attempts. Try again in {countdownDisplay}.
+            </ErrorMessage>
+          )}
+
+          {/* Auth error (wrong password, etc.) — suppressed while locked */}
+          {showError && error && !isLocked && (
             <ErrorMessage>{error}</ErrorMessage>
+          )}
+
+          {/* Approaching-lockout warning */}
+          {!isLocked && rateLimitState?.showWarning && (
+            <WarningMessage>
+              Warning: {rateLimitState.attemptsRemaining}{' '}
+              attempt{rateLimitState.attemptsRemaining !== 1 ? 's' : ''} remaining
+              before a 15-minute lockout.
+            </WarningMessage>
           )}
 
           {availableAccountNames.length > 1 && (
             <FormGroup>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontSize: '14px', 
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontSize: '14px',
                 fontWeight: 500,
-                color: 'inherit'
+                color: 'inherit',
               }}>
                 Select Wallet
               </label>
@@ -198,9 +313,7 @@ export const Login: React.FC = () => {
                 onChange={(e) => setSelectedAccountName(e.target.value)}
               >
                 {availableAccountNames.map(name => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
+                  <option key={name} value={name}>{name}</option>
                 ))}
               </AccountSelector>
               <InfoText>
@@ -220,14 +333,13 @@ export const Login: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               onInput={(e) => {
                 const target = e.currentTarget;
-                if (target.value !== password) {
-                  setPassword(target.value);
-                }
+                if (target.value !== password) setPassword(target.value);
               }}
               onKeyPress={handleKeyPress}
               placeholder="Enter your password"
               autoFocus={availableAccountNames.length <= 1}
               autoComplete="current-password"
+              disabled={isLocked}
             />
           </FormGroup>
 
@@ -236,20 +348,17 @@ export const Login: React.FC = () => {
               id="login-unlock-button"
               onClick={handleLogin}
               loading={isLoading}
-              disabled={!password.trim()}
+              disabled={isSubmitDisabled}
               fullWidth
             >
-              Unlock
+              {isLocked ? 'Temporarily Locked' : 'Unlock'}
             </Button>
 
-            <LinkButton
-              variant="ghost"
-              onClick={handleCreateAccount}
-              fullWidth
-            >
+            <LinkButton variant="ghost" onClick={handleCreateAccount} fullWidth>
               Import or Create New Account
             </LinkButton>
           </ActionButtons>
+
         </CardContent>
       </Card>
     </LoginContainer>
