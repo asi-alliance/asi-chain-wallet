@@ -130,7 +130,7 @@ export function buildRateLimitKey(
   }
   const sortedNames = allAccountNames
     .filter((n): n is string => typeof n === 'string' && n.length > 0)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .join(',');
   return `${RateLimitContextType.Global}:${sortedNames}`;
 }

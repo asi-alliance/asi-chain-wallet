@@ -157,7 +157,7 @@ export const Login: React.FC = () => {
   const availableAccountNames = useMemo(() => {
     const accounts = SecureStorage.getEncryptedAccounts();
     return Array.from(new Set(
-      accounts.filter(acc => acc.name).map(acc => acc.name!)
+      accounts.filter(acc => acc.name).map(acc => acc.name as string)
     ));
   }, []);
 
