@@ -1,6 +1,6 @@
 import { SecureStorage, SecureAccount } from './secureStorage';
 import { sealV2, openV2 } from 'utils/encryptedPayload';
-import { legacyDecrypt, legacySha256 } from 'utils/legacyCrypto';
+import { legacyDecrypt } from 'utils/legacyCrypto';
 import { hashValue } from 'utils/encryption';
 
 // Backup format version: V1 = legacy CryptoJS, V2 = Web Crypto (AES-GCM)
