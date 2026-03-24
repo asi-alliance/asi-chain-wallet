@@ -1,14 +1,19 @@
 import { deriveKey, encryptData, decryptData, DecryptionError, AesKeyLength } from './webCrypto';
 
 // ---------------------------------------------------------------------------
-// Constants
+// Constants — iter is stored in every V2 payload so bumping this is safe
 // ---------------------------------------------------------------------------
 
 export const V2_SALT_BYTES = 16;
 export const V2_IV_BYTES = 12;
 export const V2_TAG_BYTES = 16;
 export const V2_KEY_LENGTH: AesKeyLength = AesKeyLength.Aes256;
+
+// Increase as device performance allows; stored per-payload so safe to change
 export const V2_PBKDF2_ITERATIONS = 310_000;
+
+// Fallback for V2 payloads created before iter was stored in the payload
+const V2_LEGACY_PBKDF2_ITERATIONS = 100_000;
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -29,7 +34,7 @@ export interface EncryptedPayloadV2 {
   readonly iv: string;
   readonly tag: string;
   readonly ct: string;
-  readonly iter: number;
+  readonly iter: number; // PBKDF2 iterations stored in payload
 }
 
 // ---------------------------------------------------------------------------
@@ -149,9 +154,9 @@ export async function openV2(sealed: string, password: string): Promise<string> 
     throw new DecryptionError('Invalid payload: malformed base64 data');
   }
 
-  const iterations = typeof parsed.iter === 'number' && parsed.iter > 0
-    ? parsed.iter
-    : V2_PBKDF2_ITERATIONS;
+  // Use iter from payload; fall back to legacy 100k for payloads created before iter was added
+  const hasStoredIter = typeof parsed.iter === 'number' && parsed.iter > 0;
+  const iterations = hasStoredIter ? parsed.iter : V2_LEGACY_PBKDF2_ITERATIONS;
 
   const key = await deriveKey(password, salt, {
     iterations,

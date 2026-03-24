@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
+import { SecureAccount } from 'services/secureStorage';
 import { AuthState } from './authSlice';
+import { loginWithPassword } from './authSlice';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
 import { generateRandomGasFee, getGasFeeAsNumber } from '../constants/gas';
@@ -578,15 +580,12 @@ const walletSlice = createSlice({
 
       try {
         const userId = SecureStorage.getCurrentUserId();
-        const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId || undefined);
-        const { sanitized, updates } = sanitizeAccounts(
-          encryptedAccounts,
-          network.id
-        );
-        
-        if (updates.length > 0) {
-          persistAccountNetworkUpdates(updates);
-        }
+        if (!userId) return;
+
+        const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId);
+        const { sanitized, updates } = sanitizeAccounts(encryptedAccounts, network.id);
+
+        if (updates.length > 0) persistAccountNetworkUpdates(updates);
 
         state.accounts = filterAccountsForNetwork(sanitized, network.id);
       } catch (error) {
@@ -705,15 +704,16 @@ const walletSlice = createSlice({
     loadAccountsFromStorage: (state) => {
       try {
         const userId = SecureStorage.getCurrentUserId();
-        const encryptedAccounts = SecureStorage.getEncryptedAccounts(userId || undefined);
-        const networkId = state.selectedNetwork?.id;
+        // Skip load if not authenticated — loginWithPassword.fulfilled handles post-login load
+        if (!userId) return;
 
+        // Load all accounts for display — userId is only needed for unlock, not visibility
+        const networkId = state.selectedNetwork?.id;
         const { sanitized, updates } = sanitizeAccounts(
-          encryptedAccounts,
-          networkId
+          SecureStorage.getEncryptedAccounts(),
+          networkId,
         );
         persistAccountNetworkUpdates(updates);
-
         state.accounts = filterAccountsForNetwork(sanitized, networkId);
         updateSelectedAccountForNetwork(state);
       } catch (error) {
@@ -736,6 +736,17 @@ const walletSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(loginWithPassword.fulfilled, (state) => {
+        // Load ALL accounts for display — userId filtering is only for unlock, not visibility
+        const networkId = state.selectedNetwork?.id;
+        const { sanitized, updates } = sanitizeAccounts(
+          SecureStorage.getEncryptedAccounts(),
+          networkId,
+        );
+        persistAccountNetworkUpdates(updates);
+        state.accounts = filterAccountsForNetwork(sanitized, networkId);
+        updateSelectedAccountForNetwork(state);
+      })
       .addCase(fetchBalance.pending, (state) => {
         state.isLoading = true;
       })

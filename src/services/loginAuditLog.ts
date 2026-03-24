@@ -45,12 +45,11 @@ async function readLog(): Promise<LoginAuditEntry[]> {
   }
 }
 
-function writeLog(entries: LoginAuditEntry[]): void {
+async function writeLog(entries: LoginAuditEntry[]): Promise<void> {
   const json = JSON.stringify(entries);
   const adapter = StorageProvider.getAdapter();
   if (adapter) {
-    adapter.setItem(AUDIT_LOG_KEY, json).catch(() => {
-      // IDB write failed; best-effort localStorage fallback
+    await adapter.setItem(AUDIT_LOG_KEY, json).catch(() => {
       try { localStorage.setItem(AUDIT_LOG_KEY, json); } catch { /* quota */ }
     });
     return;
@@ -61,10 +60,6 @@ function writeLog(entries: LoginAuditEntry[]): void {
 function trimEntries(entries: LoginAuditEntry[]): LoginAuditEntry[] {
   return entries.length > MAX_ENTRIES ? entries.slice(entries.length - MAX_ENTRIES) : entries;
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 export async function recordLoginAttempt(
   status: LoginAttemptStatus,
@@ -81,7 +76,7 @@ export async function recordLoginAttempt(
   };
 
   const entries = await readLog();
-  writeLog(trimEntries([...entries, entry]));
+  await writeLog(trimEntries([...entries, entry]));
 }
 
 export async function getLoginAuditLog(): Promise<LoginAuditEntry[]> {

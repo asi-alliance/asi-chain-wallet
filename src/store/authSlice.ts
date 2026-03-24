@@ -202,6 +202,7 @@ interface LoginAttemptResult {
   unlockedAccounts: Account[];
   foundUserId: string | null;
   accountsToMigrate: string[];
+  noAccountFound: boolean;
 }
 
 const tryUnlockByName = async (
@@ -214,6 +215,10 @@ const tryUnlockByName = async (
   const unlockedAccounts: Account[] = [];
   const accountsToMigrate: string[] = [];
 
+  if (matchingAccounts.length === 0) {
+    return { unlockedAccounts: [], foundUserId: null, accountsToMigrate: [], noAccountFound: true };
+  }
+
   for (const account of matchingAccounts) {
     const userIdMatches = !account.userId || account.userId === userId;
     if (!userIdMatches) continue;
@@ -222,15 +227,14 @@ const tryUnlockByName = async (
     if (!unlocked) continue;
 
     unlockedAccounts.push(unlocked);
-    if (!account.userId) {
-      accountsToMigrate.push(account.id);
-    }
+    if (!account.userId) accountsToMigrate.push(account.id);
   }
 
   return {
     unlockedAccounts,
     foundUserId: unlockedAccounts.length > 0 ? userId : null,
     accountsToMigrate,
+    noAccountFound: false,
   };
 };
 
@@ -249,7 +253,7 @@ const tryUnlockAllNames = async (
     }
   }
 
-  return { unlockedAccounts: [], foundUserId: null, accountsToMigrate: [] };
+  return { unlockedAccounts: [], foundUserId: null, accountsToMigrate: [], noAccountFound: uniqueNames.length === 0 };
 };
 
 const migrateAccountUserIds = (accountIds: string[], userId: string): void => {
@@ -271,14 +275,24 @@ const migrateAccountUserIds = (accountIds: string[], userId: string): void => {
   }
 };
 
+const LOCK_WAIT_THRESHOLD_MS = 500;
+
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
     const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
     let failureReason: FailureReason | undefined;
+    let succeeded = false;
 
     try {
-      return await withLoginLock(async () => {
+      const lockWaitStart = Date.now();
+
+      const accounts = await withLoginLock(async () => {
+        const lockWaitMs = Date.now() - lockWaitStart;
+        if (lockWaitMs > LOCK_WAIT_THRESHOLD_MS) {
+          failureReason = FailureReason.LockContention;
+        }
+
         const allAccounts = SecureStorage.getEncryptedAccounts();
 
         if (allAccounts.length === 0) {
@@ -286,32 +300,31 @@ export const loginWithPassword = createAsyncThunk(
           throw new Error('No accounts found');
         }
 
-        const { unlockedAccounts, foundUserId, accountsToMigrate } = accountName
+        const result = accountName
           ? await tryUnlockByName(accountName, password, allAccounts)
           : await tryUnlockAllNames(password, allAccounts);
 
-        if (!foundUserId || unlockedAccounts.length === 0) {
-          failureReason = FailureReason.WrongPassword;
-          throw new Error('Incorrect password');
+        if (!result.foundUserId || result.unlockedAccounts.length === 0) {
+          failureReason = result.noAccountFound ? FailureReason.NoAccount : FailureReason.WrongPassword;
+          throw new Error(result.noAccountFound ? 'Account not found' : 'Incorrect password');
         }
 
-        migrateAccountUserIds(accountsToMigrate, foundUserId);
-        SecureStorage.setCurrentUserId(foundUserId);
+        migrateAccountUserIds(result.accountsToMigrate, result.foundUserId);
+        SecureStorage.setCurrentUserId(result.foundUserId);
         SecureStorage.setAuthenticated(true);
 
         const sessionToken = SecureStorage.generateSessionToken();
         SecureStorage.setSessionToken(sessionToken);
         broadcastSessionLogin(sessionToken);
 
-        await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
-        return unlockedAccounts;
+        return result.unlockedAccounts;
       });
-    } catch (err) {
-      const isLockError = err instanceof Error && err.message.toLowerCase().includes('lock');
-      const defaultReason = isLockError ? FailureReason.LockContention : FailureReason.Unknown;
-      const reason = failureReason ?? defaultReason;
-      await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason);
-      throw err;
+
+      succeeded = true;
+      return accounts;
+    } finally {
+      const status = succeeded ? LoginAttemptStatus.Success : LoginAttemptStatus.Failure;
+      await recordLoginAttempt(status, accountName, loginType, succeeded ? undefined : (failureReason ?? FailureReason.Unknown));
     }
   }
 );

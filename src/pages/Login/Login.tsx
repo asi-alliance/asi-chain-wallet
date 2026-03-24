@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { RootState, AppDispatch } from 'store';
 import { loginWithPassword } from 'store/authSlice';
-import { syncAccounts, selectAccount } from 'store/walletSlice';
+import { selectAccount, loadAccountsFromStorage } from 'store/walletSlice';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input } from 'components';
 import { SecureStorage } from 'services/secureStorage';
 
@@ -118,8 +118,9 @@ export const Login: React.FC = () => {
       }));
       
       if (loginWithPassword.fulfilled.match(resultAction)) {
-        dispatch(syncAccounts(resultAction.payload));
-        
+        // Load all accounts for this user (locked + unlocked) into wallet state
+        dispatch(loadAccountsFromStorage());
+
         if (selectedAccountName) {
           const accountToSelect = resultAction.payload.find(
             acc => acc.name === selectedAccountName
@@ -130,7 +131,7 @@ export const Login: React.FC = () => {
         } else if (resultAction.payload.length > 0) {
           dispatch(selectAccount(resultAction.payload[0].id));
         }
-        
+
         navigate('/');
       }
     } catch (err) {

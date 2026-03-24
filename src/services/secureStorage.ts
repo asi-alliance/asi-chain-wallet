@@ -1,752 +1,201 @@
-import { hashValue } from 'utils/encryption';
-import { legacyDecrypt } from 'utils/legacyCrypto';
-import { sealV2, openV2, detectVersion, PayloadVersion } from 'utils/encryptedPayload';
 import { Account } from 'types/wallet';
-import { StorageProvider, StoredAccountRecord, StorageAdapter } from './storage';
-import {
-  SessionPersistence,
-  SessionPersistencePort,
-  NullSessionPersistence,
-  SESSION_STORAGE_KEYS,
-} from './sessionPersistence';
+import { StorageProvider } from './storage';
+import { SessionPersistence, NullSessionPersistence } from './sessionPersistence';
+import { AccountsVault, fromStoredRecord, WalletSettings, readFromLocalStorage } from './accountsVault';
+import { SessionStore } from './sessionStore';
+import { GeneralKVStore } from './generalKVStore';
+import { runMigrations, readLegacySettings, DEFAULT_SETTINGS } from './storageMigration';
 
-export interface SecureAccount extends Omit<Account, 'privateKey'> {
-  encryptedPrivateKey?: string;
-  privateKey?: never;
-  derivationPath?: string;
-  isHardwareWallet?: boolean;
-  userId?: string;
-}
+export type { SecureAccount } from './accountsVault';
 
 export interface SecureStorageData {
-  accounts: SecureAccount[];
-  settings: {
-    requirePasswordForTransaction: boolean;
-    idleTimeout: number;
-  };
+  accounts: ReturnType<typeof AccountsVault.getAll>;
+  settings: WalletSettings;
 }
 
-type CryptoWithOptionalRandomUUID = Crypto & {
-  randomUUID?: () => string;
-};
-
-function toStoredRecord(account: SecureAccount): StoredAccountRecord {
-  return {
-    id: account.id,
-    name: account.name,
-    address: account.address,
-    revAddress: account.revAddress,
-    ethAddress: account.ethAddress,
-    publicKey: account.publicKey,
-    encryptedPrivateKey: account.encryptedPrivateKey,
-    balance: account.balance,
-    isMetamask: account.isMetamask,
-    networkId: account.networkId,
-    userId: account.userId,
-    derivationPath: account.derivationPath,
-    isHardwareWallet: account.isHardwareWallet,
-    createdAt: account.createdAt instanceof Date
-      ? account.createdAt.toISOString()
-      : String(account.createdAt ?? new Date().toISOString()),
-  };
-}
-
-function fromStoredRecord(record: StoredAccountRecord): SecureAccount {
-  return {
-    id: record.id,
-    name: record.name,
-    address: record.address,
-    revAddress: record.revAddress,
-    ethAddress: record.ethAddress,
-    publicKey: record.publicKey,
-    encryptedPrivateKey: record.encryptedPrivateKey,
-    balance: record.balance,
-    isMetamask: record.isMetamask,
-    networkId: record.networkId,
-    userId: record.userId,
-    derivationPath: record.derivationPath,
-    isHardwareWallet: record.isHardwareWallet,
-    createdAt: new Date(record.createdAt),
-  };
-}
-
-const DEFAULT_SETTINGS: SecureStorageData['settings'] = {
-  requirePasswordForTransaction: false,
-  idleTimeout: 15,
-};
+let settingsCache: WalletSettings = { ...DEFAULT_SETTINGS };
+let initialized = false;
+let initPromise: Promise<void> | null = null;
 
 export class SecureStorage {
-  private static readonly STORAGE_KEY = hashValue('asi_wallet_secure_v2');
-  private static readonly MIGRATION_FLAG_KEY = hashValue('asi_wallet_migration_from_localStorage_v1');
-
-  private static readonly SESSION_KEY       = SESSION_STORAGE_KEYS.SESSION;
-  private static readonly AUTH_KEY          = SESSION_STORAGE_KEYS.AUTH;
-  private static readonly USER_ID_KEY       = SESSION_STORAGE_KEYS.USER_ID;
-  private static readonly SESSION_TOKEN_KEY = SESSION_STORAGE_KEYS.SESSION_TOKEN;
-
-  private static sessionPort: SessionPersistencePort = NullSessionPersistence;
-  private static cache: SecureStorageData = SecureStorage.readLocalStorage();
-  private static initialized = false;
-  private static initPromise: Promise<void> | null = null;
-
   static async init(): Promise<void> {
-    if (this.initialized) return;
-    if (this.initPromise) return this.initPromise;
-
-    this.initPromise = this.performInit();
-    return this.initPromise;
+    if (initialized) return;
+    if (initPromise) return initPromise;
+    initPromise = SecureStorage.performInit();
+    return initPromise;
   }
 
   private static async performInit(): Promise<void> {
     try {
       await StorageProvider.init();
       const adapter = StorageProvider.getAdapter();
+
       if (!adapter) {
-        this.initialized = true;
+        // IDB unavailable: AccountsVault already seeded from localStorage at class load
+        settingsCache = readLegacySettings();
+        initialized = true;
         return;
       }
 
-      this.sessionPort = SessionPersistence.init(adapter);
+      const port = SessionPersistence.init(adapter);
+      SessionStore.setPort(port);
 
-      await this.migrateFromLocalStorage(adapter);
-      await this.loadCacheFromIDB(adapter);
+      await runMigrations(adapter);
+
+      const [records, settingsRecord] = await Promise.all([
+        adapter.getAllAccounts(),
+        adapter.getSettings(),
+      ]);
+
+      AccountsVault.load(records.length > 0 ? records.map(fromStoredRecord) : readFromLocalStorage());
+      settingsCache = settingsRecord
+        ? { requirePasswordForTransaction: settingsRecord.requirePasswordForTransaction, idleTimeout: settingsRecord.idleTimeout }
+        : readLegacySettings();
+
       await SessionPersistence.restore(adapter);
       SessionPersistence.cleanupStale(adapter);
-      this.initialized = true;
-    } catch (error) {
-      console.error('[SecureStorage] init failed, falling back to localStorage cache:', error);
-      this.initialized = true;
+      initialized = true;
+    } catch (err) {
+      console.error('[SecureStorage] init failed, using localStorage fallback:', err);
+      // AccountsVault already seeded from localStorage at class load — no action needed
+      settingsCache = readLegacySettings();
+      initialized = true;
     }
   }
 
-  private static async migrateAccountsToIDB(adapter: StorageAdapter): Promise<void> {
-    const existingAccounts = await adapter.getAllAccounts();
-    if (existingAccounts.length > 0) return;
-    const lsData = this.readLocalStorage();
-    if (lsData.accounts.length === 0) return;
-    await adapter.putAccounts(lsData.accounts.map(toStoredRecord));
-    await adapter.putSettings({ id: 'default', ...lsData.settings });
-  }
-
-  private static async migrateFromLocalStorage(adapter: StorageAdapter): Promise<void> {
-    const flag = await adapter.getItem(this.MIGRATION_FLAG_KEY);
-    if (flag === 'true') {
-      return;
-    }
-
-    await this.migrateAccountsToIDB(adapter);
-    await adapter.setItem(this.MIGRATION_FLAG_KEY, 'true');
-
-    localStorage.removeItem(this.STORAGE_KEY);
-  }
-
-  private static async loadCacheFromIDB(adapter: StorageAdapter): Promise<void> {
-    const [records, settingsRecord] = await Promise.all([
-      adapter.getAllAccounts(),
-      adapter.getSettings(),
-    ]);
-
-    const accounts = records.map(fromStoredRecord);
-    const settings: SecureStorageData['settings'] = settingsRecord
-      ? {
-          requirePasswordForTransaction: settingsRecord.requirePasswordForTransaction,
-          idleTimeout: settingsRecord.idleTimeout,
-        }
-      : { ...DEFAULT_SETTINGS };
-
-    this.cache = { accounts, settings };
-  }
-
-  private static readLocalStorage(): SecureStorageData {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as SecureStorageData;
-      }
-    } catch (error) {
-      console.error('Failed to parse storage data:', error);
-    }
-    return { accounts: [], settings: { ...DEFAULT_SETTINGS } };
-  }
-
-  private static persistAccounts(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.cache));
-      return;
-    }
-
-    const records = this.cache.accounts.map(toStoredRecord);
-    adapter.putAccounts(records).catch((err: unknown) => {
-      console.error('[SecureStorage] Failed to persist accounts to IDB:', err);
-    });
-  }
-
-  private static persistSettings(): void {
-    const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.cache));
-      return;
-    }
-
-    adapter
-      .putSettings({ id: 'default', ...this.cache.settings })
-      .catch((err: unknown) => {
-        console.error('[SecureStorage] Failed to persist settings to IDB:', err);
-      });
-  }
-
-  // Await pending IDB writes; use for critical operations where fire-and-forget is not acceptable
   static async flush(): Promise<void> {
     const adapter = StorageProvider.getAdapter();
-    if (!adapter) {
-      return;
-    }
-
-    const records = this.cache.accounts.map(toStoredRecord);
-    await adapter.putAccounts(records);
-    await adapter.putSettings({ id: 'default', ...this.cache.settings });
+    if (!adapter) return;
+    await AccountsVault.flush();
+    await adapter.putSettings({ id: 'default', ...settingsCache });
   }
 
-  static saveEncryptedAccounts(accounts: SecureAccount[]): void {
-    try {
-      this.cache.accounts = accounts;
-      this.persistAccounts();
-    } catch (error) {
-      console.error('Failed to save encrypted accounts:', error);
-      throw new Error('Failed to save accounts');
-    }
+  // --- Accounts ---
+
+  static getEncryptedAccounts(userId?: string) {
+    return AccountsVault.getAll(userId);
   }
 
-  static getEncryptedAccounts(userId?: string): SecureAccount[] {
-    try {
-      const accounts = this.cache.accounts;
-      if (userId) {
-        return accounts.filter(account => account.userId === userId);
-      }
-      return accounts;
-    } catch (error) {
-      console.error('Failed to get encrypted accounts:', error);
-      return [];
-    }
-  }
-
-  static async saveAccount(account: Account, password: string, userId?: string, profileName?: string): Promise<SecureAccount> {
-    if (!account.privateKey) {
-      throw new Error('Private key is required');
-    }
-
-    let currentUserId = userId;
-    if (!currentUserId) {
-      const nameToUse = profileName ?? account.name;
-      if (!nameToUse) {
-        throw new Error('Account name is required to generate user ID');
-      }
-      currentUserId = this.generateUserIdFromPassword(password, nameToUse);
-    }
-
-    const encryptedPrivateKey = await sealV2(account.privateKey, password);
-    const { privateKey, ...accountWithoutKey } = account;
-    const secureAccount: SecureAccount = {
-      ...accountWithoutKey,
-      encryptedPrivateKey,
-      userId: currentUserId,
-    };
-
-    const allAccounts = this.getEncryptedAccounts();
-    const existingIndex = allAccounts.findIndex(a => a.id === account.id);
-
-    if (existingIndex >= 0) {
-      allAccounts[existingIndex] = secureAccount;
-    } else {
-      allAccounts.push(secureAccount);
-    }
-
-    this.saveEncryptedAccounts(allAccounts);
-    await this.flush();
-    return secureAccount;
-  }
-
-  static async unlockAccount(accountId: string, password: string, userId?: string): Promise<Account | null> {
-    const currentUserId = userId ?? this.getCurrentUserId();
-    if (!currentUserId) {
-      return null;
-    }
-
-    const allAccounts = this.getEncryptedAccounts();
-    const secureAccount = allAccounts.find(a => a.id === accountId);
-
-    if (!secureAccount?.encryptedPrivateKey) {
-      return null;
-    }
-
-    if (!this.validateAccountOwnership(secureAccount, password, currentUserId)) {
-      return null;
-    }
-
-    const version = detectVersion(secureAccount.encryptedPrivateKey);
-    const privateKey = await this.decryptPrivateKey(secureAccount.encryptedPrivateKey, password, version);
-    if (!privateKey) {
-      return null;
-    }
-
-    // Lazy V1 → V2 migration (fire-and-forget)
-    if (version === PayloadVersion.V1) {
-      this.reEncryptToV2(secureAccount.id, privateKey, password);
-    }
-
-    const { encryptedPrivateKey, userId: _, ...accountData } = secureAccount;
-    const account: Account = {
-      ...accountData,
-      privateKey
-    };
-
-    this.storeInSession(accountId, account);
-    return account;
-  }
-
-  // Validates account belongs to the user derived from password + name
-  private static validateAccountOwnership(
-    secureAccount: SecureAccount,
-    password: string,
-    currentUserId: string,
-  ): boolean {
-    if (secureAccount.userId) {
-      if (secureAccount.userId !== currentUserId) return false;
-      if (!secureAccount.name) return true;
-      return this.generateUserIdFromPassword(password, secureAccount.name) === secureAccount.userId;
-    }
-    if (!secureAccount.name) return true;
-    return this.generateUserIdFromPassword(password, secureAccount.name) === currentUserId;
-  }
-
-  // Decrypts with V2 (Web Crypto) or V1 (legacy CryptoJS) based on detected version
-  private static async decryptPrivateKey(
-    encrypted: string,
-    password: string,
-    version: PayloadVersion,
-  ): Promise<string | undefined> {
-    if (version === PayloadVersion.V2) {
-      try {
-        return await openV2(encrypted, password);
-      } catch {
-        return undefined;
-      }
-    }
-    return legacyDecrypt(encrypted, password);
-  }
-
-  // Re-encrypts V1 payload to V2 format; fire-and-forget, retries on next unlock
-  private static reEncryptToV2(accountId: string, privateKey: string, password: string): void {
-    sealV2(privateKey, password)
-      .then(encrypted => {
-        const accounts = this.getEncryptedAccounts();
-        const updated = accounts.map(a =>
-          a.id === accountId ? { ...a, encryptedPrivateKey: encrypted } : a
-        );
-        this.saveEncryptedAccounts(updated);
-      })
-      .catch(() => {
-        // Silent: will retry on next unlock
-      });
-  }
-
-  static updateAccountNetwork(accountId: string, networkId: string): void {
-    this.updateAccountsNetwork([accountId], networkId);
-  }
-
-  static updateAccountsNetwork(accountIds: string[], networkId: string): void {
-    if (!networkId || accountIds.length === 0) {
-      return;
-    }
-    const updates = accountIds.map(id => ({ id, networkId }));
-    this.updateAccountsNetworkBulk(updates);
-  }
-
-  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId?: string }>): void {
-    if (!updates.length) {
-      return;
-    }
-
-    try {
-      const updateMap = new Map<string, string>();
-      updates.forEach(({ id, networkId }) => {
-        if (networkId) {
-          updateMap.set(id, networkId);
-        }
-      });
-
-      if (updateMap.size === 0) {
-        return;
-      }
-
-      this.applyAccountNetworkUpdates(updateMap);
-      this.applySessionNetworkUpdates(updateMap);
-    } catch (error) {
-      console.error('Failed to update account networks:', error);
-    }
-  }
-
-  private static applyAccountNetworkUpdates(updateMap: Map<string, string>): void {
-    const accounts = this.getEncryptedAccounts();
-    let accountsChanged = false;
-
-    const updatedAccounts = accounts.map(account => {
-      const nextNetworkId = updateMap.get(account.id);
-      if (nextNetworkId && account.networkId !== nextNetworkId) {
-        accountsChanged = true;
-          return {
-            ...account,
-            networkId: nextNetworkId,
-          };
-      }
-      return account;
-    });
-
-    if (accountsChanged) {
-      this.saveEncryptedAccounts(updatedAccounts);
-    }
-  }
-
-  private static applySessionNetworkUpdates(updateMap: Map<string, string>): void {
-    const sessionData = this.getSessionData();
-    let sessionChanged = false;
-
-    Object.keys(sessionData).forEach(id => {
-      const nextNetworkId = updateMap.get(id);
-      if (nextNetworkId && sessionData[id].networkId !== nextNetworkId) {
-        sessionData[id] = { ...sessionData[id], networkId: nextNetworkId };
-        sessionChanged = true;
-      }
-    });
-
-    if (sessionChanged) {
-      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    }
+  static saveEncryptedAccounts(accounts: ReturnType<typeof AccountsVault.getAll>): void {
+    AccountsVault.save(accounts);
   }
 
   static hasAccounts(userId?: string): boolean {
-    return this.getEncryptedAccounts(userId).length > 0;
+    return AccountsVault.has(userId);
   }
 
-  static getSettings(): SecureStorageData['settings'] {
-    return this.cache.settings;
+  static async saveAccount(account: Account, password: string, userId?: string, profileName?: string) {
+    const uid = userId ?? AccountsVault.generateUserId(password, profileName ?? account.name);
+    if (!uid) throw new Error('Account name is required to generate user ID');
+    return AccountsVault.saveAccount(account, password, uid);
   }
 
-  static updateSettings(settings: Partial<SecureStorageData['settings']>): void {
-    this.cache.settings = { ...this.cache.settings, ...settings };
-    this.persistSettings();
+  static async unlockAccount(accountId: string, password: string, userId?: string): Promise<Account | null> {
+    const uid = userId ?? SessionStore.getUserId();
+    if (!uid) return null;
+    const account = await AccountsVault.unlockAccount(accountId, password, uid);
+    if (!account) return null;
+    SessionStore.storeAccount(accountId, account);
+    return account;
   }
-
-  // ── Session (sessionStorage for sync reads + IDB for durability) ─────
-
-  private static storeInSession(accountId: string, account: Account): void {
-    const sessionData = this.getSessionData();
-    sessionData[accountId] = account;
-    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    this.sessionPort.persist();
-  }
-
-  static getUnlockedAccount(accountId: string): Account | null {
-    const sessionData = this.getSessionData();
-    return sessionData[accountId] ?? null;
-  }
-
-  static getAllUnlockedAccounts(): Account[] {
-    const sessionData = this.getSessionData();
-    return Object.values(sessionData);
-  }
-
-  static clearAccountFromSession(accountId: string): void {
-    const sessionData = this.getSessionData();
-    delete sessionData[accountId];
-    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
-    this.sessionPort.persist();
-  }
-
-  static clearSession(): void {
-    this.sessionPort.remove();
-    sessionStorage.removeItem(this.SESSION_KEY);
-    sessionStorage.removeItem(this.AUTH_KEY);
-    sessionStorage.removeItem(this.USER_ID_KEY);
-    sessionStorage.removeItem(this.SESSION_TOKEN_KEY);
-  }
-
-  static setAuthenticated(isAuthenticated: boolean): void {
-    if (isAuthenticated) {
-      sessionStorage.setItem(this.AUTH_KEY, 'true');
-      this.updateLastActivity();
-    } else {
-      sessionStorage.removeItem(this.AUTH_KEY);
-    }
-    this.sessionPort.persist();
-  }
-
-  static isAuthenticated(): boolean {
-    return sessionStorage.getItem(this.AUTH_KEY) === 'true';
-  }
-
-  static updateLastActivity(): void {
-    sessionStorage.setItem('lastActivity', Date.now().toString());
-    this.sessionPort.persistThrottled();
-  }
-
-  static getLastActivity(): number {
-    const timestamp = sessionStorage.getItem('lastActivity');
-    return timestamp ? parseInt(timestamp, 10) : Date.now();
-  }
-
-  // ── Account management ──────────────────────────────────────────────
 
   static removeAccount(accountId: string): void {
-    const accounts = this.getEncryptedAccounts();
-    const filtered = accounts.filter(a => a.id !== accountId);
-    this.saveEncryptedAccounts(filtered);
-    this.clearAccountFromSession(accountId);
+    AccountsVault.remove(accountId);
+    SessionStore.removeAccount(accountId);
   }
 
   static exportAccount(accountId: string): string | null {
-    const accounts = this.getEncryptedAccounts();
-    const account = accounts.find(a => a.id === accountId);
-
-    if (!account) return null;
-
-    const exportData = {
-      version: 1,
-      type: 'asi-wallet-keyfile',
-      address: account.address,
-      revAddress: account.revAddress,
-      ethAddress: account.ethAddress,
-      encryptedPrivateKey: account.encryptedPrivateKey,
-      timestamp: new Date().toISOString(),
-    };
-
-    return JSON.stringify(exportData, null, 2);
-  }
-
-  private static normalizeAddress(address: string | undefined): string {
-    if (!address) return '';
-    return address.toLowerCase().trim();
+    return AccountsVault.export(accountId);
   }
 
   static accountExists(revAddress?: string, ethAddress?: string, userId?: string): boolean {
-    const currentUserId = userId ?? this.getCurrentUserId();
-    const existingAccounts = currentUserId
-      ? this.getEncryptedAccounts(currentUserId)
-      : this.getEncryptedAccounts();
-    const normalizedRev = this.normalizeAddress(revAddress);
-    const normalizedEth = this.normalizeAddress(ethAddress);
-
-    return existingAccounts.some(existing => {
-      const normalizedExistingRev = this.normalizeAddress(existing.revAddress);
-      const normalizedExistingEth = this.normalizeAddress(existing.ethAddress);
-
-      if (normalizedRev && normalizedExistingRev && normalizedRev === normalizedExistingRev) {
-        return true;
-      }
-      if (normalizedEth && normalizedExistingEth && normalizedEth === normalizedExistingEth) {
-        return true;
-      }
-      return false;
-    });
+    return AccountsVault.exists(revAddress, ethAddress, userId);
   }
 
-  static async importFromKeyfile(
-    keyfileContent: string,
-    name: string,
-    networkId?: string,
-    userId?: string,
-  ): Promise<SecureAccount> {
-    try {
-      const data = JSON.parse(keyfileContent) as {
-        type: string;
-        address?: string;
-        revAddress?: string;
-        ethAddress?: string;
-        encryptedPrivateKey?: string;
-      };
+  static async importFromKeyfile(keyfileContent: string, name: string, networkId?: string, userId?: string) {
+    const uid = userId ?? SessionStore.getUserId();
+    if (!uid) throw new Error('User ID is required. Please login first.');
+    return AccountsVault.importFromKeyfile(keyfileContent, name, uid, networkId);
+  }
 
-      if (data.type !== 'asi-wallet-keyfile') {
-        throw new Error('Invalid keyfile format');
-      }
+  static async storeEncryptedAccount(account: ReturnType<typeof AccountsVault.getAll>[number]): Promise<void> {
+    const accounts = AccountsVault.getAll();
+    const idx = accounts.findIndex(a => a.id === account.id || a.address === account.address);
+    const updated = [...accounts];
+    if (idx >= 0) { updated[idx] = account; } else { updated.push(account); }
+    AccountsVault.save(updated);
+    await AccountsVault.flush();
+  }
 
-      const currentUserId = userId ?? this.getCurrentUserId();
-      if (!currentUserId) {
-        throw new Error('User ID is required. Please login first.');
-      }
+  // --- Network updates ---
 
-      const account: SecureAccount = {
-        id: Date.now().toString(),
-        name,
-        address: data.address ?? data.revAddress ?? '',
-        revAddress: data.revAddress ?? '',
-        ethAddress: data.ethAddress ?? '',
-        publicKey: '',
-        encryptedPrivateKey: data.encryptedPrivateKey,
-        balance: '0',
-        userId: currentUserId,
-        ...(networkId ? { networkId } : {}),
-        createdAt: new Date(),
-      };
+  static updateAccountNetwork(accountId: string, networkId: string): void {
+    this.updateAccountsNetworkBulk([{ id: accountId, networkId }]);
+  }
 
-      if (this.accountExists(account.revAddress, account.ethAddress, currentUserId)) {
-        throw new Error('Account with this address already exists');
-      }
+  static updateAccountsNetwork(accountIds: string[], networkId: string): void {
+    if (!networkId || !accountIds.length) return;
+    this.updateAccountsNetworkBulk(accountIds.map(id => ({ id, networkId })));
+  }
 
-      const allAccounts = this.getEncryptedAccounts();
-      allAccounts.push(account);
-      this.saveEncryptedAccounts(allAccounts);
-      await this.flush();
-
-      return account;
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('already exists')) {
-        throw error;
-      }
-      throw new Error('Failed to import keyfile: Invalid format');
+  static updateAccountsNetworkBulk(updates: Array<{ id: string; networkId?: string }>): void {
+    const map = new Map<string, string>();
+    for (const { id, networkId } of updates) {
+      if (networkId) map.set(id, networkId);
     }
+    if (!map.size) return;
+    AccountsVault.updateNetworks(map);
+    SessionStore.updateAccountNetworks(map);
   }
 
-  private static getSessionData(): Record<string, Account> {
-    try {
-      const stored = sessionStorage.getItem(this.SESSION_KEY);
-      if (stored) {
-        return JSON.parse(stored) as Record<string, Account>;
-      }
-    } catch (error) {
-      console.error('Failed to parse session data:', error);
-    }
-    return {};
-  }
+  // --- Session ---
 
-  // ── General key-value storage (now async via IDB) ───────────────────
+  static getUnlockedAccount(accountId: string): Account | null { return SessionStore.getAccount(accountId); }
+  static getAllUnlockedAccounts(): Account[] { return SessionStore.getAllAccounts(); }
+  static clearAccountFromSession(accountId: string): void { SessionStore.removeAccount(accountId); }
+  static clearSession(): void { SessionStore.clear(); }
+  static setAuthenticated(value: boolean): void { SessionStore.setAuthenticated(value); }
+  static isAuthenticated(): boolean { return SessionStore.isAuthenticated(); }
+  static getCurrentUserId(): string | null { return SessionStore.getUserId(); }
+  static setCurrentUserId(userId: string): void { SessionStore.setUserId(userId); }
+  static generateSessionToken(): string { return SessionStore.generateToken(); }
+  static setSessionToken(token: string): void { SessionStore.setToken(token); }
+  static getSessionToken(): string | null { return SessionStore.getToken(); }
+  static hasSessionToken(): boolean { return SessionStore.hasToken(); }
+  static updateLastActivity(): void { SessionStore.updateLastActivity(); }
+  static getLastActivity(): number { return SessionStore.getLastActivity(); }
 
-  static async setItem(key: string, value: string): Promise<void> {
-    const hashedKey = hashValue(key);
+  // --- Settings ---
+
+  static getSettings(): WalletSettings { return settingsCache; }
+
+  static updateSettings(settings: Partial<WalletSettings>): void {
+    settingsCache = { ...settingsCache, ...settings };
     const adapter = StorageProvider.getAdapter();
     if (adapter) {
-      await adapter.setItem(hashedKey, value);
-      return;
-    }
-    localStorage.setItem(hashedKey, value);
-  }
-
-  static async getItem(key: string): Promise<string | null> {
-    const hashedKey = hashValue(key);
-    const adapter = StorageProvider.getAdapter();
-    if (adapter) {
-      const idbValue = await adapter.getItem(hashedKey);
-      if (idbValue !== null) return idbValue;
-      return localStorage.getItem(hashedKey);
-    }
-    return localStorage.getItem(hashedKey);
-  }
-
-  static async removeItem(key: string): Promise<void> {
-    const hashedKey = hashValue(key);
-    const adapter = StorageProvider.getAdapter();
-    if (adapter) {
-      await adapter.removeItem(hashedKey);
-    }
-    // Also clean up localStorage
-    localStorage.removeItem(hashedKey);
-  }
-
-  // ── Store encrypted account (alternative method name) ───────────────
-
-  static async storeEncryptedAccount(account: SecureAccount): Promise<void> {
-    const accounts = this.getEncryptedAccounts();
-    const existingIndex = accounts.findIndex(
-      a => a.id === account.id || a.address === account.address,
-    );
-
-    if (existingIndex >= 0) {
-      accounts[existingIndex] = account;
-    } else {
-      accounts.push(account);
-    }
-
-    this.saveEncryptedAccounts(accounts);
-    await this.flush();
-  }
-
-  // ── Clear all persistent storage ────────────────────────────────────
-
-  static async clearAll(): Promise<void> {
-    localStorage.removeItem(this.STORAGE_KEY);
-    this.cache = { accounts: [], settings: { ...DEFAULT_SETTINGS } };
-    this.clearSession();
-
-    const adapter = StorageProvider.getAdapter();
-    if (adapter) {
-      await adapter.clear();
+      adapter.putSettings({ id: 'default', ...settingsCache }).catch((err: unknown) => {
+        console.error('[SecureStorage] Failed to persist settings:', err);
+      });
     }
   }
 
-  // ── User ID (session-scoped) ────────────────────────────────────────
+  // --- KV store ---
 
-  static getCurrentUserId(): string | null {
-    try {
-      return sessionStorage.getItem(this.USER_ID_KEY);
-    } catch (error) {
-      console.error('Failed to get current user ID:', error);
-      return null;
-    }
-  }
+  static async setItem(key: string, value: string): Promise<void> { return GeneralKVStore.set(key, value); }
+  static async getItem(key: string): Promise<string | null> { return GeneralKVStore.get(key); }
+  static async removeItem(key: string): Promise<void> { return GeneralKVStore.remove(key); }
 
-  static setCurrentUserId(userId: string): void {
-    try {
-      sessionStorage.setItem(this.USER_ID_KEY, userId);
-      this.sessionPort.persist();
-    } catch (error) {
-      console.error('Failed to set current user ID:', error);
-    }
-  }
-
-  // ── Session token ───────────────────────────────────────────────────
-
-  static generateSessionToken(): string {
-    try {
-      const cryptoApi = globalThis.crypto as CryptoWithOptionalRandomUUID | undefined;
-      if (cryptoApi?.randomUUID) {
-        return cryptoApi.randomUUID();
-      }
-      if (cryptoApi?.getRandomValues) {
-        const bytes = new Uint8Array(32);
-        cryptoApi.getRandomValues(bytes);
-        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      }
-    } catch { /* fall through */ }
-
-    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  }
-
-  static setSessionToken(token: string): void {
-    try {
-      sessionStorage.setItem(this.SESSION_TOKEN_KEY, token);
-      this.sessionPort.persist();
-    } catch (e) {
-      console.error('Failed to set session token:', e);
-    }
-  }
-
-  static getSessionToken(): string | null {
-    try {
-      return sessionStorage.getItem(this.SESSION_TOKEN_KEY);
-    } catch (e) {
-      console.error('Failed to get session token:', e);
-      return null;
-    }
-  }
-
-  static hasSessionToken(): boolean {
-    return !!this.getSessionToken();
-  }
+  // --- Helpers ---
 
   static generateUserIdFromPassword(password: string, profileName?: string): string {
-    if (profileName) {
-      return hashValue(`user_${profileName}_${password}`);
-    }
-    return hashValue(`user_${password}`);
+    return AccountsVault.generateUserId(password, profileName);
+  }
+
+  static async clearAll(): Promise<void> {
+    AccountsVault.save([]);
+    settingsCache = { ...DEFAULT_SETTINGS };
+    SessionStore.clear();
+    const adapter = StorageProvider.getAdapter();
+    if (adapter) await adapter.clear();
   }
 }

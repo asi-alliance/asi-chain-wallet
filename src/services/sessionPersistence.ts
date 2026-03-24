@@ -1,5 +1,6 @@
 import { hashValue } from 'utils/encryption';
 import { StorageAdapter, SessionRecord } from './storage';
+import { Account } from 'types/wallet';
 
 export const SESSION_STORAGE_KEYS = {
   SESSION:       hashValue('asi_wallet_session_v2'),
@@ -19,6 +20,21 @@ export const NullSessionPersistence: SessionPersistencePort = {
   persistThrottled() { /* no-op */ },
   remove() { /* no-op */ },
 };
+
+// Strips private keys from accounts before writing to persistent storage
+function sanitizeAccountsForPersistence(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, Account>;
+    const sanitized: Record<string, Omit<Account, 'privateKey'>> = {};
+    for (const [id, account] of Object.entries(parsed)) {
+      const { privateKey: _stripped, ...safe } = account;
+      sanitized[id] = safe;
+    }
+    return JSON.stringify(sanitized);
+  } catch {
+    return '{}';
+  }
+}
 
 // Manages session durability in IndexedDB
 export class SessionPersistence implements SessionPersistencePort {
@@ -53,6 +69,7 @@ export class SessionPersistence implements SessionPersistencePort {
     if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) && record.userId) {
       sessionStorage.setItem(SESSION_STORAGE_KEYS.USER_ID, record.userId);
     }
+    // Restore session accounts — these have no private keys (sanitized on persist)
     if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) && record.unlockedAccounts) {
       sessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION, record.unlockedAccounts);
     }
@@ -77,14 +94,17 @@ export class SessionPersistence implements SessionPersistencePort {
     const isAuthenticated = sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) === 'true';
     const lastActivityStr = sessionStorage.getItem('lastActivity');
     const lastActivity    = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
-    const unlockedAccounts = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) ?? '{}';
+    const rawAccounts     = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) ?? '{}';
+
+    // Strip private keys — sessionStorage keeps them for in-tab use; IDB must not
+    const safeAccounts = sanitizeAccountsForPersistence(rawAccounts);
 
     const record: SessionRecord = {
       token,
       userId,
       isAuthenticated,
       lastActivity,
-      unlockedAccounts,
+      unlockedAccounts: safeAccounts,
       updatedAt: Date.now(),
     };
 

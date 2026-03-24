@@ -1,11 +1,4 @@
-/**
- * Web Locks API wrapper for login serialization.
- *
- * Ensures only one tab can execute the login flow
- * (password check → unlock → set session) at a time.
- * If a second tab calls `withLoginLock` while the first is
- * still running, it will wait until the first completes or fails.
- */
+// Ensures only one tab can run login (password-check → unlock → set-session) at a time
 
 const LOGIN_LOCK_NAME = 'wallet-login';
 
