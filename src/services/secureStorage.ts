@@ -1,6 +1,6 @@
 import { Account } from 'types/wallet';
 import { StorageProvider } from './storage';
-import { SessionPersistence, NullSessionPersistence } from './sessionPersistence';
+import { SessionPersistence } from './sessionPersistence';
 import { AccountsVault, fromStoredRecord, WalletSettings, readFromLocalStorage } from './accountsVault';
 import { SessionStore } from './sessionStore';
 import { GeneralKVStore } from './generalKVStore';

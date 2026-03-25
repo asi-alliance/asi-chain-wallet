@@ -1,8 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Account, Transaction, Network, WalletState } from 'types/wallet';
-import { SecureAccount } from 'services/secureStorage';
-import { AuthState } from './authSlice';
-import { loginWithPassword } from './authSlice';
+import { AuthState, loginWithPassword } from './authSlice';
 import { SecureStorage } from 'services/secureStorage';
 import { RChainService } from 'services/rchain';
 import { generateRandomGasFee, getGasFeeAsNumber } from '../constants/gas';
