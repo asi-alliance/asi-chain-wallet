@@ -160,7 +160,7 @@ export class AccountsVault {
     const privateKey = await this.decrypt(secureAccount.encryptedPrivateKey, password, version);
     if (!privateKey) return null;
 
-    if (version === PayloadVersion.V1) void this.reEncryptToV2(secureAccount.id, privateKey, password);
+    if (version === PayloadVersion.V1) await this.reEncryptToV2(secureAccount.id, privateKey, password);
 
     const { encryptedPrivateKey: _enc, userId: _uid, ...accountData } = secureAccount;
     return { ...accountData, privateKey };

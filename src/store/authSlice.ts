@@ -277,6 +277,20 @@ const migrateAccountUserIds = (accountIds: string[], userId: string): void => {
 
 const LOCK_WAIT_THRESHOLD_MS = 500;
 
+function classifyLoginError(err: unknown): FailureReason {
+  if (err instanceof DOMException) {
+    if (err.name === 'AbortError') return FailureReason.Cancelled;
+    if (err.name === 'TimeoutError') return FailureReason.Timeout;
+  }
+  if (err instanceof TypeError) {
+    const message = err.message.toLowerCase();
+    if (message.includes('network') || message.includes('failed to fetch')) {
+      return FailureReason.NetworkError;
+    }
+  }
+  return FailureReason.Unknown;
+}
+
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
@@ -322,6 +336,11 @@ export const loginWithPassword = createAsyncThunk(
 
       succeeded = true;
       return accounts;
+    } catch (err: unknown) {
+      if (!failureReason) {
+        failureReason = classifyLoginError(err);
+      }
+      throw err;
     } finally {
       const status = succeeded ? LoginAttemptStatus.Success : LoginAttemptStatus.Failure;
       await recordLoginAttempt(status, accountName, loginType, succeeded ? undefined : (failureReason ?? FailureReason.Unknown));

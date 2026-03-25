@@ -18,6 +18,9 @@ export enum FailureReason {
   WrongPassword = 'wrong_password',
   NoAccount = 'no_account',
   LockContention = 'lock_contention',
+  Timeout = 'timeout',
+  Cancelled = 'cancelled',
+  NetworkError = 'network_error',
   Unknown = 'unknown',
 }
 
@@ -34,9 +37,8 @@ const UNKNOWN_ACCOUNT = 'unknown';
 async function readLog(): Promise<LoginAuditEntry[]> {
   try {
     const adapter = StorageProvider.getAdapter();
-    const raw = adapter
-      ? await adapter.getItem(AUDIT_LOG_KEY)
-      : localStorage.getItem(AUDIT_LOG_KEY);
+    if (!adapter) return [];
+    const raw = await adapter.getItem(AUDIT_LOG_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as LoginAuditEntry[]) : [];
@@ -46,15 +48,10 @@ async function readLog(): Promise<LoginAuditEntry[]> {
 }
 
 async function writeLog(entries: LoginAuditEntry[]): Promise<void> {
-  const json = JSON.stringify(entries);
   const adapter = StorageProvider.getAdapter();
-  if (adapter) {
-    await adapter.setItem(AUDIT_LOG_KEY, json).catch(() => {
-      try { localStorage.setItem(AUDIT_LOG_KEY, json); } catch { /* quota */ }
-    });
-    return;
-  }
-  try { localStorage.setItem(AUDIT_LOG_KEY, json); } catch { /* quota */ }
+  if (!adapter) return;
+  const json = JSON.stringify(entries);
+  await adapter.setItem(AUDIT_LOG_KEY, json);
 }
 
 function trimEntries(entries: LoginAuditEntry[]): LoginAuditEntry[] {
@@ -85,8 +82,6 @@ export async function getLoginAuditLog(): Promise<LoginAuditEntry[]> {
 
 export async function clearLoginAuditLog(): Promise<void> {
   const adapter = StorageProvider.getAdapter();
-  if (adapter) {
-    await adapter.removeItem(AUDIT_LOG_KEY).catch(() => { /* non-critical */ });
-  }
-  try { localStorage.removeItem(AUDIT_LOG_KEY); } catch { /* non-critical */ }
+  if (!adapter) return;
+  await adapter.removeItem(AUDIT_LOG_KEY);
 }
