@@ -5,6 +5,13 @@ import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress }
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
 import { recordLoginAttempt, LoginAttemptStatus, LoginType, FailureReason } from 'services/loginAuditLog';
+import {
+  buildContextKey,
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit,
+  formatLockoutMessage,
+} from 'services/loginRateLimit';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -291,14 +298,46 @@ function classifyLoginError(err: unknown): FailureReason {
   return FailureReason.Unknown;
 }
 
+function isCredentialFailure(reason: FailureReason): boolean {
+  return reason === FailureReason.WrongPassword || reason === FailureReason.NoAccount;
+}
+
+
+async function handleLoginOutcome(
+  succeeded: boolean,
+  contextKey: string,
+  failureReason: FailureReason | undefined,
+  accountName: string | undefined,
+  loginType: LoginType,
+): Promise<void> {
+  if (succeeded) {
+    await resetRateLimit(contextKey);
+    await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
+    return;
+  }
+
+  const reason = failureReason ?? FailureReason.Unknown;
+  if (isCredentialFailure(reason)) {
+    await recordFailedAttempt(contextKey);
+  }
+  await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason);
+}
+
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
     const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
+    const contextKey = buildContextKey(accountName);
     let failureReason: FailureReason | undefined;
     let succeeded = false;
 
     try {
+      const rateLimitStatus = await checkRateLimit(contextKey);
+      if (rateLimitStatus.locked) {
+        failureReason = FailureReason.RateLimited;
+        throw new Error(formatLockoutMessage(rateLimitStatus.remainingMs));
+      }
+
       const lockWaitStart = Date.now();
 
       const accounts = await withLoginLock(async () => {
@@ -342,8 +381,7 @@ export const loginWithPassword = createAsyncThunk(
       }
       throw err;
     } finally {
-      const status = succeeded ? LoginAttemptStatus.Success : LoginAttemptStatus.Failure;
-      await recordLoginAttempt(status, accountName, loginType, succeeded ? undefined : (failureReason ?? FailureReason.Unknown));
+      await handleLoginOutcome(succeeded, contextKey, failureReason, accountName, loginType);
     }
   }
 );

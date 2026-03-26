@@ -21,6 +21,7 @@ export enum FailureReason {
   Timeout = 'timeout',
   Cancelled = 'cancelled',
   NetworkError = 'network_error',
+  RateLimited = 'rate_limited',
   Unknown = 'unknown',
 }
 
