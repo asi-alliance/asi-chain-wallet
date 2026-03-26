@@ -8,8 +8,8 @@ const GLOBAL_CONTEXT = '__all_accounts__';
 
 enum RateLimitConfig {
   MaxAttempts = 5,
-  LockoutDurationMs = 15 * 60 * 1_000,   // 15 minutes
-  AttemptWindowMs = 15 * 60 * 1_000,      // rolling window for counting
+  LockoutDurationMs = 900_000,   // 15 minutes
+  AttemptWindowMs = 900_000,     // 15 minutes
 }
 
 export const MAX_LOGIN_ATTEMPTS = RateLimitConfig.MaxAttempts;
