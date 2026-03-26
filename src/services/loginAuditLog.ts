@@ -3,10 +3,14 @@ import { StorageProvider } from './storage';
 
 const AUDIT_LOG_KEY = hashValue('asi_wallet_login_audit_v1');
 const MAX_ENTRIES = 100;
+const CONSECUTIVE_FAILURE_WARNING_THRESHOLD = 3;
+
+// ── Enums ────────────────────────────────────────────────────────────────────
 
 export enum LoginAttemptStatus {
   Success = 'success',
   Failure = 'failure',
+  AccountLocked = 'account_locked',
 }
 
 export enum LoginType {
@@ -25,13 +29,31 @@ export enum FailureReason {
   Unknown = 'unknown',
 }
 
+export enum SuspiciousFlag {
+  ConsecutiveFailures = 'consecutive_failures',
+  AccountNameSwitch = 'account_name_switch',
+  RateLimitTriggered = 'rate_limit_triggered',
+}
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
 export interface LoginAuditEntry {
   timestamp: string;
   status: LoginAttemptStatus;
   accountName: string;
   loginType: LoginType;
   failureReason?: FailureReason;
+  suspiciousFlags?: SuspiciousFlag[];
 }
+
+export interface SuspiciousActivityReport {
+  consecutiveFailures: number;
+  showSecurityWarning: boolean;
+  accountNameChanged: boolean;
+  recentAccountNames: string[];
+}
+
+// ── Storage ──────────────────────────────────────────────────────────────────
 
 const UNKNOWN_ACCOUNT = 'unknown';
 
@@ -59,11 +81,14 @@ function trimEntries(entries: LoginAuditEntry[]): LoginAuditEntry[] {
   return entries.length > MAX_ENTRIES ? entries.slice(entries.length - MAX_ENTRIES) : entries;
 }
 
+// ── Recording ────────────────────────────────────────────────────────────────
+
 export async function recordLoginAttempt(
   status: LoginAttemptStatus,
   accountName?: string,
   loginType: LoginType = LoginType.ByName,
   failureReason?: FailureReason,
+  suspiciousFlags?: SuspiciousFlag[],
 ): Promise<void> {
   const entry: LoginAuditEntry = {
     timestamp: new Date().toISOString(),
@@ -71,11 +96,108 @@ export async function recordLoginAttempt(
     accountName: accountName ?? UNKNOWN_ACCOUNT,
     loginType,
     ...(failureReason !== undefined ? { failureReason } : {}),
+    ...(suspiciousFlags !== undefined && suspiciousFlags.length > 0 ? { suspiciousFlags } : {}),
   };
 
   const entries = await readLog();
   await writeLog(trimEntries([...entries, entry]));
 }
+
+// ── Analysis ─────────────────────────────────────────────────────────────────
+
+/**
+ * Count consecutive failures walking backwards from the end of the audit log
+ * until a success is found. Ignores time — only cares about the sequence.
+ * This is used for the security warning ("If it wasn't you, change your password").
+ */
+export async function getConsecutiveFailureCount(): Promise<number> {
+  const entries = await readLog();
+  let count = 0;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].status === LoginAttemptStatus.Success) break;
+    if (entries[i].status === LoginAttemptStatus.Failure) count++;
+    // AccountLocked entries don't count as separate failures
+  }
+  return count;
+}
+
+/**
+ * Build suspicious flags for the current attempt by analyzing existing history.
+ * Call this BEFORE writing the new entry so flags can be attached to it.
+ * Adds 1 to the consecutive failure count to include the upcoming entry.
+ */
+export async function detectSuspiciousFlags(
+  currentAccountName: string | undefined,
+): Promise<SuspiciousFlag[]> {
+  const entries = await readLog();
+  if (entries.length === 0) return [];
+
+  const flags: SuspiciousFlag[] = [];
+  const resolvedName = currentAccountName ?? UNKNOWN_ACCOUNT;
+
+  // Count consecutive failures from tail + 1 for the upcoming entry
+  let consecutiveFailures = 1; // the current attempt being recorded
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].status === LoginAttemptStatus.Success) break;
+    if (entries[i].status === LoginAttemptStatus.Failure) consecutiveFailures++;
+  }
+  if (consecutiveFailures >= CONSECUTIVE_FAILURE_WARNING_THRESHOLD) {
+    flags.push(SuspiciousFlag.ConsecutiveFailures);
+  }
+
+  // Check if account name differs from the most recent failure
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.status === LoginAttemptStatus.Success) break;
+    if (entry.status === LoginAttemptStatus.Failure) {
+      const prevName = entry.accountName;
+      if (prevName !== resolvedName && prevName !== UNKNOWN_ACCOUNT && resolvedName !== UNKNOWN_ACCOUNT) {
+        flags.push(SuspiciousFlag.AccountNameSwitch);
+      }
+      break;
+    }
+  }
+
+  return flags;
+}
+
+/**
+ * Full suspicious-activity report for the Login UI.
+ * `showSecurityWarning` is true when there are 3+ consecutive failures
+ * with no success in between — regardless of how much time has passed.
+ */
+export async function analyzeRecentActivity(): Promise<SuspiciousActivityReport> {
+  const entries = await readLog();
+
+  let consecutiveFailures = 0;
+  const recentNames = new Set<string>();
+  let accountNameChanged = false;
+  let prevFailureName: string | undefined;
+
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.status === LoginAttemptStatus.Success) break;
+    if (entry.status !== LoginAttemptStatus.Failure) continue;
+
+    consecutiveFailures++;
+    if (entry.accountName !== UNKNOWN_ACCOUNT) {
+      recentNames.add(entry.accountName);
+    }
+    if (prevFailureName !== undefined && prevFailureName !== entry.accountName) {
+      accountNameChanged = true;
+    }
+    prevFailureName = entry.accountName;
+  }
+
+  return {
+    consecutiveFailures,
+    showSecurityWarning: consecutiveFailures >= CONSECUTIVE_FAILURE_WARNING_THRESHOLD,
+    accountNameChanged,
+    recentAccountNames: Array.from(recentNames),
+  };
+}
+
+// ── Getters / cleanup ────────────────────────────────────────────────────────
 
 export async function getLoginAuditLog(): Promise<LoginAuditEntry[]> {
   return readLog();

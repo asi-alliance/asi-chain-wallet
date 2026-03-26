@@ -4,7 +4,14 @@ import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
-import { recordLoginAttempt, LoginAttemptStatus, LoginType, FailureReason } from 'services/loginAuditLog';
+import {
+  recordLoginAttempt,
+  LoginAttemptStatus,
+  LoginType,
+  FailureReason,
+  SuspiciousFlag,
+  detectSuspiciousFlags,
+} from 'services/loginAuditLog';
 import {
   buildContextKey,
   checkRateLimit,
@@ -317,10 +324,32 @@ async function handleLoginOutcome(
   }
 
   const reason = failureReason ?? FailureReason.Unknown;
+
+  // Detect suspicious patterns before writing the entry
+  const flags = isCredentialFailure(reason)
+    ? await detectSuspiciousFlags(accountName)
+    : undefined;
+
+  // Increment rate-limit counter for credential failures only
+  let justLocked = false;
   if (isCredentialFailure(reason)) {
-    await recordFailedAttempt(contextKey);
+    const rateLimitResult = await recordFailedAttempt(contextKey);
+    justLocked = rateLimitResult.locked;
   }
-  await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason);
+
+  // Record the failure with any suspicious flags attached
+  await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason, flags);
+
+  // If this failure triggered the lockout, record a separate AccountLocked event
+  if (justLocked) {
+    await recordLoginAttempt(
+      LoginAttemptStatus.AccountLocked,
+      accountName,
+      loginType,
+      FailureReason.RateLimited,
+      [SuspiciousFlag.RateLimitTriggered],
+    );
+  }
 }
 
 export const loginWithPassword = createAsyncThunk(

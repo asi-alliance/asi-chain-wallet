@@ -7,8 +7,8 @@ const RATE_LIMIT_KEY_PREFIX = 'asi_wallet_rate_limit_';
 const GLOBAL_CONTEXT = '__all_accounts__';
 
 const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 900_000;   // 15 minutes
-const ATTEMPT_WINDOW_MS = 900_000;     // 15 minutes
+const LOCKOUT_DURATION_MS = 60_000;   // 15 minutes
+const ATTEMPT_WINDOW_MS = 60_000;     // 15 minutes
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

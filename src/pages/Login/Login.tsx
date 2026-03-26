@@ -13,6 +13,7 @@ import {
   formatLockoutMessage,
   RateLimitInfo,
 } from 'services/loginRateLimit';
+import { analyzeRecentActivity, SuspiciousActivityReport } from 'services/loginAuditLog';
 
 const LoginContainer = styled.div`
   max-width: 400px;
@@ -66,6 +67,39 @@ const LockoutBanner = styled.div`
 const CountdownText = styled.span`
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+`;
+
+const SecurityWarningBanner = styled.div`
+  background: ${({ theme }) => `${theme.info}12`};
+  border: 1px solid ${({ theme }) => `${theme.info}40`};
+  color: ${({ theme }) => theme.text.primary};
+  padding: 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+`;
+
+const SecurityWarningTitle = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: ${({ theme }) => theme.info};
+`;
+
+const DismissLink = styled.button`
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.text.secondary};
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 8px;
+  text-decoration: underline;
+
+  &:hover {
+    color: ${({ theme }) => theme.text.primary};
+  }
 `;
 
 const ActionButtons = styled.div`
@@ -131,6 +165,10 @@ export const Login: React.FC = () => {
   const [countdownMs, setCountdownMs] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Security warning state (persists across sessions via audit log)
+  const [activityReport, setActivityReport] = useState<SuspiciousActivityReport | null>(null);
+  const [securityWarningDismissed, setSecurityWarningDismissed] = useState(false);
+
   const isLockedOut = rateLimitInfo?.locked === true && countdownMs > 0;
   const remainingAttempts = rateLimitInfo
     ? rateLimitInfo.maxAttempts - rateLimitInfo.failedAttempts
@@ -166,10 +204,22 @@ export const Login: React.FC = () => {
     }
   }, [selectedAccountName]);
 
-  // Check rate limit on mount and when selected account changes
+  // Analyze audit log for security warnings (3+ consecutive failures, account switching)
+  const refreshActivity = useCallback(async () => {
+    const report = await analyzeRecentActivity();
+    setActivityReport(report);
+  }, []);
+
+  const showSecurityWarning =
+    !securityWarningDismissed &&
+    activityReport !== null &&
+    activityReport.showSecurityWarning;
+
+  // Check rate limit + activity on mount and when selected account changes
   useEffect(() => {
     refreshRateLimitInfo();
-  }, [refreshRateLimitInfo]);
+    refreshActivity();
+  }, [refreshRateLimitInfo, refreshActivity]);
 
   // Countdown timer
   useEffect(() => {
@@ -235,7 +285,6 @@ export const Login: React.FC = () => {
       }));
       
       if (loginWithPassword.fulfilled.match(resultAction)) {
-        // Load all accounts for this user (locked + unlocked) into wallet state
         dispatch(loadAccountsFromStorage());
 
         if (selectedAccountName) {
@@ -251,10 +300,14 @@ export const Login: React.FC = () => {
 
         navigate('/');
       } else {
+        setSecurityWarningDismissed(false);
         await refreshRateLimitInfo();
+        await refreshActivity();
       }
     } catch {
+      setSecurityWarningDismissed(false);
       await refreshRateLimitInfo();
+      await refreshActivity();
     }
   };
 
@@ -311,6 +364,24 @@ export const Login: React.FC = () => {
                 ? 'Last attempt before temporary lockout.'
                 : `${remainingAttempts} attempts remaining before temporary lockout.`}
             </WarningBanner>
+          )}
+
+          {showSecurityWarning && (
+            <SecurityWarningBanner>
+              <SecurityWarningTitle>Security notice</SecurityWarningTitle>
+              We noticed several failed login attempts on this wallet.
+              If it wasn&apos;t you, consider changing your password after logging in.
+              {activityReport?.accountNameChanged && (
+                <>
+                  <br />
+                  Attempts were made with different account names.
+                </>
+              )}
+              <br />
+              <DismissLink onClick={() => setSecurityWarningDismissed(true)}>
+                Dismiss
+              </DismissLink>
+            </SecurityWarningBanner>
           )}
 
           {showError && error && !isLockedOut && (
