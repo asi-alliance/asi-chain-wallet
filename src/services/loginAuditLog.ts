@@ -122,9 +122,35 @@ export async function getConsecutiveFailureCount(): Promise<number> {
 }
 
 /**
+ * Count consecutive failures from the tail of the log until a success.
+ * Returns count + 1 to include the upcoming entry being recorded.
+ */
+function countConsecutiveFailures(entries: LoginAuditEntry[]): number {
+  let count = 1; // include the upcoming entry
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].status === LoginAttemptStatus.Success) break;
+    if (entries[i].status === LoginAttemptStatus.Failure) count++;
+  }
+  return count;
+}
+
+/**
+ * Check whether the most recent failure used a different account name.
+ */
+function didAccountNameChange(entries: LoginAuditEntry[], resolvedName: string): boolean {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    if (entry.status === LoginAttemptStatus.Success) return false;
+    if (entry.status !== LoginAttemptStatus.Failure) continue;
+    const prevName = entry.accountName;
+    return prevName !== resolvedName && prevName !== UNKNOWN_ACCOUNT && resolvedName !== UNKNOWN_ACCOUNT;
+  }
+  return false;
+}
+
+/**
  * Build suspicious flags for the current attempt by analyzing existing history.
  * Call this BEFORE writing the new entry so flags can be attached to it.
- * Adds 1 to the consecutive failure count to include the upcoming entry.
  */
 export async function detectSuspiciousFlags(
   currentAccountName: string | undefined,
@@ -135,27 +161,12 @@ export async function detectSuspiciousFlags(
   const flags: SuspiciousFlag[] = [];
   const resolvedName = currentAccountName ?? UNKNOWN_ACCOUNT;
 
-  // Count consecutive failures from tail + 1 for the upcoming entry
-  let consecutiveFailures = 1; // the current attempt being recorded
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (entries[i].status === LoginAttemptStatus.Success) break;
-    if (entries[i].status === LoginAttemptStatus.Failure) consecutiveFailures++;
-  }
-  if (consecutiveFailures >= CONSECUTIVE_FAILURE_WARNING_THRESHOLD) {
+  if (countConsecutiveFailures(entries) >= CONSECUTIVE_FAILURE_WARNING_THRESHOLD) {
     flags.push(SuspiciousFlag.ConsecutiveFailures);
   }
 
-  // Check if account name differs from the most recent failure
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i];
-    if (entry.status === LoginAttemptStatus.Success) break;
-    if (entry.status === LoginAttemptStatus.Failure) {
-      const prevName = entry.accountName;
-      if (prevName !== resolvedName && prevName !== UNKNOWN_ACCOUNT && resolvedName !== UNKNOWN_ACCOUNT) {
-        flags.push(SuspiciousFlag.AccountNameSwitch);
-      }
-      break;
-    }
+  if (didAccountNameChange(entries, resolvedName)) {
+    flags.push(SuspiciousFlag.AccountNameSwitch);
   }
 
   return flags;
