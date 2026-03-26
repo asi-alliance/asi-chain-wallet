@@ -6,13 +6,9 @@ import { StorageProvider } from './storage';
 const RATE_LIMIT_KEY_PREFIX = 'asi_wallet_rate_limit_';
 const GLOBAL_CONTEXT = '__all_accounts__';
 
-enum RateLimitConfig {
-  MaxAttempts = 5,
-  LockoutDurationMs = 900_000,   // 15 minutes
-  AttemptWindowMs = 900_000,     // 15 minutes
-}
-
-export const MAX_LOGIN_ATTEMPTS = RateLimitConfig.MaxAttempts;
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 900_000;   // 15 minutes
+const ATTEMPT_WINDOW_MS = 900_000;     // 15 minutes
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,7 +93,7 @@ export interface RateLimitInfo {
   maxAttempts: number;
 }
 
-const UNLOCKED_INFO: RateLimitInfo = { locked: false, remainingMs: 0, failedAttempts: 0, maxAttempts: RateLimitConfig.MaxAttempts };
+const UNLOCKED_INFO: RateLimitInfo = { locked: false, remainingMs: 0, failedAttempts: 0, maxAttempts: MAX_ATTEMPTS };
 
 /**
  * Full rate-limit info for UI display: lockout status + attempt counters.
@@ -113,11 +109,11 @@ export async function getRateLimitInfo(contextKey: string): Promise<RateLimitInf
       locked: true,
       remainingMs: state.lockedUntil - now,
       failedAttempts: state.failedAttempts,
-      maxAttempts: RateLimitConfig.MaxAttempts,
+      maxAttempts: MAX_ATTEMPTS,
     };
   }
 
-  if (state.lockedUntil !== undefined || now - state.firstAttemptAt > RateLimitConfig.AttemptWindowMs) {
+  if (state.lockedUntil !== undefined || now - state.firstAttemptAt > ATTEMPT_WINDOW_MS) {
     await deleteState(contextKey);
     return UNLOCKED_INFO;
   }
@@ -126,7 +122,7 @@ export async function getRateLimitInfo(contextKey: string): Promise<RateLimitInf
     locked: false,
     remainingMs: 0,
     failedAttempts: state.failedAttempts,
-    maxAttempts: RateLimitConfig.MaxAttempts,
+    maxAttempts: MAX_ATTEMPTS,
   };
 }
 
@@ -146,7 +142,7 @@ export async function checkRateLimit(contextKey: string): Promise<RateLimitStatu
   }
 
   // Lockout expired or attempt window elapsed → stale record
-  if (state.lockedUntil !== undefined || now - state.firstAttemptAt > RateLimitConfig.AttemptWindowMs) {
+  if (state.lockedUntil !== undefined || now - state.firstAttemptAt > ATTEMPT_WINDOW_MS) {
     await deleteState(contextKey);
     return UNLOCKED_STATUS;
   }
@@ -166,7 +162,7 @@ export async function recordFailedAttempt(contextKey: string): Promise<RateLimit
   let state = await readState(contextKey);
 
   // Fresh counter or stale window → start new
-  if (!state || now - state.firstAttemptAt > RateLimitConfig.AttemptWindowMs) {
+  if (!state || now - state.firstAttemptAt > ATTEMPT_WINDOW_MS) {
     state = { failedAttempts: 1, firstAttemptAt: now };
     await writeState(contextKey, state);
     return UNLOCKED_STATUS;
@@ -174,10 +170,10 @@ export async function recordFailedAttempt(contextKey: string): Promise<RateLimit
 
   state.failedAttempts += 1;
 
-  if (state.failedAttempts >= RateLimitConfig.MaxAttempts) {
-    state.lockedUntil = now + RateLimitConfig.LockoutDurationMs;
+  if (state.failedAttempts >= MAX_ATTEMPTS) {
+    state.lockedUntil = now + LOCKOUT_DURATION_MS;
     await writeState(contextKey, state);
-    return { locked: true, remainingMs: RateLimitConfig.LockoutDurationMs };
+    return { locked: true, remainingMs: LOCKOUT_DURATION_MS };
   }
 
   await writeState(contextKey, state);
