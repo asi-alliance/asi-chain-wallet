@@ -370,6 +370,14 @@ export const loginWithPassword = createAsyncThunk(
       const lockWaitStart = Date.now();
 
       const accounts = await withLoginLock(async () => {
+        // Double-check rate limit inside the lock (TOCTOU: another tab may have
+        // triggered lockout between the outer check and acquiring this lock)
+        const innerStatus = await checkRateLimit(contextKey);
+        if (innerStatus.locked) {
+          failureReason = FailureReason.RateLimited;
+          throw new Error(formatLockoutMessage(innerStatus.remainingMs));
+        }
+
         const lockWaitMs = Date.now() - lockWaitStart;
         if (lockWaitMs > LOCK_WAIT_THRESHOLD_MS) {
           failureReason = FailureReason.LockContention;

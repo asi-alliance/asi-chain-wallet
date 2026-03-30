@@ -7,8 +7,8 @@ const RATE_LIMIT_KEY_PREFIX = 'asi_wallet_rate_limit_';
 const GLOBAL_CONTEXT = '__all_accounts__';
 
 const MAX_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 60_000;   // 15 minutes
-const ATTEMPT_WINDOW_MS = 60_000;     // 15 minutes
+const LOCKOUT_DURATION_MS = 900_000;   // 15 minutes
+const ATTEMPT_WINDOW_MS = 900_000;     // 15 minutes
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,29 +25,35 @@ export interface RateLimitStatus {
 
 const UNLOCKED_STATUS: RateLimitStatus = { locked: false, remainingMs: 0 };
 
-// ── Storage helpers (IDB-only, fail-open) ────────────────────────────────────
+// ── Storage helpers (IDB-first, localStorage fallback) ───────────────────────
 
 function storageKey(contextKey: string): string {
   return hashValue(`${RATE_LIMIT_KEY_PREFIX}${contextKey}`);
 }
 
+function parseState(raw: string | null): RateLimitState | null {
+  if (!raw) return null;
+  const parsed: unknown = JSON.parse(raw);
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.failedAttempts !== 'number' || typeof record.firstAttemptAt !== 'number') {
+    return null;
+  }
+  return {
+    failedAttempts: record.failedAttempts,
+    firstAttemptAt: record.firstAttemptAt,
+    lockedUntil: typeof record.lockedUntil === 'number' ? record.lockedUntil : undefined,
+  };
+}
+
 async function readState(contextKey: string): Promise<RateLimitState | null> {
   try {
+    const key = storageKey(contextKey);
     const adapter = StorageProvider.getAdapter();
-    if (!adapter) return null;
-    const raw = await adapter.getItem(storageKey(contextKey));
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const record = parsed as Record<string, unknown>;
-    if (typeof record.failedAttempts !== 'number' || typeof record.firstAttemptAt !== 'number') {
-      return null;
+    if (adapter) {
+      return parseState(await adapter.getItem(key));
     }
-    return {
-      failedAttempts: record.failedAttempts,
-      firstAttemptAt: record.firstAttemptAt,
-      lockedUntil: typeof record.lockedUntil === 'number' ? record.lockedUntil : undefined,
-    };
+    return parseState(localStorage.getItem(key));
   } catch {
     return null;
   }
@@ -55,19 +61,28 @@ async function readState(contextKey: string): Promise<RateLimitState | null> {
 
 async function writeState(contextKey: string, state: RateLimitState): Promise<void> {
   try {
+    const key = storageKey(contextKey);
+    const json = JSON.stringify(state);
     const adapter = StorageProvider.getAdapter();
-    if (!adapter) return;
-    await adapter.setItem(storageKey(contextKey), JSON.stringify(state));
+    if (adapter) {
+      await adapter.setItem(key, json);
+      return;
+    }
+    localStorage.setItem(key, json);
   } catch {
-    // fail-open: rate limiting is defence-in-depth, not sole protection
+    // fail-open: best-effort persistence
   }
 }
 
 async function deleteState(contextKey: string): Promise<void> {
   try {
+    const key = storageKey(contextKey);
     const adapter = StorageProvider.getAdapter();
-    if (!adapter) return;
-    await adapter.removeItem(storageKey(contextKey));
+    if (adapter) {
+      await adapter.removeItem(key);
+      return;
+    }
+    localStorage.removeItem(key);
   } catch {
     // non-critical
   }
