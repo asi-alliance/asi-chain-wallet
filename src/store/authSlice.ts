@@ -4,7 +4,21 @@ import { Account, Network } from 'types/wallet';
 import { generateKeyPair, importPrivateKey, importEthAddress, importRevAddress } from 'utils/crypto';
 import { withLoginLock } from 'services/loginLock';
 import { broadcastSessionLogin, clearSessionBroadcast } from 'services/sessionChannel';
-import { recordLoginAttempt, LoginAttemptStatus, LoginType, FailureReason } from 'services/loginAuditLog';
+import {
+  recordLoginAttempt,
+  LoginAttemptStatus,
+  LoginType,
+  FailureReason,
+  SuspiciousFlag,
+  detectSuspiciousFlags,
+} from 'services/loginAuditLog';
+import {
+  buildContextKey,
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit,
+  formatLockoutMessage,
+} from 'services/loginRateLimit';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -291,17 +305,79 @@ function classifyLoginError(err: unknown): FailureReason {
   return FailureReason.Unknown;
 }
 
+function isCredentialFailure(reason: FailureReason): boolean {
+  return reason === FailureReason.WrongPassword || reason === FailureReason.NoAccount;
+}
+
+
+async function handleLoginOutcome(
+  succeeded: boolean,
+  contextKey: string,
+  failureReason: FailureReason | undefined,
+  accountName: string | undefined,
+  loginType: LoginType,
+): Promise<void> {
+  if (succeeded) {
+    await resetRateLimit(contextKey);
+    await recordLoginAttempt(LoginAttemptStatus.Success, accountName, loginType);
+    return;
+  }
+
+  const reason = failureReason ?? FailureReason.Unknown;
+
+  // Detect suspicious patterns before writing the entry
+  const flags = isCredentialFailure(reason)
+    ? await detectSuspiciousFlags(accountName)
+    : undefined;
+
+  // Increment rate-limit counter for credential failures only
+  let justLocked = false;
+  if (isCredentialFailure(reason)) {
+    const rateLimitResult = await recordFailedAttempt(contextKey);
+    justLocked = rateLimitResult.locked;
+  }
+
+  // Record the failure with any suspicious flags attached
+  await recordLoginAttempt(LoginAttemptStatus.Failure, accountName, loginType, reason, flags);
+
+  // If this failure triggered the lockout, record a separate AccountLocked event
+  if (justLocked) {
+    await recordLoginAttempt(
+      LoginAttemptStatus.AccountLocked,
+      accountName,
+      loginType,
+      FailureReason.RateLimited,
+      [SuspiciousFlag.RateLimitTriggered],
+    );
+  }
+}
+
 export const loginWithPassword = createAsyncThunk(
   'auth/loginWithPassword',
   async ({ password, accountName }: { password: string; accountName?: string }) => {
     const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
+    const contextKey = buildContextKey(accountName);
     let failureReason: FailureReason | undefined;
     let succeeded = false;
 
     try {
+      const rateLimitStatus = await checkRateLimit(contextKey);
+      if (rateLimitStatus.locked) {
+        failureReason = FailureReason.RateLimited;
+        throw new Error(formatLockoutMessage(rateLimitStatus.remainingMs));
+      }
+
       const lockWaitStart = Date.now();
 
       const accounts = await withLoginLock(async () => {
+        // Double-check rate limit inside the lock (TOCTOU: another tab may have
+        // triggered lockout between the outer check and acquiring this lock)
+        const innerStatus = await checkRateLimit(contextKey);
+        if (innerStatus.locked) {
+          failureReason = FailureReason.RateLimited;
+          throw new Error(formatLockoutMessage(innerStatus.remainingMs));
+        }
+
         const lockWaitMs = Date.now() - lockWaitStart;
         if (lockWaitMs > LOCK_WAIT_THRESHOLD_MS) {
           failureReason = FailureReason.LockContention;
@@ -342,8 +418,7 @@ export const loginWithPassword = createAsyncThunk(
       }
       throw err;
     } finally {
-      const status = succeeded ? LoginAttemptStatus.Success : LoginAttemptStatus.Failure;
-      await recordLoginAttempt(status, accountName, loginType, succeeded ? undefined : (failureReason ?? FailureReason.Unknown));
+      await handleLoginOutcome(succeeded, contextKey, failureReason, accountName, loginType);
     }
   }
 );
