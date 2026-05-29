@@ -166,16 +166,6 @@ const ActionCardTitle = styled.h3`
     gap: 8px;
 `;
 
-const NetworkStatusBar = styled.div<{ $connected: boolean }>`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: ${({ $connected, theme }) =>
-        $connected ? theme.success + "20" : theme.danger + "20"};
-    border-radius: 8px;
-    margin-bottom: 16px;
-`;
 
 const ErrorMessage = styled.div`
     background: ${({ theme }) => theme.danger + "20"};
@@ -185,14 +175,6 @@ const ErrorMessage = styled.div`
     margin-bottom: 16px;
     font-weight: 500;
     border: 1px solid ${({ theme }) => theme.danger};
-`;
-
-const StatusDot = styled.div<{ $connected: boolean }>`
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: ${({ $connected, theme }) =>
-        $connected ? theme.success : theme.danger};
 `;
 
 const LoadingSkeleton = styled.div<{ height?: string }>`
@@ -214,18 +196,7 @@ const LoadingSkeleton = styled.div<{ height?: string }>`
     }
 `;
 
-const NetworkInfo = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 14px;
-    color: ${({ theme }) => theme.text.secondary};
-`;
 
-const LastUpdated = styled.span`
-    font-size: 12px;
-    color: ${({ theme }) => theme.text.tertiary};
-`;
 
 export const Dashboard: React.FC = () => {
     const dispatch = useDispatch();
@@ -240,9 +211,7 @@ export const Dashboard: React.FC = () => {
             (account) => account.id === selectedAccount.id
         );
     }, [unlockedAccounts, selectedAccount]);
-    const [networkStatus, setNetworkStatus] = useState<
-        "connected" | "disconnected" | "checking"
-    >("checking");
+
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     useEffect(() => {
@@ -374,37 +343,6 @@ export const Dashboard: React.FC = () => {
         isAccountUnlocked,
     ]);
 
-    // Check network status
-    useEffect(() => {
-        const checkNetwork = async () => {
-            if (!selectedNetwork) return;
-
-            const networkUrl =
-                selectedNetwork.readOnlyUrl || selectedNetwork.url;
-            if (!networkUrl || !networkUrl.trim()) {
-                setNetworkStatus("disconnected");
-                return;
-            }
-
-            setNetworkStatus("checking");
-            try {
-                const response = await fetch(networkUrl + "/api/status", {
-                    method: "GET",
-                    headers: { Accept: "application/json" },
-                    signal: AbortSignal.timeout(5000),
-                });
-                setNetworkStatus(response.ok ? "connected" : "disconnected");
-            } catch {
-                setNetworkStatus("disconnected");
-            }
-        };
-
-        checkNetwork();
-        const interval = setInterval(checkNetwork, 60000); // Check every minute
-
-        return () => clearInterval(interval);
-    }, [selectedNetwork]);
-
     const handleRefreshBalance = () => {
         if (selectedAccount && selectedNetwork) {
             dispatch(
@@ -462,30 +400,6 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div>
-            <NetworkStatusBar
-                id="dashboard-network-status-bar"
-                $connected={networkStatus === "connected"}
-            >
-                <StatusDot $connected={networkStatus === "connected"} />
-                <NetworkInfo id="dashboard-network-info">
-                    <span id="dashboard-network-name-display">
-                        {selectedNetwork.name}
-                    </span>
-                    <span>•</span>
-                    <span id="dashboard-network-status">
-                        {networkStatus === "checking"
-                            ? "Checking..."
-                            : networkStatus === "connected"
-                            ? "Connected"
-                            : "Disconnected"}
-                    </span>
-                    <span>•</span>
-                    <LastUpdated id="dashboard-last-updated ">
-                        <h5>Updated {formatRelativeTime(lastRefresh)}</h5>
-                    </LastUpdated>
-                </NetworkInfo>
-            </NetworkStatusBar>
-
             <DashboardContainer>
                 <BalanceCard>
                     <CardContent>
