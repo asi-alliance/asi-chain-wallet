@@ -2,7 +2,7 @@ import React, { useState, useEffect, Fragment } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
-import { updateNetwork, addNetwork, removeNetwork } from "store/walletSlice";
+import { updateNetwork, addNetwork } from "store/walletSlice";
 import {
     Card,
     CardHeader,
@@ -12,7 +12,8 @@ import {
     Input,
 } from "components";
 import { Network } from "types/wallet";
-import { DeleteIcon, EditIcon, FileIcon } from "components/Icons";
+import { FileIcon } from "components/Icons";
+import { CustomNetworkCard } from "components/CustomNetworkCard";
 
 const ConfigSection = styled.div`
     margin-bottom: 36px;
@@ -198,15 +199,6 @@ export const CustomNetworkConfig: React.FC = () => {
         setActiveCustomId("custom");
     };
 
-    const handleDelete = (id: string) => {
-        if (!id.startsWith("custom")) return;
-        dispatch(removeNetwork(id));
-        if (activeCustomId === id) {
-            const remaining = customNetworks.filter((n) => n.id !== id);
-            setActiveCustomId(remaining[0]?.id || "custom");
-        }
-    };
-
     const handleRestoreToDefault = () => {
         setValidatorHost(initialNetworkSettings.validatorHost);
         setValidatorHttpPort(initialNetworkSettings.validatorHttpPort);
@@ -215,6 +207,13 @@ export const CustomNetworkConfig: React.FC = () => {
         setReadOnlyHost(initialNetworkSettings.readOnlyHost);
         setReadOnlyHttpPort(initialNetworkSettings.readOnlyHttpPort);
         setReadOnlyGrpcPort(initialNetworkSettings.readOnlyGrpcPort);
+    };
+
+    const handleAfterCustomNetworkDelete = (id: string) => {
+        if (activeCustomId === id) {
+            const remaining = customNetworks.filter((n) => n.id !== id);
+            setActiveCustomId(remaining[0]?.id || "custom");
+        }
     };
 
     const validatorGrpcUrl = `${validatorHost}:${validatorGrpcPort}`;
@@ -441,93 +440,14 @@ export const CustomNetworkConfig: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         {customNetworks.map((net) => (
-                            <div
+                            <CustomNetworkCard
                                 key={net.id}
-                                style={{
-                                    border: "1px solid #eee",
-                                    borderRadius: 8,
-                                    padding: "16px 24px",
-                                    marginBottom: 8,
+                                network={net}
+                                onEdit={(net) => {
+                                    console.log("Edit network:", net);
                                 }}
-                            >
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        marginBottom: 6,
-                                    }}
-                                >
-                                    <div
-                                        className={"text-2"}
-                                        style={{ fontWeight: 500 }}
-                                    >
-                                        {net.name}{" "}
-                                        <span
-                                            style={{
-                                                color: "#999",
-                                                fontWeight: 400,
-                                            }}
-                                        >
-                                            ({net.id})
-                                        </span>
-                                    </div>
-                                    <CustomNetworkActionsButtons>
-                                        <Button
-                                            size="small"
-                                            variant="icon-button"
-                                            onClick={() => {}}
-                                        >
-                                            <EditIcon />
-                                        </Button>
-                                        <Button
-                                            size="small"
-                                            variant="icon-button"
-                                            onClick={() => handleDelete(net.id)}
-                                        >
-                                            <DeleteIcon />
-                                        </Button>
-                                    </CustomNetworkActionsButtons>
-                                </div>
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr 1fr",
-                                        gap: 12,
-                                        fontFamily: "monospace",
-                                        fontSize: 12,
-                                    }}
-                                >
-                                    <div>
-                                        <div
-                                            className="text-5"
-                                            style={{ color: "#666" }}
-                                        >
-                                            Validator URL
-                                        </div>
-                                        <div
-                                            className="text-4"
-                                            style={{ lineHeight: "27px" }}
-                                        >
-                                            {net.url}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div
-                                            className="text-5"
-                                            style={{ color: "#666" }}
-                                        >
-                                            Read-only URL
-                                        </div>
-                                        <div
-                                            className="text-4"
-                                            style={{ lineHeight: "27px" }}
-                                        >
-                                            {net.readOnlyUrl || "-"}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                                onDelete={handleAfterCustomNetworkDelete}
+                            />
                         ))}
                     </CardContent>
                 </Card>
