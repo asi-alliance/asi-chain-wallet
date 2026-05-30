@@ -255,8 +255,19 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   .text-5 {
     font-size: 0.5rem;
   }
-          
+
+  
   * {
-    font-family: 'Roboto Mono', monospace  !important;
+  font-family: 'Roboto Mono', monospace  !important;
   }
+
+  @media (max-width: 768px) {
+       h1 {
+        font-size: 1.25rem;
+       }
+
+       .text-2 {
+       font-size: 0.875rem;
+       }
+   }
 `;

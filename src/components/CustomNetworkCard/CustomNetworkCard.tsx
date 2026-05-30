@@ -29,9 +29,22 @@ const NetworkName = styled.div`
     font-weight: 500;
 `;
 
+const NetworkNameLabel = styled.span`
+    margin-right: 10px;
+
+    @media (max-width: 768px) {
+        display: block;
+    }
+`;
+
 const NetworkId = styled.span`
     color: #999;
     font-weight: 400;
+
+    @media (max-width: 768px) {
+        display: block;
+        font-size: 0.75rem;
+    }
 `;
 
 const NetworkUrls = styled.div`
@@ -40,6 +53,10 @@ const NetworkUrls = styled.div`
     gap: 12px;
     font-family: monospace;
     font-size: 12px;
+
+    @media (max-width: 768px) {
+        display: block;
+    }
 `;
 
 const UrlLabel = styled.div`
@@ -102,7 +119,10 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
             <NetworkItem>
                 <NetworkHeader>
                     <NetworkName className="text-2">
-                        {network.name} <NetworkId>({network.id})</NetworkId>
+                        <NetworkNameLabel className="text-2">
+                            {network.name}
+                        </NetworkNameLabel>
+                        <NetworkId>({network.id})</NetworkId>
                     </NetworkName>
                     <CustomNetworkActionsButtons>
                         <Button

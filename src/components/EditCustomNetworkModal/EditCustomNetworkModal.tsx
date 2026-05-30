@@ -67,11 +67,36 @@ const FormRow = styled.div`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
     gap: 16px;
+
+    @media (max-width: 768px) {
+        display: block;
+        gap: 12px;
+    }
 `;
 
 const FormGroup = styled.div`
     display: flex;
     flex-direction: column;
+
+    @media (max-width: 768px) {
+        &:first-child {
+            grid-column: 1 / -1;
+        }
+
+        &:nth-child(2),
+        &:nth-child(3) {
+            display: inline-block;
+            width: calc(50% - 6px);
+        }
+
+        &:nth-child(2) {
+            margin-right: 6px;
+        }
+
+        &:nth-child(3) {
+            margin-left: 6px;
+        }
+    }
 `;
 
 const Label = styled.label`
@@ -111,6 +136,10 @@ const LastLink = styled(Link)`
 
 const AutoWidthInput = styled(Input)`
     width: auto;
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
 `;
 
 const CustomNetworkActionsButtons = styled.div`
@@ -119,6 +148,11 @@ const CustomNetworkActionsButtons = styled.div`
     justify-content: center;
     padding: 0 60px;
     gap: 25px;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        padding: 0 30px;
+    }
 `;
 
 interface EditCustomNetworkModalProps {
