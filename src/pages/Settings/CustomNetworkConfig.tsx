@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Fragment } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
@@ -12,9 +12,10 @@ import {
     Input,
 } from "components";
 import { Network } from "types/wallet";
+import { DeleteIcon, EditIcon, FileIcon } from "components/Icons";
 
 const ConfigSection = styled.div`
-    margin-bottom: 32px;
+    margin-bottom: 36px;
 `;
 
 const ConfigTitle = styled.h3`
@@ -26,9 +27,8 @@ const ConfigTitle = styled.h3`
 
 const FormRow = styled.div`
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: 16px;
-    margin-bottom: 16px;
 `;
 
 const FormGroup = styled.div`
@@ -40,39 +40,41 @@ const Label = styled.label`
     // font-size: 14px;
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 8px;
 `;
 
 const DirectLinks = styled.div`
-    margin-top: 16px;
-    padding: 16px;
+    padding: 16px 23px;
     background: ${({ theme }) => theme.surface};
     border-radius: 8px;
     border: 1px solid ${({ theme }) => theme.border};
 `;
 
 const LinkTitle = styled.div`
-    font-size: 14px;
-    font-weight: 600;
     color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    line-height: 100%;
 `;
 
 const Link = styled.div`
     // font-size: 13px;
     color: ${({ theme }) => theme.primary};
-    margin-bottom: 4px;
+    margin-bottom: 10px;
     cursor: pointer;
+    line-height: 100%;
 
     &:hover {
         text-decoration: underline;
     }
 `;
 
+const LastLink = styled(Link)`
+    margin-bottom: 0;
+`;
+
 const ActionButtons = styled.div`
     display: flex;
     gap: 12px;
-    justify-content: flex-end;
+    justify-content: center;
     margin-top: 24px;
 `;
 
@@ -80,7 +82,7 @@ const InfoBox = styled.div`
     background: ${({ theme }) => theme.info}20;
     border: 1px solid ${({ theme }) => theme.info};
     border-radius: 8px;
-    padding: 16px;
+    padding: 16px 23px;
     margin-bottom: 24px;
 
     h3 {
@@ -95,19 +97,55 @@ const InfoBox = styled.div`
     }
 `;
 
+const AutoWidthInput = styled(Input)`
+    width: auto;
+`;
+
+const CustomNetworkActionsButtons = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+`;
+
+const initialNetworkSettings = {
+    host: "localhost",
+    validatorHost: "localhost",
+    validatorHttpPort: "40403",
+    validatorGrpcPort: "40401",
+    networkName: "Custom Network",
+    readOnlyHost: "localhost",
+    readOnlyHttpPort: "40453",
+    readOnlyGrpcPort: "40451",
+};
+
 export const CustomNetworkConfig: React.FC = () => {
     const dispatch = useDispatch();
     const { networks, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet
+        (state: RootState) => state.wallet,
     );
 
-    const [validatorHost, setValidatorHost] = useState("localhost");
-    const [validatorHttpPort, setValidatorHttpPort] = useState("40403");
-    const [validatorGrpcPort, setValidatorGrpcPort] = useState("40401");
-    const [networkName, setNetworkName] = useState("Custom Network");
-    const [readOnlyHost, setReadOnlyHost] = useState("localhost");
-    const [readOnlyHttpPort, setReadOnlyHttpPort] = useState("40453");
-    const [readOnlyGrpcPort, setReadOnlyGrpcPort] = useState("40451");
+    const [validatorHost, setValidatorHost] = useState(
+        initialNetworkSettings.validatorHost,
+    );
+    const [validatorHttpPort, setValidatorHttpPort] = useState(
+        initialNetworkSettings.validatorHttpPort,
+    );
+    const [validatorGrpcPort, setValidatorGrpcPort] = useState(
+        initialNetworkSettings.validatorGrpcPort,
+    );
+    const [networkName, setNetworkName] = useState(
+        initialNetworkSettings.networkName,
+    );
+    const [readOnlyHost, setReadOnlyHost] = useState(
+        initialNetworkSettings.readOnlyHost,
+    );
+    const [readOnlyHttpPort, setReadOnlyHttpPort] = useState(
+        initialNetworkSettings.readOnlyHttpPort,
+    );
+    const [readOnlyGrpcPort, setReadOnlyGrpcPort] = useState(
+        initialNetworkSettings.readOnlyGrpcPort,
+    );
 
     const [activeCustomId, setActiveCustomId] = useState<string>("custom");
 
@@ -169,226 +207,246 @@ export const CustomNetworkConfig: React.FC = () => {
         }
     };
 
+    const handleRestoreToDefault = () => {
+        setValidatorHost(initialNetworkSettings.validatorHost);
+        setValidatorHttpPort(initialNetworkSettings.validatorHttpPort);
+        setValidatorGrpcPort(initialNetworkSettings.validatorGrpcPort);
+        setNetworkName(initialNetworkSettings.networkName);
+        setReadOnlyHost(initialNetworkSettings.readOnlyHost);
+        setReadOnlyHttpPort(initialNetworkSettings.readOnlyHttpPort);
+        setReadOnlyGrpcPort(initialNetworkSettings.readOnlyGrpcPort);
+    };
+
     const validatorGrpcUrl = `${validatorHost}:${validatorGrpcPort}`;
     const validatorHttpUrl = `http://${validatorHost}:${validatorHttpPort}`;
     const readOnlyGrpcUrl = `${readOnlyHost}:${readOnlyGrpcPort}`;
     const readOnlyHttpUrl = `http://${readOnlyHost}:${readOnlyHttpPort}`;
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>
-                    <h1>Custom Network Configuration</h1>
-                    {selectedNetwork.id === "custom" && (
-                        <span
-                            style={{
-                                fontSize: "12px",
-                                marginLeft: "8px",
-                                color: "#4caf50",
-                            }}
+        <Fragment>
+            <Card style={{ marginBottom: "43px" }}>
+                <CardHeader>
+                    <CardTitle>
+                        <h1>Custom Network Configuration</h1>
+                        {selectedNetwork.id === "custom" && (
+                            <span
+                                style={{
+                                    fontSize: "12px",
+                                    marginLeft: "8px",
+                                    color: "#4caf50",
+                                }}
+                            >
+                                (Active)
+                            </span>
+                        )}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <InfoBox>
+                        <p
+                            className="text-2"
+                            style={{ marginBottom: "0.5rem" }}
                         >
-                            (Active)
-                        </span>
-                    )}
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <InfoBox>
-                    <h3>🔧 Custom Network Setup</h3>
-                    <p className="text-2">
-                        Configure your custom network validator and read-only
-                        nodes for local development or private networks. Note:
-                        Predefined networks from the configuration file cannot
-                        be edited here.
-                    </p>
-                </InfoBox>
+                            Configure your custom network validator and
+                            read-only nodes for local development or private
+                            networks.
+                        </p>
+                        <p className="text-2">
+                            Note: Predefined networks from the configuration
+                            file cannot be edited here.
+                        </p>
+                    </InfoBox>
 
-                <ConfigSection>
-                    <ConfigTitle>
-                        <h2>Network Name</h2>
-                    </ConfigTitle>
-                    <Input
-                        id="network-name-input"
-                        className="network-name-input text-3"
-                        value={networkName}
-                        onChange={(e) => setNetworkName(e.target.value)}
-                    />
-                </ConfigSection>
+                    <ConfigSection>
+                        <Label>
+                            <h4>Network Name</h4>
+                        </Label>
+                        <AutoWidthInput
+                            id="network-name-input"
+                            className="network-name-input text-2"
+                            value={networkName}
+                            onChange={(e) => setNetworkName(e.target.value)}
+                        />
+                    </ConfigSection>
 
-                <ConfigSection>
-                    <ConfigTitle>
-                        <h2>Validator Node</h2>
-                    </ConfigTitle>
-
-                    <FormRow>
-                        <FormGroup>
-                            <Label>
-                                <h4>IP/Domain:</h4>
-                            </Label>
-                            <Input
-                                id="network-validator-host-input"
-                                className="network-validator-host-input text-3"
-                                value={validatorHost}
-                                onChange={(e) =>
-                                    setValidatorHost(e.target.value)
-                                }
-                                placeholder="localhost"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>
-                                <h4>gRPC Port:</h4>
-                            </Label>
-                            <Input
-                                id="network-validator-grpc-port-input"
-                                className="network-validator-grpc-port-input text-3"
-                                value={validatorGrpcPort}
-                                onChange={(e) =>
-                                    setValidatorGrpcPort(e.target.value)
-                                }
-                                placeholder="40401"
-                            />
-                        </FormGroup>
-                    </FormRow>
-
-                    <FormRow>
-                        <FormGroup>
-                            <Label>
-                                <h4>HTTP Port:</h4>
-                            </Label>
-                            <Input
-                                id="network-validator-http-port-input"
-                                className="network-validator-http-port-input text-3"
-                                value={validatorHttpPort}
-                                onChange={(e) =>
-                                    setValidatorHttpPort(e.target.value)
-                                }
-                                placeholder="40403"
-                            />
-                        </FormGroup>
-                        <div />
-                    </FormRow>
-
-                    <DirectLinks>
-                        <LinkTitle>Direct links:</LinkTitle>
-                        <Link
-                            className="text-3"
-                            onClick={() =>
-                                window.open(
-                                    `${validatorHttpUrl}/status`,
-                                    "_blank"
-                                )
-                            }
-                        >
-                            gRPC: {validatorGrpcUrl}
-                        </Link>
-                        <Link
-                            className="text-3"
-                            onClick={() =>
-                                window.open(validatorHttpUrl, "_blank")
-                            }
-                        >
-                            HTTP: {validatorHttpUrl}
-                        </Link>
-                    </DirectLinks>
-                </ConfigSection>
-
-                <ConfigSection>
-                    <ConfigTitle>
-                        <h2>Read-only Node</h2>
-                    </ConfigTitle>
-
-                    <FormRow>
-                        <FormGroup>
-                            <Label>
-                                <h4>IP/Domain:</h4>
-                            </Label>
-                            <Input
-                                id="network-readonly-host-input"
-                                className="network-readonly-host-input text-3"
-                                value={readOnlyHost}
-                                onChange={(e) =>
-                                    setReadOnlyHost(e.target.value)
-                                }
-                                placeholder="localhost"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>
-                                <h4>gRPC Port:</h4>
-                            </Label>
-                            <Input
-                                id="network-readonly-grpc-port-input"
-                                className="network-readonly-grpc-port-input text-3"
-                                value={readOnlyGrpcPort}
-                                onChange={(e) =>
-                                    setReadOnlyGrpcPort(e.target.value)
-                                }
-                                placeholder="40451"
-                            />
-                        </FormGroup>
-                    </FormRow>
-
-                    <FormRow>
-                        <FormGroup>
-                            <Label>
-                                <h4>HTTP Port:</h4>
-                            </Label>
-                            <Input
-                                id="network-readonly-http-port-input"
-                                className="network-readonly-http-port-input text-3"
-                                value={readOnlyHttpPort}
-                                onChange={(e) =>
-                                    setReadOnlyHttpPort(e.target.value)
-                                }
-                                placeholder="40453"
-                            />
-                        </FormGroup>
-                        <div />
-                    </FormRow>
-
-                    <DirectLinks>
-                        <LinkTitle>Direct links:</LinkTitle>
-                        <Link
-                            className="text-3"
-                            onClick={() =>
-                                window.open(
-                                    `${readOnlyHttpUrl}/status`,
-                                    "_blank"
-                                )
-                            }
-                        >
-                            gRPC: {readOnlyGrpcUrl}
-                        </Link>
-                        <Link
-                            className="text-3"
-                            onClick={() =>
-                                window.open(readOnlyHttpUrl, "_blank")
-                            }
-                        >
-                            HTTP: {readOnlyHttpUrl}
-                        </Link>
-                    </DirectLinks>
-                </ConfigSection>
-
-                <ActionButtons>
-                    <Button variant="primary" onClick={handleSave}>
-                        <h3>Save Custom Network</h3>
-                    </Button>
-                </ActionButtons>
-
-                {customNetworks.length > 0 && (
-                    <div style={{ marginTop: "24px" }}>
+                    <ConfigSection>
                         <ConfigTitle>
-                            <h1>Existing Custom Networks</h1>
+                            <h2>Validator Node</h2>
                         </ConfigTitle>
+
+                        <FormRow>
+                            <FormGroup>
+                                <Label>
+                                    <h4>IP/Domain:</h4>
+                                </Label>
+                                <Input
+                                    id="network-validator-host-input"
+                                    className="network-validator-host-input text-2"
+                                    value={validatorHost}
+                                    onChange={(e) =>
+                                        setValidatorHost(e.target.value)
+                                    }
+                                    placeholder="localhost"
+                                />
+                            </FormGroup>
+                            <FormGroup>
+                                <Label>
+                                    <h4>gRPC Port:</h4>
+                                </Label>
+                                <Input
+                                    id="network-validator-grpc-port-input"
+                                    className="network-validator-grpc-port-input text-2"
+                                    value={validatorGrpcPort}
+                                    onChange={(e) =>
+                                        setValidatorGrpcPort(e.target.value)
+                                    }
+                                    placeholder="40401"
+                                />
+                            </FormGroup>
+                            <FormGroup>
+                                <Label>
+                                    <h4>HTTP Port:</h4>
+                                </Label>
+                                <Input
+                                    id="network-validator-http-port-input"
+                                    className="network-validator-http-port-input text-2"
+                                    value={validatorHttpPort}
+                                    onChange={(e) =>
+                                        setValidatorHttpPort(e.target.value)
+                                    }
+                                    placeholder="40403"
+                                />
+                            </FormGroup>
+                        </FormRow>
+
+                        <DirectLinks>
+                            <LinkTitle>Direct links:</LinkTitle>
+                            <Link
+                                className="text-2"
+                                onClick={() =>
+                                    window.open(
+                                        `${validatorHttpUrl}/status`,
+                                        "_blank",
+                                    )
+                                }
+                            >
+                                gRPC: {validatorGrpcUrl}
+                            </Link>
+                            <LastLink
+                                className="text-2"
+                                onClick={() =>
+                                    window.open(validatorHttpUrl, "_blank")
+                                }
+                            >
+                                HTTP: {validatorHttpUrl}
+                            </LastLink>
+                        </DirectLinks>
+                    </ConfigSection>
+
+                    <ConfigSection>
+                        <ConfigTitle>
+                            <h2>Read-only Node</h2>
+                        </ConfigTitle>
+
+                        <FormRow>
+                            <FormGroup>
+                                <Label>
+                                    <h4>IP/Domain:</h4>
+                                </Label>
+                                <Input
+                                    id="network-readonly-host-input"
+                                    className="network-readonly-host-input text-2"
+                                    value={readOnlyHost}
+                                    onChange={(e) =>
+                                        setReadOnlyHost(e.target.value)
+                                    }
+                                    placeholder="localhost"
+                                />
+                            </FormGroup>
+                            <FormGroup>
+                                <Label>
+                                    <h4>gRPC Port:</h4>
+                                </Label>
+                                <Input
+                                    id="network-readonly-grpc-port-input"
+                                    className="network-readonly-grpc-port-input text-2"
+                                    value={readOnlyGrpcPort}
+                                    onChange={(e) =>
+                                        setReadOnlyGrpcPort(e.target.value)
+                                    }
+                                    placeholder="40451"
+                                />
+                            </FormGroup>
+                            <FormGroup>
+                                <Label>
+                                    <h4>HTTP Port:</h4>
+                                </Label>
+                                <Input
+                                    id="network-readonly-http-port-input"
+                                    className="network-readonly-http-port-input text-2"
+                                    value={readOnlyHttpPort}
+                                    onChange={(e) =>
+                                        setReadOnlyHttpPort(e.target.value)
+                                    }
+                                    placeholder="40453"
+                                />
+                            </FormGroup>
+                        </FormRow>
+
+                        <DirectLinks>
+                            <LinkTitle>Direct links:</LinkTitle>
+                            <Link
+                                className="text-2"
+                                onClick={() =>
+                                    window.open(
+                                        `${readOnlyHttpUrl}/status`,
+                                        "_blank",
+                                    )
+                                }
+                            >
+                                gRPC: {readOnlyGrpcUrl}
+                            </Link>
+                            <Link
+                                className="text-2"
+                                onClick={() =>
+                                    window.open(readOnlyHttpUrl, "_blank")
+                                }
+                            >
+                                HTTP: {readOnlyHttpUrl}
+                            </Link>
+                        </DirectLinks>
+                    </ConfigSection>
+
+                    <ActionButtons>
+                        <Button variant="primary" onClick={handleSave}>
+                            <h3>Save Custom Network</h3>
+                            <FileIcon />
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={handleRestoreToDefault}
+                        >
+                            <h3>Restore to default</h3>
+                        </Button>
+                    </ActionButtons>
+                </CardContent>
+            </Card>
+
+            {customNetworks.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            <h1>Existing Custom Networks</h1>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
                         {customNetworks.map((net) => (
                             <div
                                 key={net.id}
                                 style={{
                                     border: "1px solid #eee",
                                     borderRadius: 8,
-                                    padding: 12,
+                                    padding: "16px 24px",
                                     marginBottom: 8,
                                 }}
                             >
@@ -397,10 +455,13 @@ export const CustomNetworkConfig: React.FC = () => {
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "center",
-                                        marginBottom: 8,
+                                        marginBottom: 6,
                                     }}
                                 >
-                                    <div style={{ fontWeight: 600 }}>
+                                    <div
+                                        className={"text-2"}
+                                        style={{ fontWeight: 500 }}
+                                    >
                                         {net.name}{" "}
                                         <span
                                             style={{
@@ -411,13 +472,22 @@ export const CustomNetworkConfig: React.FC = () => {
                                             ({net.id})
                                         </span>
                                     </div>
-                                    <Button
-                                        size="small"
-                                        variant="danger"
-                                        onClick={() => handleDelete(net.id)}
-                                    >
-                                        <h3>Delete</h3>
-                                    </Button>
+                                    <CustomNetworkActionsButtons>
+                                        <Button
+                                            size="small"
+                                            variant="icon-button"
+                                            onClick={() => {}}
+                                        >
+                                            <EditIcon />
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            variant="icon-button"
+                                            onClick={() => handleDelete(net.id)}
+                                        >
+                                            <DeleteIcon />
+                                        </Button>
+                                    </CustomNetworkActionsButtons>
                                 </div>
                                 <div
                                     style={{
@@ -429,27 +499,39 @@ export const CustomNetworkConfig: React.FC = () => {
                                     }}
                                 >
                                     <div>
-                                        <div style={{ color: "#666" }}>
-                                            <h4>Validator URL</h4>
+                                        <div
+                                            className="text-5"
+                                            style={{ color: "#666" }}
+                                        >
+                                            Validator URL
                                         </div>
-                                        <div>
-                                            <h5>{net.url}</h5>
+                                        <div
+                                            className="text-4"
+                                            style={{ lineHeight: "27px" }}
+                                        >
+                                            {net.url}
                                         </div>
                                     </div>
                                     <div>
-                                        <div style={{ color: "#666" }}>
-                                            <h4>Read-only URL</h4>
+                                        <div
+                                            className="text-5"
+                                            style={{ color: "#666" }}
+                                        >
+                                            Read-only URL
                                         </div>
-                                        <div>
-                                            <h5>{net.readOnlyUrl || "-"}</h5>
+                                        <div
+                                            className="text-4"
+                                            style={{ lineHeight: "27px" }}
+                                        >
+                                            {net.readOnlyUrl || "-"}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                    </CardContent>
+                </Card>
+            )}
+        </Fragment>
     );
 };
