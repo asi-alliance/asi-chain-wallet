@@ -29,6 +29,19 @@ const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    &:nth-child(1) {
+        flex: 0 0 30%;
+        max-width: 30%;
+    }
+
+    &:nth-child(2),
+    &:nth-child(3),
+    &:nth-child(4),
+    &:nth-child(5) {
+        flex: 0 0 15%;
+        max-width: 15%;
+    }
 `;
 
 const FilterLabel = styled.label`
@@ -57,29 +70,6 @@ const FilterInput = styled.input`
     min-width: 150px;
 `;
 
-const StatsSection = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-`;
-
-const StatCard = styled(Card)`
-    text-align: center;
-`;
-
-const StatValue = styled.div`
-    font-size: 32px;
-    font-weight: 700;
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 8px;
-`;
-
-const StatLabel = styled.div`
-    // font-size: 14px;
-    color: ${({ theme }) => theme.text.secondary};
-`;
-
 const TransactionTable = styled.div`
     overflow-x: auto;
 `;
@@ -87,6 +77,7 @@ const TransactionTable = styled.div`
 const Table = styled.table`
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 `;
 
 const TableHeader = styled.thead`
@@ -105,17 +96,18 @@ const TableRow = styled.tr`
 `;
 
 const TableCell = styled.td<{ align?: string }>`
-    padding: 12px;
+    padding: 6px;
     text-align: ${({ align }) => align || "left"};
     font-size: 14px;
 `;
 
-const TableHeaderCell = styled.th<{ align?: string }>`
+const TableHeaderCell = styled.th<{ align?: string; width?: string }>`
     padding: 12px;
     text-align: ${({ align }) => align || "left"};
     font-weight: 600;
     font-size: 14px;
     color: ${({ theme }) => theme.text.secondary};
+    width: ${({ width }) => width || "auto"};
 `;
 
 const StatusBadge = styled.span<{ status: "pending" | "confirmed" | "failed" }>`
@@ -127,14 +119,14 @@ const StatusBadge = styled.span<{ status: "pending" | "confirmed" | "failed" }>`
         status === "confirmed"
             ? theme.success + "20"
             : status === "failed"
-            ? theme.danger + "20"
-            : theme.warning + "20"};
+              ? theme.danger + "20"
+              : theme.warning + "20"};
     color: ${({ status, theme }) =>
         status === "confirmed"
             ? theme.success
             : status === "failed"
-            ? theme.danger
-            : theme.warning};
+              ? theme.danger
+              : theme.warning};
 `;
 
 const TypeBadge = styled.span<{ type: "send" | "receive" | "deploy" }>`
@@ -146,14 +138,14 @@ const TypeBadge = styled.span<{ type: "send" | "receive" | "deploy" }>`
         type === "send"
             ? theme.primary + "20"
             : type === "receive"
-            ? theme.success + "20"
-            : theme.secondary + "20"};
+              ? theme.success + "20"
+              : theme.secondary + "20"};
     color: ${({ type, theme }) =>
         type === "send"
             ? theme.primary
             : type === "receive"
-            ? theme.success
-            : theme.secondary};
+              ? theme.success
+              : theme.secondary};
 `;
 
 const AddressLink = styled.a`
@@ -172,32 +164,6 @@ const EmptyState = styled.div`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
-const ActionButtons = styled.div`
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-
-    button h3 {
-        font-size: 12px;
-        line-height: 1.4;
-        margin: 0;
-    }
-
-    @media (max-width: 768px) {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-`;
-
-const RefreshInfo = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-`;
-
 const RefreshText = styled.div`
     display: flex;
     flex-direction: column;
@@ -214,7 +180,7 @@ const RefreshTextLine = styled.span`
 const formatAddress = (address: string): string => {
     if (!address) return "";
     return `${address.substring(0, 10)}...${address.substring(
-        address.length - 8
+        address.length - 8,
     )}`;
 };
 
@@ -237,12 +203,14 @@ const formatDate = (date: Date): string => {
 export const History: React.FC = () => {
     const dispatch = useDispatch();
     const { selectedAccount, selectedNetwork, networks } = useSelector(
-        (state: RootState) => state.wallet
+        (state: RootState) => state.wallet,
     );
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
     const isAccountUnlocked = React.useMemo(() => {
         if (!selectedAccount) return false;
-        return unlockedAccounts.some((account) => account.id === selectedAccount.id);
+        return unlockedAccounts.some(
+            (account) => account.id === selectedAccount.id,
+        );
     }, [unlockedAccounts, selectedAccount]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filter, setFilter] = useState<TransactionFilter>({});
@@ -267,7 +235,7 @@ export const History: React.FC = () => {
             selectedNetwork.readOnlyUrl,
             selectedNetwork.adminUrl,
             selectedNetwork.shardId,
-            selectedNetwork.graphqlUrl
+            selectedNetwork.graphqlUrl,
         );
 
         // Optional: lightweight pending status check disabled to avoid heavy polling
@@ -317,37 +285,37 @@ export const History: React.FC = () => {
                 selectedAccount.publicKey,
                 selectedNetwork.name,
                 selectedNetwork.graphqlUrl || "",
-                100
+                100,
             );
 
             let filteredTxs = txs;
             if (filter.type) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.type === filter.type
+                    (tx) => tx.type === filter.type,
                 );
             }
             if (filter.status) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.status === filter.status
+                    (tx) => tx.status === filter.status,
                 );
             }
             if (filter.network) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.network === filter.network
+                    (tx) => tx.network === filter.network,
                 );
             }
             if (filter.startDate) {
                 const startDate = new Date(filter.startDate);
                 startDate.setHours(0, 0, 0, 0);
                 filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) >= startDate
+                    (tx) => new Date(tx.timestamp) >= startDate,
                 );
             }
             if (filter.endDate) {
                 const endDate = new Date(filter.endDate);
                 endDate.setHours(23, 59, 59, 999);
                 filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) <= endDate
+                    (tx) => new Date(tx.timestamp) <= endDate,
                 );
             }
 
@@ -413,7 +381,7 @@ export const History: React.FC = () => {
                 selectedAccount.revAddress,
                 selectedAccount.publicKey,
                 selectedNetwork.name,
-                selectedNetwork.graphqlUrl || ""
+                selectedNetwork.graphqlUrl || "",
             );
         } catch (error) {}
     };
@@ -427,7 +395,7 @@ export const History: React.FC = () => {
                 selectedAccount.revAddress,
                 selectedAccount.publicKey,
                 selectedNetwork.name,
-                selectedNetwork.graphqlUrl || ""
+                selectedNetwork.graphqlUrl || "",
             );
         } catch (error) {}
     };
@@ -435,7 +403,7 @@ export const History: React.FC = () => {
     const handleClearHistory = () => {
         if (
             window.confirm(
-                "Transaction history is now loaded directly from the blockchain. Click OK to refresh the data."
+                "Transaction history is now loaded directly from the blockchain. Click OK to refresh the data.",
             )
         ) {
             loadTransactions();
@@ -454,7 +422,13 @@ export const History: React.FC = () => {
     };
 
     const hasActiveFilters = () => {
-        return !!(filter.type || filter.status || filter.network || filter.startDate || filter.endDate);
+        return !!(
+            filter.type ||
+            filter.status ||
+            filter.network ||
+            filter.startDate ||
+            filter.endDate
+        );
     };
 
     return (
@@ -463,153 +437,17 @@ export const History: React.FC = () => {
                 <CardHeader>
                     <CardTitle>
                         <h1>Transactions</h1>
-                        {selectedAccount && (
-                            <span
-                                style={{
-                                    fontSize: "14px",
-                                    fontWeight: "normal",
-                                    marginLeft: "8px",
-                                    opacity: 0.7,
-                                }}
-                            >
-                                ({selectedAccount.name})
-                            </span>
-                        )}
                     </CardTitle>
+                    <RefreshText>
+                        <RefreshTextLine>
+                            Auto-refresh: every 30s
+                        </RefreshTextLine>
+                        <RefreshTextLine>
+                            Last: {lastRefresh.toLocaleTimeString()}
+                        </RefreshTextLine>
+                    </RefreshText>
                 </CardHeader>
                 <CardContent>
-                    <ActionButtons>
-                        <RefreshInfo>
-                            <RefreshText>
-                                <RefreshTextLine>
-                                    Auto-refresh: every 30s
-                                </RefreshTextLine>
-                                <RefreshTextLine>
-                                    Last: {lastRefresh.toLocaleTimeString()}
-                                </RefreshTextLine>
-                            </RefreshText>
-                            <Button
-                                id="history-refresh-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={async () => {
-                                    TransactionPollingService.forceCheck();
-
-                                    if (
-                                        selectedAccount &&
-                                        selectedNetwork &&
-                                        selectedNetwork.graphqlUrl
-                                    ) {
-                                        try {
-                                                await TransactionHistoryService.syncFromBlockchain(
-                                                    selectedAccount.revAddress,
-                                                    selectedAccount.publicKey,
-                                                    selectedNetwork.name,
-                                                    selectedNetwork.graphqlUrl
-                                                );
-                                        } catch (error) {}
-                                    }
-
-                                    if (selectedAccount && selectedNetwork) {
-                                        try {
-                                            const oldBalance =
-                                                selectedAccount.balance || "0";
-                                            const balanceResult =
-                                                await dispatch(
-                                                    fetchBalance({
-                                                        account:
-                                                            selectedAccount,
-                                                        network:
-                                                            selectedNetwork,
-                                                    }) as any
-                                                );
-
-                                            if (
-                                                fetchBalance.fulfilled.match(
-                                                    balanceResult
-                                                )
-                                            ) {
-                                                const newBalance =
-                                                    balanceResult.payload
-                                                        .balance;
-
-                                                if (
-                                                    parseFloat(newBalance) >
-                                                    parseFloat(oldBalance)
-                                                ) {
-                                                    TransactionHistoryService.detectReceivedTransaction(
-                                                        selectedAccount.revAddress,
-                                                        oldBalance,
-                                                        newBalance,
-                                                        selectedNetwork.name
-                                                    );
-                                                }
-                                            }
-                                        } catch (error) {}
-                                    }
-
-                                    loadTransactions();
-                                    setLastRefresh(new Date());
-                                }}
-                            >
-                                <h3>🔄 Refresh & Sync</h3>
-                            </Button>
-                            {selectedAccount && (
-                                <Button
-                                    id="history-refresh-balance-button"
-                                    size="small"
-                                    variant="secondary"
-                                    onClick={async () => {
-                                        if (
-                                            selectedAccount &&
-                                            selectedNetwork
-                                        ) {
-                                            try {
-                                                await dispatch(
-                                                    fetchBalance({
-                                                        account:
-                                                            selectedAccount,
-                                                        network:
-                                                            selectedNetwork,
-                                                        forceRefresh: true,
-                                                    }) as any
-                                                );
-                                            } catch (error) {}
-                                        }
-                                    }}
-                                >
-                                    <h3>💰 Refresh Balance</h3>
-                                </Button>
-                            )}
-                        </RefreshInfo>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                            <Button
-                                id="history-export-json-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleExportJSON}
-                            >
-                                <h3>Export JSON</h3>
-                            </Button>
-                            <Button
-                                id="history-export-csv-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleExportCSV}
-                            >
-                                <h3>Export CSV</h3>
-                            </Button>
-                            <Button
-                                id="history-clear-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleClearHistory}
-                            >
-                                <h3>Clear History</h3>
-                            </Button>
-                        </div>
-                    </ActionButtons>
-
                     <FilterSection>
                         <FilterGroup>
                             <FilterLabel>
@@ -655,12 +493,18 @@ export const History: React.FC = () => {
                                 id="history-filter-network-select"
                                 value={filter.network || "all"}
                                 onChange={(e) =>
-                                    handleFilterChange("network", e.target.value)
+                                    handleFilterChange(
+                                        "network",
+                                        e.target.value,
+                                    )
                                 }
                             >
                                 <option value="all">All Networks</option>
                                 {networks.map((network) => (
-                                    <option key={network.id} value={network.name}>
+                                    <option
+                                        key={network.id}
+                                        value={network.name}
+                                    >
                                         {network.name}
                                     </option>
                                 ))}
@@ -674,14 +518,25 @@ export const History: React.FC = () => {
                             <FilterInput
                                 id="history-filter-start-date-input"
                                 type="date"
-                                value={filter.startDate ? new Date(filter.startDate).toISOString().split('T')[0] : ""}
+                                value={
+                                    filter.startDate
+                                        ? new Date(filter.startDate)
+                                              .toISOString()
+                                              .split("T")[0]
+                                        : ""
+                                }
                                 onChange={(e) => {
                                     if (e.target.value) {
                                         const dateStr = e.target.value;
-                                        const date = new Date(dateStr + 'T00:00:00');
+                                        const date = new Date(
+                                            dateStr + "T00:00:00",
+                                        );
                                         handleFilterChange("startDate", date);
                                     } else {
-                                        handleFilterChange("startDate", undefined);
+                                        handleFilterChange(
+                                            "startDate",
+                                            undefined,
+                                        );
                                     }
                                 }}
                             />
@@ -694,14 +549,25 @@ export const History: React.FC = () => {
                             <FilterInput
                                 id="history-filter-end-date-input"
                                 type="date"
-                                value={filter.endDate ? new Date(filter.endDate).toISOString().split('T')[0] : ""}
+                                value={
+                                    filter.endDate
+                                        ? new Date(filter.endDate)
+                                              .toISOString()
+                                              .split("T")[0]
+                                        : ""
+                                }
                                 onChange={(e) => {
                                     if (e.target.value) {
                                         const dateStr = e.target.value;
-                                        const date = new Date(dateStr + 'T23:59:59');
+                                        const date = new Date(
+                                            dateStr + "T23:59:59",
+                                        );
                                         handleFilterChange("endDate", date);
                                     } else {
-                                        handleFilterChange("endDate", undefined);
+                                        handleFilterChange(
+                                            "endDate",
+                                            undefined,
+                                        );
                                     }
                                 }}
                             />
@@ -723,58 +589,44 @@ export const History: React.FC = () => {
                             </FilterGroup>
                         )}
                     </FilterSection>
-
-                    <StatsSection>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.total || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Total Transactions</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.sent || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Sent</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.received || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Receive</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.deployed || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Deployments</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                    </StatsSection>
-
                     {transactions.length > 0 ? (
                         <TransactionTable>
                             <Table>
                                 <TableHeader>
                                     <tr>
-                                        <TableHeaderCell>Date</TableHeaderCell>
-                                        <TableHeaderCell>Type</TableHeaderCell>
-                                        <TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "10%" }}
+                                        >
+                                            Date
+                                        </TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "10%" }}
+                                        >
+                                            Type
+                                        </TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "12%" }}
+                                        >
                                             Status
                                         </TableHeaderCell>
-                                        <TableHeaderCell>From</TableHeaderCell>
-                                        <TableHeaderCell>To</TableHeaderCell>
-                                        <TableHeaderCell align="right">
+                                        <TableHeaderCell
+                                            style={{ width: "17%" }}
+                                        >
+                                            From
+                                        </TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "17%" }}
+                                        >
+                                            To
+                                        </TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "17%" }}
+                                        >
                                             Amount
                                         </TableHeaderCell>
-                                        <TableHeaderCell>
+                                        <TableHeaderCell
+                                            style={{ width: "17%" }}
+                                        >
                                             Details
                                         </TableHeaderCell>
                                     </tr>
@@ -833,7 +685,7 @@ export const History: React.FC = () => {
                                                     "-"
                                                 )}
                                             </TableCell>
-                                            <TableCell align="right">
+                                            <TableCell>
                                                 {formatAmount(tx.amount)}
                                             </TableCell>
                                             <TableCell>
@@ -858,7 +710,7 @@ export const History: React.FC = () => {
                                                         Deploy:{" "}
                                                         {tx.deployId.substring(
                                                             0,
-                                                            16
+                                                            16,
                                                         )}
                                                         ...
                                                         <a
@@ -867,7 +719,7 @@ export const History: React.FC = () => {
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 handleCopy(
-                                                                    tx.deployId as string
+                                                                    tx.deployId as string,
                                                                 );
                                                             }}
                                                             style={{
@@ -889,7 +741,7 @@ export const History: React.FC = () => {
                                                         Block:{" "}
                                                         {tx.blockHash.substring(
                                                             0,
-                                                            16
+                                                            16,
                                                         )}
                                                         ...
                                                     </div>

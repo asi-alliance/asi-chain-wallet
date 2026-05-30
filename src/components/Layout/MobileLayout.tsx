@@ -328,12 +328,15 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 return;
             }
 
-            if (selectedNetwork?.id && selectedAccount.networkId === selectedNetwork.id) {
+            if (
+                selectedNetwork?.id &&
+                selectedAccount.networkId === selectedNetwork.id
+            ) {
                 return;
             }
 
             const networkByAddressMapRaw = localStorage.getItem(
-                "NETWORKS_BY_ADDRESS"
+                "NETWORKS_BY_ADDRESS",
             );
 
             if (!networkByAddressMapRaw) {
@@ -353,7 +356,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
             }
 
             const networkToSet = networks.find(
-                (network) => network.id === lastSelectedNetworkId
+                (network) => network.id === lastSelectedNetworkId,
             );
 
             if (!networkToSet) {
@@ -364,7 +367,13 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         };
 
         setCachedNetwork();
-    }, [isAuthenticated, selectedAccount, networks, dispatch, selectedNetwork?.id]);
+    }, [
+        isAuthenticated,
+        selectedAccount,
+        networks,
+        dispatch,
+        selectedNetwork?.id,
+    ]);
 
     const cacheNetworkByAddress = (networkId: string) => {
         if (!isAuthenticated || !selectedAccount?.address) {
@@ -372,7 +381,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         const networkByAddressMapRaw = localStorage.getItem(
-            "NETWORKS_BY_ADDRESS"
+            "NETWORKS_BY_ADDRESS",
         );
 
         const networkByAddressMap = !!networkByAddressMapRaw
@@ -383,12 +392,12 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
 
         localStorage.setItem(
             "NETWORKS_BY_ADDRESS",
-            JSON.stringify(networkByAddressMap)
+            JSON.stringify(networkByAddressMap),
         );
     };
 
     const handleNetworkChange = (
-        event: React.ChangeEvent<HTMLSelectElement>
+        event: React.ChangeEvent<HTMLSelectElement>,
     ) => {
         dispatch(selectNetwork(event.target.value));
         cacheNetworkByAddress(event.target.value);
@@ -419,11 +428,11 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
             { path: "/accounts", label: "Accounts" },
             { path: "/send", label: "Send" },
             { path: "/receive", label: "Receive" },
-            { path: "/history", label: "History" },
+            { path: "/history", label: "Transactions" },
             { path: "/deploy", label: "Deploy" },
             { path: "/ide", label: "IDE" },
             { path: "/keys", label: "Generate Keys" },
-            { path: "/settings", label: "Settings" },
+            { path: "/settings", label: "Network Settings" },
         ];
     }, [accounts]);
 
