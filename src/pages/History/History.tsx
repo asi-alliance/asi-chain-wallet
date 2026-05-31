@@ -20,7 +20,7 @@ import TransactionPollingService from "services/transactionPolling";
 import { getTokenDisplayName } from "../../constants/token";
 import { Account } from "types/wallet";
 import { CopyIcon, DownloadIcon } from "components/Icons";
-import { Select } from "components/Select";
+import { AdaptiveSelect, Select } from "components/Select";
 import { Search } from "components/Search";
 
 const HistoryContainer = styled.div`
@@ -34,31 +34,54 @@ const FilterSection = styled.div`
     margin-bottom: 53px;
     flex-wrap: wrap;
     align-items: flex-end;
+
+    @media (max-width: 1023px) {
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    @media (max-width: 768px) {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
 `;
 
 const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
 
-    &:nth-child(1) {
-        flex: 0 0 20%;
-        max-width: 20%;
+    @media (min-width: 1024px) {
+        width: auto;
+
+        &:nth-child(1) {
+            flex: 0 0 20%;
+            max-width: 20%;
+        }
+
+        &:nth-child(2) {
+            flex: 0 0 15%;
+            max-width: 15%;
+        }
+
+        &:nth-child(3),
+        &:nth-child(4) {
+            flex: 0 0 18%;
+            max-width: 18%;
+        }
+
+        &:nth-child(5) {
+            flex: 1;
+        }
     }
 
-    &:nth-child(2) {
-        flex: 0 0 15%;
-        max-width: 15%;
-    }
-
-    &:nth-child(3),
-    &:nth-child(4) {
-        flex: 0 0 18%;
-        max-width: 18%;
-    }
-
-    &:nth-child(5) {
-        flex: 1;
+    @media (max-width: 1023px) {
+        width: 100%;
+        flex: none;
+        max-width: 100%;
     }
 `;
 
@@ -87,6 +110,10 @@ const Table = styled.table`
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+
+    @media (max-width: 1023px) {
+        table-layout: auto;
+    }
 `;
 
 const TableHeader = styled.thead`
@@ -176,6 +203,7 @@ const EmptyState = styled.div`
 const RefreshText = styled.div`
     display: flex;
     flex-direction: column;
+    align-items: end;
     gap: 4px;
     color: ${({ theme }) => theme.textSecondaryAdditional};
     line-height: 1.4;
@@ -184,6 +212,10 @@ const RefreshText = styled.div`
 const RefreshTextLine = styled.span`
     font-size: 12px;
     white-space: nowrap;
+
+    @media (max-width: 768px) {
+        font-size: 0.5rem;
+    }
 `;
 
 const ExportButtonsWrapper = styled.div`
@@ -191,6 +223,10 @@ const ExportButtonsWrapper = styled.div`
     justify-content: end;
     display: flex;
     gap: 24px;
+
+    @media (max-width: 1023px) {
+        justify-content: center;
+    }
 `;
 
 const ExportButton = styled(Button)`
@@ -522,7 +558,7 @@ export const History: React.FC = () => {
                             <FilterLabel>
                                 <h4 className="light">Type</h4>
                             </FilterLabel>
-                            <Select
+                            <AdaptiveSelect
                                 id="history-filter-type-select"
                                 value={filter.type || "all"}
                                 onChange={(value) =>
@@ -536,7 +572,7 @@ export const History: React.FC = () => {
                             <FilterLabel>
                                 <h4 className="light">Status</h4>
                             </FilterLabel>
-                            <Select
+                            <AdaptiveSelect
                                 id="history-filter-status-select"
                                 value={filter.status || "all"}
                                 onChange={(value) =>
@@ -550,7 +586,7 @@ export const History: React.FC = () => {
                             <FilterLabel>
                                 <h4 className="light">Period</h4>
                             </FilterLabel>
-                            <Select
+                            <AdaptiveSelect
                                 id="history-filter-week-select"
                                 value="1 Week"
                                 onChange={() => {}}

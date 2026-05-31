@@ -102,7 +102,7 @@ const ErrorMessage = styled.span`
 const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
     width: 100%;
     padding: 11.5px 22px;
-    // font-size: 16px;
+    font-size: 16px;
     font-weight: 400;
     // line-height: 24px;
     background: ${({ theme }) => theme.inputBg};

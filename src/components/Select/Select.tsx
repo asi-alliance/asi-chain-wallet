@@ -22,7 +22,7 @@ const SelectButton = styled.div<{ disabled?: boolean }>`
     border-radius: 6px;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
+    font-size: 16px;
     min-width: 150px;
     cursor: pointer;
     display: flex;
@@ -78,7 +78,7 @@ const DropdownMenu = styled.ul`
 const DropdownItem = styled.li<{ selected?: boolean }>`
     padding: 10px 16px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     color: ${({ theme, selected }) =>
         selected ? theme.primary : theme.text.primary};
     background: ${({ theme, selected }) =>
@@ -145,7 +145,11 @@ export const Select: FC<ISelectProps> = ({
     };
 
     return (
-        <SelectWrapper ref={wrapperRef} disabled={disabled}>
+        <SelectWrapper
+            className="select-wrapper"
+            ref={wrapperRef}
+            disabled={disabled}
+        >
             <SelectButton
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
@@ -176,3 +180,58 @@ export const Select: FC<ISelectProps> = ({
         </SelectWrapper>
     );
 };
+
+// export const AdaptiveSelect = styled(Select)`
+//     @media (max-width: 768px) {
+//         min-width: 500px;
+
+//         & > div:first-child {
+//             font-size: 12px;
+//         }
+
+//         & > div:first-child > span:first-child {
+//             font-size: 12px;
+//         }
+
+//         & > div:first-child > div svg {
+//             width: 14px;
+//             height: 14px;
+//         }
+//     }
+// `;
+
+export const AdaptiveSelect: FC<ISelectProps> = (props) => {
+    return (
+        <AdaptiveSelectWrapper className="adaptive-select-wrapper">
+            <Select {...props} />
+        </AdaptiveSelectWrapper>
+    );
+};
+
+const AdaptiveSelectWrapper = styled.div`
+    @media (max-width: 768px) {
+        width: 100%;
+
+        .select-wrapper {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .select-wrapper > div:first-child {
+            font-size: 12px !important;
+        }
+
+        .select-wrapper > div:first-child > span:first-child {
+            font-size: 12px !important;
+        }
+
+        .select-wrapper > div:first-child > div svg {
+            width: 14px !important;
+            height: 14px !important;
+        }
+
+        .select-wrapper li {
+            font-size: 12px !important;
+        }
+    }
+`;
