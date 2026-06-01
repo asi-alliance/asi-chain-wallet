@@ -519,7 +519,7 @@ export const Accounts: React.FC = () => {
                     <CardContent>
                         <AccountsGrid className="accounts-grid">
                             {filteredAccounts.map((account: Account) => (
-                                <AccountCard account={account} />
+                                <AccountCard key={account.id} account={account} />
                             ))}
                         </AccountsGrid>
                     </CardContent>

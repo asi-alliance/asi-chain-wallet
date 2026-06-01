@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, CSSProperties } from "react";
+import React, { useRef, useEffect, CSSProperties, RefObject } from "react";
 import styled from "styled-components";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -9,6 +9,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     labelStyle?: CSSProperties;
     "data-testid"?: string;
     "data-cy"?: string;
+    inputRef?: RefObject<HTMLInputElement>;
 }
 
 const InputWrapper = styled.div<{ fullWidth?: boolean }>`
@@ -157,18 +158,20 @@ export const Input: React.FC<InputProps> = ({
     autoFocus,
     wrapperStyle,
     labelStyle,
+    inputRef,
     ...props
 }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
+    const defaultRef = useRef<HTMLInputElement>(null);
+    const currentRef = inputRef || defaultRef;
 
     useEffect(() => {
-        if (autoFocus && inputRef.current) {
+        if (autoFocus && currentRef.current) {
             const timer = setTimeout(() => {
-                inputRef.current?.focus();
+                currentRef.current?.focus();
             }, 100);
             return () => clearTimeout(timer);
         }
-    }, [autoFocus]);
+    }, [autoFocus, currentRef]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (onChange) {
@@ -194,7 +197,7 @@ export const Input: React.FC<InputProps> = ({
         <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
             <h4>{label && <Label style={labelStyle}>{label}</Label>}</h4>
             <StyledInput
-                ref={inputRef}
+                ref={currentRef}
                 hasError={!!error}
                 data-testid={dataTestId}
                 data-cy={dataCy}

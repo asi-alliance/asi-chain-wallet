@@ -4,12 +4,25 @@ import { ReactElement } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
 import { exportAccountKeyfile } from "store/authSlice";
-import { removeAccount, selectAccount } from "store/walletSlice";
+import {
+    fetchBalance,
+    removeAccount,
+    selectAccount,
+    updateAccountName,
+} from "store/walletSlice";
 import styled from "styled-components";
 import { Account } from "types/wallet";
 import CopyButton from "components/CopyButton";
 import { formatBalanceCard } from "utils/balanceUtils";
-import { DeleteIcon } from "components/Icons";
+import {
+    DeleteIcon,
+    DownloadIcon,
+    LockPassIcon,
+    ReloadIcon,
+} from "components/Icons";
+import { useNavigate } from "react-router-dom";
+import { buildUrlWithParams } from "utils/navigationUtils";
+import { EditableLabel } from "components/EditableLabel/EditableLabel";
 
 interface IAccountCardProps {
     account: Account;
@@ -39,11 +52,13 @@ const AccountHeader = styled.div`
     margin-bottom: 26px;
 `;
 
-const AccountName = styled.h3<{ isSelected: boolean }>`
-    font-size: 20px;
-    font-weight: 400;
+const CustomEditableLabel = styled(EditableLabel)<{ isSelected: boolean }>`
+    font-size: 20px !important;
+    font-weight: 400 !important;
     color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+        !isSelected
+            ? theme.text.primary
+            : theme.colors.background.secondary} !important;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -51,24 +66,81 @@ const AccountName = styled.h3<{ isSelected: boolean }>`
     max-width: 250px;
 `;
 
-const AccountBalance = styled.div<{ isSelected: boolean }>`
+const AccountBalance = styled.span<{ isSelected: boolean }>`
     font-size: 3rem;
     font-weight: 700;
     color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+    margin-right: 4px;
+`;
+
+const AccountCurrency = styled.span<{ isSelected: boolean }>`
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+`;
+
+const LabelFirst = styled.div<{ isSelected: boolean }>`
+    font-weight: 400;
+    color: ${({ isSelected, theme }) =>
         !isSelected ? theme.text.primary : theme.colors.background.secondary};
+`;
+
+const LabelSecond = styled.span<{ isSelected: boolean }>`
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+`;
+
+const LabelThird = styled.div<{ isSelected: boolean }>`
+    font-weight: 400;
+    font-size: 0.5rem;
+    color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+`;
+
+const AmountBalanceWrapper = styled.div`
+    display: flex;
+    align-items: center;
+`;
+
+const AccountCardFooter = styled.div`
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
 `;
 
 const AccountAddress = styled.div<{ isSelected: boolean }>`
     font-size: 12px;
     color: ${({ isSelected, theme }) =>
         !isSelected ? theme.text.primary : theme.colors.background.secondary};
-    margin-bottom: 16px;
     word-break: break-all;
+
+    button {
+        color: ${({ isSelected, theme }) =>
+            !isSelected
+                ? theme.text.primary
+                : theme.colors.background.secondary};
+    }
+`;
+
+const ActionButton = styled(Button)<{ isSelected: boolean }>`
+    color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+    border-width: 2px;
+`;
+
+const CustomReloadIcon = styled(ReloadIcon)<{ isSelected: boolean }>`
+    color: ${({ isSelected, theme }) =>
+        !isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
 
 const AccountActions = styled.div`
     display: flex;
-    gap: 8px;
+    gap: 16px;
     justify-content: flex-end;
 `;
 
@@ -78,8 +150,11 @@ const RemoveButton = styled(Button)`
 
 export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
 
-    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
+    const { selectedAccount, selectedNetwork, isLoading } = useSelector(
+        (state: RootState) => state.wallet,
+    );
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const handleSelectAccount = (accountId: string) => {
@@ -96,14 +171,35 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
         dispatch(exportAccountKeyfile({ accountId }) as any);
     };
 
-    const formatAddress = (address: string) => {
-        return `${address.slice(0, 10)}...${address.slice(-8)}`;
+    const formatAddress = (address: string, visibleSymbolsCount = 16) => {
+        return `${address.slice(0, visibleSymbolsCount)}...${address.slice(-visibleSymbolsCount)}`;
     };
 
     const isUnlocked = unlockedAccounts.some(
         (unlockedAccount: Account) => unlockedAccount.id === account.id,
     );
     const isSelected = selectedAccount?.id === account.id;
+
+    const { amount, currency } = formatBalanceCard(account.balance);
+
+    const handleRefreshBalance = () => {
+        dispatch(
+            fetchBalance({
+                account,
+                network: selectedNetwork,
+                forceRefresh: true,
+            }) as any,
+        );
+    };
+
+    const handleUpdateAccountName = (newName: string) => {
+        dispatch(
+            updateAccountName({
+                accountId: account.id,
+                name: newName,
+            }),
+        );
+    };
 
     return (
         <AccountCardWrapper
@@ -113,9 +209,12 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
             onClick={() => handleSelectAccount(account.id)}
         >
             <AccountHeader>
-                <AccountName isSelected={isSelected} title={account.name}>
-                    {account.name}
-                </AccountName>
+                <CustomEditableLabel
+                    label={account.name}
+                    onChange={handleUpdateAccountName}
+                    isSelected={isSelected}
+                    title={account.name}
+                />
 
                 <RemoveButton
                     id={`remove-account-${account.id}`}
@@ -129,51 +228,91 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
                 </RemoveButton>
             </AccountHeader>
 
-            <AccountBalance isSelected={isSelected}>
-                {formatBalanceCard(account.balance)}
-            </AccountBalance>
-
-            <AccountAddress isSelected={isSelected}>
-                {formatAddress(account.revAddress)}
-                <CopyButton dataToCopy={account.revAddress} iconSize={15} />
-            </AccountAddress>
-
-            <AccountActions>
-                {isSelected && (
-                    <h5
-                        style={{
-                            // fontSize: "12px",
-                            color: "#7ED321",
-                            fontWeight: "600",
-                        }}
-                    >
-                        SELECTED
-                    </h5>
-                )}
-                {isUnlocked && (
-                    <h5
-                        style={{
-                            // fontSize: "12px",
-                            color: "#4A90E2",
-                            fontWeight: "600",
-                            marginLeft: "8px",
-                        }}
-                    >
-                        UNLOCKED
-                    </h5>
-                )}
+            <AmountBalanceWrapper className="amount-balance-wrapper">
+                <div className="amount-balance-info-wrapper">
+                    <AccountBalance isSelected={isSelected}>
+                        {amount}
+                    </AccountBalance>
+                    <AccountCurrency isSelected={isSelected}>
+                        {currency}
+                    </AccountCurrency>
+                </div>
                 <Button
-                    id={`export-account-${account.id}`}
-                    variant="ghost"
-                    size="small"
+                    id={`refresh-balance-account-${account.id}`}
+                    variant="icon-button-ghost"
                     onClick={(e) => {
                         e.stopPropagation();
-                        handleExportKeyfile(account.id);
+                        handleRefreshBalance();
                     }}
+                    loading={isLoading}
                 >
-                    <h3>Export</h3>
+                    <CustomReloadIcon
+                        isSelected={isSelected}
+                        color="currentColor"
+                    />
                 </Button>
-            </AccountActions>
+            </AmountBalanceWrapper>
+
+            <LabelFirst
+                style={{ marginBottom: "24px" }}
+                isSelected={isSelected}
+            >{`Balance`}</LabelFirst>
+
+            <AccountCardFooter>
+                <AccountAddress isSelected={isSelected}>
+                    <LabelThird
+                        isSelected={isSelected}
+                    >{`ASI Address`}</LabelThird>
+                    <LabelSecond
+                        style={{ marginRight: 10, lineHeight: "27px" }}
+                        isSelected={isSelected}
+                    >
+                        {formatAddress(account.revAddress)}
+                    </LabelSecond>
+                    <CopyButton dataToCopy={account.revAddress} iconSize={15} />
+                </AccountAddress>
+
+                <AccountActions>
+                    {!isUnlocked && (
+                        <ActionButton
+                            isSelected={isSelected}
+                            id={`unlock-account-${account.id}`}
+                            variant="icon-button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+
+                                navigate(
+                                    buildUrlWithParams("/login", {
+                                        queryParams: [
+                                            {
+                                                key: "id",
+                                                value: account.id,
+                                            },
+                                            {
+                                                key: "redirectUrl",
+                                                value: "/accounts",
+                                            },
+                                        ],
+                                    }),
+                                );
+                            }}
+                        >
+                            <LockPassIcon />
+                        </ActionButton>
+                    )}
+                    <ActionButton
+                        isSelected={isSelected}
+                        id={`export-account-${account.id}`}
+                        variant="icon-button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportKeyfile(account.id);
+                        }}
+                    >
+                        <DownloadIcon size={24} />
+                    </ActionButton>
+                </AccountActions>
+            </AccountCardFooter>
         </AccountCardWrapper>
     );
 };

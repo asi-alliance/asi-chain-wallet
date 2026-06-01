@@ -788,6 +788,20 @@ const walletSlice = createSlice({
                 state.selectedAccount.balance = action.payload.balance;
             }
         },
+        updateAccountName: (
+            state,
+            action: PayloadAction<{ accountId: string; name: string }>,
+        ) => {
+            const account = state.accounts.find(
+                (a) => a.id === action.payload.accountId,
+            );
+            if (account) {
+                account.name = action.payload.name;
+            }
+            if (state.selectedAccount?.id === action.payload.accountId) {
+                state.selectedAccount.name = action.payload.name;
+            }
+        },
         addTransaction: (state, action: PayloadAction<Transaction>) => {
             state.transactions.unshift(action.payload);
         },
@@ -956,9 +970,7 @@ const walletSlice = createSlice({
         restoreToDefaultSettings: (
             state,
             action: PayloadAction<undefined>,
-        ) => {
-          
-        },
+        ) => {},
     },
     extraReducers: (builder) => {
         builder
@@ -1076,6 +1088,7 @@ export const {
     selectNetwork,
     removeAccount,
     updateAccountBalance,
+    updateAccountName,
     addTransaction,
     clearError,
     updateNetwork,
