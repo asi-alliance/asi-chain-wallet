@@ -46,7 +46,7 @@ const ButtonBase = styled.button<ButtonProps>`
         switch (size) {
             case "small":
                 return css`
-                    padding: 18px 16px;
+                    padding: 8px 6px;
                     font-size: 12px;
                     line-height: 22px;
                     min-height: 40px; /* Touch-friendly minimum */

@@ -274,4 +274,8 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
        font-size: 0.875rem;
        }
    }
+
+   .text-danger {
+    color: ${({ theme }) => theme.danger};
+   }
 `;

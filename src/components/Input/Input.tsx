@@ -5,6 +5,8 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     label?: string;
     error?: string;
     fullWidth?: boolean;
+    wrapperStyle?: CSSProperties;
+    labelStyle?: CSSProperties;
     "data-testid"?: string;
     "data-cy"?: string;
 }
@@ -101,9 +103,8 @@ const ErrorMessage = styled.span`
 const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
     width: 100%;
     padding: 11.5px 22px;
-    // font-size: 16px;
+    font-size: 16px;
     font-weight: 400;
-    // line-height: 24px;
     background: ${({ theme }) => theme.inputBg};
     border: 2px solid
         ${({ theme, hasError }) => (hasError ? theme.danger : "transparent")};
@@ -155,6 +156,7 @@ export const Input: React.FC<InputProps> = ({
     onInput,
     autoFocus,
     wrapperStyle,
+    labelStyle,
     ...props
 }) => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -190,7 +192,7 @@ export const Input: React.FC<InputProps> = ({
 
     return (
         <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
-            <h4>{label && <Label>{label}</Label>}</h4>
+            <h4>{label && <Label style={labelStyle}>{label}</Label>}</h4>
             <StyledInput
                 ref={inputRef}
                 hasError={!!error}

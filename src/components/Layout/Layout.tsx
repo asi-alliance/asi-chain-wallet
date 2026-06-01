@@ -106,7 +106,7 @@ const ThemeToggle = styled.button`
 
 const Main = styled.main<{ fullWidth?: boolean }>`
     flex: 1;
-    padding: ${({ fullWidth }) => (fullWidth ? "0" : "24px")};
+    padding: ${({ fullWidth }) => (fullWidth ? "24px" : "24px")};
     max-width: ${({ fullWidth }) => (fullWidth ? "none" : "1200px")};
     margin: 0 auto;
     width: 100%;
@@ -317,7 +317,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     Network Settings
                 </NavLink>
             </Nav>
-            <Main fullWidth={location.pathname === "/ide"}>{children}</Main>
+            <Main fullWidth={location.pathname === "/deploy"}>{children}</Main>
         </Container>
     );
 };
