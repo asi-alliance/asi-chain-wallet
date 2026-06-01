@@ -821,3 +821,23 @@ export const LockPassIcon: React.FC<IconProps> = ({
         </defs>
     </svg>
 );
+
+export const VectorIcon: React.FC<IconProps> = ({
+    size = 16,
+    color = "currentColor",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <path
+            d="M0 8L1.41 9.41L7 3.83V16H9V3.83L14.58 9.42L16 8L8 0L0 8Z"
+            fill={color}
+        />
+    </svg>
+);

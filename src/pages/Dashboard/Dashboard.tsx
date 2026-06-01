@@ -1,15 +1,16 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
-import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
+import { fetchBalance, selectAccount } from "store/walletSlice";
+import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
-import { getAddressLabel } from "../../constants/token";
 import TransactionHistoryService from "../../services/transactionHistory";
 import { AccountCard } from "components/AccountCard";
 import { Select } from "components/Select";
 import { Account } from "types/wallet";
+import { buildUrlWithParams } from "utils/navigationUtils";
+import { VectorIcon } from "components/Icons";
 
 const DashboardContainer = styled.div`
     display: grid;
@@ -31,47 +32,34 @@ const ActionButtons = styled.div`
     margin-top: 24px;
 `;
 
+const ContentHeader = styled.div`
+    width: 100%;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 71px;
+`;
+
 const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: 100%;
-
-    @media (min-width: 1024px) {
-        width: auto;
-
-        &:nth-child(1) {
-            flex: 0 0 20%;
-            max-width: 20%;
-        }
-
-        &:nth-child(2) {
-            flex: 0 0 15%;
-            max-width: 15%;
-        }
-
-        &:nth-child(3),
-        &:nth-child(4) {
-            flex: 0 0 18%;
-            max-width: 18%;
-        }
-
-        &:nth-child(5) {
-            flex: 1;
-        }
-    }
-
-    @media (max-width: 1023px) {
-        width: 100%;
-        flex: none;
-        max-width: 100%;
-    }
 `;
 
 const FilterLabel = styled.label`
     // font-size: 14px;
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
+`;
+
+const ActionsToolbar = styled.div`
+    display: flex;
+    padding: 0 100px;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
 `;
 
 export const Dashboard: React.FC = () => {
@@ -213,6 +201,19 @@ export const Dashboard: React.FC = () => {
         [accounts],
     );
 
+    const accountIdForActions = useMemo(
+        () => selectedAccount?.id ?? accounts[0].id,
+        [selectedAccount, accounts],
+    );
+
+    const accountForActions: Account = useMemo(
+        () =>
+            accounts.find(
+                (account: Account) => account.id === accountIdForActions,
+            ) ?? accounts[0],
+        [accounts, accountIdForActions],
+    );
+
     if (!selectedAccount) {
         return (
             <div>
@@ -236,25 +237,78 @@ export const Dashboard: React.FC = () => {
         );
     }
 
+    const handleRedirectToAccountAction = (prefix: string): void => {
+        navigate(
+            buildUrlWithParams(prefix, {
+                queryParams: [
+                    {
+                        key: "id",
+                        value: accountIdForActions,
+                    },
+                ],
+            }),
+        );
+    };
+
     return (
         <div>
             <DashboardContainer>
                 <AccountCard account={selectedAccount} fullMode={false} />
                 <Card>
                     <CardContent>
-                        <FilterGroup>
-                            <FilterLabel>
-                                <h4 className="light">Account</h4>
-                            </FilterLabel>
-                            <Select
-                                id="history-filter-account-select"
-                                value={selectedAccount?.id}
-                                disabled
-                                onChange={() => {}}
-                                placeholder="Select account"
-                                options={accountOptions}
-                            />
-                        </FilterGroup>
+                        <ContentHeader>
+                            <FilterGroup>
+                                <FilterLabel>
+                                    <h4 className="light">Account</h4>
+                                </FilterLabel>
+                                <Select
+                                    id="history-filter-account-select"
+                                    value={accountForActions.id}
+                                    onChange={(accountId: string) => {
+                                        dispatch(selectAccount(accountId));
+                                    }}
+                                    placeholder="Select account"
+                                    options={accountOptions}
+                                />
+                            </FilterGroup>
+                            <Button
+                                id="import-account-button"
+                                variant="secondary"
+                                onClick={() => navigate("/accounts")}
+                                style={{
+                                    padding: "8px 0px",
+                                    minWidth: "136px",
+                                }}
+                            >
+                                <h3>View all</h3>
+                            </Button>
+                        </ContentHeader>
+                        <ActionsToolbar>
+                            <Button
+                                id="create-account-modal-button"
+                                onClick={() =>
+                                    handleRedirectToAccountAction("/send")
+                                }
+                                fullWidth={false}
+                                style={{ minWidth: "150px" }}
+                            >
+                                <h3>Send</h3>
+                                <VectorIcon />
+                            </Button>
+                            <Button
+                                id="create-account-modal-button"
+                                onClick={() =>
+                                    handleRedirectToAccountAction("/receive")
+                                }
+                                fullWidth={false}
+                                style={{ minWidth: "150px" }}
+                            >
+                                <h3>Receive</h3>
+                                <div style={{ transform: "rotate(180deg)" }}>
+                                    <VectorIcon />
+                                </div>
+                            </Button>
+                        </ActionsToolbar>
                     </CardContent>
                 </Card>
             </DashboardContainer>

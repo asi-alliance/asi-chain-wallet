@@ -1,5 +1,6 @@
 import { ExpandIcon } from "components/Icons";
 import { FC, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styled from "styled-components";
 
 const SelectWrapper = styled.div<{ disabled?: boolean }>`
@@ -58,11 +59,13 @@ const ArrowIconWrapper = styled.div<{ isOpen: boolean }>`
     transform: ${({ isOpen }) => (isOpen ? "rotate(180deg)" : "rotate(0deg)")};
 `;
 
-const DropdownMenu = styled.ul`
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
+const DropdownMenuPortal = styled.ul<{
+    position: { top: number; left: number; width: number };
+}>`
+    position: fixed;
+    top: ${({ position }) => position.top}px;
+    left: ${({ position }) => position.left}px;
+    width: ${({ position }) => position.width}px;
     max-height: 200px;
     overflow-y: auto;
     margin: 0;
@@ -72,7 +75,7 @@ const DropdownMenu = styled.ul`
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 6px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+    z-index: 9999;
 `;
 
 const DropdownItem = styled.li<{ selected?: boolean }>`
@@ -104,6 +107,8 @@ interface ISelectProps {
     id?: string;
 }
 
+const DROPDOWN_ITEM_DATA_ID: string = "dropdown-item";
+
 export const Select: FC<ISelectProps> = ({
     value,
     onChange,
@@ -114,6 +119,11 @@ export const Select: FC<ISelectProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const [dropdownPosition, setDropdownPosition] = useState({
+        top: 0,
+        left: 0,
+        width: 0,
+    });
 
     const getSelectedText = () => {
         const selectedOption = options.find(
@@ -125,12 +135,19 @@ export const Select: FC<ISelectProps> = ({
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+
             if (
-                wrapperRef.current &&
-                !wrapperRef.current.contains(event.target as Node)
+                !wrapperRef.current ||
+                wrapperRef.current.contains(target) ||
+                target.getAttribute("data-id") === DROPDOWN_ITEM_DATA_ID
             ) {
-                setIsOpen(false);
+                return;
             }
+
+            setTimeout(() => {
+                setIsOpen(false);
+            }, 0);
         };
 
         document.addEventListener("mousedown", handleClickOutside);
@@ -139,9 +156,46 @@ export const Select: FC<ISelectProps> = ({
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (isOpen && wrapperRef.current) {
+            updateDropdownPosition();
+
+            window.addEventListener("scroll", updateDropdownPosition, true);
+            window.addEventListener("resize", updateDropdownPosition);
+
+            return () => {
+                window.removeEventListener(
+                    "scroll",
+                    updateDropdownPosition,
+                    true,
+                );
+                window.removeEventListener("resize", updateDropdownPosition);
+            };
+        }
+    }, [isOpen]);
+
+    const updateDropdownPosition = () => {
+        if (wrapperRef.current) {
+            const rect = wrapperRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + 4,
+                left: rect.left,
+                width: rect.width,
+            });
+        }
+    };
+
     const handleSelect = (selectedValue: string) => {
         onChange(selectedValue);
         setIsOpen(false);
+    };
+
+    const toggleDropdown = () => {
+        if (!isOpen) {
+            updateDropdownPosition();
+        }
+
+        setIsOpen((previousValue) => !previousValue);
     };
 
     return (
@@ -150,55 +204,36 @@ export const Select: FC<ISelectProps> = ({
             ref={wrapperRef}
             disabled={disabled}
         >
-            <SelectButton
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-                disabled={disabled}
-            >
+            <SelectButton onClick={toggleDropdown} disabled={disabled}>
                 <SelectedValue>{getSelectedText()}</SelectedValue>
                 <ArrowIconWrapper isOpen={isOpen}>
                     <ExpandIcon size={16} />
                 </ArrowIconWrapper>
             </SelectButton>
 
-            {isOpen && !disabled && (
-                <DropdownMenu>
-                    {options.map((option) => {
-                        const isSelected = value === option.value;
-
-                        return (
-                            <DropdownItem
-                                key={option.id}
-                                selected={isSelected}
-                                onClick={() => handleSelect(option.value)}
-                            >
-                                {option.label}
-                            </DropdownItem>
-                        );
-                    })}
-                </DropdownMenu>
-            )}
+            {isOpen &&
+                !disabled &&
+                createPortal(
+                    <DropdownMenuPortal position={dropdownPosition}>
+                        {options.map((option) => {
+                            const isSelected = value === option.value;
+                            return (
+                                <DropdownItem
+                                    data-id={DROPDOWN_ITEM_DATA_ID}
+                                    key={option.id}
+                                    selected={isSelected}
+                                    onClick={() => handleSelect(option.value)}
+                                >
+                                    {option.label}
+                                </DropdownItem>
+                            );
+                        })}
+                    </DropdownMenuPortal>,
+                    document.body,
+                )}
         </SelectWrapper>
     );
 };
-
-// export const AdaptiveSelect = styled(Select)`
-//     @media (max-width: 768px) {
-//         min-width: 500px;
-
-//         & > div:first-child {
-//             font-size: 12px;
-//         }
-
-//         & > div:first-child > span:first-child {
-//             font-size: 12px;
-//         }
-
-//         & > div:first-child > div svg {
-//             width: 14px;
-//             height: 14px;
-//         }
-//     }
-// `;
 
 export const AdaptiveSelect: FC<ISelectProps> = (props) => {
     return (
