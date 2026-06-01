@@ -95,7 +95,7 @@ npm run deploy:ipfs
 
 The production build will be in the `build/` directory, ready for deployment to any static hosting service.
 
-## 🚨 Known Issues & Notes
+## Known Issues & Notes
 
 ### Development Environment
 1. **npm vulnerabilities**: You may see security warnings during `npm install`. These are common in JavaScript projects and generally safe for development. Run `npm audit` for details.
@@ -132,7 +132,7 @@ The production build will be in the `build/` directory, ready for deployment to 
 - **Improved**: Build configuration to exclude test files from production
 - **Documentation**: Added DEVELOPMENT_WORK_REPORT.md and FINAL_TEST_REPORT.md
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -163,7 +163,7 @@ The production build will be in the `build/` directory, ready for deployment to 
                         RChain Network
 ```
 
-## 🔐 Security Features
+## Security Features
 
 ### Encryption
 - **Password-based encryption** (CryptoJS AES) for private keys stored in localStorage
@@ -183,7 +183,7 @@ The production build will be in the `build/` directory, ready for deployment to 
 - **Certificate Validation**: Verify node authenticity
 - **CORS Protection**: Prevent cross-origin attacks
 
-## 🛠️ Development
+## Development
 
 ### Development Prerequisites
 - Node.js 14+ (recommended: 18+)
@@ -250,42 +250,42 @@ npm run deploy:ipfs   # Deploy to IPFS (requires IPFS node and scripts/deploy-ip
 ## 📈 Recent Improvements
 
 ### Testing Framework (July 2025)
-- ✅ **Comprehensive Test Suite**: Added Jest and React Testing Library
-- ✅ **62.88% Store Coverage**: Exceeded 50% target for Redux store modules
-- ✅ **Component Testing**: Full test coverage for Dashboard, Send, and Settings
-- ✅ **Mock Infrastructure**: Created reusable mock modules for complex services
+- **Comprehensive Test Suite**: Added Jest and React Testing Library
+- **62.88% Store Coverage**: Exceeded 50% target for Redux store modules
+- **Component Testing**: Full test coverage for Dashboard, Send, and Settings
+- **Mock Infrastructure**: Created reusable mock modules for complex services
 
 ### Network Persistence Fix (Issue #12)
-- ✅ **Persistent Settings**: Network configurations now survive page reloads
-- ✅ **LocalStorage Integration**: Automatic synchronization with Redux store
-- ✅ **Custom Networks**: Fixed "Add Custom Network" functionality
-- ✅ **Seamless Experience**: Network changes are instantly saved
+- **Persistent Settings**: Network configurations now survive page reloads
+- **LocalStorage Integration**: Automatic synchronization with Redux store
+- **Custom Networks**: Fixed "Add Custom Network" functionality
+- **Seamless Experience**: Network changes are instantly saved
 
 ### Security & User Experience Enhancements
-- ✅ **Authentication Security**: Fixed authentication bypass vulnerability
-- ✅ **Transaction Confirmations**: Added confirmation dialogs for all operations
-- ✅ **Account Switching**: Quick account switcher with dynamic balance updates
-- ✅ **Seamless Deployment**: Removed redundant password prompts for authenticated users
+- **Authentication Security**: Fixed authentication bypass vulnerability
+- **Transaction Confirmations**: Added confirmation dialogs for all operations
+- **Account Switching**: Quick account switcher with dynamic balance updates
+- **Seamless Deployment**: Removed redundant password prompts for authenticated users
 
 ### Enhanced Deployment Tracking
-- ✅ Real-time block inclusion verification
-- ✅ Accurate gas cost reporting
-- ✅ Detailed deployment status messages
-- ✅ Graceful error handling
+- Real-time block inclusion verification
+- Accurate gas cost reporting
+- Detailed deployment status messages
+- Graceful error handling
 
 ### IDE Improvements
-- ✅ Consistent example contracts
-- ✅ Better error messages
-- ✅ Deployment confirmation modals
-- ✅ Enhanced console output
+- Consistent example contracts
+- Better error messages
+- Deployment confirmation modals
+- Enhanced console output
 
 ### Network Optimization
-- ✅ Intelligent request routing
-- ✅ Separate read/write operations
-- ✅ Network-specific configurations
-- ✅ Connection retry logic
-- ✅ Global balance caching (15s TTL)
-- ✅ Reduced API call frequency
+- Intelligent request routing
+- Separate read/write operations
+- Network-specific configurations
+- Connection retry logic
+- Global balance caching (15s TTL)
+- Reduced API call frequency
 
 ## E2E Testing Guide
 
@@ -338,7 +338,7 @@ View test results: [https://automation.lambdatest.com](https://automation.lambda
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** — Setup, scripts, Docker, CI/CD, troubleshooting
 - **[docs.asichain.io](https://docs.asichain.io)** — User-facing docs and wallet usage
 
-## 🤝 Contributing
+## Contributing
 
 Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-wallet/issues) section.  
 If you encounter a problem that is not listed, please feel free to open a new issue and provide as much detail as possible.
@@ -351,11 +351,11 @@ We welcome contributions. Open an issue or PR; for workflow see [DEVELOPMENT.md]
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
-## 🔧 Quick Troubleshooting
+## Quick Troubleshooting
 
 ### Installation Issues
 - **Memory error during build**: `export NODE_OPTIONS=--max_old_space_size=4096`
@@ -376,13 +376,13 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 For more details, see [CONFIGURATION.md](CONFIGURATION.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **RChain Community**: For the blockchain infrastructure
 - **F1R3FLY Wallet**: For inspiration and reference implementation
 - **Open Source Community**: All the libraries and tools that make this possible
 
-## 📞 Support
+## Support
 
 - **Documentation**: [CONFIGURATION.md](CONFIGURATION.md), [DEVELOPMENT.md](DEVELOPMENT.md), and [docs.asichain.io](https://docs.asichain.io)
 - **Issues**: Report bugs on GitHub Issues
