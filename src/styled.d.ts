@@ -1,86 +1,87 @@
-import 'styled-components';
+import "styled-components";
 
-declare module 'styled-components' {
-  export interface DefaultTheme {
-    // Updated to support both old and new theme structure
-    colors: {
-      primary: string;
-      primaryDark: string;
-      secondary: string;
-      danger: string;
-      warning: string;
-      success: string;
-      info: string;
-      error: string;
-      border: string;
-      borderLight: string;
-      
-      // Nested background colors
-      background: {
+declare module "styled-components" {
+    export interface DefaultTheme {
+        // Updated to support both old and new theme structure
+        colors: {
+            primary: string;
+            primaryDark: string;
+            secondary: string;
+            danger: string;
+            warning: string;
+            success: string;
+            info: string;
+            error: string;
+            border: string;
+            borderLight: string;
+
+            // Nested background colors
+            background: {
+                primary: string;
+                secondary: string;
+                tertiary: string;
+            };
+
+            // Nested text colors
+            text: {
+                primary: string;
+                secondary: string;
+                tertiary: string;
+                inverse: string;
+            };
+        };
+
+        // Keep old structure for backward compatibility
         primary: string;
+        primaryDark: string;
         secondary: string;
-        tertiary: string;
-      };
-      
-      // Nested text colors
-      text: {
-        primary: string;
-        secondary: string;
-        tertiary: string;
-        inverse: string;
-      };
-    };
-    
-    // Keep old structure for backward compatibility
-    primary: string;
-    primaryDark: string;
-    secondary: string;
-    danger: string;
-    warning: string;
-    success: string;
-    info: string;
-    
-    // Core colors
-    background: string;
-    surface: string;
-    card: string;
-    
-    // Text colors
-    text: {
-      primary: string;
-      secondary: string;
-      tertiary: string;
-      inverse: string;
-    };
-    
-    // UI elements
-    inputBg: string;
-    
-    // Borders and shadows
-    border: string;
-    borderLight: string;
-    shadow: string;
-    shadowLarge: string;
-    
-    error: string;
-    textSecondary: string;
-    
-    fontSize: {
-      xs: string;
-      sm: string;
-      base: string;
-      lg: string;
-      xl: string;
-      '2xl': string;
-      '3xl': string;
-      '4xl': string;
-      logo: string;
-    };
-    
-    gradient: {
-      primary: string;
-      secondary: string;
-      dark: string;
-    };
-  }
+        danger: string;
+        warning: string;
+        success: string;
+        info: string;
+
+        // Core colors
+        background: string;
+        surface: string;
+        card: string;
+
+        // Text colors
+        text: {
+            primary: string;
+            secondary: string;
+            tertiary: string;
+            inverse: string;
+        };
+
+        // UI elements
+        inputBg: string;
+
+        // Borders and shadows
+        border: string;
+        borderLight: string;
+        shadow: string;
+        shadowLarge: string;
+
+        error: string;
+        textSecondary: string;
+        textSecondaryAdditional: string;
+
+        fontSize: {
+            xs: string;
+            sm: string;
+            base: string;
+            lg: string;
+            xl: string;
+            "2xl": string;
+            "3xl": string;
+            "4xl": string;
+            logo: string;
+        };
+
+        gradient: {
+            primary: string;
+            secondary: string;
+            dark: string;
+        };
+    }
 }

@@ -2,8 +2,9 @@ import { createGlobalStyle } from "styled-components";
 import { Theme } from "./theme";
 
 export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
-  /* Import modern fonts */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+/* Import modern fonts */
+  // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+  // @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;1000&display=swap');
   
   * {
     box-sizing: border-box;
@@ -12,7 +13,7 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   html {
-    // font-size: 16px;
+    font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -214,18 +215,25 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
 
   h1 {
     font-size: 2rem;
+    font-weight: 500;
     }
     
   h2 {
     font-size: 1.5rem;
+    font-weight: 500;
   }
 
   h3 {
       font-size: 1.125rem;
+      font-weight: 700;
   }
 
   h4 {
     font-size: 1rem;
+  }
+
+  h4.light {
+    font-weight: 500;
   }
   
   h5 {
@@ -247,8 +255,27 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   .text-4 {
     font-size: 0.75rem;
   }
-          
-  * {
-    font-family: 'Roboto Mono', monospace  !important;
+
+  .text-5 {
+    font-size: 0.5rem;
   }
+
+  
+  * {
+  font-family: 'Roboto Mono', monospace  !important;
+  }
+
+  @media (max-width: 768px) {
+       h1 {
+        font-size: 1.25rem;
+       }
+
+       .text-2 {
+       font-size: 0.875rem;
+       }
+   }
+
+   .text-danger {
+    color: ${({ theme }) => theme.danger};
+   }
 `;

@@ -1,18 +1,20 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, CSSProperties } from "react";
 import styled from "styled-components";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
     fullWidth?: boolean;
-    'data-testid'?: string;
-    'data-cy'?: string;
+    wrapperStyle?: CSSProperties;
+    labelStyle?: CSSProperties;
+    "data-testid"?: string;
+    "data-cy"?: string;
 }
 
 const InputWrapper = styled.div<{ fullWidth?: boolean }>`
     display: ${({ fullWidth }) => (fullWidth ? "block" : "inline-block")};
     width: ${({ fullWidth }) => (fullWidth ? "100%" : "auto")};
-    margin-bottom: 36px;
+    margin-bottom: 16px;
 `;
 
 const Label = styled.label`
@@ -35,18 +37,19 @@ const StyledInput = styled.input<{ hasError?: boolean }>`
     padding: 10px 16px;
     font-size: 1rem;
     font-weight: 400;
-    line-height: 24px;
+    // line-height: 24px;
     min-height: 44px; /* Touch-friendly minimum */
     background: "transparent";
     border: 2px solid
-        ${({ theme, hasError }) => (hasError ? theme.danger : theme.colors.border)};
+        ${({ theme, hasError }) =>
+            hasError ? theme.danger : theme.colors.border};
     border-radius: 8px;
     color: ${({ theme }) => theme.text.primary};
     transition: all 0.2s ease;
     outline: none;
 
     /* ASI Wallet elevation */
-    box-shadow: ${({ theme }) => theme.shadow};
+    // box-shadow: ${({ theme }) => theme.shadow};
 
     &:hover:not(:disabled) {
         border-color: ${
@@ -99,10 +102,9 @@ const ErrorMessage = styled.span`
 
 const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
     width: 100%;
-    padding: 12px 16px;
-    // font-size: 16px;
+    padding: 11.5px 22px;
+    font-size: 16px;
     font-weight: 400;
-    line-height: 24px;
     background: ${({ theme }) => theme.inputBg};
     border: 2px solid
         ${({ theme, hasError }) => (hasError ? theme.danger : "transparent")};
@@ -148,11 +150,13 @@ export const Input: React.FC<InputProps> = ({
     label,
     error,
     fullWidth = true,
-    'data-testid': dataTestId,
-    'data-cy': dataCy,
+    "data-testid": dataTestId,
+    "data-cy": dataCy,
     onChange,
     onInput,
     autoFocus,
+    wrapperStyle,
+    labelStyle,
     ...props
 }) => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -187,8 +191,8 @@ export const Input: React.FC<InputProps> = ({
     };
 
     return (
-        <InputWrapper fullWidth={fullWidth}>
-            <h4>{label && <Label>{label}</Label>}</h4>
+        <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
+            <h4>{label && <Label style={labelStyle}>{label}</Label>}</h4>
             <StyledInput
                 ref={inputRef}
                 hasError={!!error}
@@ -203,8 +207,7 @@ export const Input: React.FC<InputProps> = ({
     );
 };
 
-interface TextAreaProps
-    extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     label?: string;
     error?: string;
     fullWidth?: boolean;

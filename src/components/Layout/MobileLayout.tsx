@@ -277,13 +277,13 @@ const RightSection = styled.div`
 
 const Main = styled.main<{ $fullWidth?: boolean }>`
     flex: 1;
-    padding: ${({ $fullWidth }) => ($fullWidth ? "0" : "16px")};
+    padding: ${({ $fullWidth }) => ($fullWidth ? "16px" : "16px")};
     max-width: ${({ $fullWidth }) => ($fullWidth ? "none" : "1200px")};
     margin: 0 auto;
     width: 100%;
 
     @media (min-width: 769px) {
-        padding: ${({ $fullWidth }) => ($fullWidth ? "0" : "24px")};
+        padding: ${({ $fullWidth }) => ($fullWidth ? "24px" : "24px")};
     }
 `;
 
@@ -708,7 +708,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                 </MobileNavContent>
             </MobileNavDrawer>
 
-            <Main $fullWidth={location.pathname === "/ide"}>{children}</Main>
+            <Main $fullWidth={location.pathname === "/deploy"}>{children}</Main>
         </Container>
     );
 };
