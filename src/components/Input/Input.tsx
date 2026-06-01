@@ -49,7 +49,7 @@ const StyledInput = styled.input<{ hasError?: boolean }>`
     outline: none;
 
     /* ASI Wallet elevation */
-    box-shadow: ${({ theme }) => theme.shadow};
+    // box-shadow: ${({ theme }) => theme.shadow};
 
     &:hover:not(:disabled) {
         border-color: ${
