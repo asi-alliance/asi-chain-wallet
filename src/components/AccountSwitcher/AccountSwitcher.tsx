@@ -15,12 +15,12 @@ const SwitcherButton = styled.button`
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    height: 30px;
+    padding: 0 12px;
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 6px;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 180px;
@@ -46,15 +46,13 @@ const SwitcherButton = styled.button`
 const AccountInfo = styled.div`
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    gap: 10px;
+    align-items: center;
     overflow: hidden;
 `;
 
 const AccountName = styled.span`
-    font-weight: 500;
-    font-size: 14px;
+    font-weight: bold;
     color: ${({ theme }) => theme.text.primary};
     overflow: hidden;
     text-overflow: ellipsis;
@@ -67,9 +65,12 @@ const AccountName = styled.span`
 `;
 
 const AccountAddress = styled.span`
-    font-size: 11px;
-    color: ${({ theme }) => theme.text.secondary};
-    opacity: 0.8;
+    font-size: 12px;
+    color: ${({ theme }) => theme.text.primary};
+
+    @media (max-width: 1024px) {
+        display: none;
+    }
 `;
 
 const AccountBalance = styled.span`
@@ -78,6 +79,10 @@ const AccountBalance = styled.span`
     font-weight: 500;
     flex-shrink: 0; /* Prevent balance from shrinking */
     white-space: nowrap;
+
+    @media (max-width: 1024px) {
+        display: none;
+    }
 `;
 
 const LoadingSpinner = styled.div`

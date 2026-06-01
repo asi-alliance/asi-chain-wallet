@@ -73,7 +73,7 @@ const LogoText = styled.h1`
     margin: 0;
     display: none;
 
-    @media (min-width: 480px) {
+    @media (min-width: 1024px) {
         display: block;
     }
 `;
@@ -117,8 +117,8 @@ const IconButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 40px;
-    min-height: 40px;
+    width: 30px;
+    height: 30px;
 
     &:hover {
         background: ${({ theme }) => theme.primary};
@@ -126,7 +126,13 @@ const IconButton = styled.button`
     }
 `;
 
-const MenuButton = styled(IconButton)`
+const DesktopButton = styled(IconButton)`
+    @media (max-width: 1024px) {
+        display: none;
+    }
+`;
+
+const MobileButton = styled(IconButton)`
     @media (min-width: 1024px) {
         display: none;
     }
@@ -590,7 +596,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                         {isAuthenticated && accounts.length > 0 && (
                             <AccountSwitcher />
                         )}
-                        <IconButton
+                        <DesktopButton
                             onClick={handleThemeToggle}
                             title={
                                 darkMode
@@ -603,20 +609,20 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                             ) : (
                                 <MoonIcon size={20} />
                             )}
-                        </IconButton>
+                        </DesktopButton>
 
                         {isAuthenticated && (
-                            <IconButton onClick={handleLogout} title={"Logout"}>
+                            <DesktopButton onClick={handleLogout} title={"Logout"}>
                                 <LogoutIcon size={20} />
-                            </IconButton>
+                            </DesktopButton>
                         )}
 
-                        <MenuButton
+                        <MobileButton
                             id="sidebar-menu-button"
                             onClick={() => setMobileMenuOpen(true)}
                         >
                             <MenuIcon size={20} />
-                        </MenuButton>
+                        </MobileButton>
                     </HeaderActions>
                 </HeaderTop>
             </Header>
