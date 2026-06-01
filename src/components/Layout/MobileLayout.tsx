@@ -28,10 +28,6 @@ const Header = styled.header`
     position: sticky;
     top: 0;
     z-index: 100;
-
-    @media (max-width: 480px) {
-        padding: 10px 12px;
-    }
 `;
 
 const HeaderTop = styled.div`
@@ -39,10 +35,6 @@ const HeaderTop = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-
-    @media (max-width: 480px) {
-        gap: 8px;
-    }
 `;
 
 const LeftSection = styled.div`
@@ -52,10 +44,6 @@ const LeftSection = styled.div`
     flex: 1;
     min-width: 0;
     overflow: hidden;
-
-    @media (max-width: 480px) {
-        gap: 8px;
-    }
 `;
 
 const LogoContainer = styled.div`
@@ -78,6 +66,16 @@ const LogoText = styled.h1`
     }
 `;
 
+const NavLinks = styled.nav`
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    @media (max-width: 1250px) {
+        display: none;
+    }
+`;
+
 const HeaderActions = styled.div`
     display: flex;
     align-items: center;
@@ -89,21 +87,19 @@ const HeaderActions = styled.div`
 `;
 
 const NetworkSelector = styled.select`
-    padding: 6px 8px;
+    padding: 6px;
     // border: 1px solid ${({ theme }) => theme.border};
     border: none;
     border-radius: 6px;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
-    font-size: 12px;
+    font-size: 14px;
     max-width: 100px;
     margin-right: 16px;
 
-    @media (min-width: 480px) {
-        max-width: none;
-        padding: 8px 12px;
-        font-size: 14px;
-    }
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const IconButton = styled.button`
@@ -126,14 +122,14 @@ const IconButton = styled.button`
     }
 `;
 
-const DesktopButton = styled(IconButton)`
-    @media (max-width: 1024px) {
+const AsideMenuToggle = styled(IconButton)`
+    @media (min-width: 1250px) {
         display: none;
     }
 `;
 
-const MobileButton = styled(IconButton)`
-    @media (min-width: 1024px) {
+const DesktopButton = styled(IconButton)`
+    @media (max-width: 1024px) {
         display: none;
     }
 `;
@@ -144,7 +140,7 @@ const DesktopNav = styled.nav`
     background: ${({ theme }) => theme.surface};
     border-bottom: 1px solid ${({ theme }) => theme.border};
     padding: 0 24px;
-    display: none;
+    display: flex;
     gap: 24px;
     overflow-x: auto;
 
@@ -159,10 +155,6 @@ const DesktopNav = styled.nav`
     &::-webkit-scrollbar-thumb {
         background: ${({ theme }) => theme.border};
         border-radius: 3px;
-    }
-
-    @media (min-width: 1024px) {
-        display: flex;
     }
 `;
 
@@ -180,7 +172,7 @@ const MobileNavDrawer = styled.div<{ $isOpen: boolean }>`
     z-index: 1000;
     overflow-y: auto;
 
-    @media (min-width: 1024px) {
+    @media (min-width: 1250px) {
         display: none;
     }
 `;
@@ -252,10 +244,10 @@ const NavLink = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 16px 0;
+    padding: 8px 0;
     background: none;
     border: none;
-    border-bottom: 3px solid
+    border-bottom: 2px solid
         ${({ $active, theme }) => ($active ? theme.primary : "transparent")};
     color: ${({ $active, theme }) =>
         $active ? theme.primary : theme.text.secondary};
@@ -270,6 +262,13 @@ const NavLink = styled.button<{ $active: boolean }>`
     }
 `;
 
+const ExternalNavLink = styled(NavLink)`
+    color: ${({ theme }) => theme.text.primary};
+    display: flex;
+    align-items: center;
+    gap: 5px;
+`;
+
 const Delimiter = styled.div`
     display: flex;
     align-items: center;
@@ -279,6 +278,10 @@ const RightSection = styled.div`
     margin-left: auto;
     display: flex;
     align-items: center;
+
+    @media (max-width: 705px) {
+        margin: 0 auto;
+    }
 `;
 
 const Main = styled.main<{ $fullWidth?: boolean }>`
@@ -556,7 +559,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         return (
             <Fragment>
                 {links.map((item) => (
-                    <NavLink
+                    <ExternalNavLink
                         $active={false}
                         key={item.path}
                         className="text-1"
@@ -575,7 +578,7 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                                 fill="currentcolor"
                             />
                         </svg>
-                    </NavLink>
+                    </ExternalNavLink>
                 ))}
             </Fragment>
         );
@@ -612,35 +615,39 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                         </DesktopButton>
 
                         {isAuthenticated && (
-                            <DesktopButton onClick={handleLogout} title={"Logout"}>
+                            <DesktopButton
+                                onClick={handleLogout}
+                                title={"Logout"}
+                            >
                                 <LogoutIcon size={20} />
                             </DesktopButton>
                         )}
 
-                        <MobileButton
+                        <AsideMenuToggle
                             id="sidebar-menu-button"
                             onClick={() => setMobileMenuOpen(true)}
                         >
                             <MenuIcon size={20} />
-                        </MobileButton>
+                        </AsideMenuToggle>
                     </HeaderActions>
                 </HeaderTop>
             </Header>
 
             <DesktopNav>
-                {navItems.map((item) => (
-                    <NavLink
-                        className="text-1"
-                        key={item.path}
-                        $active={location.pathname === item.path}
-                        onClick={() => navigate(item.path)}
-                    >
-                        {item.label}
-                    </NavLink>
-                ))}
-                <DelimiterBlock />
-                <ExternalLinks />
-
+                <NavLinks>
+                    {navItems.map((item) => (
+                        <NavLink
+                            className="text-1"
+                            key={item.path}
+                            $active={location.pathname === item.path}
+                            onClick={() => navigate(item.path)}
+                        >
+                            {item.label}
+                        </NavLink>
+                    ))}
+                    <DelimiterBlock />
+                    <ExternalLinks />
+                </NavLinks>
                 <RightSection>
                     <StatusDot $connected={networkStatus === "connected"} />
                     <NetworkSelector
