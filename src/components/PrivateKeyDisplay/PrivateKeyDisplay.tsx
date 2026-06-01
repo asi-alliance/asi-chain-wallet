@@ -95,7 +95,7 @@ const InfoBox = styled.div`
     background: ${({ theme }) => `${theme.primary}10`};
     border: 1px solid ${({ theme }) => `${theme.primary}30`};
     border-radius: 8px;
-    padding: 16px;
+    padding: 8px 8px 8px 16px;
     margin-bottom: 24px;
 `;
 

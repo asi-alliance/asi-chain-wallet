@@ -26,14 +26,14 @@ const ButtonBase = styled.button<ButtonProps>`
     min-width: 100px;
 
     /* ASI Wallet elevation system */
-    box-shadow: ${({ theme }) => theme.shadow};
+    // box-shadow: ${({ theme }) => theme.shadow};
 
     &:hover:not(:disabled) {
-        box-shadow: ${({ theme }) => theme.shadowLarge};
+        // box-shadow: ${({ theme }) => theme.shadowLarge};
     }
 
     &:focus-visible {
-        outline: 2px solid ${({ theme }) => theme.secondary};
+        outline: 2px solid ${({ theme }) => theme.primary};
         outline-offset: 2px;
     }
 
@@ -85,11 +85,11 @@ const ButtonBase = styled.button<ButtonProps>`
 
                     &:hover:not(:disabled) {
                         background: ${theme.primary}1F; /* 12% opacity as per brand guide */
-                        transform: translateY(-1px);
+                        // transform: translateY(-1px);
                     }
 
                     &:active:not(:disabled) {
-                        transform: translateY(0);
+                        // transform: translateY(0);
                     }
 
                     &:disabled {
@@ -104,11 +104,11 @@ const ButtonBase = styled.button<ButtonProps>`
 
                     &:hover:not(:disabled) {
                         background: #e43a3c; /* Darkened as per brand guide */
-                        transform: translateY(-1px);
+                        // transform: translateY(-1px);
                     }
 
                     &:active:not(:disabled) {
-                        transform: translateY(0);
+                        // transform: translateY(0);
                     }
                 `;
             case "ghost":

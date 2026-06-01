@@ -49,7 +49,7 @@ const StyledInput = styled.input<{ hasError?: boolean }>`
     outline: none;
 
     /* ASI Wallet elevation */
-    box-shadow: ${({ theme }) => theme.shadow};
+    // box-shadow: ${({ theme }) => theme.shadow};
 
     &:hover:not(:disabled) {
         border-color: ${
@@ -105,7 +105,6 @@ const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
     padding: 11.5px 22px;
     font-size: 16px;
     font-weight: 400;
-    // line-height: 24px;
     background: ${({ theme }) => theme.inputBg};
     border: 2px solid
         ${({ theme, hasError }) => (hasError ? theme.danger : "transparent")};

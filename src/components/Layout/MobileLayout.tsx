@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -43,10 +43,6 @@ const HeaderTop = styled.div`
     @media (max-width: 480px) {
         gap: 8px;
     }
-`;
-
-const HeaderBottom = styled.div`
-    margin-top: 12px;
 `;
 
 const LeftSection = styled.div`
@@ -94,12 +90,14 @@ const HeaderActions = styled.div`
 
 const NetworkSelector = styled.select`
     padding: 6px 8px;
-    border: 1px solid ${({ theme }) => theme.border};
+    // border: 1px solid ${({ theme }) => theme.border};
+    border: none;
     border-radius: 6px;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
     font-size: 12px;
     max-width: 100px;
+    margin-right: 16px;
 
     @media (min-width: 480px) {
         max-width: none;
@@ -136,6 +134,7 @@ const MenuButton = styled(IconButton)`
 
 // Desktop Nav
 const DesktopNav = styled.nav`
+    height: 41px;
     background: ${({ theme }) => theme.surface};
     border-bottom: 1px solid ${({ theme }) => theme.border};
     padding: 0 24px;
@@ -244,6 +243,9 @@ const MobileNavLink = styled.button<{ $active: boolean }>`
 `;
 
 const NavLink = styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 5px;
     padding: 16px 0;
     background: none;
     border: none;
@@ -262,6 +264,17 @@ const NavLink = styled.button<{ $active: boolean }>`
     }
 `;
 
+const Delimiter = styled.div`
+    display: flex;
+    align-items: center;
+`;
+
+const RightSection = styled.div`
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+`;
+
 const Main = styled.main<{ $fullWidth?: boolean }>`
     flex: 1;
     padding: ${({ $fullWidth }) => ($fullWidth ? "16px" : "16px")};
@@ -272,6 +285,34 @@ const Main = styled.main<{ $fullWidth?: boolean }>`
     @media (min-width: 769px) {
         padding: ${({ $fullWidth }) => ($fullWidth ? "24px" : "24px")};
     }
+`;
+
+const NetworkInfo = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    color: ${({ theme }) => theme.text.secondary};
+`;
+
+const LastUpdated = styled.span`
+    font-size: 14px;
+    // color: ${({ theme }) => theme.text.tertiary};
+`;
+
+const StatusDot = styled.div<{ $connected: boolean }>`
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: ${({ $connected, theme }) =>
+        $connected ? theme.success : theme.danger};
+`;
+
+const NetworkStatusBar = styled.div<{ $connected: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 8px;
 `;
 
 interface LogoImageProps {
@@ -308,6 +349,15 @@ const LogoImage = ({ isDarkMode }: LogoImageProps) => {
     );
 };
 
+const formatRelativeTime = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    return `${Math.floor(seconds / 86400)} days ago`;
+};
+
 interface LayoutProps {
     children: React.ReactNode;
 }
@@ -321,6 +371,43 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         useSelector((state: RootState) => state.wallet);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+    const [networkStatus, setNetworkStatus] = useState<
+        "connected" | "disconnected" | "checking"
+    >("checking");
+
+    useEffect(() => {
+        const checkNetwork = async () => {
+            if (!selectedNetwork) return;
+
+            const networkUrl =
+                selectedNetwork.readOnlyUrl || selectedNetwork.url;
+            if (!networkUrl || !networkUrl.trim()) {
+                setNetworkStatus("disconnected");
+                return;
+            }
+
+            setNetworkStatus("checking");
+            try {
+                const response = await fetch(networkUrl + "/api/status", {
+                    method: "GET",
+                    headers: { Accept: "application/json" },
+                    signal: AbortSignal.timeout(5000),
+                });
+                setNetworkStatus(response.ok ? "connected" : "disconnected");
+            } catch {
+                setNetworkStatus("disconnected");
+            } finally {
+                setLastRefresh(new Date());
+            }
+        };
+
+        checkNetwork();
+        const interval = setInterval(checkNetwork, 60000); // Check every minute
+
+        return () => clearInterval(interval);
+    }, [selectedNetwork]);
 
     useEffect(() => {
         const setCachedNetwork = () => {
@@ -424,17 +511,69 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         return [
-            { path: "/", label: "Dashboard" },
-            { path: "/accounts", label: "Accounts" },
+            { path: "/", label: "Wallet" },
             { path: "/send", label: "Send" },
             { path: "/receive", label: "Receive" },
+            { path: "/accounts", label: "Accounts" },
             { path: "/history", label: "Transactions" },
             { path: "/deploy", label: "Deploy" },
-            { path: "/ide", label: "IDE" },
-            { path: "/keys", label: "Generate Keys" },
             { path: "/settings", label: "Network Settings" },
         ];
     }, [accounts]);
+
+    const DelimiterBlock = () => (
+        <Delimiter>
+            <svg
+                width="1"
+                height="24"
+                viewBox="0 0 1 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <line
+                    x1="0.5"
+                    y1="24"
+                    x2="0.500001"
+                    y2="-2.18557e-08"
+                    stroke="currentcolor"
+                />
+            </svg>
+        </Delimiter>
+    );
+
+    const ExternalLinks = () => {
+        const links = [
+            { path: "/0", label: "Explorer" },
+            { path: "/1", label: "Faucet" },
+        ];
+
+        return (
+            <Fragment>
+                {links.map((item) => (
+                    <NavLink
+                        $active={false}
+                        key={item.path}
+                        className="text-1"
+                        onClick={() => navigate(item.path)}
+                    >
+                        {item.label}
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                d="M10.6667 10.6667H1.33333V1.33333H6V0H1.33333C0.593333 0 0 0.6 0 1.33333V10.6667C0 11.4 0.593333 12 1.33333 12H10.6667C11.4 12 12 11.4 12 10.6667V6H10.6667V10.6667ZM7.33333 0V1.33333H9.72667L3.17333 7.88667L4.11333 8.82667L10.6667 2.27333V4.66667H12V0H7.33333Z"
+                                fill="currentcolor"
+                            />
+                        </svg>
+                    </NavLink>
+                ))}
+            </Fragment>
+        );
+    };
 
     return (
         <Container>
@@ -448,25 +587,9 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                     </LeftSection>
 
                     <HeaderActions>
-                        <NetworkSelector
-                            id="mobile-header-network-selector"
-                            value={selectedNetwork.id}
-                            onChange={handleNetworkChange}
-                        >
-                            {networks.map((network) => (
-                                <option
-                                    key={network.id}
-                                    value={network.id}
-                                    disabled={
-                                        !network.url ||
-                                        network.url.trim() === ""
-                                    }
-                                >
-                                    {network.name}
-                                </option>
-                            ))}
-                        </NetworkSelector>
-
+                        {isAuthenticated && accounts.length > 0 && (
+                            <AccountSwitcher />
+                        )}
                         <IconButton
                             onClick={handleThemeToggle}
                             title={
@@ -496,12 +619,6 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                         </MenuButton>
                     </HeaderActions>
                 </HeaderTop>
-
-                {isAuthenticated && accounts.length > 0 && (
-                    <HeaderBottom>
-                        <AccountSwitcher />
-                    </HeaderBottom>
-                )}
             </Header>
 
             <DesktopNav>
@@ -515,6 +632,50 @@ export const MobileLayout: React.FC<LayoutProps> = ({ children }) => {
                         {item.label}
                     </NavLink>
                 ))}
+                <DelimiterBlock />
+                <ExternalLinks />
+
+                <RightSection>
+                    <StatusDot $connected={networkStatus === "connected"} />
+                    <NetworkSelector
+                        id="mobile-header-network-selector"
+                        value={selectedNetwork.id}
+                        onChange={handleNetworkChange}
+                    >
+                        {networks.map((network) => (
+                            <option
+                                key={network.id}
+                                value={network.id}
+                                disabled={
+                                    !network.url || network.url.trim() === ""
+                                }
+                            >
+                                {network.name}
+                            </option>
+                        ))}
+                    </NetworkSelector>
+                    <NetworkStatusBar
+                        id="dashboard-network-status-bar"
+                        $connected={networkStatus === "connected"}
+                    >
+                        <NetworkInfo id="dashboard-network-info">
+                            <DelimiterBlock />
+                            <span id="dashboard-network-status">
+                                {networkStatus === "checking"
+                                    ? "Checking..."
+                                    : networkStatus === "connected"
+                                      ? "Connected"
+                                      : "Disconnected"}
+                            </span>
+                            <DelimiterBlock />
+                            <LastUpdated id="dashboard-last-updated ">
+                                <span>
+                                    Updated {formatRelativeTime(lastRefresh)}
+                                </span>
+                            </LastUpdated>
+                        </NetworkInfo>
+                    </NetworkStatusBar>
+                </RightSection>
             </DesktopNav>
 
             <MobileNavOverlay
