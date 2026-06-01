@@ -64,7 +64,6 @@ export const CardTitle = styled.h2`
 
 export const CardContent = styled.div`
     font-size: 1rem;
-    line-height: 26px;
     font-weight: 400;
 
     p {
