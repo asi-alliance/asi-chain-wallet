@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, CSSProperties } from "react";
 import styled from "styled-components";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
     fullWidth?: boolean;
@@ -154,6 +154,7 @@ export const Input: React.FC<InputProps> = ({
     onChange,
     onInput,
     autoFocus,
+    wrapperStyle,
     ...props
 }) => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +189,7 @@ export const Input: React.FC<InputProps> = ({
     };
 
     return (
-        <InputWrapper fullWidth={fullWidth}>
+        <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
             <h4>{label && <Label>{label}</Label>}</h4>
             <StyledInput
                 ref={inputRef}

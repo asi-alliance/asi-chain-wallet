@@ -2,37 +2,13 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
-    Button,
-    PrivateKeyDisplay,
-    PasswordModal,
-} from "components";
+import { Card, PrivateKeyDisplay, PasswordModal } from "components";
 import { CustomNetworkConfig } from "./CustomNetworkConfig";
 import { SecureStorage } from "services/secureStorage";
 
 const SettingsContainer = styled.div`
     max-width: 800px;
     margin: 0 auto;
-`;
-
-const NetworkCard = styled(Card)`
-    margin-bottom: 24px;
-    margin-top: 1.5rem;
-`;
-
-const Link = styled.div`
-    // font-size: 13px;
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 4px;
-    cursor: pointer;
-
-    &:hover {
-        text-decoration: underline;
-    }
 `;
 
 export const Settings: React.FC = () => {

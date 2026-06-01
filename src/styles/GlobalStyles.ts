@@ -231,6 +231,10 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   h4 {
     font-size: 1rem;
   }
+
+  h4.light {
+    font-weight: 500;
+  }
   
   h5 {
     font-size: 0.875rem;

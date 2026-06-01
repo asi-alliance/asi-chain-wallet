@@ -51,6 +51,11 @@ export const CardHeader = styled.div`
     margin-bottom: 36px;
     padding-bottom: 16px;
     border-bottom: 1px solid ${({ theme }) => theme.border};
+
+    @media (max-width: 1023px) {
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
 `;
 
 export const CardTitle = styled.h2`
