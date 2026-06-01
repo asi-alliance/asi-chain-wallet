@@ -389,29 +389,20 @@ export const DownloadIcon: React.FC<IconProps> = ({
         height={size}
         viewBox="0 0 24 24"
         fill="none"
+        xmlns="http://www.w3.org/2000/svg"
         className={className}
     >
-        <path
-            d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <path
-            d="M7 10L12 15L17 10"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <path
-            d="M12 15V3"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
+        <g clipPath="url(#clip0_57_2481)">
+            <path
+                d="M19 9H15V3H9V9H5L12 16L19 9ZM11 11V5H13V11H14.17L12 13.17L9.83 11H11ZM5 18H19V20H5V18Z"
+                fill={color}
+            />
+        </g>
+        <defs>
+            <clipPath id="clip0_57_2481">
+                <rect width="24" height="24" fill="white" />
+            </clipPath>
+        </defs>
     </svg>
 );
 
@@ -743,14 +734,14 @@ export const CopyIcon: React.FC<IconProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         className={className}
     >
-        <g clipPath="url(#clip0_1_640)">
+        <g clipPath="url(#clip0_97_200)">
             <path
-                d="M12.6667 1.33333H9.88C9.6 0.56 8.86667 0 8 0C7.13333 0 6.4 0.56 6.12 1.33333H3.33333C2.6 1.33333 2 1.93333 2 2.66667V13.3333C2 14.0667 2.6 14.6667 3.33333 14.6667H12.6667C13.4 14.6667 14 14.0667 14 13.3333V2.66667C14 1.93333 13.4 1.33333 12.6667 1.33333ZM8 1.33333C8.36667 1.33333 8.66667 1.63333 8.66667 2C8.66667 2.36667 8.36667 2.66667 8 2.66667C7.63333 2.66667 7.33333 2.36667 7.33333 2C7.33333 1.63333 7.63333 1.33333 8 1.33333ZM12.6667 13.3333H3.33333V2.66667H4.66667V4.66667H11.3333V2.66667H12.6667V13.3333Z"
+                d="M10.6667 0.666668H2.66668C1.93334 0.666668 1.33334 1.26667 1.33334 2V11.3333H2.66668V2H10.6667V0.666668ZM12.6667 3.33333H5.33334C4.60001 3.33333 4.00001 3.93333 4.00001 4.66667V14C4.00001 14.7333 4.60001 15.3333 5.33334 15.3333H12.6667C13.4 15.3333 14 14.7333 14 14V4.66667C14 3.93333 13.4 3.33333 12.6667 3.33333ZM12.6667 14H5.33334V4.66667H12.6667V14Z"
                 fill={color}
             />
         </g>
         <defs>
-            <clipPath id="clip0_1_640">
+            <clipPath id="clip0_97_200">
                 <rect width="16" height="16" fill="white" />
             </clipPath>
         </defs>
@@ -778,6 +769,53 @@ export const PreviewIcon: React.FC<IconProps> = ({
         </g>
         <defs>
             <clipPath id="clip0_57_998">
+                <rect width="24" height="24" fill="white" />
+            </clipPath>
+        </defs>
+    </svg>
+);
+
+export const ReloadIcon: React.FC<IconProps> = ({
+    size = 24,
+    color = "#3A3A3A",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <path
+            d="M12 6V9L16 5L12 1V4C7.58 4 4 7.58 4 12C4 13.57 4.46 15.03 5.24 16.26L6.7 14.8C6.25 13.97 6 13.01 6 12C6 8.69 8.69 6 12 6ZM18.76 7.74L17.3 9.2C17.74 10.04 18 10.99 18 12C18 15.31 15.31 18 12 18V15L8 19L12 23V20C16.42 20 20 16.42 20 12C20 10.43 19.54 8.97 18.76 7.74Z"
+            fill={color}
+        />
+    </svg>
+);
+
+export const LockPassIcon: React.FC<IconProps> = ({
+    size = 24,
+    color = "currentColor",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <g clipPath="url(#clip0_97_211)">
+            <path
+                d="M15.207 18.707L13.414 20.5L15.207 22.293L13.793 23.707L12 21.914L10.207 23.707L8.793 22.293L10.586 20.5L8.793 18.707L10.207 17.293L12 19.086L13.793 17.293L15.207 18.707ZM23.207 18.707L21.793 17.293L20 19.086L18.207 17.293L16.793 18.707L18.586 20.5L16.793 22.293L18.207 23.707L20 21.914L21.793 23.707L23.207 22.293L21.414 20.5L23.207 18.707ZM5.793 17.293L4 19.086L2.207 17.293L0.792999 18.707L2.586 20.5L0.792999 22.293L2.207 23.707L4 21.914L5.793 23.707L7.207 22.293L5.414 20.5L7.207 18.707L5.793 17.293ZM6 12V5H8V4C8 1.794 9.794 0 12 0C14.206 0 16 1.794 16 4V5H18V12C18 13.654 16.654 15 15 15H9C7.346 15 6 13.654 6 12ZM13 9H11V11H13V9ZM10 5H14V4C14 2.897 13.103 2 12 2C10.897 2 10 2.897 10 4V5Z"
+                fill={color}
+            />
+        </g>
+        <defs>
+            <clipPath id="clip0_97_211">
                 <rect width="24" height="24" fill="white" />
             </clipPath>
         </defs>

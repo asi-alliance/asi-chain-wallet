@@ -6,7 +6,7 @@ import React, {
     useRef,
 } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { RootState, AppDispatch } from "store";
 import { loginWithPassword } from "store/authSlice";
@@ -30,6 +30,7 @@ import {
     analyzeRecentActivity,
     SuspiciousActivityReport,
 } from "services/loginAuditLog";
+import { Account } from "types/wallet";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -125,8 +126,8 @@ const ActionButtons = styled.div`
     align-items: center;
 
     & button {
-      display: block;
-      width: 242px;
+        display: block;
+        width: 242px;
     }
 `;
 
@@ -174,15 +175,38 @@ function formatCountdown(ms: number): string {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+const getAccountNameById = (accountId: string): string => {
+    const accounts = SecureStorage.getEncryptedAccounts();
+
+    const targetAccount: Account | undefined = accounts.find(
+        (account: Account) => account.id === accountId,
+    );
+
+    if (!targetAccount) {
+        return "";
+    }
+
+    return targetAccount.name;
+};
+
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const queryParams = new URLSearchParams(location.search);
+
+    const loginAccountId: string | null = queryParams.get("id");
+    const specificRedirectUrl: string | null = queryParams.get("redirectUrl");
+
     const { isAuthenticated, hasAccounts, isLoading, error } = useSelector(
         (state: RootState) => state.auth,
     );
 
     const [password, setPassword] = useState("");
-    const [selectedAccountName, setSelectedAccountName] = useState<string>("");
+    const [selectedAccountName, setSelectedAccountName] = useState<string>(
+        () => (!loginAccountId ? "" : getAccountNameById(loginAccountId)),
+    );
     const [showError, setShowError] = useState(false);
 
     // Rate limit UI state
@@ -288,12 +312,6 @@ export const Login: React.FC = () => {
     }, [availableAccountNames, selectedAccountName]);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            navigate("/");
-        }
-    }, [isAuthenticated, navigate]);
-
-    useEffect(() => {
         if (error) {
             setShowError(true);
             const timer = setTimeout(() => setShowError(false), 5000);
@@ -328,7 +346,9 @@ export const Login: React.FC = () => {
                     dispatch(selectAccount(resultAction.payload[0].id));
                 }
 
-                navigate("/");
+                const currentRedirectUrl: string = specificRedirectUrl ?? "/";
+
+                navigate(currentRedirectUrl);
             } else {
                 setSecurityWarningDismissed(false);
                 await refreshRateLimitInfo();
