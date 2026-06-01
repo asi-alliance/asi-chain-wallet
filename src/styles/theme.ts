@@ -51,6 +51,7 @@ export const darkTheme = {
     borderLight: "rgba(255, 255, 255, 0.1)",
     shadow: "0 1px 4px rgba(0, 0, 0, 0.32)",
     shadowLarge: "0 4px 12px rgba(0, 0, 0, 0.36)",
+    shadowDrop: "0 4px 4px rgba(0, 0, 0, 0.25)",
 
     error: "#FF4D4F",
     textSecondary: "#b8b8b8",
@@ -128,6 +129,7 @@ export const lightTheme = {
     borderLight: "rgba(0, 0, 0, 0.05)",
     shadow: "0 1px 4px rgba(0, 0, 0, 0.08)",
     shadowLarge: "0 4px 12px rgba(0, 0, 0, 0.12)",
+    shadowDrop: "0 4px 4px rgba(0, 0, 0, 0.25)",
 
     error: "#E43A3C",
     textSecondary: "#5a5a5a",

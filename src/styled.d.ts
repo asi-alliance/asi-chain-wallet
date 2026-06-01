@@ -61,6 +61,7 @@ declare module "styled-components" {
         borderLight: string;
         shadow: string;
         shadowLarge: string;
+        shadowDrop: string;
 
         error: string;
         textSecondary: string;

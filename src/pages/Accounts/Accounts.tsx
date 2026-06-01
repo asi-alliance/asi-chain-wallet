@@ -26,74 +26,22 @@ import { PasswordSetup } from "components/PasswordSetup";
 import { SecureStorage } from "services/secureStorage";
 import { validateAccountName } from "utils/textUtils";
 import { getAddressLabel } from "../../constants/token";
-import { formatBalanceCard } from "utils/balanceUtils";
 import {
     importPrivateKey,
     importEthAddress,
     importRevAddress,
 } from "utils/crypto";
-import CopyButton from "components/CopyButton";
+import { ReloadIcon } from "components/Icons";
+import { AccountCard } from "components/AccountCard";
+import { Account } from "types/wallet";
 
-const AccountsContainer = styled.div`
-    max-width: 800px;
-    margin: 0 auto;
-`;
+const AccountsContainer = styled.div``;
 
 const AccountsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(462px, 1fr));
     gap: 20px;
     margin-bottom: 32px;
-`;
-
-const AccountCard = styled(Card)<{ isSelected: boolean }>`
-    border: 2px solid
-        ${({ isSelected, theme }) =>
-            isSelected ? theme.primary : theme.border};
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-        border-color: ${({ theme }) => theme.primary};
-        transform: translateY(-2px);
-    }
-`;
-
-const AccountHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-`;
-
-const AccountName = styled.h3`
-    font-size: 18px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.text.primary};
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 250px;
-`;
-
-const AccountBalance = styled.div`
-    font-size: 16px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.primary};
-`;
-
-const AccountAddress = styled.div`
-    font-size: 12px;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 16px;
-    word-break: break-all;
-`;
-
-const AccountActions = styled.div`
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
 `;
 
 const CreateAccountSection = styled.div`
@@ -474,24 +422,6 @@ export const Accounts: React.FC = () => {
         }
     };
 
-    const handleSelectAccount = (accountId: string) => {
-        dispatch(selectAccount(accountId));
-    };
-
-    const handleRemoveAccount = (accountId: string) => {
-        if (window.confirm("Are you sure you want to remove this account?")) {
-            dispatch(removeAccount(accountId));
-        }
-    };
-
-    const handleExportKeyfile = (accountId: string) => {
-        dispatch(exportAccountKeyfile({ accountId }) as any);
-    };
-
-    const formatAddress = (address: string) => {
-        return `${address.slice(0, 10)}...${address.slice(-8)}`;
-    };
-
     const getImportPlaceholder = () => {
         switch (importType) {
             case "private":
@@ -579,105 +509,18 @@ export const Accounts: React.FC = () => {
                             <h1>Your Accounts ({filteredAccounts.length})</h1>
                         </CardTitle>
                         <Button
-                            variant="ghost"
-                            size="small"
+                            variant="icon-button-ghost"
                             onClick={handleRefreshBalances}
                             loading={isLoading}
                         >
-                            <h3>Refresh Balances</h3>
+                            <ReloadIcon />
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <AccountsGrid>
-                            {filteredAccounts.map((account) => {
-                                const isUnlocked = unlockedAccounts.some(
-                                    (a) => a.id === account.id,
-                                );
-                                return (
-                                    <AccountCard
-                                        key={account.id}
-                                        id={`account-card-${account.id}`}
-                                        isSelected={
-                                            selectedAccount?.id === account.id
-                                        }
-                                        onClick={() =>
-                                            handleSelectAccount(account.id)
-                                        }
-                                    >
-                                        <AccountHeader>
-                                            <AccountName title={account.name}>
-                                                {account.name}
-                                            </AccountName>
-                                            <AccountBalance>
-                                                {formatBalanceCard(
-                                                    account.balance,
-                                                )}
-                                            </AccountBalance>
-                                        </AccountHeader>
-
-                                        <AccountAddress>
-                                            {formatAddress(account.revAddress)}
-                                            <CopyButton
-                                                dataToCopy={account.revAddress}
-                                                iconSize={15}
-                                            />
-                                        </AccountAddress>
-
-                                        <AccountActions>
-                                            {selectedAccount?.id ===
-                                                account.id && (
-                                                <h5
-                                                    style={{
-                                                        // fontSize: "12px",
-                                                        color: "#7ED321",
-                                                        fontWeight: "600",
-                                                    }}
-                                                >
-                                                    SELECTED
-                                                </h5>
-                                            )}
-                                            {isUnlocked && (
-                                                <h5
-                                                    style={{
-                                                        // fontSize: "12px",
-                                                        color: "#4A90E2",
-                                                        fontWeight: "600",
-                                                        marginLeft: "8px",
-                                                    }}
-                                                >
-                                                    UNLOCKED
-                                                </h5>
-                                            )}
-                                            <Button
-                                                id={`export-account-${account.id}`}
-                                                variant="ghost"
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleExportKeyfile(
-                                                        account.id,
-                                                    );
-                                                }}
-                                            >
-                                                <h3>Export</h3>
-                                            </Button>
-                                            <Button
-                                                id={`remove-account-${account.id}`}
-                                                variant="danger"
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRemoveAccount(
-                                                        account.id,
-                                                    );
-                                                }}
-                                            >
-                                                <h3>Remove</h3>
-                                            </Button>
-                                        </AccountActions>
-                                    </AccountCard>
-                                );
-                            })}
+                        <AccountsGrid className="accounts-grid">
+                            {filteredAccounts.map((account: Account) => (
+                                <AccountCard account={account} />
+                            ))}
                         </AccountsGrid>
                     </CardContent>
                 </Card>
@@ -726,7 +569,7 @@ export const Accounts: React.FC = () => {
                                     disabled={!newAccountName.trim()}
                                     fullWidth={false}
                                 >
-                                    <h3>Create Account {" "}</h3>
+                                    <h3>Create Account </h3>
                                     <svg
                                         width="14"
                                         height="14"

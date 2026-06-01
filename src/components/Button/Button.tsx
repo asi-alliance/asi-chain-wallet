@@ -2,7 +2,13 @@ import React from "react";
 import styled, { css } from "styled-components";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "primary" | "secondary" | "danger" | "ghost" | "icon-button";
+    variant?:
+        | "primary"
+        | "secondary"
+        | "danger"
+        | "ghost"
+        | "icon-button"
+        | "icon-button-ghost";
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
@@ -144,6 +150,26 @@ const ButtonBase = styled.button<ButtonProps>`
                     &:hover:not(:disabled) {
                         border-color: ${theme.text.secondary};
                         transform: translateY(-1px);
+                    }
+
+                    &:active:not(:disabled) {
+                        transform: translateY(0);
+                    }
+                `;
+            case "icon-button-ghost":
+                return css`
+                    background: transparent;
+                    color: ${theme.primary};
+                    border: none;
+                    box-shadow: none;
+                    padding: 7px;
+                    min-width: auto;
+                    min-height: auto;
+                    aspect-ratio: 1/1;
+
+                    &:hover:not(:disabled) {
+                        transform: translateY(-1px);
+                        box-shadow: none;
                     }
 
                     &:active:not(:disabled) {
