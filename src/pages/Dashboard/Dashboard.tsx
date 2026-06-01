@@ -5,23 +5,18 @@ import { RootState } from "store";
 import { fetchBalance } from "store/walletSlice";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { useNavigate } from "react-router-dom";
-import { formatBalanceDashboard } from "utils/balanceUtils";
 import { getAddressLabel } from "../../constants/token";
 import TransactionHistoryService from "../../services/transactionHistory";
-import {
-    SendIcon,
-    ReceiveIcon,
-    AccountsIcon,
-    ContractIcon,
-    IDEIcon,
-    ClipboardIcon,
-} from "components/Icons";
+import { AccountCard } from "components/AccountCard";
+import { Select } from "components/Select";
+import { Account } from "types/wallet";
 
 const DashboardContainer = styled.div`
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
     margin-bottom: 24px;
+    align-items: start;
 
     @media (min-width: 769px) {
         grid-template-columns: 1fr 1fr;
@@ -30,189 +25,68 @@ const DashboardContainer = styled.div`
     }
 `;
 
-const BalanceCard = styled(Card)`
-    background: ${({ theme }) => theme.gradient.primary};
-    color: white !important; /* Force white text in both themes */
-    border: none;
-    position: relative;
-    overflow: hidden;
-
-    /* Add a subtle dark overlay to improve text contrast */
-    &::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        // background: rgba(0, 0, 0, 0.2);
-        pointer-events: none;
-    }
-
-    /* Ensure content appears above overlay */
-    > * {
-        position: relative;
-        z-index: 1;
-    }
-
-    /* Force all text elements to be white */
-    * {
-        color: white !important;
-    }
-`;
-
-const BalanceAmount = styled.div`
-    font-size: 48px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    color: white !important;
-`;
-
-const BalanceLabel = styled.div`
-    font-size: 16px;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    color: white !important;
-`;
-
-const AccountInfo = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-`;
-
-const AddressRow = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-`;
-
-const AddressLabel = styled.span`
-    font-size: 14px;
-    color: ${({ theme }) => theme.text.secondary};
-`;
-
-const AddressValue = styled.span`
-    font-size: 14px;
-    color: ${({ theme }) => theme.text.primary};
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 200px;
-`;
-
 const ActionButtons = styled.div`
     display: flex;
     gap: 16px;
     margin-top: 24px;
 `;
 
-const QuickActions = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-top: 16px;
-
-    @media (min-width: 480px) {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }
-
-    @media (min-width: 769px) {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        margin-top: 24px;
-    }
-`;
-
-const ActionCard = styled(Card)`
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    overflow: hidden;
-    min-height: 100px;
-
-    /* Touch feedback for mobile */
-    &:active {
-        transform: scale(0.98);
-    }
-
-    @media (min-width: 769px) {
-        &:hover {
-            transform: translateY(-2px);
-        }
-
-        &:active {
-            transform: translateY(-2px);
-        }
-    }
-
-    p {
-        // font-size: 13px;
-        line-height: 1.4;
-        margin: 0;
-        color: ${({ theme }) => theme.text.secondary};
-    }
-`;
-
-const ActionCardTitle = styled.h3`
-    font-size: 16px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.text.primary};
-    margin: 0;
+const FilterGroup = styled.div`
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
-`;
+    width: 100%;
 
+    @media (min-width: 1024px) {
+        width: auto;
 
-const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger + "20"};
-    color: ${({ theme }) => theme.danger};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-weight: 500;
-    border: 1px solid ${({ theme }) => theme.danger};
-`;
-
-const LoadingSkeleton = styled.div<{ height?: string }>`
-    height: ${({ height }) => height || "20px"};
-    background: ${({ theme }) => theme.surface};
-    border-radius: 4px;
-    animation: pulse 1.5s ease-in-out infinite;
-
-    @keyframes pulse {
-        0% {
-            opacity: 0.6;
+        &:nth-child(1) {
+            flex: 0 0 20%;
+            max-width: 20%;
         }
-        50% {
-            opacity: 1;
+
+        &:nth-child(2) {
+            flex: 0 0 15%;
+            max-width: 15%;
         }
-        100% {
-            opacity: 0.6;
+
+        &:nth-child(3),
+        &:nth-child(4) {
+            flex: 0 0 18%;
+            max-width: 18%;
         }
+
+        &:nth-child(5) {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        width: 100%;
+        flex: none;
+        max-width: 100%;
     }
 `;
 
-
+const FilterLabel = styled.label`
+    // font-size: 14px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.secondary};
+`;
 
 export const Dashboard: React.FC = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { selectedAccount, selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet
+    const { selectedAccount, selectedNetwork, accounts } = useSelector(
+        (state: RootState) => state.wallet,
     );
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
     const isAccountUnlocked = useMemo(() => {
         if (!selectedAccount) return false;
         return unlockedAccounts.some(
-            (account) => account.id === selectedAccount.id
+            (account) => account.id === selectedAccount.id,
         );
     }, [unlockedAccounts, selectedAccount]);
-
-    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     useEffect(() => {
         if (
@@ -228,19 +102,19 @@ export const Dashboard: React.FC = () => {
                     selectedAccount.revAddress,
                     selectedAccount.publicKey,
                     selectedNetwork.name,
-                    selectedNetwork.graphqlUrl
+                    selectedNetwork.graphqlUrl,
                 )
                     .then((result) => {
                         if (result.added > 0 || result.updated > 0) {
                             console.log(
-                                `[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`
+                                `[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`,
                             );
                         }
                     })
                     .catch((error) => {
                         console.error(
                             "[Dashboard] Error syncing from blockchain:",
-                            error
+                            error,
                         );
                     });
             }
@@ -250,41 +124,34 @@ export const Dashboard: React.FC = () => {
                     fetchBalance({
                         account: selectedAccount,
                         network: selectedNetwork,
-                    }) as any
+                    }) as any,
                 ).then((result: any) => {
                     if (result.payload) {
                         const newBalance = result.payload.balance;
 
                         if (parseFloat(newBalance) > parseFloat(oldBalance)) {
                             console.log(
-                                `[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`
+                                `[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`,
                             );
                             try {
                                 TransactionHistoryService.detectReceivedTransaction(
                                     selectedAccount.revAddress,
                                     oldBalance,
                                     newBalance,
-                                    selectedNetwork.name
+                                    selectedNetwork.name,
                                 );
                             } catch (error) {
                                 console.error(
                                     `[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`,
-                                    error
+                                    error,
                                 );
                             }
                         }
                     }
                 });
             }
-
-            setLastRefresh(new Date());
         }
-    }, [
-        dispatch,
-        selectedAccount,
-        selectedNetwork,
-        isAccountUnlocked,
-    ]);
+    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
 
     useEffect(() => {
         if (
@@ -302,7 +169,7 @@ export const Dashboard: React.FC = () => {
                         fetchBalance({
                             account: selectedAccount,
                             network: selectedNetwork,
-                        }) as any
+                        }) as any,
                     ).then((result: any) => {
                         if (result.payload) {
                             const newBalance = result.payload.balance;
@@ -311,69 +178,40 @@ export const Dashboard: React.FC = () => {
                                 parseFloat(newBalance) > parseFloat(oldBalance)
                             ) {
                                 console.log(
-                                    `[Dashboard Auto-refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`
+                                    `[Dashboard Auto-refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`,
                                 );
                                 try {
                                     TransactionHistoryService.detectReceivedTransaction(
                                         selectedAccount.revAddress,
                                         oldBalance,
                                         newBalance,
-                                        selectedNetwork.name
+                                        selectedNetwork.name,
                                     );
                                 } catch (error) {
                                     console.error(
                                         `[Dashboard Auto-refresh] Error detecting received transaction for ${selectedAccount.name}:`,
-                                        error
+                                        error,
                                     );
                                 }
                             }
                         }
                     });
-
-                    setLastRefresh(new Date());
                 }
             }, 30000); // 30 seconds
 
             return () => clearInterval(interval);
         }
-    }, [
-        dispatch,
-        selectedAccount,
-        selectedNetwork,
-        isAccountUnlocked,
-    ]);
+    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
 
-    const handleRefreshBalance = () => {
-        if (selectedAccount && selectedNetwork) {
-            dispatch(
-                fetchBalance({
-                    account: selectedAccount,
-                    network: selectedNetwork,
-                    forceRefresh: true,
-                }) as any
-            );
-            setLastRefresh(new Date());
-        }
-    };
-
-    const formatAddress = (address: string) => {
-        return `${address.slice(0, 6)}...${address.slice(-4)}`;
-    };
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-    };
-
-    const formatRelativeTime = (date: Date) => {
-        const seconds = Math.floor(
-            (new Date().getTime() - date.getTime()) / 1000
-        );
-
-        if (seconds < 60) return "just now";
-        if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-        return `${Math.floor(seconds / 86400)} days ago`;
-    };
+    const accountOptions = useMemo(
+        () =>
+            accounts.map((account: Account) => ({
+                id: account.id,
+                value: account.id,
+                label: account.name,
+            })),
+        [accounts],
+    );
 
     if (!selectedAccount) {
         return (
@@ -401,195 +239,25 @@ export const Dashboard: React.FC = () => {
     return (
         <div>
             <DashboardContainer>
-                <BalanceCard>
-                    <CardContent>
-                        {isLoading ? (
-                            <LoadingSkeleton height="48px" />
-                        ) : (
-                            <BalanceAmount id="dashboard-current-balance">
-                                {formatBalanceDashboard(
-                                    selectedAccount.balance
-                                )}
-                            </BalanceAmount>
-                        )}
-                        <BalanceLabel>
-                            <h3>Current Balance</h3>
-                        </BalanceLabel>
-                        <Button
-                            id="dashboard-refresh-balance-button"
-                            variant="ghost"
-                            size="small"
-                            onClick={handleRefreshBalance}
-                            loading={isLoading}
-                            style={{
-                                marginTop: "16px",
-                                border: "1px solid rgba(255,255,255,0.3)",
-                                color: "white",
-                            }}
-                        >
-                            Refresh
-                        </Button>
-                    </CardContent>
-                </BalanceCard>
-
+                <AccountCard account={selectedAccount} fullMode={false} />
                 <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            <h1>Account Details</h1>
-                        </CardTitle>
-                    </CardHeader>
                     <CardContent>
-                        <AccountInfo>
-                            <AddressRow>
-                                <AddressLabel>
-                                    <h4>Name:</h4>
-                                </AddressLabel>
-                                <AddressValue
-                                    id="dashboard-account-name"
-                                    title={selectedAccount.name}
-                                >
-                                    {selectedAccount.name}
-                                </AddressValue>
-                            </AddressRow>
-                            <AddressRow>
-                                <AddressLabel>
-                                    <h4>{getAddressLabel()}:</h4>
-                                </AddressLabel>
-                                <AddressValue
-                                    id="dashboard-asi-address"
-                                    onClick={() =>
-                                        copyToClipboard(
-                                            selectedAccount.revAddress
-                                        )
-                                    }
-                                    style={{ cursor: "pointer" }}
-                                    title="Click to copy"
-                                >
-                                    {formatAddress(selectedAccount.revAddress)}
-                                </AddressValue>
-                            </AddressRow>
-                            <AddressRow>
-                                <AddressLabel>
-                                    <h4>ETH Address:</h4>
-                                </AddressLabel>
-                                <AddressValue
-                                    onClick={() =>
-                                        copyToClipboard(
-                                            selectedAccount.ethAddress
-                                        )
-                                    }
-                                    style={{ cursor: "pointer" }}
-                                    title="Click to copy"
-                                >
-                                    {formatAddress(selectedAccount.ethAddress)}
-                                </AddressValue>
-                            </AddressRow>
-                            <AddressRow>
-                                <AddressLabel>
-                                    <h4>Network:</h4>
-                                </AddressLabel>
-                                <AddressValue id="dashboard-network-name">
-                                    {selectedNetwork.name}
-                                </AddressValue>
-                            </AddressRow>
-                            <AddressRow>
-                                <AddressLabel>
-                                    <h4>Last Updated:</h4>
-                                </AddressLabel>
-                                <AddressValue>
-                                    {formatRelativeTime(lastRefresh)}
-                                </AddressValue>
-                            </AddressRow>
-                        </AccountInfo>
+                        <FilterGroup>
+                            <FilterLabel>
+                                <h4 className="light">Account</h4>
+                            </FilterLabel>
+                            <Select
+                                id="history-filter-account-select"
+                                value={selectedAccount?.id}
+                                disabled
+                                onChange={() => {}}
+                                placeholder="Select account"
+                                options={accountOptions}
+                            />
+                        </FilterGroup>
                     </CardContent>
                 </Card>
             </DashboardContainer>
-
-            <QuickActions>
-                <ActionCard onClick={() => navigate("/send")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <SendIcon size={20} />
-                            <h3>Send ASI</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            Send ASI tokens to another address
-                        </p>
-                    </CardContent>
-                </ActionCard>
-
-                <ActionCard onClick={() => navigate("/receive")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <ReceiveIcon size={20} />
-                            <h3>Receive ASI</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            Get your address to receive ASI tokens
-                        </p>
-                    </CardContent>
-                </ActionCard>
-
-                <ActionCard onClick={() => navigate("/accounts")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <AccountsIcon size={20} />
-                            <h3>Accounts</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            Create, import, or switch between accounts
-                        </p>
-                    </CardContent>
-                </ActionCard>
-
-                <ActionCard onClick={() => navigate("/deploy")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <ContractIcon size={20} />
-                            <h3>Deploy</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            Deploy custom Rholang contracts
-                        </p>
-                    </CardContent>
-                </ActionCard>
-
-                <ActionCard onClick={() => navigate("/ide")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <IDEIcon size={20} />
-                            <h3>IDE</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            Develop and test Rholang contracts
-                        </p>
-                    </CardContent>
-                </ActionCard>
-
-                <ActionCard onClick={() => navigate("/history")}>
-                    <CardHeader>
-                        <ActionCardTitle>
-                            <ClipboardIcon size={20} />
-                            <h3>Transactions</h3>
-                        </ActionCardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3">
-                            View and export transaction history
-                        </p>
-                    </CardContent>
-                </ActionCard>
-            </QuickActions>
         </div>
     );
 };

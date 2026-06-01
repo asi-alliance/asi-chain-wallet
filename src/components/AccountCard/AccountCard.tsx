@@ -26,6 +26,7 @@ import { EditableLabel } from "components/EditableLabel";
 
 interface IAccountCardProps {
     account: Account;
+    fullMode?: boolean;
 }
 
 const AccountCardWrapper = styled(Card)<{ isSelected: boolean }>`
@@ -152,7 +153,10 @@ const RemoveButton = styled(Button)`
     background: ${({ theme }) => theme.colors.background.secondary};
 `;
 
-export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
+export const AccountCard = ({
+    account,
+    fullMode = true,
+}: IAccountCardProps): ReactElement => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -175,7 +179,14 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
         dispatch(exportAccountKeyfile({ accountId }) as any);
     };
 
-    const formatAddress = (address: string, visibleSymbolsCount = 16) => {
+    const formatAddress = (
+        address: string,
+        { visibleSymbolsCount = 16, isFullMode = false } = {},
+    ) => {
+        if (isFullMode) {
+            return address;
+        }
+
         return `${address.slice(0, visibleSymbolsCount)}...${address.slice(-visibleSymbolsCount)}`;
     };
 
@@ -220,16 +231,18 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
                     title={account.name}
                 />
 
-                <RemoveButton
-                    id={`remove-account-${account.id}`}
-                    variant="icon-button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveAccount(account.id);
-                    }}
-                >
-                    <DeleteIcon />
-                </RemoveButton>
+                {fullMode && (
+                    <RemoveButton
+                        id={`remove-account-${account.id}`}
+                        variant="icon-button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveAccount(account.id);
+                        }}
+                    >
+                        <DeleteIcon />
+                    </RemoveButton>
+                )}
             </AccountHeader>
 
             <AmountBalanceWrapper className="amount-balance-wrapper">
@@ -271,51 +284,55 @@ export const AccountCard = ({ account }: IAccountCardProps): ReactElement => {
                         style={{ marginRight: 10, lineHeight: "27px" }}
                         isSelected={isSelected}
                     >
-                        {formatAddress(account.revAddress)}
+                        {formatAddress(account.revAddress, {
+                            isFullMode: !fullMode,
+                        })}
                     </LabelSecond>
                     <CopyButton dataToCopy={account.revAddress} iconSize={15} />
                 </AccountAddress>
 
-                <AccountActions>
-                    {!isUnlocked && (
+                {fullMode && (
+                    <AccountActions>
+                        {!isUnlocked && (
+                            <ActionButton
+                                isSelected={isSelected}
+                                id={`unlock-account-${account.id}`}
+                                variant="icon-button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+
+                                    navigate(
+                                        buildUrlWithParams("/login", {
+                                            queryParams: [
+                                                {
+                                                    key: "id",
+                                                    value: account.id,
+                                                },
+                                                {
+                                                    key: "redirectUrl",
+                                                    value: "/accounts",
+                                                },
+                                            ],
+                                        }),
+                                    );
+                                }}
+                            >
+                                <LockPassIcon />
+                            </ActionButton>
+                        )}
                         <ActionButton
                             isSelected={isSelected}
-                            id={`unlock-account-${account.id}`}
+                            id={`export-account-${account.id}`}
                             variant="icon-button"
                             onClick={(e) => {
                                 e.stopPropagation();
-
-                                navigate(
-                                    buildUrlWithParams("/login", {
-                                        queryParams: [
-                                            {
-                                                key: "id",
-                                                value: account.id,
-                                            },
-                                            {
-                                                key: "redirectUrl",
-                                                value: "/accounts",
-                                            },
-                                        ],
-                                    }),
-                                );
+                                handleExportKeyfile(account.id);
                             }}
                         >
-                            <LockPassIcon />
+                            <DownloadIcon size={24} />
                         </ActionButton>
-                    )}
-                    <ActionButton
-                        isSelected={isSelected}
-                        id={`export-account-${account.id}`}
-                        variant="icon-button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleExportKeyfile(account.id);
-                        }}
-                    >
-                        <DownloadIcon size={24} />
-                    </ActionButton>
-                </AccountActions>
+                    </AccountActions>
+                )}
             </AccountCardFooter>
         </AccountCardWrapper>
     );
