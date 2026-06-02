@@ -2,16 +2,15 @@ import React, { useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance, selectAccount } from "store/walletSlice";
+import { fetchBalance } from "store/walletSlice";
 import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
 import TransactionHistoryService from "../../services/transactionHistory";
 import { AccountCard } from "components/AccountCard";
-import { Select } from "components/Select";
-import { Account } from "types/wallet";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { HistoryIcon, VectorIcon } from "components/Icons";
 import useScreen from "hooks/useScreen";
+import { AccountSelector } from "components/AccountSelector";
 
 const DashboardContainer = styled.div`
     display: block;
@@ -40,19 +39,6 @@ const ContentHeader = styled.div`
     @media (max-width: 1023px) {
         margin-bottom: 24px;
     }
-`;
-
-const FilterGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-`;
-
-const FilterLabel = styled.label`
-    // font-size: 14px;
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
 `;
 
 const ActionsToolbar = styled.div`
@@ -201,27 +187,9 @@ export const Dashboard: React.FC = () => {
         }
     }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
 
-    const accountOptions = useMemo(
-        () =>
-            accounts.map((account: Account) => ({
-                id: account.id,
-                value: account.id,
-                label: account.name,
-            })),
-        [accounts],
-    );
-
     const accountIdForActions = useMemo(
         () => selectedAccount?.id ?? accounts[0].id,
         [selectedAccount, accounts],
-    );
-
-    const accountForActions: Account = useMemo(
-        () =>
-            accounts.find(
-                (account: Account) => account.id === accountIdForActions,
-            ) ?? accounts[0],
-        [accounts, accountIdForActions],
     );
 
     if (!selectedAccount) {
@@ -267,20 +235,7 @@ export const Dashboard: React.FC = () => {
                 <Card>
                     <CardContent>
                         <ContentHeader>
-                            <FilterGroup>
-                                <FilterLabel>
-                                    <h4 className="light">Account</h4>
-                                </FilterLabel>
-                                <Select
-                                    id="history-filter-account-select"
-                                    value={accountForActions.id}
-                                    onChange={(accountId: string) => {
-                                        dispatch(selectAccount(accountId));
-                                    }}
-                                    placeholder="Select account"
-                                    options={accountOptions}
-                                />
-                            </FilterGroup>
+                            <AccountSelector fullWidth />
                             {!isLaptop && (
                                 <Button
                                     id="import-account-button"

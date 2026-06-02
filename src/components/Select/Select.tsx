@@ -1,5 +1,5 @@
 import { ExpandIcon } from "components/Icons";
-import { FC, useState, useRef, useEffect } from "react";
+import { FC, useState, useRef, useEffect, CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 
@@ -98,13 +98,15 @@ export interface ISelectOption {
     label: string;
 }
 
-interface ISelectProps {
+export interface ISelectProps {
     value?: string;
     onChange: (value: string) => void;
     disabled?: boolean;
     placeholder?: string;
     options: ISelectOption[];
     id?: string;
+    className?: string;
+    style?: CSSProperties;
 }
 
 const DROPDOWN_ITEM_DATA_ID: string = "dropdown-item";
@@ -116,6 +118,8 @@ export const Select: FC<ISelectProps> = ({
     placeholder = "Select option",
     options,
     id,
+    className = "",
+    style,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -200,9 +204,10 @@ export const Select: FC<ISelectProps> = ({
 
     return (
         <SelectWrapper
-            className="select-wrapper"
+            className={`select-wrapper ${className}`}
             ref={wrapperRef}
             disabled={disabled}
+            style={style}
         >
             <SelectButton onClick={toggleDropdown} disabled={disabled}>
                 <SelectedValue>{getSelectedText()}</SelectedValue>
