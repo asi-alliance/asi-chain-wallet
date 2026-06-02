@@ -16,7 +16,10 @@ const SelectWrapper = styled.div<{ disabled?: boolean }>`
     `}
 `;
 
-const SelectButton = styled.div<{ disabled?: boolean }>`
+const SelectButton = styled.div<{
+    disabled?: boolean;
+    hasAdditionalLabel?: boolean;
+}>`
     padding: 10px 20px;
     height: 44px;
     border: 1px solid ${({ theme }) => theme.border};
@@ -42,6 +45,11 @@ const SelectButton = styled.div<{ disabled?: boolean }>`
 
     &:hover:not(:disabled) {
         background: ${({ theme }) => `${theme.text.primary}08`};
+    }
+
+    @media (max-width: 768px) {
+        height: ${({ hasAdditionalLabel }) =>
+            hasAdditionalLabel ? "auto" : "44px"};
     }
 `;
 
@@ -71,6 +79,12 @@ const DropdownMenuPortal = styled.ul<{
     z-index: 9999;
 `;
 
+const AdditionalLabel = styled.span`
+    @media (max-width: 768px) {
+        display: block;
+    }
+`;
+
 const DropdownItem = styled.li<{
     selected?: boolean;
     withAdditionalLabel: boolean;
@@ -92,6 +106,10 @@ const DropdownItem = styled.li<{
     &:hover {
         background: ${({ theme }) => `${theme.text.primary}08`};
     }
+
+    @media (max-width: 768px) {
+        display: block;
+    }
 `;
 
 const SelectedValue = styled.span<{ hasAdditionalLabel?: boolean }>`
@@ -102,6 +120,10 @@ const SelectedValue = styled.span<{ hasAdditionalLabel?: boolean }>`
     display: flex;
     gap: 13px;
     align-items: center;
+
+    @media (max-width: 768px) {
+        display: block;
+    }
 `;
 
 export interface ISelectOption {
@@ -229,15 +251,19 @@ export const Select: FC<ISelectProps> = ({
             disabled={disabled}
             style={style}
         >
-            <SelectButton onClick={toggleDropdown} disabled={disabled}>
+            <SelectButton
+                hasAdditionalLabel={!!getSelectedAdditionalLabel()}
+                onClick={toggleDropdown}
+                disabled={disabled}
+            >
                 <SelectedValue
                     hasAdditionalLabel={!!getSelectedAdditionalLabel()}
                 >
                     <span>{getSelectedText()}</span>
                     {getSelectedAdditionalLabel() && (
-                        <span className="text-4 text-light">
+                        <AdditionalLabel className="text-4 text-light">
                             {getSelectedAdditionalLabel()}
-                        </span>
+                        </AdditionalLabel>
                     )}
                 </SelectedValue>
                 <ArrowIconWrapper isOpen={isOpen}>
@@ -265,9 +291,9 @@ export const Select: FC<ISelectProps> = ({
                                         {option.label}
                                     </span>
                                     {option.additionalLabel && (
-                                        <span className="text-4 text-light text-ellipsis">
+                                        <AdditionalLabel className="text-4 text-light text-ellipsis">
                                             {option.additionalLabel}
-                                        </span>
+                                        </AdditionalLabel>
                                     )}
                                 </DropdownItem>
                             );

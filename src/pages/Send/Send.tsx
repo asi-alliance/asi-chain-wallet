@@ -25,7 +25,12 @@ import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
 import { AccountBalance } from "components/AccountBalance";
 import { DefaultTheme } from "styled-components/dist/types";
-import { ContentPasteIcon, HistoryIcon, QRIcon, VectorIcon } from "components/Icons";
+import {
+    ContentPasteIcon,
+    HistoryIcon,
+    QRIcon,
+    VectorIcon,
+} from "components/Icons";
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -36,10 +41,22 @@ const FormGroup = styled.div`
     margin-bottom: 24px;
 `;
 
+const RecipientAddressFormGroup = styled(FormGroup)`
+    margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        margin-bottom: 20px;
+    }
+`;
+
 const BalanceInfo = styled.div`
     margin-bottom: 36px;
     display: flex;
     justify-content: center;
+
+    @media (max-width: 768px) {
+        margin-bottom: 49px;
+    }
 `;
 
 const ActionButtons = styled.div`
@@ -190,6 +207,13 @@ const ButtonGroup = styled.div`
     display: flex;
     gap: 8px;
     margin-bottom: 0;
+`;
+const AccountSelectorWithMarginBottom = styled(AccountSelector)`
+    margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        margin-bottom: 15px;
+    }
 `;
 
 export const Send: React.FC = () => {
@@ -835,12 +859,9 @@ export const Send: React.FC = () => {
                         <ErrorMessage>{error || validationError}</ErrorMessage>
                     )}
 
-                    <AccountSelector
+                    <AccountSelectorWithMarginBottom
                         fullWidth
                         labelMode={AccountSelectorLabelMods.FULL}
-                        style={{
-                            marginBottom: "36px",
-                        }}
                     />
 
                     <BalanceInfo className="balance-info">
@@ -854,7 +875,7 @@ export const Send: React.FC = () => {
                         </InfoMessage>
                     )}
 
-                    <FormGroup style={{ marginBottom: "36px" }}>
+                    <RecipientAddressFormGroup>
                         <label
                             style={{
                                 display: "block",
@@ -943,7 +964,7 @@ export const Send: React.FC = () => {
                             Tip: Copy a QR code image and paste it directly in
                             the field or click the Paste button
                         </div>
-                    </FormGroup>
+                    </RecipientAddressFormGroup>
 
                     <InputWithButton
                         className="input-with-button"
