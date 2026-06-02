@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
 import {
     Card,
     CardHeader,
@@ -19,9 +18,10 @@ import { RChainService } from "services/rchain";
 import TransactionPollingService from "services/transactionPolling";
 import { getTokenDisplayName } from "../../constants/token";
 import { Account } from "types/wallet";
-import { CopyIcon, DownloadIcon } from "components/Icons";
-import { AdaptiveSelect, Select } from "components/Select";
+import { ContentPasteIcon, CopyIcon, DownloadIcon } from "components/Icons";
+import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
+import { AccountSelector } from "components/AccountSelector";
 
 const HistoryContainer = styled.div`
     max-width: 1200px;
@@ -528,19 +528,7 @@ export const History: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                     <FilterSection>
-                        <FilterGroup>
-                            <FilterLabel>
-                                <h4 className="light">Account</h4>
-                            </FilterLabel>
-                            <Select
-                                id="history-filter-account-select"
-                                value={selectedAccount?.id}
-                                disabled
-                                onChange={() => {}}
-                                placeholder="Select account"
-                                options={accountOptions}
-                            />
-                        </FilterGroup>
+                        <AccountSelector />
 
                         <FilterGroup>
                             <FilterLabel>
@@ -767,7 +755,7 @@ export const History: React.FC = () => {
                                                                     height: 16,
                                                                 }}
                                                             >
-                                                                <CopyIcon />
+                                                                <ContentPasteIcon />
                                                             </a>
                                                         </div>
                                                     )}
