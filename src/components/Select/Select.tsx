@@ -45,13 +45,6 @@ const SelectButton = styled.div<{ disabled?: boolean }>`
     }
 `;
 
-const SelectedValue = styled.span`
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
 const ArrowIconWrapper = styled.div<{ isOpen: boolean }>`
     display: flex;
     align-items: center;
@@ -78,10 +71,19 @@ const DropdownMenuPortal = styled.ul<{
     z-index: 9999;
 `;
 
-const DropdownItem = styled.li<{ selected?: boolean }>`
+const DropdownItem = styled.li<{
+    selected?: boolean;
+    withAdditionalLabel: boolean;
+}>`
     padding: 10px 16px;
     cursor: pointer;
     font-size: 16px;
+    display: ${({ withAdditionalLabel }) =>
+        withAdditionalLabel ? "flex" : "block"};
+    gap: ${({ withAdditionalLabel }) =>
+        withAdditionalLabel ? "13px" : "none"};
+    align-items: ${({ withAdditionalLabel }) =>
+        withAdditionalLabel ? "center" : "initial"};
     color: ${({ theme, selected }) =>
         selected ? theme.primary : theme.text.primary};
     background: ${({ theme, selected }) =>
@@ -92,10 +94,21 @@ const DropdownItem = styled.li<{ selected?: boolean }>`
     }
 `;
 
+const SelectedValue = styled.span<{ hasAdditionalLabel?: boolean }>`
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    gap: 13px;
+    align-items: center;
+`;
+
 export interface ISelectOption {
     id: string | number;
     value: string;
     label: string;
+    additionalLabel?: string;
 }
 
 export interface ISelectProps {
@@ -135,6 +148,13 @@ export const Select: FC<ISelectProps> = ({
         );
 
         return selectedOption?.label || placeholder;
+    };
+
+    const getSelectedAdditionalLabel = () => {
+        const selectedOption = options.find(
+            (option: ISelectOption) => option.value === value,
+        );
+        return selectedOption?.additionalLabel;
     };
 
     useEffect(() => {
@@ -210,7 +230,16 @@ export const Select: FC<ISelectProps> = ({
             style={style}
         >
             <SelectButton onClick={toggleDropdown} disabled={disabled}>
-                <SelectedValue>{getSelectedText()}</SelectedValue>
+                <SelectedValue
+                    hasAdditionalLabel={!!getSelectedAdditionalLabel()}
+                >
+                    <span>{getSelectedText()}</span>
+                    {getSelectedAdditionalLabel() && (
+                        <span className="text-4 text-light">
+                            {getSelectedAdditionalLabel()}
+                        </span>
+                    )}
+                </SelectedValue>
                 <ArrowIconWrapper isOpen={isOpen}>
                     <ExpandIcon size={16} />
                 </ArrowIconWrapper>
@@ -228,8 +257,18 @@ export const Select: FC<ISelectProps> = ({
                                     key={option.id}
                                     selected={isSelected}
                                     onClick={() => handleSelect(option.value)}
+                                    withAdditionalLabel={
+                                        !!option.additionalLabel
+                                    }
                                 >
-                                    {option.label}
+                                    <span className="text-ellipsis">
+                                        {option.label}
+                                    </span>
+                                    {option.additionalLabel && (
+                                        <span className="text-4 text-light text-ellipsis">
+                                            {option.additionalLabel}
+                                        </span>
+                                    )}
                                 </DropdownItem>
                             );
                         })}

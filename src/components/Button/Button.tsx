@@ -8,7 +8,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
         | "danger"
         | "ghost"
         | "icon-button"
-        | "icon-button-ghost";
+        | "icon-button-ghost"
+        | "icon-button-black";
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
@@ -140,6 +141,26 @@ const ButtonBase = styled.button<ButtonProps>`
                 return css`
                     background: transparent;
                     color: ${theme.primary};
+                    border: 0.5px solid ${theme.border};
+                    box-shadow: none;
+                    padding: 7px;
+                    min-width: auto;
+                    min-height: auto;
+                    aspect-ratio: 1/1;
+
+                    &:hover:not(:disabled) {
+                        border-color: ${theme.text.secondary};
+                        transform: translateY(-1px);
+                    }
+
+                    &:active:not(:disabled) {
+                        transform: translateY(0);
+                    }
+                `;
+            case "icon-button-black":
+                return css`
+                    background: transparent;
+                    color: ${theme.colors.text.primary};
                     border: 0.5px solid ${theme.border};
                     box-shadow: none;
                     padding: 7px;

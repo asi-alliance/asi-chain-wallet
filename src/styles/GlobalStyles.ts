@@ -260,6 +260,16 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     font-size: 0.5rem;
   }
 
+  .text-light {
+  font-weight: 400;
+  }
+
+  .text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
   
   * {
   font-family: 'Roboto Mono', monospace  !important;

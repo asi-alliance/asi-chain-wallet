@@ -21,6 +21,11 @@ import {
 import { getTokenDisplayName } from "../../constants/token";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
 import addressValidation from "utils/AddressValidation";
+import { AccountSelector } from "components/AccountSelector";
+import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
+import { AccountBalance } from "components/AccountBalance";
+import { DefaultTheme } from "styled-components/dist/types";
+import { ContentPasteIcon, HistoryIcon, QRIcon, VectorIcon } from "components/Icons";
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -32,30 +37,16 @@ const FormGroup = styled.div`
 `;
 
 const BalanceInfo = styled.div`
-    background: ${({ theme }) => theme.surface};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 24px;
-    text-align: center;
-`;
-
-const BalanceAmount = styled.div`
-    font-size: 24px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.primary};
-`;
-
-const BalanceLabel = styled.div`
-    // font-size: 14px;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-top: 4px;
+    margin-bottom: 36px;
+    display: flex;
+    justify-content: center;
 `;
 
 const ActionButtons = styled.div`
     display: flex;
     gap: 16px;
-    justify-content: flex-end;
-    margin-top: 32px;
+    justify-content: center;
+    align-items: center;
 `;
 
 const ErrorMessage = styled.div`
@@ -195,13 +186,6 @@ const InputWithButton = styled.div`
     align-items: flex-end;
 `;
 
-const ScanButton = styled(Button)`
-    height: 48px;
-    padding: 0 16px;
-    white-space: nowrap;
-    margin-bottom: 0;
-`;
-
 const ButtonGroup = styled.div`
     display: flex;
     gap: 8px;
@@ -212,10 +196,10 @@ export const Send: React.FC = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const { selectedAccount, selectedNetwork, isLoading, error } = useSelector(
-        (state: RootState) => state.wallet
+        (state: RootState) => state.wallet,
     );
     const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
-        (state: RootState) => state.auth
+        (state: RootState) => state.auth,
     );
 
     const [recipient, setRecipient] = useState("");
@@ -276,8 +260,8 @@ export const Send: React.FC = () => {
         if (amountValue > balance) {
             setValidationError(
                 `Insufficient balance. You have ${balance.toFixed(
-                    8
-                )} ${getTokenDisplayName()}`
+                    8,
+                )} ${getTokenDisplayName()}`,
             );
             return;
         }
@@ -288,10 +272,10 @@ export const Send: React.FC = () => {
             const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
             setValidationError(
                 `Amount + fee (${totalRequired.toFixed(
-                    8
+                    8,
                 )}) exceeds balance. Max: ${maxRounded.toFixed(
-                    8
-                )} ${getTokenDisplayName()}`
+                    8,
+                )} ${getTokenDisplayName()}`,
             );
             return;
         }
@@ -309,7 +293,7 @@ export const Send: React.FC = () => {
                 fetchBalance({
                     account: selectedAccount,
                     network: selectedNetwork,
-                }) as any
+                }) as any,
             );
         }
     }, [selectedAccount, selectedNetwork, dispatch]);
@@ -322,7 +306,7 @@ export const Send: React.FC = () => {
                 fetchBalance({
                     account: selectedAccount,
                     network: selectedNetwork,
-                }) as any
+                }) as any,
             );
         }, 30000);
 
@@ -343,14 +327,14 @@ export const Send: React.FC = () => {
                     returnDetailedScanResult: true,
                     highlightScanRegion: true,
                     highlightCodeOutline: true,
-                }
+                },
             );
 
             qrScannerRef.current = qrScanner;
             qrScanner.start().catch((err) => {
                 console.error("Failed to start QR scanner:", err);
                 setScanError(
-                    "Failed to access camera. Please check permissions."
+                    "Failed to access camera. Please check permissions.",
                 );
             });
         }
@@ -395,7 +379,7 @@ export const Send: React.FC = () => {
                         } catch (error) {
                             console.error(
                                 "Failed to scan QR code from clipboard image:",
-                                error
+                                error,
                             );
                         }
                     }
@@ -403,13 +387,13 @@ export const Send: React.FC = () => {
             }
 
             setScanError(
-                "No QR code found in clipboard. Copy a QR code image and try again."
+                "No QR code found in clipboard. Copy a QR code image and try again.",
             );
             setTimeout(() => setScanError(""), 3000);
         } catch (error) {
             console.error("Failed to access clipboard:", error);
             setScanError(
-                "Failed to access clipboard. Please check permissions."
+                "Failed to access clipboard. Please check permissions.",
             );
             setTimeout(() => setScanError(""), 3000);
         }
@@ -417,7 +401,7 @@ export const Send: React.FC = () => {
 
     // Handle paste event on the input field
     const handleInputPaste = async (
-        event: React.ClipboardEvent<HTMLInputElement>
+        event: React.ClipboardEvent<HTMLInputElement>,
     ) => {
         const items = event.clipboardData?.items;
         if (!items) return;
@@ -438,7 +422,7 @@ export const Send: React.FC = () => {
                     } catch (error) {
                         console.error(
                             "Failed to scan QR code from pasted image:",
-                            error
+                            error,
                         );
                         setScanError("No QR code found in the image.");
                         setTimeout(() => setScanError(""), 3000);
@@ -469,7 +453,9 @@ export const Send: React.FC = () => {
         }
 
         if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError("Sending to Ethereum addresses is not supported");
+            setValidationError(
+                "Sending to Ethereum addresses is not supported",
+            );
             return false;
         }
 
@@ -478,8 +464,8 @@ export const Send: React.FC = () => {
         if (!addressValidationResult.isValid) {
             setValidationError(
                 `Invalid recipient address: ${addressValidationResult.validationMessages.join(
-                    ", "
-                )}`
+                    ", ",
+                )}`,
             );
             return false;
         }
@@ -489,7 +475,7 @@ export const Send: React.FC = () => {
             recipient.toLowerCase() === selectedAccount.address.toLowerCase()
         ) {
             setValidationError(
-                "Cannot send to the same address (self-transfer not allowed)"
+                "Cannot send to the same address (self-transfer not allowed)",
             );
             return false;
         }
@@ -509,8 +495,8 @@ export const Send: React.FC = () => {
         if (amountToSend > balance) {
             setValidationError(
                 `Insufficient balance. You have ${balance.toFixed(
-                    8
-                )} ${getTokenDisplayName()}`
+                    8,
+                )} ${getTokenDisplayName()}`,
             );
             return false;
         }
@@ -520,10 +506,10 @@ export const Send: React.FC = () => {
             const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
             setValidationError(
                 `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(
-                    8
+                    8,
                 )} ${getTokenDisplayName()} (${balance.toFixed(
-                    8
-                )} - ${getGasFeeAsNumber().toFixed(8)} fee)`
+                    8,
+                )} - ${getGasFeeAsNumber().toFixed(8)} fee)`,
             );
             return false;
         }
@@ -548,7 +534,9 @@ export const Send: React.FC = () => {
         setShowConfirmation(false);
 
         if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError("Sending to Ethereum addresses is not supported");
+            setValidationError(
+                "Sending to Ethereum addresses is not supported",
+            );
             return;
         }
 
@@ -564,7 +552,7 @@ export const Send: React.FC = () => {
                     amount,
                     password: passwordFromModal,
                     network: selectedNetwork,
-                }) as any
+                }) as any,
             );
 
             if (sendTransaction.fulfilled.match(resultAction)) {
@@ -582,12 +570,12 @@ export const Send: React.FC = () => {
                                 account: selectedAccount,
                                 network: selectedNetwork,
                                 forceRefresh: true,
-                            }) as any
+                            }) as any,
                         );
                     } catch (error) {
                         console.warn(
                             "[Send] Failed to refresh balance:",
-                            error
+                            error,
                         );
                     }
                 }, 2000);
@@ -605,7 +593,7 @@ export const Send: React.FC = () => {
                                 account: selectedAccount,
                                 network: selectedNetwork,
                                 forceRefresh: true,
-                            }) as any
+                            }) as any,
                         );
 
                         if (fetchBalance.fulfilled.match(balanceResult)) {
@@ -623,11 +611,11 @@ export const Send: React.FC = () => {
                                         "[Send] Balance updated from",
                                         initialBalance,
                                         "to",
-                                        newBalance
+                                        newBalance,
                                     );
                                 } else {
                                     console.log(
-                                        "[Send] Balance update timeout - transaction may still be processing"
+                                        "[Send] Balance update timeout - transaction may still be processing",
                                     );
                                     const sentAmount = parseFloat(amount);
                                     const fee = getGasFeeAsNumber();
@@ -638,21 +626,21 @@ export const Send: React.FC = () => {
 
                                     if (expectedNewBalance >= 0) {
                                         console.log(
-                                            "[Send] Updating balance locally as fallback"
+                                            "[Send] Updating balance locally as fallback",
                                         );
                                         dispatch(
                                             updateAccountBalance({
                                                 accountId: selectedAccount.id,
                                                 balance:
                                                     expectedNewBalance.toString(),
-                                            })
+                                            }),
                                         );
                                     }
                                 }
                             }
                         } else if (fetchBalance.rejected.match(balanceResult)) {
                             console.warn(
-                                "[Send] Balance fetch failed, but transaction was sent successfully"
+                                "[Send] Balance fetch failed, but transaction was sent successfully",
                             );
 
                             const sentAmount = parseFloat(amount);
@@ -662,13 +650,13 @@ export const Send: React.FC = () => {
 
                             if (expectedNewBalance >= 0) {
                                 console.log(
-                                    "[Send] Updating balance locally due to fetch failure"
+                                    "[Send] Updating balance locally due to fetch failure",
                                 );
                                 dispatch(
                                     updateAccountBalance({
                                         accountId: selectedAccount.id,
                                         balance: expectedNewBalance.toString(),
-                                    })
+                                    }),
                                 );
                             }
 
@@ -680,7 +668,7 @@ export const Send: React.FC = () => {
                     } catch (error) {
                         console.error(
                             "[Send] Error during balance polling:",
-                            error
+                            error,
                         );
                         if (pollCount >= maxPolls) {
                             clearInterval(pollInterval);
@@ -692,6 +680,20 @@ export const Send: React.FC = () => {
         } catch (err) {
             console.error("Send failed:", err);
         }
+    };
+
+    const handleClearAll = (): void => {
+        setRecipient("");
+        setAmount("");
+        setPassword("");
+        setValidationError("");
+        setAddressError("");
+        setTxHash("");
+        setIsWaitingForBalance(false);
+        setScanError("");
+        setShowConfirmation(false);
+        setCopied(false);
+        setEstimatedFee(generateRandomGasFee());
     };
 
     const maxAmount = () => {
@@ -725,7 +727,7 @@ export const Send: React.FC = () => {
 
     return (
         <SendContainer>
-            <Card>
+            <Card style={{ paddingBottom: "36px" }}>
                 <CardHeader>
                     <CardTitle>
                         <h1>Send ASI</h1>
@@ -761,12 +763,12 @@ export const Send: React.FC = () => {
                                     onClick={async () => {
                                         try {
                                             await navigator.clipboard.writeText(
-                                                txHash
+                                                txHash,
                                             );
                                             setCopied(true);
                                             setTimeout(
                                                 () => setCopied(false),
-                                                1500
+                                                1500,
                                             );
                                         } catch {}
                                     }}
@@ -803,12 +805,12 @@ export const Send: React.FC = () => {
                                     onClick={async () => {
                                         try {
                                             await navigator.clipboard.writeText(
-                                                txHash
+                                                txHash,
                                             );
                                             setCopied(true);
                                             setTimeout(
                                                 () => setCopied(false),
-                                                1500
+                                                1500,
                                             );
                                         } catch {}
                                     }}
@@ -833,14 +835,16 @@ export const Send: React.FC = () => {
                         <ErrorMessage>{error || validationError}</ErrorMessage>
                     )}
 
-                    <BalanceInfo>
-                        <BalanceAmount>
-                            {parseFloat(selectedAccount.balance).toFixed(4)}{" "}
-                            {getTokenDisplayName()}
-                        </BalanceAmount>
-                        <BalanceLabel>
-                            <h4>Available Balance</h4>
-                        </BalanceLabel>
+                    <AccountSelector
+                        fullWidth
+                        labelMode={AccountSelectorLabelMods.FULL}
+                        style={{
+                            marginBottom: "36px",
+                        }}
+                    />
+
+                    <BalanceInfo className="balance-info">
+                        <AccountBalance account={selectedAccount} />
                     </BalanceInfo>
 
                     {!isAccountUnlocked && (
@@ -850,20 +854,19 @@ export const Send: React.FC = () => {
                         </InfoMessage>
                     )}
 
-                    <FormGroup>
+                    <FormGroup style={{ marginBottom: "36px" }}>
                         <label
                             style={{
                                 display: "block",
                                 marginBottom: "4px",
-                                // fontSize: "14px",
                                 fontWeight: "500",
                             }}
                         >
-                            <h4>Recipient Address</h4>
+                            Recipient Address
                         </label>
-                        <InputWithButton>
+                        <InputWithButton className="input-with-button">
                             <div style={{ flex: 1 }}>
-                                <input
+                                <Input
                                     id="send-recipient-input"
                                     className="send-recipient-input text-3"
                                     type="text"
@@ -873,11 +876,13 @@ export const Send: React.FC = () => {
                                     }
                                     onPaste={handleInputPaste}
                                     placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
+                                    wrapperStyle={{
+                                        marginBottom: "0",
+                                    }}
                                     style={{
                                         width: "100%",
-                                        height: "48px",
-                                        padding: "0 16px",
-                                        // fontSize: "16px",
+                                        fontSize: "0.75rem",
+                                        height: "44px",
                                         border: `2px solid ${
                                             addressError ? "#ff4d4f" : "#e0e0e0"
                                         }`,
@@ -886,25 +891,24 @@ export const Send: React.FC = () => {
                                         color: "inherit",
                                         outline: "none",
                                     }}
+                                    copyable
+                                    CustomCopyIcon={ContentPasteIcon}
                                 />
                             </div>
                             <ButtonGroup>
-                                <ScanButton
+                                <Button
                                     id="send-qr-scan-button"
-                                    variant="ghost"
+                                    variant="secondary"
                                     onClick={() => setShowQRScanner(true)}
-                                    title="Scan QR Code with Camera"
+                                    style={{
+                                        aspectRatio: "1/1",
+                                        width: "44px",
+                                        alignSelf: "flex-end",
+                                        minWidth: "auto",
+                                    }}
                                 >
-                                    📷
-                                </ScanButton>
-                                <ScanButton
-                                    id="send-qr-paste-button"
-                                    variant="ghost"
-                                    onClick={handlePasteImage}
-                                    title="Paste QR Code from Clipboard"
-                                >
-                                    <h3>Paste</h3>
-                                </ScanButton>
+                                    <QRIcon />
+                                </Button>
                             </ButtonGroup>
                         </InputWithButton>
                         {addressError && (
@@ -941,11 +945,27 @@ export const Send: React.FC = () => {
                         </div>
                     </FormGroup>
 
-                    <FormGroup>
+                    <InputWithButton
+                        className="input-with-button"
+                        style={{ marginBottom: "36px" }}
+                    >
                         <Input
                             id="send-amount-input"
                             className="send-amount-input text-3"
                             label="Amount"
+                            labelStyle={{
+                                fontWeight: "500",
+                            }}
+                            labelColorSelector={(theme: DefaultTheme) =>
+                                theme.colors.text.primary
+                            }
+                            wrapperStyle={{
+                                marginBottom: "0",
+                            }}
+                            style={{
+                                fontSize: "0.75rem",
+                                height: "44px",
+                            }}
                             type="number"
                             value={amount}
                             onChange={(e) => handleAmountChange(e.target.value)}
@@ -953,17 +973,23 @@ export const Send: React.FC = () => {
                             step="0.00000001"
                             min="0"
                             max={selectedAccount.balance}
+                            copyable
+                            CustomCopyIcon={ContentPasteIcon}
                         />
                         <Button
                             id="send-max-amount-button"
-                            variant="ghost"
-                            size="small"
+                            variant="secondary"
                             onClick={maxAmount}
-                            style={{ marginTop: "8px" }}
+                            style={{
+                                aspectRatio: "1/1",
+                                width: "44px",
+                                alignSelf: "flex-end",
+                                minWidth: "44px",
+                            }}
                         >
                             <h3>Max</h3>
                         </Button>
-                    </FormGroup>
+                    </InputWithButton>
 
                     {needsPassword && (
                         <FormGroup>
@@ -992,9 +1018,6 @@ export const Send: React.FC = () => {
                     )}
 
                     <ActionButtons>
-                        <Button variant="ghost" onClick={() => navigate("/")}>
-                            <h3>Cancel</h3>
-                        </Button>
                         <Button
                             id="send-transaction-button"
                             onClick={handleSendClick}
@@ -1006,8 +1029,28 @@ export const Send: React.FC = () => {
                                 !!validationError ||
                                 !!addressError
                             }
+                            style={{ minWidth: "150px", height: "44px" }}
                         >
-                            <h3>Send Transaction</h3>
+                            <h3>Send</h3>
+                            <VectorIcon />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleClearAll();
+                            }}
+                            style={{ minWidth: "150px", height: "44px" }}
+                        >
+                            <h3>Clear all</h3>
+                        </Button>
+                        <Button
+                            id="history-button"
+                            onClick={() => {}}
+                            variant="icon-button-black"
+                            fullWidth={false}
+                        >
+                            <HistoryIcon />
                         </Button>
                     </ActionButtons>
                 </CardContent>

@@ -278,7 +278,7 @@ export const Dashboard: React.FC = () => {
                             <Button
                                 id="history-button"
                                 onClick={() => {}}
-                                variant="icon-button"
+                                variant="icon-button-black"
                                 fullWidth={false}
                             >
                                 <HistoryIcon />

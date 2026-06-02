@@ -18,7 +18,7 @@ import { RChainService } from "services/rchain";
 import TransactionPollingService from "services/transactionPolling";
 import { getTokenDisplayName } from "../../constants/token";
 import { Account } from "types/wallet";
-import { CopyIcon, DownloadIcon } from "components/Icons";
+import { ContentPasteIcon, CopyIcon, DownloadIcon } from "components/Icons";
 import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
@@ -755,7 +755,7 @@ export const History: React.FC = () => {
                                                                     height: 16,
                                                                 }}
                                                             >
-                                                                <CopyIcon />
+                                                                <ContentPasteIcon />
                                                             </a>
                                                         </div>
                                                     )}

@@ -1,5 +1,14 @@
-import React, { useRef, useEffect, CSSProperties, RefObject } from "react";
+import CopyButton, { IIconProps } from "components/CopyButton";
+import React, {
+    useRef,
+    useEffect,
+    CSSProperties,
+    RefObject,
+    ReactElement,
+    FC,
+} from "react";
 import styled from "styled-components";
+import { DefaultTheme } from "styled-components/dist/types";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -7,9 +16,12 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelStyle?: CSSProperties;
+    labelColorSelector?: (theme: DefaultTheme) => string;
     "data-testid"?: string;
     "data-cy"?: string;
     inputRef?: RefObject<HTMLInputElement>;
+    copyable?: boolean;
+    CustomCopyIcon?: FC<IIconProps>;
 }
 
 const InputWrapper = styled.div<{ fullWidth?: boolean }>`
@@ -18,12 +30,15 @@ const InputWrapper = styled.div<{ fullWidth?: boolean }>`
     margin-bottom: 16px;
 `;
 
-const Label = styled.label`
+const Label = styled.label<{
+    themeColorSelector?: (theme: DefaultTheme) => string;
+}>`
     display: block;
     font-size: 1rem;
     line-height: 22px;
     font-weight: 600;
-    color: ${({ theme }) => theme.text.secondary};
+    color: ${({ theme, themeColorSelector }) =>
+        !themeColorSelector ? theme.text.secondary : themeColorSelector(theme)};
     margin-bottom: 8px;
     letter-spacing: -0.01em;
     transition: color 0.2s ease;
@@ -33,9 +48,10 @@ const Label = styled.label`
     }
 `;
 
-const StyledInput = styled.input<{ hasError?: boolean }>`
+const StyledInput = styled.input<{ hasError?: boolean; copyable?: boolean }>`
     width: 100%;
-    padding: 10px 16px;
+    padding: ${({ copyable }) =>
+        copyable ? "12px 40px 12px 20px" : "12px 20px"};
     font-size: 1rem;
     font-weight: 400;
     // line-height: 24px;
@@ -101,6 +117,21 @@ const ErrorMessage = styled.span`
     }
 `;
 
+const InputContainer = styled.div`
+    position: relative;
+    width: 100%;
+`;
+
+const CopyButtonWrapper = styled.div`
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+`;
+
 const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
     width: 100%;
     padding: 11.5px 22px;
@@ -158,7 +189,11 @@ export const Input: React.FC<InputProps> = ({
     autoFocus,
     wrapperStyle,
     labelStyle,
+    labelColorSelector,
     inputRef,
+    copyable = false,
+    value,
+    CustomCopyIcon,
     ...props
 }) => {
     const defaultRef = useRef<HTMLInputElement>(null);
@@ -193,10 +228,135 @@ export const Input: React.FC<InputProps> = ({
         }
     };
 
+    const getValueToCopy = () => {
+        if (typeof value === "string" || typeof value === "number") {
+            return String(value);
+        }
+
+        if (currentRef.current) {
+            return currentRef.current.value;
+        }
+        return "";
+    };
+
     return (
         <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
-            <h4>{label && <Label style={labelStyle}>{label}</Label>}</h4>
-            <StyledInput
+            <h4>
+                {label && (
+                    <Label
+                        themeColorSelector={labelColorSelector}
+                        style={labelStyle}
+                    >
+                        {label}
+                    </Label>
+                )}
+            </h4>
+            <InputContainer>
+                <StyledInput
+                    ref={currentRef}
+                    hasError={!!error}
+                    data-testid={dataTestId}
+                    data-cy={dataCy}
+                    onChange={handleChange}
+                    onInput={handleInput}
+                    value={value}
+                    copyable={copyable}
+                    {...props}
+                />
+                {copyable && (
+                    <CopyButtonWrapper>
+                        <CopyButton
+                            dataToCopy={getValueToCopy()}
+                            size={16}
+                            CustomCopyIcon={CustomCopyIcon}
+                            buttonStyle={{
+                                position: "static",
+                                top: "auto",
+                                right: "auto",
+                                transform: "none",
+                                display: "block",
+                                height: 16,
+                            }}
+                            disabled={!value}
+                        />
+                    </CopyButtonWrapper>
+                )}
+            </InputContainer>
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+        </InputWrapper>
+    );
+};
+
+export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+    label?: string;
+    error?: string;
+    fullWidth?: boolean;
+    wrapperStyle?: CSSProperties;
+    labelStyle?: CSSProperties;
+    labelColorSelector?: (theme: DefaultTheme) => string;
+    "data-testid"?: string;
+    "data-cy"?: string;
+    textareaRef?: RefObject<HTMLTextAreaElement>;
+}
+
+export const TextArea: React.FC<TextAreaProps> = ({
+    label,
+    error,
+    fullWidth = true,
+    wrapperStyle,
+    labelStyle,
+    labelColorSelector,
+    "data-testid": dataTestId,
+    "data-cy": dataCy,
+    textareaRef,
+    onChange,
+    onInput,
+    autoFocus,
+    ...props
+}) => {
+    const defaultRef = useRef<HTMLTextAreaElement>(null);
+    const currentRef = textareaRef || defaultRef;
+
+    useEffect(() => {
+        if (autoFocus && currentRef.current) {
+            const timer = setTimeout(() => {
+                currentRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [autoFocus, currentRef]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        if (onChange) {
+            onChange(e);
+        }
+    };
+
+    const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+        if (onInput) {
+            onInput(e);
+        }
+        if (onChange) {
+            const changeEvent = {
+                ...e,
+                target: e.currentTarget,
+                currentTarget: e.currentTarget,
+            } as React.ChangeEvent<HTMLTextAreaElement>;
+            onChange(changeEvent);
+        }
+    };
+
+    return (
+        <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
+            {label && (
+                <Label
+                    themeColorSelector={labelColorSelector}
+                    style={labelStyle}
+                >
+                    {label}
+                </Label>
+            )}
+            <StyledTextArea
                 ref={currentRef}
                 hasError={!!error}
                 data-testid={dataTestId}
@@ -205,27 +365,6 @@ export const Input: React.FC<InputProps> = ({
                 onInput={handleInput}
                 {...props}
             />
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-        </InputWrapper>
-    );
-};
-
-interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-    label?: string;
-    error?: string;
-    fullWidth?: boolean;
-}
-
-export const TextArea: React.FC<TextAreaProps> = ({
-    label,
-    error,
-    fullWidth = true,
-    ...props
-}) => {
-    return (
-        <InputWrapper fullWidth={fullWidth}>
-            {label && <Label>{label}</Label>}
-            <StyledTextArea hasError={!!error} {...props} />
             {error && <ErrorMessage>{error}</ErrorMessage>}
         </InputWrapper>
     );

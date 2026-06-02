@@ -1,5 +1,5 @@
 import { Select } from "components/Select";
-import { ISelectProps } from "components/Select/Select";
+import { ISelectOption, ISelectProps } from "components/Select/Select";
 import { CSSProperties, ReactElement, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
@@ -24,12 +24,19 @@ type TSelectAdditionalProps = Omit<
     "value" | "onChange" | "options"
 >;
 
+export enum AccountSelectorLabelMods {
+    COMMON = "common",
+    FULL = "full",
+}
+
 interface IAccountSelectorProps extends TSelectAdditionalProps {
     fullWidth?: boolean;
+    labelMode?: AccountSelectorLabelMods;
 }
 
 export const AccountSelector = ({
     fullWidth = false,
+    labelMode,
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
     const dispatch = useDispatch();
@@ -39,12 +46,23 @@ export const AccountSelector = ({
 
     const accountOptions = useMemo(
         () =>
-            accounts.map((account: Account) => ({
-                id: account.id,
-                value: account.id,
-                label: account.name,
-            })),
-        [accounts],
+            accounts.map((account: Account) => {
+                const baseOption: ISelectOption = {
+                    id: account.id,
+                    value: account.id,
+                    label: account.name,
+                };
+
+                if (labelMode === AccountSelectorLabelMods.FULL) {
+                    return {
+                        ...baseOption,
+                        additionalLabel: account.address,
+                    };
+                }
+
+                return baseOption;
+            }),
+        [accounts, labelMode],
     );
 
     const fullWidthStyle: CSSProperties = !fullWidth ? {} : { width: "100%" };

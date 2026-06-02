@@ -1,21 +1,31 @@
-import { type ReactElement, useState, useRef, useEffect } from "react";
+import {
+    type ReactElement,
+    useState,
+    useRef,
+    useEffect,
+    FC,
+    CSSProperties,
+} from "react";
 import "./style.css";
 
 export interface ICopyButtonProps {
     action?: () => Promise<void>;
     dataToCopy?: string;
-    iconSize?: number;
+    size?: number;
+    CustomCopyIcon?: FC<IIconProps>;
+    buttonStyle?: CSSProperties;
+    disabled?: boolean;
 }
 
 export interface IIconProps {
-    iconSize?: number;
+    size?: number;
 }
 
-const CopyIcon = ({ iconSize = 24 }: IIconProps): ReactElement => {
+const CopyIcon = ({ size = 24 }: IIconProps): ReactElement => {
     return (
         <svg
-            width={iconSize}
-            height={iconSize}
+            width={size}
+            height={size}
             viewBox="0 0 16 16"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -35,12 +45,12 @@ const CopyIcon = ({ iconSize = 24 }: IIconProps): ReactElement => {
     );
 };
 
-const CopiedIcon = ({ iconSize = 24 }: IIconProps): ReactElement => {
+const CopiedIcon = ({ size = 24 }: IIconProps): ReactElement => {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            width={iconSize}
-            height={iconSize}
+            width={size}
+            height={size}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -54,7 +64,14 @@ const CopiedIcon = ({ iconSize = 24 }: IIconProps): ReactElement => {
     );
 };
 
-const CopyButton = ({ action, dataToCopy, iconSize }: ICopyButtonProps) => {
+const CopyButton = ({
+    action,
+    dataToCopy,
+    size,
+    CustomCopyIcon,
+    buttonStyle,
+    disabled = false,
+}: ICopyButtonProps) => {
     const [isCopied, setIsCopied] = useState<boolean>(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -88,17 +105,24 @@ const CopyButton = ({ action, dataToCopy, iconSize }: ICopyButtonProps) => {
         };
     }, []);
 
+    const CurrentCopyIcon = CustomCopyIcon ?? CopyIcon;
+
     return (
         <span className="copy-container">
             <button
                 onClick={runAction}
                 className="copy-button"
                 title={isCopied ? "Copied" : "Copy"}
+                style={{
+                    transform: "translateX(115%)",
+                    ...buttonStyle,
+                }}
+                disabled={disabled}
             >
                 {isCopied ? (
-                    <CopiedIcon iconSize={iconSize} />
+                    <CopiedIcon size={size} />
                 ) : (
-                    <CopyIcon iconSize={iconSize} />
+                    <CurrentCopyIcon size={size} />
                 )}
             </button>
         </span>
