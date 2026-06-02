@@ -5,6 +5,7 @@ import {
     useEffect,
     FC,
     CSSProperties,
+    MouseEvent,
 } from "react";
 import "./style.css";
 
@@ -75,7 +76,9 @@ const CopyButton = ({
     const [isCopied, setIsCopied] = useState<boolean>(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const runAction = async () => {
+    const runAction = async (event: MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+
         try {
             if (isCopied) {
                 return;

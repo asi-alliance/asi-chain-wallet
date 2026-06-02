@@ -210,7 +210,10 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
             {!disabled && (
                 <EditButton
                     isSelected={isSelected}
-                    onClick={handleEditClick}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick();
+                    }}
                     disabled={disabled}
                     aria-label="Edit label"
                 >

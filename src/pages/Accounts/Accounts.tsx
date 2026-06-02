@@ -4,13 +4,13 @@ import styled from "styled-components";
 import { RootState } from "store";
 import { syncAccounts, fetchBalance } from "store/walletSlice";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
-import { getAddressLabel } from "../../constants/token";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
 import { Account } from "types/wallet";
 import { CreateAccountModal } from "components/CreateAccountModal";
 import { ImportAccountModal } from "components/ImportAccountModal";
 import useScreen from "hooks/useScreen";
+import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
 
 const AccountsContainer = styled.div``;
 
@@ -19,39 +19,24 @@ const AccountsGrid = styled.div`
     grid-template-columns: repeat(auto-fill, minmax(462px, 1fr));
     gap: 20px;
     margin-bottom: 32px;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 6px 0;
+
+    align-items: start;
+
+    & > * {
+        height: auto;
+        flex-shrink: 0;
+    }
 
     @media (max-width: 768px) {
         display: flex;
         flex-direction: column;
-    }
-`;
 
-const SuccessMessage = styled.div`
-    background: ${({ theme }) => `${theme.success || "#7ED321"}20`};
-    border: 1px solid ${({ theme }) => `${theme.success || "#7ED321"}40`};
-    color: ${({ theme }) => theme.success || "#7ED321"};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 24px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: slideIn 0.3s ease-out;
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
+        & > * {
+            width: 100%;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .icon {
-        font-size: 20px;
     }
 `;
 
@@ -69,11 +54,10 @@ const AccountsActionsFooter = styled.div`
 
 export const Accounts: React.FC = () => {
     const dispatch = useDispatch();
-    const { accounts, selectedAccount, selectedNetwork, isLoading } =
-        useSelector((state: RootState) => state.wallet);
-    const { unlockedAccounts, isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth,
+    const { accounts, selectedNetwork, isLoading } = useSelector(
+        (state: RootState) => state.wallet,
     );
+    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const { isLaptop } = useScreen();
 
@@ -82,22 +66,18 @@ export const Accounts: React.FC = () => {
         () =>
             selectedNetworkId
                 ? accounts.filter(
-                      (account) => account.networkId === selectedNetworkId,
+                      (account: Account) =>
+                          account.networkId === selectedNetworkId,
                   )
                 : accounts,
         [accounts, selectedNetworkId],
     );
 
-    const [importType, setImportType] = useState<
-        "private" | "public" | "eth" | "rev"
-    >("private");
-    const [successMessage, setSuccessMessage] = useState("");
-
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
 
     const filteredAccountIds = useMemo(
-        () => filteredAccounts.map((account) => account.id).join(","),
+        () => filteredAccounts.map((account: Account) => account.id).join(","),
         [filteredAccounts],
     );
 
@@ -110,7 +90,7 @@ export const Accounts: React.FC = () => {
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
             const timeoutId = setTimeout(() => {
-                filteredAccounts.forEach((account) => {
+                filteredAccounts.forEach((account: Account) => {
                     dispatch(
                         fetchBalance({
                             account,
@@ -128,7 +108,7 @@ export const Accounts: React.FC = () => {
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
             const interval = setInterval(() => {
-                filteredAccounts.forEach((account) => {
+                filteredAccounts.forEach((account: Account) => {
                     dispatch(
                         fetchBalance({
                             account,
@@ -144,7 +124,7 @@ export const Accounts: React.FC = () => {
 
     const handleRefreshBalances = () => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account) => {
+            filteredAccounts.forEach((account: Account) => {
                 dispatch(
                     fetchBalance({
                         account,
@@ -156,32 +136,12 @@ export const Accounts: React.FC = () => {
         }
     };
 
-    const getImportPlaceholder = () => {
-        switch (importType) {
-            case "private":
-                return "Enter private key (64 hex characters)";
-            case "public":
-                return "Enter public key (130 hex characters)";
-            case "eth":
-                return "Enter Ethereum address (0x...)";
-            case "rev":
-                return `Enter ${getAddressLabel()}`;
-            default:
-                return "Enter value";
-        }
-    };
-
     return (
         <Fragment>
             <AccountsContainer>
-                {successMessage && (
-                    <SuccessMessage>
-                        <span className="icon">✅</span>
-                        <span>{successMessage}</span>
-                    </SuccessMessage>
+                {filteredAccounts.length === 0 && (
+                    <FirstAccountCreatingWidget />
                 )}
-
-                {/* Show existing accounts first when they exist */}
                 {filteredAccounts.length > 0 && (
                     <Card style={{ marginBottom: "32px" }}>
                         <CardHeader>
@@ -266,9 +226,6 @@ export const Accounts: React.FC = () => {
             </AccountsContainer>
             <CreateAccountModal
                 isOpen={showCreateModal}
-                hasExistingAccounts={hasAccounts}
-                isAuthenticated={isAuthenticated}
-                selectedNetworkId={selectedNetworkId}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
                     console.log("Account created successfully");
@@ -277,7 +234,6 @@ export const Accounts: React.FC = () => {
 
             <ImportAccountModal
                 isOpen={showImportModal}
-                selectedNetworkId={selectedNetworkId}
                 onClose={() => setShowImportModal(false)}
                 onSuccess={() => {
                     console.log("Account imported successfully");
