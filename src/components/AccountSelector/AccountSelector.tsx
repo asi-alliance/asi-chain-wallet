@@ -31,11 +31,13 @@ export enum AccountSelectorLabelMods {
 
 interface IAccountSelectorProps extends TSelectAdditionalProps {
     fullWidth?: boolean;
+    wrapperStyle?: CSSProperties;
     labelMode?: AccountSelectorLabelMods;
 }
 
 export const AccountSelector = ({
     fullWidth = false,
+    wrapperStyle,
     labelMode,
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
@@ -70,7 +72,7 @@ export const AccountSelector = ({
     const { style, ...otherSelectProps } = selectProps;
 
     return (
-        <FilterGroup style={fullWidthStyle}>
+        <FilterGroup style={{ ...fullWidthStyle, ...wrapperStyle }}>
             <FilterLabel>
                 <h4 className="light">Account</h4>
             </FilterLabel>

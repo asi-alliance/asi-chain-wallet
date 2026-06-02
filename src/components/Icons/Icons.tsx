@@ -915,3 +915,64 @@ export const QRIcon: React.FC<IconProps> = ({
         </defs>
     </svg>
 );
+
+export const FileCopyIcon: React.FC<IconProps> = ({
+    size = 16,
+    color = "#3A3A3A",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <g clipPath="url(#clip0_1_241)">
+            <path
+                d="M10.6666 0.666667H2.66659C1.93325 0.666667 1.33325 1.26667 1.33325 2V11.3333H2.66659V2H10.6666V0.666667ZM9.99992 3.33333H5.33325C4.59992 3.33333 4.00659 3.93333 4.00659 4.66667L3.99992 14C3.99992 14.7333 4.59325 15.3333 5.32659 15.3333H12.6666C13.3999 15.3333 13.9999 14.7333 13.9999 14V7.33333L9.99992 3.33333ZM5.33325 14V4.66667H9.33325V8H12.6666V14H5.33325Z"
+                fill={color}
+            />
+        </g>
+        <defs>
+            <clipPath id="clip0_1_241">
+                <rect width="16" height="16" fill="white" />
+            </clipPath>
+        </defs>
+    </svg>
+);
+
+export const QRIconSecond: React.FC<IconProps> = ({
+    size = 24,
+    color = "#5A9C4F",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <g clipPath="url(#clip0_144_501)">
+            <path d="M3 11H11V3H3V11ZM5 5H9V9H5V5Z" fill={color} />
+            <path d="M3 21H11V13H3V21ZM5 15H9V19H5V15Z" fill={color} />
+            <path d="M13 3V11H21V3H13ZM19 9H15V5H19V9Z" fill={color} />
+            <path d="M21 19H19V21H21V19Z" fill={color} />
+            <path d="M15 13H13V15H15V13Z" fill={color} />
+            <path d="M17 15H15V17H17V15Z" fill={color} />
+            <path d="M15 17H13V19H15V17Z" fill={color} />
+            <path d="M17 19H15V21H17V19Z" fill={color} />
+            <path d="M19 17H17V19H19V17Z" fill={color} />
+            <path d="M19 13H17V15H19V13Z" fill={color} />
+            <path d="M21 15H19V17H21V15Z" fill={color} />
+        </g>
+        <defs>
+            <clipPath id="clip0_144_501">
+                <rect width="24" height="24" fill="white" />
+            </clipPath>
+        </defs>
+    </svg>
+);

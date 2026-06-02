@@ -1,11 +1,31 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import styled from "styled-components";
+import styled, { DefaultTheme } from "styled-components";
 import { QRCodeCanvas } from "qrcode.react";
 import { RootState } from "store";
-import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    Button,
+    Input,
+} from "components";
 import { getAddressLabel, getTokenDisplayName } from "../../constants/token";
+import { AccountSelector } from "components/AccountSelector";
+import { Select } from "components/Select";
+import { ISelectOption } from "components/Select/Select";
+import { AccountBalance } from "components/AccountBalance";
+import {
+    CopyIcon,
+    FileCopyIcon,
+    FileIcon,
+    HistoryIcon,
+    QRIcon,
+    QRIconSecond,
+} from "components/Icons";
+import { Panel } from "components/Panel";
 
 const ReceiveContainer = styled.div`
     max-width: 600px;
@@ -14,28 +34,8 @@ const ReceiveContainer = styled.div`
 
 const AddressContainer = styled.div`
     background: ${({ theme }) => theme.surface};
-    padding: 24px;
     border-radius: 12px;
     margin-bottom: 24px;
-    text-align: center;
-`;
-
-const AddressLabel = styled.div`
-    // font-size: 16px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 16px;
-`;
-
-const AddressValue = styled.div`
-    font-size: 18px;
-    word-break: break-all;
-    background: ${({ theme }) => theme.card};
-    padding: 16px;
-    border-radius: 8px;
-    border: 2px solid ${({ theme }) => theme.border};
-    color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 16px;
 `;
 
 const CopyButton = styled(Button)`
@@ -89,11 +89,12 @@ const SuccessMessage = styled.div`
 `;
 
 const InfoBox = styled.div`
-    margin-top: 24px;
-    padding: 16px;
+    padding: 11px 20px;
     background: ${({ theme }) => theme.surface};
     border-radius: 8px;
     border: 1px solid ${({ theme }) => theme.border};
+
+    margin-bottom: 36px;
 `;
 
 const InfoTitle = styled.h4`
@@ -106,20 +107,74 @@ const InfoList = styled.ul`
     margin: 0;
     padding-left: 20px;
     // font-size: 14px;
-    line-height: 1.5;
     color: ${({ theme }) => theme.text.secondary};
+`;
 
-    li {
-        margin-bottom: 4px;
+const SelectToolbar = styled.div`
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 24px;
+
+    margin-bottom: 36px;
+`;
+
+const FilterGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const FilterLabel = styled.label`
+    // font-size: 14px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.secondary};
+`;
+
+const BalanceInfo = styled.div`
+    margin-bottom: 36px;
+    display: flex;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+        margin-bottom: 49px;
     }
 `;
+
+const ActionsToolbar = styled.div`
+    display: flex;
+    padding: 0 20px;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+`;
+
+enum AddressFormats {
+    ASI = "asi",
+    ETHEREUM = "ethereum",
+}
+
+const formatOptions: ISelectOption[] = [
+    {
+        id: AddressFormats.ASI,
+        value: AddressFormats.ASI,
+        label: "ASI",
+    },
+    {
+        id: AddressFormats.ETHEREUM,
+        value: AddressFormats.ETHEREUM,
+        label: "ETH",
+    },
+];
 
 export const Receive: React.FC = () => {
     const navigate = useNavigate();
     const { selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet
+        (state: RootState) => state.wallet,
     );
-    const [activeTab, setActiveTab] = useState<string>(getAddressLabel());
+    const [addressFormat, setAddressFormat] = useState<AddressFormats>(
+        AddressFormats.ASI,
+    );
     const [copyMessage, setCopyMessage] = useState("");
 
     const copyToClipboard = (text: string) => {
@@ -145,11 +200,11 @@ export const Receive: React.FC = () => {
     }
 
     const currentAddress =
-        activeTab === getAddressLabel()
-            ? selectedAccount.revAddress
+        addressFormat === AddressFormats.ASI
+            ? selectedAccount.address
             : selectedAccount.ethAddress;
     const addressLabel =
-        activeTab === getAddressLabel() ? getAddressLabel() : "ETH Address";
+        addressFormat === AddressFormats.ASI ? "ASI Address" : "ETH Address";
 
     return (
         <ReceiveContainer>
@@ -164,70 +219,83 @@ export const Receive: React.FC = () => {
                         <SuccessMessage>{copyMessage}</SuccessMessage>
                     )}
 
-                    <TabContainer>
-                        <Tab
-                            active={activeTab === getAddressLabel()}
-                            onClick={() => setActiveTab(getAddressLabel())}
-                        >
-                            <h3>{getAddressLabel()}</h3>
-                        </Tab>
-                        <Tab
-                            active={activeTab === "eth"}
-                            onClick={() => setActiveTab("eth")}
-                        >
-                            <h3>ETH Address</h3>
-                        </Tab>
-                    </TabContainer>
+                    <SelectToolbar>
+                        <AccountSelector wrapperStyle={{ flex: 1 }} />
+                        <FilterGroup style={{ flex: 1 }}>
+                            <FilterLabel>
+                                <h4 className="light">Address Format</h4>
+                            </FilterLabel>
+                            <Select
+                                id="address-format-account-select"
+                                value={selectedAccount?.id}
+                                onChange={(format) => {
+                                    setAddressFormat(format as AddressFormats);
+                                }}
+                                placeholder="Select format"
+                                options={formatOptions}
+                            />
+                        </FilterGroup>
+                    </SelectToolbar>
+
+                    <BalanceInfo className="balance-info">
+                        <AccountBalance
+                            account={selectedAccount}
+                            style={{ marginBottom: "0" }}
+                        />
+                    </BalanceInfo>
 
                     <AddressContainer>
-                        <AddressLabel>
-                            <h2>{addressLabel}</h2>
-                        </AddressLabel>
-                        <AddressValue>{currentAddress}</AddressValue>
-
-                        <QRCodeContainer>
-                            <QRCodeCanvas
-                                value={currentAddress}
-                                size={224}
-                                bgColor="#ffffff"
-                                fgColor="#000000"
-                                level="H"
-                                includeMargin={false}
-                            />
-                        </QRCodeContainer>
-
-                        <CopyButton
-                            variant="primary"
-                            onClick={() => copyToClipboard(currentAddress)}
-                            fullWidth
-                        >
-                            <h3>Copy {addressLabel}</h3>
-                        </CopyButton>
-
-                        <Button
-                            variant="ghost"
-                            onClick={() => {
-                                const canvas = document.querySelector("canvas");
-                                if (canvas) {
-                                    const url = canvas.toDataURL("image/png");
-                                    const link = document.createElement("a");
-                                    link.download = `${addressLabel
-                                        .toLowerCase()
-                                        .replace(" ", "-")}-address-qr.png`;
-                                    link.href = url;
-                                    link.click();
-                                }
+                        <Input
+                            id="address-input"
+                            className="address-input text-3"
+                            label={addressLabel}
+                            labelStyle={{
+                                fontWeight: "500",
                             }}
-                            fullWidth
-                            style={{ marginTop: "8px" }}
+                            labelColorSelector={(theme: DefaultTheme) =>
+                                theme.colors.text.primary
+                            }
+                            wrapperStyle={{
+                                marginBottom: "4px",
+                            }}
+                            style={{
+                                fontSize: "0.75rem",
+                                height: "44px",
+                            }}
+                            value={currentAddress}
+                            readOnly
+                            copyable
+                            CustomCopyIcon={FileCopyIcon}
+                        />
+
+                        <div
+                            style={{
+                                marginBottom: "36px",
+                                fontSize: "0.75rem",
+                                color: "#666",
+                            }}
                         >
-                            <h3>Download QR Code</h3>
-                        </Button>
+                            Tip: Copy a QR code image and paste it directly in
+                            the field or click the Paste button
+                        </div>
+
+                        <Panel header="Show QR Code">
+                            <QRCodeContainer>
+                                <QRCodeCanvas
+                                    value={currentAddress}
+                                    size={224}
+                                    bgColor="#ffffff"
+                                    fgColor="#000000"
+                                    level="H"
+                                    includeMargin={false}
+                                />
+                            </QRCodeContainer>
+                        </Panel>
                     </AddressContainer>
 
                     <InfoBox>
                         <InfoTitle>
-                            <h3>Important:</h3>
+                            <h3 style={{ fontWeight: "500" }}>Important:</h3>
                         </InfoTitle>
                         <InfoList>
                             <div className="text-2">
@@ -253,11 +321,45 @@ export const Receive: React.FC = () => {
                         </InfoList>
                     </InfoBox>
 
-                    <div style={{ marginTop: "24px", textAlign: "center" }}>
-                        <Button variant="ghost" onClick={() => navigate("/")}>
-                            <h3>Back to Dashboard</h3>
+                    <ActionsToolbar>
+                        <CopyButton
+                            variant="primary"
+                            onClick={() => copyToClipboard(currentAddress)}
+                            style={{
+                                marginTop: "0",
+                            }}
+                        >
+                            <h3>Copy {addressLabel}</h3>
+                            <CopyIcon size={24} color="currentColor" />
+                        </CopyButton>
+
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                const canvas = document.querySelector("canvas");
+                                if (canvas) {
+                                    const url = canvas.toDataURL("image/png");
+                                    const link = document.createElement("a");
+                                    link.download = `${addressLabel
+                                        .toLowerCase()
+                                        .replace(" ", "-")}-address-qr.png`;
+                                    link.href = url;
+                                    link.click();
+                                }
+                            }}
+                        >
+                            <h3>Download QR</h3>
+                            <QRIconSecond size={24} color="currentColor" />
                         </Button>
-                    </div>
+                        <Button
+                            id="history-button"
+                            onClick={() => {}}
+                            variant="icon-button-black"
+                            fullWidth={false}
+                        >
+                            <HistoryIcon />
+                        </Button>
+                    </ActionsToolbar>
                 </CardContent>
             </Card>
         </ReceiveContainer>

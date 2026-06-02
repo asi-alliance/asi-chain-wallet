@@ -1,4 +1,4 @@
-import { ReactElement } from "react";
+import { CSSProperties, ReactElement } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
 import { fetchBalance } from "store/walletSlice";
@@ -11,8 +11,13 @@ import { Account } from "types/wallet";
 interface IAccountBalanceProps {
     account: Account;
     isSelected?: boolean;
+    style?: CSSProperties;
     onBalanceUpdate?: () => void;
 }
+
+const AmountBalanceCard = styled.div`
+    margin-bottom: 24px;
+`;
 
 const AmountBalanceWrapper = styled.div`
     display: flex;
@@ -48,6 +53,7 @@ const CustomReloadIcon = styled(ReloadIcon)<{ isSelected: boolean }>`
 export const AccountBalance = ({
     account,
     isSelected = false,
+    style,
     onBalanceUpdate,
 }: IAccountBalanceProps): ReactElement => {
     const dispatch = useDispatch();
@@ -69,7 +75,7 @@ export const AccountBalance = ({
     };
 
     return (
-        <div className="account-balance-card">
+        <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
                     <AccountBalanceBlock isSelected={isSelected}>
@@ -95,12 +101,7 @@ export const AccountBalance = ({
                 </Button>
             </AmountBalanceWrapper>
 
-            <LabelFirst
-                style={{ marginBottom: "24px" }}
-                isSelected={isSelected}
-            >
-                Balance
-            </LabelFirst>
-        </div>
+            <LabelFirst isSelected={isSelected}>Balance</LabelFirst>
+        </AmountBalanceCard>
     );
 };
