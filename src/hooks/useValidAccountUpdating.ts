@@ -5,14 +5,24 @@ import { Account } from "types/wallet";
 
 interface IUseValidAccountUpdatingResponse {
     isNameUpdateValid: boolean;
+    nameErrorMessage: string | undefined;
     updateAccountField: <TKey extends keyof Account>(
         key: TKey,
         value: Account[TKey],
     ) => void;
 }
 
+interface IValidAccountUpdatingConfig {
+    firstAccount?: boolean;
+}
+
+enum AccountFieldsEditingErrorMessages {
+    NAME = "Account with this name already exist",
+}
+
 export const useValidAccountUpdating = (
-    targetAccount: Account | undefined,
+    targetAccount?: Partial<Account>,
+    config?: IValidAccountUpdatingConfig,
 ): IUseValidAccountUpdatingResponse => {
     const existingAccountNames: Account[] = useSelector(selectAccounts);
 
@@ -34,12 +44,21 @@ export const useValidAccountUpdating = (
         (account: Account) => account.id !== currentAccountData?.id,
     );
 
+    const isNameDuplicate: boolean =
+        otherExistingAccounts.some(
+            (account: Account) =>
+                account.name === currentAccountData?.name?.trim(),
+        ) || !!config?.firstAccount;
+
+    const isNameUpdateValid: boolean =
+        !!currentAccountData?.name && !isNameDuplicate;
+    const nameErrorMessage: string | undefined = !isNameDuplicate
+        ? undefined
+        : AccountFieldsEditingErrorMessages.NAME;
+
     return {
-        isNameUpdateValid:
-            !!currentAccountData?.name &&
-            !otherExistingAccounts.some(
-                (account: Account) => account.name === currentAccountData?.name,
-            ),
+        isNameUpdateValid,
+        nameErrorMessage,
         updateAccountField,
     };
 };

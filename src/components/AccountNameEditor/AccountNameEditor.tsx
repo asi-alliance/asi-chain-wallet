@@ -49,7 +49,7 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
         selectAccountById(state, accountId),
     );
 
-    const { isNameUpdateValid, updateAccountField } =
+    const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
         useValidAccountUpdating(account);
 
     if (!account) {
@@ -80,7 +80,7 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
                 textWrap: "nowrap",
                 textOverflow: "ellipsis",
             }}
-            errorMessage="Account with this name already exist"
+            errorMessage={nameErrorMessage}
             style={{
                 maxWidth: "100%",
             }}

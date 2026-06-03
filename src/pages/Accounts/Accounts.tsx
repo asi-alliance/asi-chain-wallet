@@ -130,8 +130,6 @@ export const Accounts: React.FC = () => {
         }
     };
 
-    console.log("ACCOUNTS: ", accounts);
-
     return (
         <Fragment>
             <AccountsContainer>

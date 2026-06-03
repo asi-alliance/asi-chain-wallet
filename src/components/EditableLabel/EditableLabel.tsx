@@ -131,8 +131,6 @@ const InlineEditableInput = styled(Input)<{ isSelected: boolean }>`
     }
 `;
 
-const DEFAULT_ERROR_MESSAGE: string = "Invalid value";
-
 export const EditableLabel: React.FC<EditableLabelProps> = ({
     label,
     onSave,
@@ -226,9 +224,8 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         minHeight: "auto",
     };
 
-    const currentErrorMessage: string = errorMessage ?? DEFAULT_ERROR_MESSAGE;
     const currentError: string | undefined = !isValid
-        ? currentErrorMessage
+        ? errorMessage
         : undefined;
 
     if (isEditing && !disabled) {

@@ -8,6 +8,7 @@ import { createAccountWithPassword } from "store/authSlice";
 import { syncAccounts } from "store/walletSlice";
 import { SecureStorage } from "services/secureStorage";
 import { RootState } from "store";
+import { useValidAccountUpdating } from "hooks";
 
 const WarningMessage = styled.div`
     background: ${({ theme }) => `${theme.warning}20`};
@@ -44,6 +45,7 @@ interface CreateAccountFormProps {
     onCancel?: () => void;
     hideCancelButton?: boolean;
     customAccountName?: string;
+    firstAccount?: boolean;
 }
 
 type Step = "form" | "password" | "privateKey";
@@ -53,6 +55,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     onCancel,
     hideCancelButton = false,
     customAccountName,
+    firstAccount = false,
 }) => {
     const dispatch = useDispatch();
 
@@ -60,6 +63,9 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     const { isAuthenticated, hasAccounts } = useSelector(
         (state: RootState) => state.auth,
     );
+
+    const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
+        useValidAccountUpdating(undefined, { firstAccount });
 
     const selectedNetworkId = selectedNetwork?.id;
 
@@ -69,6 +75,11 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     const [pendingAccountName, setPendingAccountName] = useState("");
     const [pendingPrivateKey, setPendingPrivateKey] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const updateAccountName = (newName: string): void => {
+        setAccountName(newName);
+        updateAccountField("name", newName);
+    };
 
     useEffect(() => {
         if (!customAccountName) {
@@ -87,7 +98,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
             return;
         }
 
-        setAccountName(customAccountName);
+        updateAccountName(customAccountName);
         setPendingAccountName(customAccountName);
     }, [customAccountName]);
 
@@ -147,7 +158,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
 
     const handleCancel = () => {
         setStep("form");
-        setAccountName("");
+        updateAccountName("");
         setAccountNameError("");
         setPendingAccountName("");
         setPendingPrivateKey("");
@@ -201,14 +212,15 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
                 id="create-account-name-input"
                 label="Account Name"
                 value={accountName}
-                onChange={(e) => {
-                    setAccountName(e.target.value);
+                onChange={(event) => {
+                    updateAccountName(event.target.value);
+
                     if (accountNameError) {
                         setAccountNameError("");
                     }
                 }}
                 placeholder="Enter account name (max 30 characters)"
-                error={accountNameError}
+                error={accountNameError || nameErrorMessage}
                 maxLength={30}
                 disabled={loading}
             />
@@ -217,7 +229,9 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
                 <Button
                     id="create-account-button"
                     onClick={handleFormSubmit}
-                    disabled={!accountName.trim() || loading}
+                    disabled={
+                        !accountName.trim() || loading || !isNameUpdateValid
+                    }
                     fullWidth={false}
                     loading={loading}
                 >

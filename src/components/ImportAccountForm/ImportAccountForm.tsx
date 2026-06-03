@@ -13,7 +13,7 @@ import {
     importRevAddress,
 } from "utils/crypto";
 import { RootState } from "store";
-import { useScreen } from "hooks/";
+import { useScreen, useValidAccountUpdating } from "hooks/";
 
 const ImportTypeSelector = styled.select`
     padding: 12px 16px;
@@ -61,6 +61,7 @@ interface ImportAccountFormProps {
     onCancel?: () => void;
     hideCancelButton?: boolean;
     customAccountName?: string;
+    firstAccount?: boolean;
 }
 
 type Step = "form" | "password";
@@ -70,11 +71,15 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     onCancel,
     hideCancelButton = false,
     customAccountName,
+    firstAccount = false,
 }) => {
     const dispatch = useDispatch();
 
     const { selectedNetwork } = useSelector((state: RootState) => state.wallet);
     const { isLaptop } = useScreen();
+
+    const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
+        useValidAccountUpdating(undefined, { firstAccount });
 
     const selectedNetworkId = selectedNetwork?.id;
 
@@ -91,12 +96,17 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     );
     const [loading, setLoading] = useState(false);
 
+    const updateImportName = (newName: string): void => {
+        setImportName(newName);
+        updateAccountField("name", newName);
+    };
+
     useEffect(() => {
         if (!customAccountName) {
             return;
         }
 
-        setImportName(customAccountName);
+        updateImportName(customAccountName);
     }, [customAccountName]);
 
     const checkAccountExistsByValue = (
@@ -137,7 +147,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
 
     const handleCancel = () => {
         setStep("form");
-        setImportName("");
+        updateImportName("");
         setImportValue("");
         setImportNameError("");
         setImportValueError("");
@@ -275,13 +285,13 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                     label="Account Name"
                     value={importName}
                     onChange={(e) => {
-                        setImportName(e.target.value);
+                        updateImportName(e.target.value);
                         if (importNameError) {
                             setImportNameError("");
                         }
                     }}
                     placeholder="Enter account name (max 30 characters)"
-                    error={importNameError}
+                    error={importNameError || nameErrorMessage}
                     maxLength={30}
                     readOnly={!!customAccountName}
                     disabled={loading}
@@ -324,7 +334,10 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                     variant="primary"
                     onClick={handleImportAccount}
                     disabled={
-                        !importName.trim() || !importValue.trim() || loading
+                        !importName.trim() ||
+                        !importValue.trim() ||
+                        loading ||
+                        !isNameUpdateValid
                     }
                     fullWidth={true}
                     loading={loading}
