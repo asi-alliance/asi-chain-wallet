@@ -45,11 +45,27 @@ const AccountCardWrapper = styled(Card)<{ isSelected: boolean }>`
     }
 `;
 
-const AccountHeader = styled.div`
+const AccountHeader = styled.div<{ fullMode: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 26px;
+    gap: 16px;
+
+    ${({ fullMode }) =>
+        fullMode &&
+        `
+             & > :first-child {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    & > :last-child {
+        flex-shrink: 0;
+        flex-grow: 0;
+    }
+        `}
 `;
 
 const CustomEditableLabel = styled(EditableLabel)<{ isSelected: boolean }>`
@@ -125,9 +141,7 @@ export const AccountCard = ({
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { selectedAccount, selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const handleSelectAccount = (accountId: string) => {
@@ -177,12 +191,21 @@ export const AccountCard = ({
             className={className}
             onClick={() => handleSelectAccount(account.id)}
         >
-            <AccountHeader>
+            <AccountHeader fullMode={fullMode}>
                 <CustomEditableLabel
+                    className="account-card-name-editable-label"
                     label={account.name}
                     onChange={handleUpdateAccountName}
                     isSelected={isSelected}
                     title={account.name}
+                    labelStyle={{
+                        maxWidth: "100%",
+                        textWrap: "nowrap",
+                        textOverflow: "ellipsis",
+                    }}
+                    style={{
+                        maxWidth: "100%",
+                    }}
                 />
 
                 {fullMode && (

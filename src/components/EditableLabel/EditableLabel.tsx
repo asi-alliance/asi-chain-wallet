@@ -1,16 +1,26 @@
-import React, { useState, useRef, useEffect, CSSProperties } from "react";
+import React, {
+    useState,
+    useRef,
+    useEffect,
+    CSSProperties,
+    MouseEvent,
+} from "react";
 import styled from "styled-components";
 import { EditIcon } from "components/Icons";
 import { Input } from "components/Input";
 import { InputProps } from "components/Input/Input";
 
-interface EditableLabelProps extends Omit<InputProps, "onChange" | "ref"> {
+interface EditableLabelProps extends Omit<
+    InputProps,
+    "onChange" | "ref" | "labelStyle" | "onClick"
+> {
     label: string;
     onChange: (newLabel: string) => void;
     disabled?: boolean;
     placeholder?: string;
     inputSize?: "small" | "medium" | "large";
     labelClassName?: string;
+    labelStyle?: CSSProperties;
     inputClassName?: string;
     "data-testid"?: string;
     isSelected?: boolean;
@@ -19,6 +29,9 @@ interface EditableLabelProps extends Omit<InputProps, "onChange" | "ref"> {
 const EditableContainer = styled.div`
     display: flex;
     align-items: center;
+    width: 100%;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
     gap: 8px;
 `;
 
@@ -61,7 +74,7 @@ const EditButton = styled.button<{ isSelected: boolean }>`
     }
 `;
 
-const InlineEditableInput = styled(Input)`
+const InlineEditableInput = styled(Input)<{ isSelected: boolean }>`
     & > div {
         margin-bottom: 0;
         width: auto;
@@ -75,10 +88,12 @@ const InlineEditableInput = styled(Input)`
     & input {
         padding: 0;
         margin: 0;
-        border: none;
+        border-color: ${({ isSelected, theme }) =>
+            !isSelected
+                ? theme.text.primary
+                : theme.colors.background.secondary};
         background: transparent;
         min-height: auto;
-        font-size: inherit;
         font-weight: inherit;
         font-family: inherit;
         color: inherit;
@@ -89,14 +104,17 @@ const InlineEditableInput = styled(Input)`
         min-width: 100px;
         margin-bottom: 0;
 
-        &:focus {
-            outline: none;
-            border: none;
-            box-shadow: none;
-        }
-
         &:hover {
-            border: none;
+            border-color: ${({ isSelected, theme }) =>
+                !isSelected
+                    ? theme.text.primary
+                    : theme.colors.background.secondary};
+        }
+        &:focus {
+            border-color: ${({ isSelected, theme }) =>
+                !isSelected
+                    ? theme.text.primary
+                    : theme.colors.background.secondary};
         }
 
         &::placeholder {
@@ -119,6 +137,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     labelClassName,
     inputClassName,
     isSelected = true,
+    labelStyle,
     ...props
 }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -158,6 +177,10 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         }
     };
 
+    const handleClick = (event: MouseEvent<HTMLInputElement>): void => {
+        event.stopPropagation();
+    };
+
     const handleBlur = () => {
         handleSave();
     };
@@ -171,8 +194,8 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     const fullStyle: CSSProperties = {
         ...props.style,
         background: "transparent",
-        border: "none",
         padding: "0",
+        border: "none",
         outline: "none",
         minHeight: "auto",
     };
@@ -182,15 +205,18 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
             <InlineEditableInput
                 inputRef={inputRef}
                 value={value}
+                onClick={handleClick}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onBlur={handleBlur}
                 placeholder={placeholder}
                 data-testid={dataTestId ? `${dataTestId}-input` : undefined}
                 autoFocus
+                isSelected={isSelected}
                 style={fullStyle}
                 wrapperStyle={{ marginBottom: "0" }}
-                className={`${inputClassName} ${propsInputClassname}`}
+                className={`inline-editable-input ${inputClassName} ${propsInputClassname}`}
+                withoutHoverUI
                 {...otherProps}
             />
         );
@@ -203,6 +229,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
                 disabled={disabled}
                 className={`editable-label-text ${labelClassName || ""}`}
                 onClick={handleEditClick}
+                style={labelStyle}
                 data-testid={dataTestId ? `${dataTestId}-label` : undefined}
             >
                 {label || placeholder}

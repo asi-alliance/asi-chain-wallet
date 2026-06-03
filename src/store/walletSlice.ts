@@ -792,15 +792,21 @@ const walletSlice = createSlice({
             state,
             action: PayloadAction<{ accountId: string; name: string }>,
         ) => {
+            const {accountId, name} = action.payload;
+
             const account = state.accounts.find(
-                (a) => a.id === action.payload.accountId,
+                (a) => a.id === accountId,
             );
             if (account) {
-                account.name = action.payload.name;
+                account.name = name;
             }
-            if (state.selectedAccount?.id === action.payload.accountId) {
-                state.selectedAccount.name = action.payload.name;
+            if (state.selectedAccount?.id === accountId) {
+                state.selectedAccount.name = name;
             }
+
+            SecureStorage.updateAccountName(accountId, name);
+
+            updateSelectedAccountForNetwork(state);
         },
         addTransaction: (state, action: PayloadAction<Transaction>) => {
             state.transactions.unshift(action.payload);

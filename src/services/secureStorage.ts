@@ -142,6 +142,11 @@ export class SecureStorage {
         SessionStore.removeAccount(accountId);
     }
 
+    static updateAccountName(accountId: string, newName: string): void {
+        AccountsVault.updateAccountName(accountId, newName);
+        SessionStore.updateAccountName(accountId, newName);
+    }
+
     static exportAccount(accountId: string): string | null {
         return AccountsVault.export(accountId);
     }

@@ -112,6 +112,22 @@ export class AccountsVault {
         this.persistAsync();
     }
 
+    static updateAccountName(targetAccountId: string, newName: string): void {
+        const accountForSave: SecureAccount | undefined = this.accounts.find(
+            (account: SecureAccount) => account.id === targetAccountId,
+        );
+
+        if (!accountForSave) {
+            console.error("You want update name for not found account!");
+
+            return;
+        }
+
+        accountForSave.name = newName;
+
+        this.persistAsync();
+    }
+
     private static persistAsync(): void {
         const adapter = StorageProvider.getAdapter();
 

@@ -103,6 +103,22 @@ export class SessionStore {
         this.port.persist();
     }
 
+    static updateAccountName(accountId: string, newName: string): void {
+        const data = this.readAccounts();
+
+        if (!data[accountId]) {
+            return;
+        }
+
+        data[accountId].name = newName;
+
+        sessionStorage.setItem(
+            SESSION_STORAGE_KEYS.SESSION,
+            JSON.stringify(data),
+        );
+        this.port.persist();
+    }
+
     static updateAccountNetworks(updateMap: Map<string, string>): void {
         const data = this.readAccounts();
         let changed = false;

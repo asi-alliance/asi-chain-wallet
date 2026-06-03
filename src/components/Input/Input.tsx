@@ -22,6 +22,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     inputRef?: RefObject<HTMLInputElement>;
     copyable?: boolean;
     CustomCopyIcon?: FC<IIconProps>;
+    withoutHoverUI?: boolean;
 }
 
 const InputWrapper = styled.div<{ fullWidth?: boolean }>`
@@ -48,7 +49,11 @@ const Label = styled.label<{
     }
 `;
 
-const StyledInput = styled.input<{ hasError?: boolean; copyable?: boolean }>`
+const StyledInput = styled.input<{
+    hasError?: boolean;
+    copyable?: boolean;
+    withoutHoverUI?: boolean;
+}>`
     width: 100%;
     padding: ${({ copyable }) =>
         copyable ? "12px 40px 12px 20px" : "12px 20px"};
@@ -68,21 +73,20 @@ const StyledInput = styled.input<{ hasError?: boolean; copyable?: boolean }>`
     /* ASI Wallet elevation */
     // box-shadow: ${({ theme }) => theme.shadow};
 
-    &:hover:not(:disabled) {
-        border-color: ${
-            ({ theme, hasError }) =>
-                hasError ? theme.danger : `${theme.primary}` /* 20% opacity */
-        };
-    }
+    ${({ withoutHoverUI, theme, hasError }) =>
+        !withoutHoverUI &&
+        `
+            &:hover:not(:disabled) {
+                border-color: ${hasError ? theme.danger : `${theme.primary}`};
+            }
 
-    &:focus {
-        border-color: ${({ theme, hasError }) =>
-            hasError ? theme.danger : theme.primary};
-        outline: 2px solid
-            ${({ theme, hasError }) =>
-                hasError ? theme.danger : theme.primary};
-        outline-offset: 2px;
-    }
+            &:focus {
+                border-color: ${hasError ? theme.danger : theme.primary};
+                outline: 2px solid
+                    ${hasError ? theme.danger : theme.primary};
+                outline-offset: 2px;
+            }
+        `}
 
     &::placeholder {
         color: ${({ theme }) => theme.text.primary};
@@ -194,6 +198,7 @@ export const Input: React.FC<InputProps> = ({
     copyable = false,
     value,
     CustomCopyIcon,
+    withoutHoverUI = false,
     ...props
 }) => {
     const defaultRef = useRef<HTMLInputElement>(null);
@@ -261,6 +266,7 @@ export const Input: React.FC<InputProps> = ({
                     onInput={handleInput}
                     value={value}
                     copyable={copyable}
+                    withoutHoverUI={withoutHoverUI}
                     {...props}
                 />
                 {copyable && (
