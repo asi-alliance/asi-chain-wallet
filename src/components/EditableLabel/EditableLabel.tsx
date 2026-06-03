@@ -10,7 +10,7 @@ import { EditIcon } from "components/Icons";
 import { Input } from "components/Input";
 import { InputProps } from "components/Input/Input";
 
-interface EditableLabelProps extends Omit<
+export interface EditableLabelProps extends Omit<
     InputProps,
     "onChange" | "ref" | "labelStyle" | "onClick"
 > {

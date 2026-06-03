@@ -4,6 +4,7 @@ import { AuthState, loginWithPassword } from "./authSlice";
 import { SecureStorage } from "services/secureStorage";
 import { RChainService } from "services/rchain";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../constants/gas";
+import { RootState } from "store";
 
 interface NetworkConfig {
     name: string;
@@ -792,11 +793,9 @@ const walletSlice = createSlice({
             state,
             action: PayloadAction<{ accountId: string; name: string }>,
         ) => {
-            const {accountId, name} = action.payload;
+            const { accountId, name } = action.payload;
 
-            const account = state.accounts.find(
-                (a) => a.id === accountId,
-            );
+            const account = state.accounts.find((a) => a.id === accountId);
             if (account) {
                 account.name = name;
             }
@@ -1087,6 +1086,9 @@ const walletSlice = createSlice({
             });
     },
 });
+
+export const selectAccountById = (state: RootState, accountId: string) =>
+    state.wallet.accounts.find((account) => account.id === accountId);
 
 export const {
     syncAccounts,

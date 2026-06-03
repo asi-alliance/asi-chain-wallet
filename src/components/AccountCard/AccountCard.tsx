@@ -4,19 +4,15 @@ import { ReactElement } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
 import { exportAccountKeyfile } from "store/authSlice";
-import {
-    removeAccount,
-    selectAccount,
-    updateAccountName,
-} from "store/walletSlice";
+import { removeAccount, selectAccount } from "store/walletSlice";
 import styled from "styled-components";
 import { Account } from "types/wallet";
 import CopyButton from "components/CopyButton";
 import { DeleteIcon, DownloadIcon, LockPassIcon } from "components/Icons";
 import { useNavigate } from "react-router-dom";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { EditableLabel } from "components/EditableLabel";
 import { AccountBalance } from "components/AccountBalance";
+import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
 
 interface IAccountCardProps {
     account: Account;
@@ -66,20 +62,6 @@ const AccountHeader = styled.div<{ fullMode: boolean }>`
         flex-grow: 0;
     }
         `}
-`;
-
-const CustomEditableLabel = styled(EditableLabel)<{ isSelected: boolean }>`
-    font-size: 1.25rem !important;
-    font-weight: 400 !important;
-    color: ${({ isSelected, theme }) =>
-        !isSelected
-            ? theme.text.primary
-            : theme.colors.background.secondary} !important;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 250px;
 `;
 
 const LabelSecond = styled.span<{ isSelected: boolean }>`
@@ -174,15 +156,6 @@ export const AccountCard = ({
     );
     const isSelected = selectedAccount?.id === account.id;
 
-    const handleUpdateAccountName = (newName: string) => {
-        dispatch(
-            updateAccountName({
-                accountId: account.id,
-                name: newName,
-            }),
-        );
-    };
-
     return (
         <AccountCardWrapper
             key={account.id}
@@ -192,21 +165,7 @@ export const AccountCard = ({
             onClick={() => handleSelectAccount(account.id)}
         >
             <AccountHeader fullMode={fullMode}>
-                <CustomEditableLabel
-                    className="account-card-name-editable-label"
-                    label={account.name}
-                    onChange={handleUpdateAccountName}
-                    isSelected={isSelected}
-                    title={account.name}
-                    labelStyle={{
-                        maxWidth: "100%",
-                        textWrap: "nowrap",
-                        textOverflow: "ellipsis",
-                    }}
-                    style={{
-                        maxWidth: "100%",
-                    }}
-                />
+                <AccountNameEditor accountId={account.id} />
 
                 {fullMode && (
                     <RemoveButton
