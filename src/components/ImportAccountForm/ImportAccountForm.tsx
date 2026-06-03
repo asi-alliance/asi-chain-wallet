@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { Input, Button } from "components";
@@ -13,6 +13,7 @@ import {
     importRevAddress,
 } from "utils/crypto";
 import { RootState } from "store";
+import useScreen from "hooks/useScreen";
 
 const ImportTypeSelector = styled.select`
     padding: 12px 16px;
@@ -36,6 +37,17 @@ const ActionButtons = styled.div`
     justify-content: center;
     gap: 16px;
     margin-top: 24px;
+
+    @media (max-width: 768px) {
+        display: block;
+        padding: 0 2rem;
+    }
+`;
+
+const Label = styled.label`
+    // font-size: 14px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.primary};
 `;
 
 interface PendingImport {
@@ -48,6 +60,7 @@ interface ImportAccountFormProps {
     onSuccess?: () => void;
     onCancel?: () => void;
     hideCancelButton?: boolean;
+    customAccountName?: string;
 }
 
 type Step = "form" | "password";
@@ -56,10 +69,12 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     onSuccess,
     onCancel,
     hideCancelButton = false,
+    customAccountName,
 }) => {
     const dispatch = useDispatch();
 
     const { selectedNetwork } = useSelector((state: RootState) => state.wallet);
+    const { isLaptop } = useScreen();
 
     const selectedNetworkId = selectedNetwork?.id;
 
@@ -75,6 +90,14 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         null,
     );
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!customAccountName) {
+            return;
+        }
+
+        setImportName(customAccountName);
+    }, [customAccountName]);
 
     const checkAccountExistsByValue = (
         value: string,
@@ -247,17 +270,6 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     return (
         <>
             <FormGroup>
-                <ImportTypeSelector
-                    value={importType}
-                    onChange={(e) => setImportType(e.target.value as any)}
-                >
-                    <option value="private">Private Key</option>
-                    <option value="eth">Ethereum Address</option>
-                    <option value="rev">{getAddressLabel()}</option>
-                </ImportTypeSelector>
-            </FormGroup>
-
-            <FormGroup>
                 <Input
                     id="import-account-name-input"
                     label="Account Name"
@@ -271,14 +283,28 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                     placeholder="Enter account name (max 30 characters)"
                     error={importNameError}
                     maxLength={30}
+                    readOnly={!!customAccountName}
                     disabled={loading}
                 />
             </FormGroup>
 
             <FormGroup>
+                <Label>Mode</Label>
+
+                <ImportTypeSelector
+                    value={importType}
+                    onChange={(e) => setImportType(e.target.value as any)}
+                >
+                    <option value="private">Private Key</option>
+                    <option value="eth">Ethereum Address</option>
+                    <option value="rev">{getAddressLabel()}</option>
+                </ImportTypeSelector>
+            </FormGroup>
+
+            <FormGroup>
                 <Input
                     id="import-account-value-input"
-                    label="Value"
+                    label="Private Key"
                     value={importValue}
                     onChange={(e) => {
                         setImportValue(e.target.value);
@@ -300,8 +326,15 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                     disabled={
                         !importName.trim() || !importValue.trim() || loading
                     }
-                    fullWidth={false}
+                    fullWidth={true}
                     loading={loading}
+                    style={{
+                        flexWrap: "nowrap",
+                        whiteSpace: "nowrap",
+                        ...(isLaptop && {
+                            marginBottom: "16px",
+                        }),
+                    }}
                 >
                     <h3>Import Account</h3>
                     <svg
@@ -330,10 +363,14 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                 </Button>
                 {!hideCancelButton && (
                     <Button
-                        variant="ghost"
+                        variant="secondary"
                         onClick={handleCancel}
                         disabled={loading}
-                        fullWidth={false}
+                        fullWidth={true}
+                        style={{
+                            flexWrap: "nowrap",
+                            whiteSpace: "nowrap",
+                        }}
                     >
                         Cancel
                     </Button>

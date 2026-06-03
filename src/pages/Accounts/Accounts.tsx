@@ -48,7 +48,7 @@ const AccountsActionsFooter = styled.div`
 
     @media (max-width: 768px) {
         flex-direction: column;
-        padding: 0 100px;
+        padding: 0 3rem;
     }
 `;
 
@@ -129,6 +129,8 @@ export const Accounts: React.FC = () => {
         }
     };
 
+    console.log("ACCOUNTS: ", accounts);
+
     return (
         <Fragment>
             <AccountsContainer>
@@ -166,6 +168,10 @@ export const Accounts: React.FC = () => {
                                     id="create-account-button"
                                     onClick={() => setShowCreateModal(true)}
                                     fullWidth={isLaptop}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
                                     <h3>Create Account </h3>
                                     <svg
@@ -186,6 +192,10 @@ export const Accounts: React.FC = () => {
                                     variant="secondary"
                                     onClick={() => setShowImportModal(true)}
                                     fullWidth={isLaptop}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
                                     <h3>Import Account</h3>
                                     <svg

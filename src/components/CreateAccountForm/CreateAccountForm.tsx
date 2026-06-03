@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { Input, Button } from "components";
@@ -43,6 +43,7 @@ interface CreateAccountFormProps {
     onSuccess?: (accountName: string) => void;
     onCancel?: () => void;
     hideCancelButton?: boolean;
+    customAccountName?: string;
 }
 
 type Step = "form" | "password" | "privateKey";
@@ -51,6 +52,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     onSuccess,
     onCancel,
     hideCancelButton = false,
+    customAccountName,
 }) => {
     const dispatch = useDispatch();
 
@@ -62,14 +64,37 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     const selectedNetworkId = selectedNetwork?.id;
 
     const [step, setStep] = useState<Step>("form");
-    const [accountName, setAccountName] = useState("");
+    const [accountName, setAccountName] = useState(customAccountName ?? "");
     const [accountNameError, setAccountNameError] = useState("");
     const [pendingAccountName, setPendingAccountName] = useState("");
     const [pendingPrivateKey, setPendingPrivateKey] = useState("");
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        if (!customAccountName) {
+            return;
+        }
+
+        if (step !== "form") {
+            return;
+        }
+
+        setStep("password");
+    }, [customAccountName, step]);
+
+    useEffect(() => {
+        if (!customAccountName) {
+            return;
+        }
+
+        setAccountName(customAccountName);
+        setPendingAccountName(customAccountName);
+    }, [customAccountName]);
+
     const handleFormSubmit = () => {
-        const trimmedName = accountName.trim();
+        const currentName: string = customAccountName ?? accountName;
+
+        const trimmedName = currentName.trim();
 
         if (!trimmedName) {
             setAccountNameError("Account name is required");
@@ -135,7 +160,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     };
 
     // Step: Password Setup
-    if (step === "password") {
+    if (step === "password" || (!!customAccountName && step === "form")) {
         return (
             <PasswordSetup
                 title="Set Password for New Account"
@@ -212,7 +237,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
                 </Button>
                 {!hideCancelButton && (
                     <Button
-                        variant="ghost"
+                        variant="secondary"
                         onClick={handleCancel}
                         disabled={loading}
                         fullWidth={false}
