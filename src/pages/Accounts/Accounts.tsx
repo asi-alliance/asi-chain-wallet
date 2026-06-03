@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, Fragment } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { syncAccounts, fetchBalance } from "store/walletSlice";
+import { fetchBalance } from "store/walletSlice";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
@@ -57,7 +57,6 @@ export const Accounts: React.FC = () => {
     const { accounts, selectedNetwork, isLoading } = useSelector(
         (state: RootState) => state.wallet,
     );
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const { isLaptop } = useScreen();
 
@@ -80,12 +79,6 @@ export const Accounts: React.FC = () => {
         () => filteredAccounts.map((account: Account) => account.id).join(","),
         [filteredAccounts],
     );
-
-    useEffect(() => {
-        if (unlockedAccounts.length > 0) {
-            dispatch(syncAccounts(unlockedAccounts));
-        }
-    }, [unlockedAccounts, dispatch]);
 
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
