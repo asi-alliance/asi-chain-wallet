@@ -8,7 +8,7 @@ import { createAccountWithPassword } from "store/authSlice";
 import { syncAccounts } from "store/walletSlice";
 import { SecureStorage } from "services/secureStorage";
 import { RootState } from "store";
-import { useValidAccountUpdating } from "hooks";
+import { useScreen, useValidAccountUpdating } from "hooks";
 
 const WarningMessage = styled.div`
     background: ${({ theme }) => `${theme.warning}20`};
@@ -34,6 +34,19 @@ const ActionButtons = styled.div`
     justify-content: center;
     gap: 16px;
     margin-top: 24px;
+
+    @media (max-width: 768px) {
+        display: block;
+        padding: 0 2rem;
+    }
+`;
+
+const AdaptiveButton = styled(Button)`
+    min-width: 242px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
 `;
 
 const FormContainer = styled.div`
@@ -63,6 +76,8 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     const { isAuthenticated, hasAccounts } = useSelector(
         (state: RootState) => state.auth,
     );
+
+    const { isLaptop } = useScreen();
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
         useValidAccountUpdating(undefined, { firstAccount });
@@ -226,14 +241,19 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
             />
 
             <ActionButtons>
-                <Button
+                <AdaptiveButton
                     id="create-account-button"
                     onClick={handleFormSubmit}
                     disabled={
                         !accountName.trim() || loading || !isNameUpdateValid
                     }
-                    fullWidth={false}
+                    fullWidth={isLaptop}
                     loading={loading}
+                    style={{
+                        ...(isLaptop && {
+                            marginBottom: "16px",
+                        }),
+                    }}
                 >
                     <h3>Create Account</h3>
                     <svg
@@ -248,13 +268,13 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
                             fill="currentcolor"
                         />
                     </svg>
-                </Button>
+                </AdaptiveButton>
                 {!hideCancelButton && (
                     <Button
                         variant="secondary"
                         onClick={handleCancel}
                         disabled={loading}
-                        fullWidth={false}
+                        fullWidth={isLaptop}
                     >
                         Cancel
                     </Button>

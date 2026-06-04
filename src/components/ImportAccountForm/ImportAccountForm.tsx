@@ -1,30 +1,20 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useDispatch, useSelector } from "react-redux";
-import { Input, Button } from "components";
-import { PasswordSetup } from "components/PasswordSetup";
+import { useScreen, useValidAccountUpdating } from "hooks/";
 import { importAccountWithPassword } from "store/authSlice";
-import { syncAccounts } from "store/walletSlice";
-import { SecureStorage } from "services/secureStorage";
+import { PasswordSetup } from "components/PasswordSetup";
 import { getAddressLabel } from "../../constants/token";
+import { useDispatch, useSelector } from "react-redux";
+import { SecureStorage } from "services/secureStorage";
+import { AdaptiveSelect } from "components/Select";
+import { syncAccounts } from "store/walletSlice";
+import { Input, Button } from "components";
+import { RootState } from "store";
 import {
     importPrivateKey,
     importEthAddress,
     importRevAddress,
 } from "utils/crypto";
-import { RootState } from "store";
-import { useScreen, useValidAccountUpdating } from "hooks/";
-
-const ImportTypeSelector = styled.select`
-    padding: 12px 16px;
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 16px;
-    margin-bottom: 16px;
-    width: 100%;
-`;
 
 const FormGroup = styled.div`
     margin-bottom: 16px;
@@ -50,11 +40,25 @@ const Label = styled.label`
     color: ${({ theme }) => theme.text.primary};
 `;
 
+const AdaptiveButton = styled(Button)`
+    min-width: 242px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
+`;
+
 interface PendingImport {
     name: string;
     value: string;
     type: "private" | "public" | "eth" | "rev";
 }
+
+const importTypeOptions = [
+    { id: "private", value: "private", label: "Private Key" },
+    { id: "eth", value: "eth", label: "Ethereum Address" },
+    { id: "rev", value: "rev", label: getAddressLabel() },
+];
 
 interface ImportAccountFormProps {
     onSuccess?: () => void;
@@ -299,16 +303,14 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             </FormGroup>
 
             <FormGroup>
-                <Label>Mode</Label>
+                <Label style={{ marginBottom: "8px" }}>Mode</Label>
 
-                <ImportTypeSelector
+                <AdaptiveSelect
                     value={importType}
-                    onChange={(e) => setImportType(e.target.value as any)}
-                >
-                    <option value="private">Private Key</option>
-                    <option value="eth">Ethereum Address</option>
-                    <option value="rev">{getAddressLabel()}</option>
-                </ImportTypeSelector>
+                    onChange={(value) => setImportType(value as any)}
+                    options={importTypeOptions}
+                    placeholder="Select import type"
+                />
             </FormGroup>
 
             <FormGroup>
@@ -329,7 +331,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             </FormGroup>
 
             <ActionButtons>
-                <Button
+                <AdaptiveButton
                     id="import-account-button"
                     variant="primary"
                     onClick={handleImportAccount}
@@ -339,7 +341,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                         loading ||
                         !isNameUpdateValid
                     }
-                    fullWidth={true}
+                    fullWidth={isLaptop}
                     loading={loading}
                     style={{
                         flexWrap: "nowrap",
@@ -373,20 +375,20 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                             </clipPath>
                         </defs>
                     </svg>
-                </Button>
+                </AdaptiveButton>
                 {!hideCancelButton && (
-                    <Button
+                    <AdaptiveButton
                         variant="secondary"
                         onClick={handleCancel}
                         disabled={loading}
-                        fullWidth={true}
+                        fullWidth={isLaptop}
                         style={{
                             flexWrap: "nowrap",
                             whiteSpace: "nowrap",
                         }}
                     >
                         Cancel
-                    </Button>
+                    </AdaptiveButton>
                 )}
             </ActionButtons>
         </>
