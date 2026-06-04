@@ -376,6 +376,7 @@ export const Receive: React.FC = () => {
                                 }}
                                 variant="icon-button-black"
                                 fullWidth={false}
+                                secondaryHover
                             >
                                 <HistoryIcon />
                             </Button>
@@ -404,6 +405,7 @@ export const Receive: React.FC = () => {
                                     }}
                                     variant="icon-button-black"
                                     fullWidth={false}
+                                    secondaryHover
                                 >
                                     <HistoryIcon />
                                 </Button>

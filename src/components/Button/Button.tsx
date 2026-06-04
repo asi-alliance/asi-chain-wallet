@@ -2,7 +2,7 @@ import React from "react";
 import styled, { css } from "styled-components";
 import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?:
         | "primary"
         | "secondary"
@@ -10,12 +10,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
         | "ghost"
         | "icon-button"
         | "icon-button-ghost"
+        | "icon-button-secondary"
         | "icon-button-black";
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
     dangerHover?: boolean;
+    secondaryHover?: boolean;
     withFadeHover?: boolean;
+    withBorderColorHover?: boolean;
 }
 
 const ButtonBase = styled.button.withConfig(
@@ -24,7 +27,10 @@ const ButtonBase = styled.button.withConfig(
         "size",
         "fullWidth",
         "loading",
+        "dangerHover",
+        "secondaryHover",
         "withFadeHover",
+        "withBorderColorHover",
     ]),
 )<ButtonProps>`
     display: inline-flex;
@@ -93,7 +99,7 @@ const ButtonBase = styled.button.withConfig(
             width: 100%;
         `}
 
-  ${({ variant, theme, withFadeHover }) => {
+  ${({ variant, theme, withFadeHover, withBorderColorHover }) => {
         switch (variant) {
             case "secondary":
                 return css`
@@ -141,7 +147,10 @@ const ButtonBase = styled.button.withConfig(
                     min-height: auto;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
 
                         ${withFadeHover &&
                         css`
@@ -169,7 +178,10 @@ const ButtonBase = styled.button.withConfig(
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
 
                         ${withFadeHover &&
                         css`
@@ -197,7 +209,41 @@ const ButtonBase = styled.button.withConfig(
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
+                    }
+
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
+                `;
+            case "icon-button-secondary":
+                return css`
+                    background: transparent;
+                    color: ${theme.colors.text.primary};
+                    border: 0.5px solid ${theme.primary};
+                    box-shadow: none;
+                    padding: 7px;
+                    min-width: auto;
+                    min-height: auto;
+                    height: auto;
+                    aspect-ratio: 1/1;
+
+                    &:hover:not(:disabled) {
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
 
                         ${withFadeHover &&
                         css`
@@ -225,7 +271,10 @@ const ButtonBase = styled.button.withConfig(
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
 
                         ${withFadeHover &&
                         css`
@@ -247,7 +296,10 @@ const ButtonBase = styled.button.withConfig(
                     font-weight: 600;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.primaryDark};
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.primaryDark};
+                        `}
 
                         ${withFadeHover &&
                         css`
@@ -300,12 +352,22 @@ const ButtonBase = styled.button.withConfig(
             }
         `}
 
-    ${({ dangerHover, theme }) =>
-        dangerHover &&
+${({ withBorderColorHover, dangerHover, secondaryHover, theme }) =>
+        withBorderColorHover &&
         css`
-            &:hover:not(:disabled) {
-                border-color: ${theme.danger};
-            }
+            ${dangerHover &&
+            css`
+                &:hover:not(:disabled) {
+                    border-color: ${theme.danger};
+                }
+            `}
+
+            ${secondaryHover &&
+            css`
+                &:hover:not(:disabled) {
+                    border-color: ${theme.primary};
+                }
+            `}
         `}
 `;
 
@@ -344,6 +406,7 @@ export const Button: React.FC<ButtonProps> = ({
     disabled,
     onClick,
     withFadeHover = false,
+    withBorderColorHover = true,
     ...props
 }) => {
     const [ripples, setRipples] = React.useState<
@@ -377,6 +440,7 @@ export const Button: React.FC<ButtonProps> = ({
             disabled={disabled || loading}
             onClick={handleClick}
             withFadeHover={withFadeHover}
+            withBorderColorHover={withBorderColorHover}
             {...props}
         >
             {children}

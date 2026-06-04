@@ -598,6 +598,9 @@ const DeployLiteModeBoard: React.FC = () => {
                         variant={clearButtonVariant}
                         onClick={clearCode}
                         dangerHover
+                        style={{
+                            height: "30px",
+                        }}
                     >
                         {!isLaptop && (
                             <h3

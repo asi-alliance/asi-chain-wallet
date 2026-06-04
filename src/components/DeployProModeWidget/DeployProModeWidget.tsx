@@ -1426,6 +1426,9 @@ const DeployProModeBoard: React.FC = () => {
                         size="small"
                         onClick={clearConsole}
                         dangerHover
+                        style={{
+                            height: "30px",
+                        }}
                     >
                         {!isLaptop && (
                             <h3

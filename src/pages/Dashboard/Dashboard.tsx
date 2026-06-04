@@ -283,6 +283,7 @@ export const Dashboard: React.FC = () => {
                                 }}
                                 variant="icon-button-black"
                                 fullWidth={false}
+                                secondaryHover
                             >
                                 <HistoryIcon />
                             </Button>

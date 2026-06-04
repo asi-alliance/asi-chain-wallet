@@ -188,6 +188,7 @@ export const AccountCard = ({
                                 $isSelected={isSelected}
                                 id={`unlock-account-${account.id}`}
                                 variant="icon-button"
+                                withBorderColorHover={false}
                                 onClick={(e) => {
                                     e.stopPropagation();
 
@@ -206,6 +207,7 @@ export const AccountCard = ({
                                         }),
                                     );
                                 }}
+                                withFadeHover
                             >
                                 <LockPassIcon />
                             </ActionButton>
@@ -218,6 +220,7 @@ export const AccountCard = ({
                                 e.stopPropagation();
                                 handleExportKeyfile(account.id);
                             }}
+                            withBorderColorHover={false}
                             withFadeHover
                         >
                             <DownloadIcon size={24} />
