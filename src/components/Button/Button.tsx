@@ -29,6 +29,7 @@ const ButtonBase = styled.button.withConfig(
     gap: 0.5rem;
     align-items: center;
     justify-content: center;
+    height: 44px;
     font-weight: 500;
     border-radius: 8px; /* ASI Wallet spec: 8px for buttons */
     transition: all 0.2s ease;
@@ -155,6 +156,7 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
@@ -175,6 +177,7 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
@@ -195,6 +198,7 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
