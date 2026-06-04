@@ -66,6 +66,7 @@ const Label = styled.label`
     // font-size: 14px;
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
+    margin-bottom: 8px;
 `;
 
 const DirectLinks = styled.div`
@@ -128,12 +129,20 @@ const InfoBox = styled.div`
     }
 `;
 
-const AutoWidthInput = styled(Input)`
+const InlineInput = styled(Input)`
+    height: 44px;
+`;
+
+const AutoWidthInput = styled(InlineInput)`
     width: auto;
 
     @media (max-width: 768px) {
         width: 100%;
     }
+`;
+
+const InlineButton = styled(Button)`
+    height: 44px;
 `;
 
 const initialNetworkSettings = {
@@ -305,7 +314,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>IP/Domain:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-validator-host-input"
                                     className="network-validator-host-input text-2"
                                     value={validatorHost}
@@ -319,7 +328,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>gRPC Port:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-validator-grpc-port-input"
                                     className="network-validator-grpc-port-input text-2"
                                     value={validatorGrpcPort}
@@ -333,7 +342,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>HTTP Port:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-validator-http-port-input"
                                     className="network-validator-http-port-input text-2"
                                     value={validatorHttpPort}
@@ -379,7 +388,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>IP/Domain:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-readonly-host-input"
                                     className="network-readonly-host-input text-2"
                                     value={readOnlyHost}
@@ -393,7 +402,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>gRPC Port:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-readonly-grpc-port-input"
                                     className="network-readonly-grpc-port-input text-2"
                                     value={readOnlyGrpcPort}
@@ -407,7 +416,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 <Label>
                                     <h4>HTTP Port:</h4>
                                 </Label>
-                                <Input
+                                <InlineInput
                                     id="network-readonly-http-port-input"
                                     className="network-readonly-http-port-input text-2"
                                     value={readOnlyHttpPort}
@@ -444,16 +453,16 @@ export const CustomNetworkConfig: React.FC = () => {
                     </ConfigSection>
 
                     <ActionButtons>
-                        <Button variant="primary" onClick={handleSave}>
+                        <InlineButton variant="primary" onClick={handleSave}>
                             <h3>Save Custom Network</h3>
                             <FileIcon />
-                        </Button>
-                        <Button
+                        </InlineButton>
+                        <InlineButton
                             variant="secondary"
                             onClick={handleRestoreToDefault}
                         >
                             <h3>Restore to default</h3>
-                        </Button>
+                        </InlineButton>
                     </ActionButtons>
                 </CardContent>
             </Card>
