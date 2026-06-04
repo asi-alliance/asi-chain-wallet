@@ -28,6 +28,7 @@ const AccountCardWrapper = styled(Card)<{ isSelected: boolean }>`
     background-color: ${({ isSelected, theme }) =>
         !isSelected ? theme.colors.background.secondary : theme.primary};
     min-width: 462px;
+    overflow: auto;
 
     box-shadow: ${({ theme }) => theme.shadowDrop};
 
@@ -54,7 +55,6 @@ const AccountHeader = styled.div<{ fullMode: boolean }>`
              & > :first-child {
         flex: 1;
         min-width: 0;
-        overflow: hidden;
     }
 
     & > :last-child {

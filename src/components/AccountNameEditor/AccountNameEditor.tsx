@@ -49,7 +49,7 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
         selectAccountById(state, accountId),
     );
 
-    const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
+    const { isNameUpdateValid, nameErrorMessage, updateAccountField, reset } =
         useValidAccountUpdating(account);
 
     if (!account) {
@@ -73,6 +73,7 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
             label={account.name}
             onSave={handleUpdateAccountName}
             onChange={(query: string) => updateAccountField("name", query)}
+            onCancel={reset}
             isValid={isNameUpdateValid}
             isSelected={isSelected}
             labelStyle={{

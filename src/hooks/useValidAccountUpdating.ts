@@ -10,6 +10,7 @@ interface IUseValidAccountUpdatingResponse {
         key: TKey,
         value: Account[TKey],
     ) => void;
+    reset: () => void;
 }
 
 interface IValidAccountUpdatingConfig {
@@ -40,6 +41,10 @@ export const useValidAccountUpdating = (
         }));
     };
 
+    const reset = (): void => {
+        setCurrentAccountData(targetAccount ?? {});
+    };
+
     const otherExistingAccounts: Account[] = existingAccountNames.filter(
         (account: Account) => account.id !== currentAccountData?.id,
     );
@@ -60,5 +65,6 @@ export const useValidAccountUpdating = (
         isNameUpdateValid,
         nameErrorMessage,
         updateAccountField,
+        reset,
     };
 };

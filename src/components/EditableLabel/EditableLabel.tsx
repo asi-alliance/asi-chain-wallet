@@ -12,7 +12,7 @@ import { InputProps } from "components/Input/Input";
 
 export interface EditableLabelProps extends Omit<
     InputProps,
-    "onChange" | "ref" | "labelStyle" | "onClick"
+    "onChange" | "ref" | "labelStyle" | "onClick" | "onCancel"
 > {
     label: string;
     onSave: (newLabel: string) => void;
@@ -27,6 +27,7 @@ export interface EditableLabelProps extends Omit<
     isValid?: boolean;
     errorMessage?: string;
     onChange?: (newLabel: string) => void;
+    onCancel?: () => void;
 }
 
 const EditableContainer = styled.div`
@@ -74,6 +75,32 @@ const EditButton = styled.button<{ isSelected: boolean }>`
     &:disabled {
         cursor: not-allowed;
         opacity: 0.3;
+    }
+`;
+
+const InlineEditableInputContainer = styled.div`
+    position: relative;
+`;
+
+const ErrorMessage = styled.span`
+    position: absolute;
+    display: block;
+    font-size: 13px;
+    line-height: 20px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.danger};
+    margin-top: 6px;
+    animation: slideIn 0.2s ease;
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-2px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 `;
 
@@ -144,6 +171,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     errorMessage,
     isValid = true,
     onChange,
+    onCancel,
     ...props
 }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -177,6 +205,12 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     const handleCancel = () => {
         setValue(label);
         setIsEditing(false);
+
+        if (!onCancel) {
+            return;
+        }
+
+        onCancel();
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -224,30 +258,34 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         minHeight: "auto",
     };
 
-    const currentError: string | undefined = !isValid
+    const currentErrorMessage: string | undefined = !isValid
         ? errorMessage
         : undefined;
 
     if (isEditing && !disabled) {
         return (
-            <InlineEditableInput
-                inputRef={inputRef}
-                value={value}
-                onClick={handleClick}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onBlur={handleBlur}
-                placeholder={placeholder}
-                data-testid={dataTestId ? `${dataTestId}-input` : undefined}
-                autoFocus
-                isSelected={isSelected}
-                style={fullStyle}
-                wrapperStyle={{ marginBottom: "0" }}
-                className={`inline-editable-input ${inputClassName} ${propsInputClassname}`}
-                withoutHoverUI
-                error={currentError}
-                {...otherProps}
-            />
+            <InlineEditableInputContainer>
+                <InlineEditableInput
+                    inputRef={inputRef}
+                    value={value}
+                    onClick={handleClick}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleBlur}
+                    placeholder={placeholder}
+                    data-testid={dataTestId ? `${dataTestId}-input` : undefined}
+                    autoFocus
+                    isSelected={isSelected}
+                    style={fullStyle}
+                    wrapperStyle={{ marginBottom: "0" }}
+                    className={`inline-editable-input ${inputClassName} ${propsInputClassname}`}
+                    withoutHoverUI
+                    {...otherProps}
+                />
+                {!!currentErrorMessage && (
+                    <ErrorMessage>{currentErrorMessage}</ErrorMessage>
+                )}
+            </InlineEditableInputContainer>
         );
     }
 
