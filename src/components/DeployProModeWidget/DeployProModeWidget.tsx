@@ -110,12 +110,13 @@ const Toolbar = styled.div`
 
 const ToolbarActions = styled.div`
     display: flex;
-    gap: 8px;
+    gap: 31px;
     align-items: center;
     width: 100%;
 
     @media (max-width: 768px) {
         margin-bottom: 1rem;
+        gap: 16px;
     }
 `;
 
@@ -360,6 +361,14 @@ const ContextMenuItem = styled.div`
 
 const FileInput = styled.input`
     display: none;
+`;
+
+const ClearButton = styled(Button)`
+    font-size: 0.75rem;
+
+    $:hover {
+        border-color: ${({ theme }) => theme.danger} !important;
+    }
 `;
 
 interface ConsoleMessage {
@@ -1419,10 +1428,15 @@ const DeployProModeBoard: React.FC = () => {
                     >
                         <h3>Explore</h3>
                     </Button>
-                    <Button variant="ghost" size="small" onClick={clearConsole}>
+                    <ClearButton
+                        variant="ghost"
+                        size="small"
+                        onClick={clearConsole}
+                        dangerHover
+                    >
                         {!isLaptop && <h3 className="text-danger">Clear</h3>}
                         <DeleteIcon />
-                    </Button>
+                    </ClearButton>
                 </DeploySettings>
             </Toolbar>
 

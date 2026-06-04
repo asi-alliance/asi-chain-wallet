@@ -179,6 +179,14 @@ const SuccessMessage = styled.div`
     }
 `;
 
+const ClearButton = styled(Button)`
+    font-size: 0.75rem;
+
+    &:hover {
+        border-color: ${({ theme }) => theme.danger} !important;
+    }
+`;
+
 export const exampleContract = `new stdout(\`rho:io:stdout\`), deployerId(\`rho:rchain:deployerId\`) in {
   stdout!("Hello from ASI Wallet!") |
   deployerId!("Deploy successful")
@@ -594,14 +602,14 @@ const DeployLiteModeBoard: React.FC = () => {
                         <h3>Explore</h3>
                         {!isLaptop && <PreviewIcon />}
                     </Button>
-                    <Button
+                    <ClearButton
                         variant={clearButtonVariant}
-                        size="small"
                         onClick={clearCode}
+                        dangerHover
                     >
                         {!isLaptop && <h3 className="text-danger">Clear</h3>}
                         <DeleteIcon />
-                    </Button>
+                    </ClearButton>
                 </BoardActions>
             </FormGroup>
             {result && (

@@ -13,6 +13,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
+    dangerHover?: boolean;
 }
 
 const ButtonBase = styled.button<ButtonProps>`
@@ -243,6 +244,14 @@ const ButtonBase = styled.button<ButtonProps>`
                 100% {
                     transform: rotate(360deg);
                 }
+            }
+        `}
+
+    ${({ dangerHover, theme }) =>
+        dangerHover &&
+        css`
+            &:hover:not(:disabled) {
+                border-color: ${theme.danger};
             }
         `}
 `;
