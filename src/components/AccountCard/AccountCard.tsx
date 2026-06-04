@@ -22,7 +22,8 @@ interface IAccountCardProps {
 }
 
 const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
-    border: 2px solid ${({ theme }) => theme.border};
+    border: ${({ $isSelected, theme }) =>
+        !$isSelected ? `1px solid ${theme.border}` : "none"};
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 26px 16px;
@@ -34,7 +35,6 @@ const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
     box-shadow: ${({ theme }) => theme.shadowDrop};
 
     &:hover {
-        border-color: ${({ theme }) => theme.primary};
         transform: translateY(-2px);
     }
 

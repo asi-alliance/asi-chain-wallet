@@ -53,6 +53,16 @@ const AccountsActionsFooter = styled.div`
     }
 `;
 
+const InlineButton = styled(Button)`
+    height: 44px;
+    min-width: 242px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+        width: 100%;
+    }
+`;
+
 export const Accounts: React.FC = () => {
     const dispatch = useDispatch();
     const { accounts, selectedNetwork, isLoading } = useSelector(
@@ -163,7 +173,7 @@ export const Accounts: React.FC = () => {
                             </AccountsGrid>
                             {/* Create/Import section below existing accounts */}
                             <AccountsActionsFooter>
-                                <Button
+                                <InlineButton
                                     id="create-account-button"
                                     onClick={() => setShowCreateModal(true)}
                                     fullWidth={isLaptop}
@@ -185,8 +195,8 @@ export const Accounts: React.FC = () => {
                                             fill="currentcolor"
                                         />
                                     </svg>
-                                </Button>
-                                <Button
+                                </InlineButton>
+                                <InlineButton
                                     id="import-account-button"
                                     variant="secondary"
                                     onClick={() => setShowImportModal(true)}
@@ -220,7 +230,7 @@ export const Accounts: React.FC = () => {
                                             </clipPath>
                                         </defs>
                                     </svg>
-                                </Button>
+                                </InlineButton>
                             </AccountsActionsFooter>
                         </CardContent>
                     </Card>
