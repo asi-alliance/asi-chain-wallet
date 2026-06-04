@@ -1,18 +1,19 @@
-import { Button } from "components/Button";
-import { Card } from "components/Card";
-import { ReactElement } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { exportAccountKeyfile } from "store/authSlice";
-import { removeAccount, selectAccount } from "store/walletSlice";
 import styled from "styled-components";
-import { Account } from "types/wallet";
 import CopyButton from "components/CopyButton";
-import { DeleteIcon, DownloadIcon, LockPassIcon } from "components/Icons";
-import { useNavigate } from "react-router-dom";
+import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
+import { RemoveAccountButton } from "components/RemoveAccountButton";
+import { DownloadIcon, LockPassIcon } from "components/Icons";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { AccountBalance } from "components/AccountBalance";
-import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
+import { useDispatch, useSelector } from "react-redux";
+import { exportAccountKeyfile } from "store/authSlice";
+import { selectAccount } from "store/walletSlice";
+import { useNavigate } from "react-router-dom";
+import { Button } from "components/Button";
+import { Card } from "components/Card";
+import { Account } from "types/wallet";
+import { ReactElement } from "react";
+import { RootState } from "store";
 
 interface IAccountCardProps {
     account: Account;
@@ -111,10 +112,6 @@ const AccountActions = styled.div`
     justify-content: flex-end;
 `;
 
-const RemoveButton = styled(Button)`
-    background: ${({ theme }) => theme.colors.background.secondary};
-`;
-
 export const AccountCard = ({
     account,
     fullMode = true,
@@ -128,12 +125,6 @@ export const AccountCard = ({
 
     const handleSelectAccount = (accountId: string) => {
         dispatch(selectAccount(accountId));
-    };
-
-    const handleRemoveAccount = (accountId: string) => {
-        if (window.confirm("Are you sure you want to remove this account?")) {
-            dispatch(removeAccount(accountId));
-        }
     };
 
     const handleExportKeyfile = (accountId: string) => {
@@ -167,18 +158,7 @@ export const AccountCard = ({
             <AccountHeader fullMode={fullMode}>
                 <AccountNameEditor accountId={account.id} />
 
-                {fullMode && (
-                    <RemoveButton
-                        id={`remove-account-${account.id}`}
-                        variant="icon-button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveAccount(account.id);
-                        }}
-                    >
-                        <DeleteIcon />
-                    </RemoveButton>
-                )}
+                {fullMode && <RemoveAccountButton account={account} />}
             </AccountHeader>
 
             <AccountBalance account={account} isSelected={isSelected} />
