@@ -585,6 +585,7 @@ const authSlice = createSlice({
             state.isAuthenticated = false;
             state.unlockedAccounts = [];
             state.error = null;
+            state.hasAccounts = false;
             SecureStorage.clearSession();
             SecureStorage.setAuthenticated(false);
             clearSessionBroadcast();
