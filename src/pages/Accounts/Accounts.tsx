@@ -158,6 +158,7 @@ export const Accounts: React.FC = () => {
                                 variant="icon-button-ghost"
                                 onClick={handleRefreshBalances}
                                 loading={isLoading}
+                                withFadeHover
                             >
                                 <ReloadIcon />
                             </Button>

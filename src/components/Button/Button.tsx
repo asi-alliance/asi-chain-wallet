@@ -15,6 +15,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     fullWidth?: boolean;
     loading?: boolean;
     dangerHover?: boolean;
+    withFadeHover?: boolean;
 }
 
 const ButtonBase = styled.button.withConfig(
@@ -23,6 +24,7 @@ const ButtonBase = styled.button.withConfig(
         "size",
         "fullWidth",
         "loading",
+        "withFadeHover",
     ]),
 )<ButtonProps>`
     display: inline-flex;
@@ -91,7 +93,7 @@ const ButtonBase = styled.button.withConfig(
             width: 100%;
         `}
 
-  ${({ variant, theme }) => {
+  ${({ variant, theme, withFadeHover }) => {
         switch (variant) {
             case "secondary":
                 return css`
@@ -140,12 +142,19 @@ const ButtonBase = styled.button.withConfig(
 
                     &:hover:not(:disabled) {
                         border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button":
                 return css`
@@ -161,12 +170,19 @@ const ButtonBase = styled.button.withConfig(
 
                     &:hover:not(:disabled) {
                         border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button-black":
                 return css`
@@ -182,12 +198,19 @@ const ButtonBase = styled.button.withConfig(
 
                     &:hover:not(:disabled) {
                         border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button-ghost":
                 return css`
@@ -202,13 +225,20 @@ const ButtonBase = styled.button.withConfig(
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        transform: translateY(-1px);
-                        box-shadow: none;
+                        border-color: ${theme.text.secondary};
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             default: // Primary button - ASI Lime bg with Deep Space text
                 return css`
@@ -217,13 +247,20 @@ const ButtonBase = styled.button.withConfig(
                     font-weight: 600;
 
                     &:hover:not(:disabled) {
-                        background: ${theme.primaryDark}; /* Darkened ASI Lime */
-                        transform: translateY(-1px);
+                        border-color: ${theme.primaryDark};
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
         }
     }}
@@ -306,6 +343,7 @@ export const Button: React.FC<ButtonProps> = ({
     loading = false,
     disabled,
     onClick,
+    withFadeHover = false,
     ...props
 }) => {
     const [ripples, setRipples] = React.useState<
@@ -338,6 +376,7 @@ export const Button: React.FC<ButtonProps> = ({
             loading={loading}
             disabled={disabled || loading}
             onClick={handleClick}
+            withFadeHover={withFadeHover}
             {...props}
         >
             {children}

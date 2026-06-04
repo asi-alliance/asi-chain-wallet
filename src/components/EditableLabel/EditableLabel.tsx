@@ -68,8 +68,13 @@ const EditButton = styled.button<{ $isSelected: boolean }>`
             ? theme.text.primary
             : theme.colors.background.secondary} !important;
 
-    &:hover {
+    &:hover:not(:disabled) {
+        transform: translateY(-1px);
         opacity: 1;
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(0);
     }
 
     &:disabled {

@@ -97,6 +97,7 @@ export const AccountBalance = ({
                         handleRefreshBalance();
                     }}
                     loading={isLoading}
+                    withFadeHover
                 >
                     <CustomReloadIcon
                         $isSelected={isSelected}

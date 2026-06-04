@@ -10,4 +10,10 @@
     background: none;
     outline: none;
     border: none;
+    transition: transform 0.2s ease;
+    transform: translateX(115%);
+}
+
+.copy-button:hover {
+    transform: translateY(-1px) translateX(115%);
 }

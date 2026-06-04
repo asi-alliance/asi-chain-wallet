@@ -1042,7 +1042,7 @@ export const Send: React.FC = () => {
                         <Button
                             id="send-transaction-button"
                             onClick={handleSendClick}
-                            loading={true}
+                            loading={isLoading}
                             disabled={
                                 !recipient ||
                                 !amount ||

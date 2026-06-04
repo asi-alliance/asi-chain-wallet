@@ -218,6 +218,7 @@ export const AccountCard = ({
                                 e.stopPropagation();
                                 handleExportKeyfile(account.id);
                             }}
+                            withFadeHover
                         >
                             <DownloadIcon size={24} />
                         </ActionButton>

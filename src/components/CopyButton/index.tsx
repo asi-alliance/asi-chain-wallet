@@ -116,10 +116,7 @@ const CopyButton = ({
                 onClick={runAction}
                 className="copy-button"
                 title={isCopied ? "Copied" : "Copy"}
-                style={{
-                    transform: "translateX(115%)",
-                    ...buttonStyle,
-                }}
+                style={buttonStyle}
                 disabled={disabled}
             >
                 {isCopied ? (
