@@ -271,7 +271,6 @@ const statusOptions = [
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
 export const History: React.FC = () => {
-    const dispatch = useDispatch();
     const { selectedAccount, selectedNetwork, networks, accounts } =
         useSelector((state: RootState) => state.wallet);
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
