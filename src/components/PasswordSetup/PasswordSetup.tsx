@@ -21,16 +21,16 @@ const ValidationList = styled.ul`
     margin: 16px 0;
 `;
 
-const ValidationItem = styled.li<{ valid: boolean }>`
+const ValidationItem = styled.li<{ $valid: boolean }>`
     display: flex;
     align-items: center;
     margin-bottom: 8px;
-    color: ${({ valid, theme }) =>
-        valid ? theme.success : theme.text.secondary};
+    color: ${({ $valid, theme }) =>
+        $valid ? theme.success : theme.text.secondary};
     font-size: 14px;
 
     &:before {
-        content: ${({ valid }) => (valid ? '"✓"' : '"○"')};
+        content: ${({ $valid }) => ($valid ? '"✓"' : '"○"')};
         margin-right: 8px;
         font-weight: bold;
     }
@@ -125,19 +125,19 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
 
             {validation && (
                 <ValidationList>
-                    <ValidationItem valid={validation.minLength}>
+                    <ValidationItem $valid={validation.minLength}>
                         At least 8 characters
                     </ValidationItem>
-                    <ValidationItem valid={validation.hasUpperCase}>
+                    <ValidationItem $valid={validation.hasUpperCase}>
                         One uppercase letter
                     </ValidationItem>
-                    <ValidationItem valid={validation.hasLowerCase}>
+                    <ValidationItem $valid={validation.hasLowerCase}>
                         One lowercase letter
                     </ValidationItem>
-                    <ValidationItem valid={validation.hasDigit}>
+                    <ValidationItem $valid={validation.hasDigit}>
                         One number
                     </ValidationItem>
-                    <ValidationItem valid={validation.hasSpecialChar}>
+                    <ValidationItem $valid={validation.hasSpecialChar}>
                         One special character
                     </ValidationItem>
                 </ValidationList>

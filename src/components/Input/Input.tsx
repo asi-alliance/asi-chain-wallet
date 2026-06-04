@@ -1,12 +1,5 @@
 import CopyButton, { IIconProps } from "components/CopyButton";
-import React, {
-    useRef,
-    useEffect,
-    CSSProperties,
-    RefObject,
-    ReactElement,
-    FC,
-} from "react";
+import React, { useRef, useEffect, CSSProperties, RefObject, FC } from "react";
 import styled from "styled-components";
 import { DefaultTheme } from "styled-components/dist/types";
 
@@ -25,21 +18,23 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     withoutHoverUI?: boolean;
 }
 
-const InputWrapper = styled.div<{ fullWidth?: boolean }>`
-    display: ${({ fullWidth }) => (fullWidth ? "block" : "inline-block")};
-    width: ${({ fullWidth }) => (fullWidth ? "100%" : "auto")};
+const InputWrapper = styled.div<{ $fullWidth?: boolean }>`
+    display: ${({ $fullWidth }) => ($fullWidth ? "block" : "inline-block")};
+    width: ${({ $fullWidth }) => ($fullWidth ? "100%" : "auto")};
     margin-bottom: 16px;
 `;
 
 const Label = styled.label<{
-    themeColorSelector?: (theme: DefaultTheme) => string;
+    $themeColorSelector?: (theme: DefaultTheme) => string;
 }>`
     display: block;
     font-size: 1rem;
     line-height: 22px;
     font-weight: 600;
-    color: ${({ theme, themeColorSelector }) =>
-        !themeColorSelector ? theme.text.secondary : themeColorSelector(theme)};
+    color: ${({ theme, $themeColorSelector }) =>
+        !$themeColorSelector
+            ? theme.text.secondary
+            : $themeColorSelector(theme)};
     margin-bottom: 8px;
     letter-spacing: -0.01em;
     transition: color 0.2s ease;
@@ -50,21 +45,21 @@ const Label = styled.label<{
 `;
 
 const StyledInput = styled.input<{
-    hasError?: boolean;
-    copyable?: boolean;
-    withoutHoverUI?: boolean;
+    $hasError?: boolean;
+    $copyable?: boolean;
+    $withoutHoverUI?: boolean;
 }>`
     width: 100%;
-    padding: ${({ copyable }) =>
-        copyable ? "12px 40px 12px 20px" : "12px 20px"};
+    padding: ${({ $copyable }) =>
+        $copyable ? "12px 40px 12px 20px" : "12px 20px"};
     font-size: 1rem;
     font-weight: 400;
     // line-height: 24px;
     min-height: 44px; /* Touch-friendly minimum */
     background: "transparent";
     border: 2px solid
-        ${({ theme, hasError }) =>
-            hasError ? theme.danger : theme.colors.border};
+        ${({ theme, $hasError }) =>
+            $hasError ? theme.danger : theme.colors.border};
     border-radius: 8px;
     color: ${({ theme }) => theme.text.primary};
     transition: all 0.2s ease;
@@ -73,17 +68,17 @@ const StyledInput = styled.input<{
     /* ASI Wallet elevation */
     // box-shadow: ${({ theme }) => theme.shadow};
 
-    ${({ withoutHoverUI, theme, hasError }) =>
-        !withoutHoverUI &&
+    ${({ $withoutHoverUI, theme, $hasError }) =>
+        !$withoutHoverUI &&
         `
             &:hover:not(:disabled) {
-                border-color: ${hasError ? theme.danger : `${theme.primary}`};
+                border-color: ${$hasError ? theme.danger : `${theme.primary}`};
             }
 
             &:focus {
-                border-color: ${hasError ? theme.danger : theme.primary};
+                border-color: ${$hasError ? theme.danger : theme.primary};
                 outline: 2px solid
-                    ${hasError ? theme.danger : theme.primary};
+                    ${$hasError ? theme.danger : theme.primary};
                 outline-offset: 2px;
             }
         `}
@@ -136,14 +131,14 @@ const CopyButtonWrapper = styled.div`
     justify-content: center;
 `;
 
-const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
+const StyledTextArea = styled.textarea<{ $hasError?: boolean }>`
     width: 100%;
     padding: 11.5px 22px;
     font-size: 16px;
     font-weight: 400;
     background: ${({ theme }) => theme.inputBg};
     border: 2px solid
-        ${({ theme, hasError }) => (hasError ? theme.danger : "transparent")};
+        ${({ theme, $hasError }) => ($hasError ? theme.danger : "transparent")};
     border-radius: 8px;
     color: ${({ theme }) => theme.text.primary};
     transition: all 0.2s ease;
@@ -156,17 +151,19 @@ const StyledTextArea = styled.textarea<{ hasError?: boolean }>`
 
     &:hover:not(:disabled) {
         border-color: ${
-            ({ theme, hasError }) =>
-                hasError ? theme.danger : `${theme.primary}33` /* 20% opacity */
+            ({ theme, $hasError }) =>
+                $hasError
+                    ? theme.danger
+                    : `${theme.primary}33` /* 20% opacity */
         };
     }
 
     &:focus {
-        border-color: ${({ theme, hasError }) =>
-            hasError ? theme.danger : theme.secondary};
+        border-color: ${({ theme, $hasError }) =>
+            $hasError ? theme.danger : theme.secondary};
         outline: 2px solid
-            ${({ theme, hasError }) =>
-                hasError ? theme.danger : theme.secondary};
+            ${({ theme, $hasError }) =>
+                $hasError ? theme.danger : theme.secondary};
         outline-offset: 2px;
     }
 
@@ -245,11 +242,11 @@ export const Input: React.FC<InputProps> = ({
     };
 
     return (
-        <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
+        <InputWrapper $fullWidth={fullWidth} style={wrapperStyle}>
             <h4>
                 {label && (
                     <Label
-                        themeColorSelector={labelColorSelector}
+                        $themeColorSelector={labelColorSelector}
                         style={labelStyle}
                     >
                         {label}
@@ -259,14 +256,14 @@ export const Input: React.FC<InputProps> = ({
             <InputContainer>
                 <StyledInput
                     ref={currentRef}
-                    hasError={!!error}
+                    $hasError={!!error}
                     data-testid={dataTestId}
                     data-cy={dataCy}
                     onChange={handleChange}
                     onInput={handleInput}
                     value={value}
-                    copyable={copyable}
-                    withoutHoverUI={withoutHoverUI}
+                    $copyable={copyable}
+                    $withoutHoverUI={withoutHoverUI}
                     {...props}
                 />
                 {copyable && (
@@ -353,10 +350,10 @@ export const TextArea: React.FC<TextAreaProps> = ({
     };
 
     return (
-        <InputWrapper fullWidth={fullWidth} style={wrapperStyle}>
+        <InputWrapper $fullWidth={fullWidth} style={wrapperStyle}>
             {label && (
                 <Label
-                    themeColorSelector={labelColorSelector}
+                    $themeColorSelector={labelColorSelector}
                     style={labelStyle}
                 >
                     {label}
@@ -364,7 +361,7 @@ export const TextArea: React.FC<TextAreaProps> = ({
             )}
             <StyledTextArea
                 ref={currentRef}
-                hasError={!!error}
+                $hasError={!!error}
                 data-testid={dataTestId}
                 data-cy={dataCy}
                 onChange={handleChange}

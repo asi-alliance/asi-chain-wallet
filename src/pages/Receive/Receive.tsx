@@ -216,8 +216,6 @@ export const Receive: React.FC = () => {
     const addressLabel =
         addressFormat === AddressFormats.ASI ? "ASI Address" : "ETH Address";
 
-    console.log("IS LAPTOP: ", isLaptop);
-
     return (
         <ReceiveContainer>
             <Card>

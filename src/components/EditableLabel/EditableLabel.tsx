@@ -39,12 +39,12 @@ const EditableContainer = styled.div`
     gap: 8px;
 `;
 
-const LabelDisplay = styled.span<{ isSelected: boolean; disabled?: boolean }>`
-    cursor: ${({ disabled }) => (disabled ? "not-allowed" : "pointer")};
+const LabelDisplay = styled.span<{ $isSelected: boolean; $disabled?: boolean }>`
+    cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
     font-size: 20px !important;
     font-weight: 400;
-    color: ${({ isSelected, theme }) =>
-        !isSelected
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected
             ? theme.text.primary
             : theme.colors.background.secondary} !important;
     margin: 0 !important;
@@ -53,7 +53,7 @@ const LabelDisplay = styled.span<{ isSelected: boolean; disabled?: boolean }>`
     white-space: nowrap;
 `;
 
-const EditButton = styled.button<{ isSelected: boolean }>`
+const EditButton = styled.button<{ $isSelected: boolean }>`
     background: none;
     border: none;
     cursor: pointer;
@@ -63,8 +63,8 @@ const EditButton = styled.button<{ isSelected: boolean }>`
     justify-content: center;
     transition: opacity 0.2s ease;
 
-    color: ${({ isSelected, theme }) =>
-        !isSelected
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected
             ? theme.text.primary
             : theme.colors.background.secondary} !important;
 
@@ -104,7 +104,7 @@ const ErrorMessage = styled.span`
     }
 `;
 
-const InlineEditableInput = styled(Input)<{ isSelected: boolean }>`
+const InlineEditableInput = styled(Input)<{ $isSelected: boolean }>`
     & > div {
         margin-bottom: 0;
         width: auto;
@@ -118,8 +118,8 @@ const InlineEditableInput = styled(Input)<{ isSelected: boolean }>`
     & input {
         padding: 0;
         margin: 0;
-        border-color: ${({ isSelected, theme }) =>
-            !isSelected
+        border-color: ${({ $isSelected, theme }) =>
+            !$isSelected
                 ? theme.text.primary
                 : theme.colors.background.secondary};
         background: transparent;
@@ -135,14 +135,14 @@ const InlineEditableInput = styled(Input)<{ isSelected: boolean }>`
         margin-bottom: 0;
 
         &:hover {
-            border-color: ${({ isSelected, theme }) =>
-                !isSelected
+            border-color: ${({ $isSelected, theme }) =>
+                !$isSelected
                     ? theme.text.primary
                     : theme.colors.background.secondary};
         }
         &:focus {
-            border-color: ${({ isSelected, theme }) =>
-                !isSelected
+            border-color: ${({ $isSelected, theme }) =>
+                !$isSelected
                     ? theme.text.primary
                     : theme.colors.background.secondary};
         }
@@ -275,7 +275,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
                     placeholder={placeholder}
                     data-testid={dataTestId ? `${dataTestId}-input` : undefined}
                     autoFocus
-                    isSelected={isSelected}
+                    $isSelected={isSelected}
                     style={fullStyle}
                     wrapperStyle={{ marginBottom: "0" }}
                     className={`inline-editable-input ${inputClassName} ${propsInputClassname}`}
@@ -292,8 +292,8 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     return (
         <EditableContainer>
             <LabelDisplay
-                isSelected={isSelected}
-                disabled={disabled}
+                $isSelected={isSelected}
+                $disabled={disabled}
                 className={`editable-label-text ${labelClassName || ""}`}
                 onClick={handleEditClick}
                 style={labelStyle}
@@ -303,7 +303,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
             </LabelDisplay>
             {!disabled && (
                 <EditButton
-                    isSelected={isSelected}
+                    $isSelected={isSelected}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleEditClick();

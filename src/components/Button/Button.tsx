@@ -1,5 +1,6 @@
 import React from "react";
 import styled, { css } from "styled-components";
+import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?:
@@ -16,7 +17,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     dangerHover?: boolean;
 }
 
-const ButtonBase = styled.button<ButtonProps>`
+const ButtonBase = styled.button.withConfig(
+    ignorePropsForDOMElement<ButtonProps>([
+        "variant",
+        "size",
+        "fullWidth",
+        "loading",
+    ]),
+)<ButtonProps>`
     display: inline-flex;
     gap: 0.5rem;
     align-items: center;

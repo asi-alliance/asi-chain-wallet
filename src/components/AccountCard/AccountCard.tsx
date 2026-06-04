@@ -21,13 +21,13 @@ interface IAccountCardProps {
     className?: string;
 }
 
-const AccountCardWrapper = styled(Card)<{ isSelected: boolean }>`
+const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
     border: 2px solid ${({ theme }) => theme.border};
     cursor: pointer;
     transition: all 0.2s ease;
     padding: 26px 16px;
-    background-color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.colors.background.secondary : theme.primary};
+    background-color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.colors.background.secondary : theme.primary};
     min-width: 462px;
     overflow: auto;
 
@@ -43,15 +43,15 @@ const AccountCardWrapper = styled(Card)<{ isSelected: boolean }>`
     }
 `;
 
-const AccountHeader = styled.div<{ fullMode: boolean }>`
+const AccountHeader = styled.div<{ $fullMode: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 26px;
     gap: 16px;
 
-    ${({ fullMode }) =>
-        fullMode &&
+    ${({ $fullMode }) =>
+        $fullMode &&
         `
              & > :first-child {
         flex: 1;
@@ -65,18 +65,18 @@ const AccountHeader = styled.div<{ fullMode: boolean }>`
         `}
 `;
 
-const LabelSecond = styled.span<{ isSelected: boolean }>`
+const LabelSecond = styled.span<{ $isSelected: boolean }>`
     font-weight: 400;
     font-size: 0.75rem;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
 
-const LabelThird = styled.div<{ isSelected: boolean }>`
+const LabelThird = styled.div<{ $isSelected: boolean }>`
     font-weight: 400;
     font-size: 0.5rem;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
 
 const AccountCardFooter = styled.div`
@@ -86,23 +86,25 @@ const AccountCardFooter = styled.div`
     align-items: center;
 `;
 
-const AccountAddress = styled.div<{ isSelected: boolean }>`
+const AccountAddress = styled.div<{ $isSelected: boolean }>`
     font-size: 12px;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
     word-break: break-all;
 
     button {
-        color: ${({ isSelected, theme }) =>
-            !isSelected
+        color: ${({ $isSelected, theme }) =>
+            !$isSelected
                 ? theme.text.primary
                 : theme.colors.background.secondary};
     }
 `;
 
-const ActionButton = styled(Button)<{ isSelected: boolean }>`
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+const ActionButton = styled(Button)<{ $isSelected: boolean }>`
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected
+            ? theme.colors.primary
+            : theme.colors.background.secondary};
     border-width: 2px;
 `;
 
@@ -150,12 +152,12 @@ export const AccountCard = ({
     return (
         <AccountCardWrapper
             key={account.id}
-            id={`account-card-${account.id}`}
-            isSelected={isSelected}
+            id={`account-$card-${account.id}`}
+            $isSelected={isSelected}
             className={className}
             onClick={() => handleSelectAccount(account.id)}
         >
-            <AccountHeader fullMode={fullMode}>
+            <AccountHeader $fullMode={fullMode}>
                 <AccountNameEditor accountId={account.id} />
 
                 {fullMode && <RemoveAccountButton account={account} />}
@@ -164,13 +166,13 @@ export const AccountCard = ({
             <AccountBalance account={account} isSelected={isSelected} />
 
             <AccountCardFooter>
-                <AccountAddress isSelected={isSelected}>
+                <AccountAddress $isSelected={isSelected}>
                     <LabelThird
-                        isSelected={isSelected}
+                        $isSelected={isSelected}
                     >{`ASI Address`}</LabelThird>
                     <LabelSecond
                         style={{ marginRight: 10, lineHeight: "27px" }}
-                        isSelected={isSelected}
+                        $isSelected={isSelected}
                     >
                         {formatAddress(account.revAddress, {
                             isFullMode: !fullMode,
@@ -183,7 +185,7 @@ export const AccountCard = ({
                     <AccountActions>
                         {!isUnlocked && (
                             <ActionButton
-                                isSelected={isSelected}
+                                $isSelected={isSelected}
                                 id={`unlock-account-${account.id}`}
                                 variant="icon-button"
                                 onClick={(e) => {
@@ -209,7 +211,7 @@ export const AccountCard = ({
                             </ActionButton>
                         )}
                         <ActionButton
-                            isSelected={isSelected}
+                            $isSelected={isSelected}
                             id={`export-account-${account.id}`}
                             variant="icon-button"
                             onClick={(e) => {

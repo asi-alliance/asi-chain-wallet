@@ -16,9 +16,9 @@ const PanelWrapper = styled.div<{ disabled?: boolean }>`
 `;
 
 const PanelButton = styled.div<{
-    disabled?: boolean;
-    hasAdditionalLabel?: boolean;
-    isOpen?: boolean;
+    $disabled?: boolean;
+    $hasAdditionalLabel?: boolean;
+    $isOpen?: boolean;
 }>`
     padding: 10px 20px;
     height: 44px;
@@ -34,10 +34,10 @@ const PanelButton = styled.div<{
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    border-radius: ${({ isOpen }) => (isOpen ? "6px 6px 0 0" : "6px")};
+    border-radius: ${({ $isOpen }) => ($isOpen ? "6px 6px 0 0" : "6px")};
 
-    ${({ disabled, theme }) =>
-        disabled &&
+    ${({ $disabled, theme }) =>
+        $disabled &&
         `
          opacity: 0.4;
         cursor: not-allowed;
@@ -50,8 +50,8 @@ const PanelButton = styled.div<{
     }
 
     @media (max-width: 768px) {
-        height: ${({ hasAdditionalLabel }) =>
-            hasAdditionalLabel ? "auto" : "44px"};
+        height: ${({ $hasAdditionalLabel }) =>
+            $hasAdditionalLabel ? "auto" : "44px"};
     }
 `;
 
@@ -146,10 +146,10 @@ export const Panel: FC<IPanelProps> = ({
             style={style}
         >
             <PanelButton
-                hasAdditionalLabel={!!additionalLabel}
-                isOpen={isExpanded}
+                $hasAdditionalLabel={!!additionalLabel}
+                $isOpen={isExpanded}
                 onClick={togglePanel}
-                disabled={disabled}
+                $disabled={disabled}
             >
                 <PanelHeader>
                     <PanelTitle className="text-ellipsis">{header}</PanelTitle>

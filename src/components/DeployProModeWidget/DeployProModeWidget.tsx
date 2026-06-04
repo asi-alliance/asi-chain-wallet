@@ -174,20 +174,20 @@ const FileTree = styled.div`
     padding: 0;
 `;
 
-const TreeItem = styled.div<{ depth: number; active?: boolean }>`
+const TreeItem = styled.div<{ $depth: number; $active?: boolean }>`
     padding: 6px 16px;
-    padding-left: ${({ depth }) => 16 + depth * 16}px;
+    padding-left: ${({ $depth }) => 16 + $depth * 16}px;
     cursor: pointer;
     font-size: 14px;
     display: flex;
     align-items: center;
     gap: 8px;
-    background: ${({ active, theme }) =>
-        active ? theme.primary + "20" : "transparent"};
-    color: ${({ active, theme }) =>
-        active ? theme.primary : theme.text.primary};
+    background: ${({ $active, theme }) =>
+        $active ? theme.primary + "20" : "transparent"};
+    color: ${({ $active, theme }) =>
+        $active ? theme.primary : theme.text.primary};
     border-left: 3px solid
-        ${({ active, theme }) => (active ? theme.primary : "transparent")};
+        ${({ $active, theme }) => ($active ? theme.primary : "transparent")};
     transition: all 0.2s ease;
 
     &:hover {
@@ -237,8 +237,9 @@ const EditorHeader = styled.div`
     }
 `;
 
-const TabItem = styled.div<{ active?: boolean }>`
-    background: ${({ active, theme }) => (active ? theme.card : "transparent")};
+const TabItem = styled.div<{ $active?: boolean }>`
+    background: ${({ $active, theme }) =>
+        $active ? theme.card : "transparent"};
     border-radius: 4px;
     cursor: pointer;
     display: flex;
@@ -266,11 +267,11 @@ const CloseButton = styled.button`
     }
 `;
 
-const EditorWrapper = styled.div<{ darkMode: boolean }>`
+const EditorWrapper = styled.div<{ $darkMode: boolean }>`
     flex: 1;
     position: relative;
     overflow: hidden;
-    background: ${({ darkMode }) => (darkMode ? "#1E1E1E" : "#FFFFFF")};
+    background: ${({ $darkMode }) => ($darkMode ? "#1E1E1E" : "#FFFFFF")};
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 8px;
     padding: 16px;
@@ -315,12 +316,12 @@ const OutputContent = styled.div`
     min-height: 150px;
 `;
 
-const ConsoleEntry = styled.div<{ type?: "info" | "error" | "success" }>`
+const ConsoleEntry = styled.div<{ $type?: "info" | "error" | "success" }>`
     margin-bottom: 4px;
-    color: ${({ theme, type }) =>
-        type === "error"
+    color: ${({ theme, $type }) =>
+        $type === "error"
             ? theme.danger
-            : type === "success"
+            : $type === "success"
               ? theme.success
               : theme.text.secondary};
     display: flex;
@@ -334,10 +335,10 @@ const DeploySettings = styled.div`
     align-items: center;
 `;
 
-const ContextMenu = styled.div<{ x: number; y: number }>`
+const ContextMenu = styled.div<{ $x: number; $y: number }>`
     position: fixed;
-    left: ${({ x }) => x}px;
-    top: ${({ y }) => y}px;
+    left: ${({ $x }) => $x}px;
+    top: ${({ $y }) => $y}px;
     background: ${({ theme }) => theme.card};
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 8px;
@@ -1208,7 +1209,7 @@ const DeployProModeBoard: React.FC = () => {
             ...folders.map((folder) => (
                 <React.Fragment key={folder.id}>
                     <TreeItem
-                        depth={depth}
+                        $depth={depth}
                         onClick={() => toggleFolder(folder.id)}
                         onContextMenu={(e) => {
                             e.preventDefault();
@@ -1258,8 +1259,8 @@ const DeployProModeBoard: React.FC = () => {
             ...files.map((file) => (
                 <TreeItem
                     key={file.id}
-                    depth={depth}
-                    active={file.id === activeFileId}
+                    $depth={depth}
+                    $active={file.id === activeFileId}
                     onClick={() => {
                         setActiveFileId(file.id);
                         if (!openFiles.includes(file.id)) {
@@ -1366,7 +1367,7 @@ const DeployProModeBoard: React.FC = () => {
                             return (
                                 <TabItem
                                     key={fileId}
-                                    active={fileId === activeFileId}
+                                    $active={fileId === activeFileId}
                                 >
                                     <span
                                         className="text-3"
@@ -1384,7 +1385,7 @@ const DeployProModeBoard: React.FC = () => {
                             );
                         })}
                     </EditorHeader>
-                    <EditorWrapper darkMode={darkMode}>
+                    <EditorWrapper $darkMode={darkMode}>
                         {activeFile && monacoInitialized && (
                             <Editor
                                 height="100%"
@@ -1446,7 +1447,7 @@ const DeployProModeBoard: React.FC = () => {
                 </OutputHeader>
                 <OutputContent>
                     {consoleMessages.map((msg) => (
-                        <ConsoleEntry key={msg.id} type={msg.type}>
+                        <ConsoleEntry key={msg.id} $type={msg.type}>
                             {msg.type === "success" && (
                                 <SuccessIcon size={14} />
                             )}
@@ -1468,8 +1469,8 @@ const DeployProModeBoard: React.FC = () => {
 
             {contextMenu && (
                 <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
+                    $x={contextMenu.x}
+                    $y={contextMenu.y}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {contextMenu.item.type === "folder" && (

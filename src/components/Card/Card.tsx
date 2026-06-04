@@ -58,7 +58,7 @@ export const CardHeader = styled.div`
     }
 `;
 
-export const CardTitle = styled.h2`
+export const CardTitle = styled.h1`
     font-size: 2rem;
     line-height: 36px;
     font-weight: 600;

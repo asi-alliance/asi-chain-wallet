@@ -31,19 +31,33 @@
   "background_color": "#0D1012",
   "orientation": "portrait-primary",
   "scope": "./",
-  "categories": ["finance", "blockchain", "cryptocurrency"],
+  "categories": [
+    "finance",
+    "blockchain",
+    "cryptocurrency"
+  ],
   "shortcuts": [
     {
       "name": "Send Transaction",
       "short_name": "Send",
       "url": "./#/send",
-      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "IDE",
       "short_name": "IDE",
       "url": "./#/ide",
-      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "protocol_handlers": [

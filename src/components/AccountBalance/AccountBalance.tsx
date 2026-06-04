@@ -24,30 +24,34 @@ const AmountBalanceWrapper = styled.div`
     align-items: center;
 `;
 
-const AccountBalanceBlock = styled.span<{ isSelected: boolean }>`
+const AccountBalanceBlock = styled.span<{ $isSelected: boolean }>`
     font-size: 3rem;
     font-weight: 700;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected
+            ? theme.colors.primary
+            : theme.colors.background.secondary};
     margin-right: 4px;
 `;
 
-const AccountCurrency = styled.span<{ isSelected: boolean }>`
+const AccountCurrency = styled.span<{ $isSelected: boolean }>`
     font-size: 1.5rem;
     font-weight: 700;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.colors.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected
+            ? theme.colors.primary
+            : theme.colors.background.secondary};
 `;
 
-const LabelFirst = styled.div<{ isSelected: boolean }>`
+const LabelFirst = styled.div<{ $isSelected: boolean }>`
     font-weight: 400;
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
 
-const CustomReloadIcon = styled(ReloadIcon)<{ isSelected: boolean }>`
-    color: ${({ isSelected, theme }) =>
-        !isSelected ? theme.text.primary : theme.colors.background.secondary};
+const CustomReloadIcon = styled(ReloadIcon)<{ $isSelected: boolean }>`
+    color: ${({ $isSelected, theme }) =>
+        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
 
 export const AccountBalance = ({
@@ -78,10 +82,10 @@ export const AccountBalance = ({
         <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
-                    <AccountBalanceBlock isSelected={isSelected}>
+                    <AccountBalanceBlock $isSelected={isSelected}>
                         {amount}
                     </AccountBalanceBlock>
-                    <AccountCurrency isSelected={isSelected}>
+                    <AccountCurrency $isSelected={isSelected}>
                         {currency}
                     </AccountCurrency>
                 </div>
@@ -95,13 +99,13 @@ export const AccountBalance = ({
                     loading={isLoading}
                 >
                     <CustomReloadIcon
-                        isSelected={isSelected}
+                        $isSelected={isSelected}
                         color="currentColor"
                     />
                 </Button>
             </AmountBalanceWrapper>
 
-            <LabelFirst isSelected={isSelected}>Balance</LabelFirst>
+            <LabelFirst $isSelected={isSelected}>Balance</LabelFirst>
         </AmountBalanceCard>
     );
 };

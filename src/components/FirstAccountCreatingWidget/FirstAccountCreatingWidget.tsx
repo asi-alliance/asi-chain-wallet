@@ -19,44 +19,6 @@ const WidgetContainer = styled.div`
     margin: 0 auto;
 `;
 
-const TabContainer = styled.div`
-    display: flex;
-    gap: 0;
-    margin-bottom: 24px;
-    border-bottom: 2px solid ${({ theme }) => theme.border};
-`;
-
-const TabButton = styled.button<{ active: boolean }>`
-    padding: 12px 24px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    font-weight: ${({ active }) => (active ? "600" : "400")};
-    color: ${({ active, theme }) =>
-        active ? theme.primary : theme.text.secondary};
-    position: relative;
-    transition: all 0.2s ease;
-
-    &:hover {
-        color: ${({ theme }) => theme.primary};
-    }
-
-    ${({ active, theme }) =>
-        active &&
-        `
-        &::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: ${theme.primary};
-        }
-    `}
-`;
-
 const FormContainer = styled.div`
     padding: 0;
 `;
@@ -203,10 +165,8 @@ export const FirstAccountCreatingWidget: React.FC<
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        <h1>
-                            {activeMode === "create" && "Create account"}
-                            {activeMode === "import" && "Import account"}
-                        </h1>
+                        {activeMode === "create" && "Create account"}
+                        {activeMode === "import" && "Import account"}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>

@@ -17,8 +17,8 @@ const SelectWrapper = styled.div<{ disabled?: boolean }>`
 `;
 
 const SelectButton = styled.div<{
-    disabled?: boolean;
-    hasAdditionalLabel?: boolean;
+    $disabled?: boolean;
+    $hasAdditionalLabel?: boolean;
 }>`
     padding: 10px 20px;
     height: 44px;
@@ -34,8 +34,8 @@ const SelectButton = styled.div<{
     align-items: center;
     gap: 8px;
 
-    ${({ disabled, theme }) =>
-        disabled &&
+    ${({ $disabled, theme }) =>
+        $disabled &&
         `
          opacity: 0.4;
         cursor: not-allowed;
@@ -48,25 +48,26 @@ const SelectButton = styled.div<{
     }
 
     @media (max-width: 768px) {
-        height: ${({ hasAdditionalLabel }) =>
-            hasAdditionalLabel ? "auto" : "44px"};
+        height: ${({ $hasAdditionalLabel }) =>
+            $hasAdditionalLabel ? "auto" : "44px"};
     }
 `;
 
-const ArrowIconWrapper = styled.div<{ isOpen: boolean }>`
+const ArrowIconWrapper = styled.div<{ $isOpen: boolean }>`
     display: flex;
     align-items: center;
     transition: transform 0.2s ease;
-    transform: ${({ isOpen }) => (isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+    transform: ${({ $isOpen }) =>
+        $isOpen ? "rotate(180deg)" : "rotate(0deg)"};
 `;
 
 const DropdownMenuPortal = styled.ul<{
-    position: { top: number; left: number; width: number };
+    $position: { top: number; left: number; width: number };
 }>`
     position: fixed;
-    top: ${({ position }) => position.top}px;
-    left: ${({ position }) => position.left}px;
-    width: ${({ position }) => position.width}px;
+    top: ${({ $position }) => $position.top}px;
+    left: ${({ $position }) => $position.left}px;
+    width: ${({ $position }) => $position.width}px;
     max-height: 200px;
     overflow-y: auto;
     margin: 0;
@@ -86,22 +87,22 @@ const AdditionalLabel = styled.span`
 `;
 
 const DropdownItem = styled.li<{
-    selected?: boolean;
-    withAdditionalLabel: boolean;
+    $selected?: boolean;
+    $withAdditionalLabel: boolean;
 }>`
     padding: 10px 16px;
     cursor: pointer;
     font-size: 16px;
-    display: ${({ withAdditionalLabel }) =>
-        withAdditionalLabel ? "flex" : "block"};
-    gap: ${({ withAdditionalLabel }) =>
-        withAdditionalLabel ? "13px" : "none"};
-    align-items: ${({ withAdditionalLabel }) =>
-        withAdditionalLabel ? "center" : "initial"};
-    color: ${({ theme, selected }) =>
-        selected ? theme.primary : theme.text.primary};
-    background: ${({ theme, selected }) =>
-        selected ? `${theme.primary}10` : "transparent"};
+    display: ${({ $withAdditionalLabel }) =>
+        $withAdditionalLabel ? "flex" : "block"};
+    gap: ${({ $withAdditionalLabel }) =>
+        $withAdditionalLabel ? "13px" : "none"};
+    align-items: ${({ $withAdditionalLabel }) =>
+        $withAdditionalLabel ? "center" : "initial"};
+    color: ${({ theme, $selected }) =>
+        $selected ? theme.primary : theme.text.primary};
+    background: ${({ theme, $selected }) =>
+        $selected ? `${theme.primary}10` : "transparent"};
 
     &:hover {
         background: ${({ theme }) => `${theme.text.primary}08`};
@@ -112,7 +113,7 @@ const DropdownItem = styled.li<{
     }
 `;
 
-const SelectedValue = styled.span<{ hasAdditionalLabel?: boolean }>`
+const SelectedValue = styled.span`
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -252,13 +253,11 @@ export const Select: FC<ISelectProps> = ({
             style={style}
         >
             <SelectButton
-                hasAdditionalLabel={!!getSelectedAdditionalLabel()}
+                $hasAdditionalLabel={!!getSelectedAdditionalLabel()}
                 onClick={toggleDropdown}
-                disabled={disabled}
+                $disabled={disabled}
             >
-                <SelectedValue
-                    hasAdditionalLabel={!!getSelectedAdditionalLabel()}
-                >
+                <SelectedValue>
                     <span>{getSelectedText()}</span>
                     {getSelectedAdditionalLabel() && (
                         <AdditionalLabel className="text-4 text-light">
@@ -266,7 +265,7 @@ export const Select: FC<ISelectProps> = ({
                         </AdditionalLabel>
                     )}
                 </SelectedValue>
-                <ArrowIconWrapper isOpen={isOpen}>
+                <ArrowIconWrapper $isOpen={isOpen}>
                     <ExpandIcon size={16} />
                 </ArrowIconWrapper>
             </SelectButton>
@@ -274,16 +273,16 @@ export const Select: FC<ISelectProps> = ({
             {isOpen &&
                 !disabled &&
                 createPortal(
-                    <DropdownMenuPortal position={dropdownPosition}>
+                    <DropdownMenuPortal $position={dropdownPosition}>
                         {options.map((option) => {
                             const isSelected = value === option.value;
                             return (
                                 <DropdownItem
                                     data-id={DROPDOWN_ITEM_DATA_ID}
                                     key={option.id}
-                                    selected={isSelected}
+                                    $selected={isSelected}
                                     onClick={() => handleSelect(option.value)}
-                                    withAdditionalLabel={
+                                    $withAdditionalLabel={
                                         !!option.additionalLabel
                                     }
                                 >

@@ -63,11 +63,11 @@ const KeyContainer = styled.div`
     align-items: center;
 `;
 
-const KeyValue = styled.div<{ isVisible: boolean }>`
+const KeyValue = styled.div<{ $isVisible: boolean }>`
     flex: 1;
-    filter: ${({ isVisible }) => (isVisible ? "none" : "blur(8px)")};
+    filter: ${({ $isVisible }) => ($isVisible ? "none" : "blur(8px)")};
     transition: filter 0.3s ease;
-    user-select: ${({ isVisible }) => (isVisible ? "text" : "none")};
+    user-select: ${({ $isVisible }) => ($isVisible ? "text" : "none")};
     padding-right: 60px;
 `;
 
@@ -183,7 +183,7 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                             <h3>Account: {accountName}</h3>
                         </KeyLabel>
                         <KeyContainer>
-                            <KeyValue isVisible={isVisible}>
+                            <KeyValue $isVisible={isVisible}>
                                 <h3>{privateKey}</h3>
                             </KeyValue>
                             <ToggleButton
