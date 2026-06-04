@@ -203,7 +203,6 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     line-height: 1.5;
     font-weight: 400;
     transition: background-color 0.3s ease, color 0.3s ease;
-    min-height: 100vh;
     overflow-x: hidden;
   }
   
