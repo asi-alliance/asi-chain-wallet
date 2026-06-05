@@ -9,6 +9,7 @@ import styled from "styled-components";
 import { selectAccount, loadAccountsFromStorage } from "store/walletSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { buildUrlWithParams } from "utils/navigationUtils";
 import { SecureStorage } from "services/secureStorage";
 import { loginWithPassword } from "store/authSlice";
 import { RootState, AppDispatch } from "store";
@@ -368,7 +369,16 @@ export const Login: React.FC = () => {
     };
 
     const handleCreateAccount = () => {
-        navigate("/accounts");
+        navigate(
+            buildUrlWithParams("/accounts", {
+                queryParams: [
+                    {
+                        key: "action",
+                        value: "create-account",
+                    },
+                ],
+            }),
+        );
     };
 
     if (!hasAccounts) {

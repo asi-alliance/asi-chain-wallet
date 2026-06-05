@@ -7,11 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
 import { Account } from "types/wallet";
+import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
+import { useSearchParams } from "react-router-dom";
 import { CreateAccountModal } from "components/CreateAccountModal";
 import { ImportAccountModal } from "components/ImportAccountModal";
 import { useScreen } from "hooks/";
-
-import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
 
 const AccountsContainer = styled.div``;
 
@@ -71,6 +71,9 @@ export const Accounts: React.FC = () => {
 
     const { isLaptop } = useScreen();
 
+    const [searchParams] = useSearchParams();
+    const actionParam: string | null = searchParams.get("action");
+
     const selectedNetworkId = selectedNetwork?.id;
     const filteredAccounts = useMemo(
         () =>
@@ -83,7 +86,9 @@ export const Accounts: React.FC = () => {
         [accounts, selectedNetworkId],
     );
 
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(
+        actionParam === "create-account",
+    );
     const [showImportModal, setShowImportModal] = useState(false);
 
     const filteredAccountIds = useMemo(
