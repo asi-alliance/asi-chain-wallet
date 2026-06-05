@@ -1385,7 +1385,7 @@ const DeployProModeBoard: React.FC = () => {
                                 value={activeFile.content}
                                 onChange={handleEditorChange}
                                 theme={darkMode ? "vs-dark" : "light"}
-                                onMount={(editor, monaco) => {
+                                onMount={(editor, _monaco) => {
                                     setEditorInstance(editor);
                                 }}
                                 options={{

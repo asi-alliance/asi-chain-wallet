@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { Card, PrivateKeyDisplay, PasswordModal } from "components";
+import { PrivateKeyDisplay, PasswordModal } from "components";
 import { CustomNetworkConfig } from "./CustomNetworkConfig";
 import { SecureStorage } from "services/secureStorage";
 
@@ -16,10 +16,10 @@ export const Settings: React.FC = () => {
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [selectedAccountForPrivateKey, setSelectedAccountForPrivateKey] =
         useState<string | null>(null);
-    const [privateKeyPassword, setPrivateKeyPassword] = useState("");
+    const [_privateKeyPassword, setPrivateKeyPassword] = useState("");
     const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-    const handleViewPrivateKey = (accountId: string) => {
+    const _handleViewPrivateKey = (accountId: string) => {
         setSelectedAccountForPrivateKey(accountId);
         setShowPasswordModal(true);
     };

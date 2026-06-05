@@ -174,7 +174,6 @@ interface EditCustomNetworkModalProps {
 export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
     isOpen,
     network,
-    isActive,
     onClose,
     onSave,
     loading = false,

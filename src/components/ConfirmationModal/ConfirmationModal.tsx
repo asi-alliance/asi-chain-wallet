@@ -139,7 +139,6 @@ export const TransactionConfirmationModal: React.FC<
     recipient,
     senderAddress,
     senderName,
-    estimatedFee = "0.001",
     loading = false,
     needsPassword = false,
     requirePasswordForTransaction = false,

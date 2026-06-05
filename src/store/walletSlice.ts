@@ -573,22 +573,19 @@ export const fetchTransactionHistory = createAsyncThunk(
 
 export const sendTransaction = createAsyncThunk(
     "wallet/sendTransaction",
-    async (
-        {
-            from,
-            to,
-            amount,
-            password,
-            network,
-        }: {
-            from: Account;
-            to: string;
-            amount: string;
-            password?: string;
-            network: Network;
-        },
-        { dispatch, getState },
-    ) => {
+    async ({
+        from,
+        to,
+        amount,
+        password,
+        network,
+    }: {
+        from: Account;
+        to: string;
+        amount: string;
+        password?: string;
+        network: Network;
+    }) => {
         if (!SecureStorage.hasSessionToken()) {
             throw new Error("Session expired. Please login again.");
         }
@@ -972,10 +969,6 @@ const walletSlice = createSlice({
                 }
             }
         },
-        restoreToDefaultSettings: (
-            state,
-            action: PayloadAction<undefined>,
-        ) => {},
     },
     extraReducers: (builder) => {
         builder

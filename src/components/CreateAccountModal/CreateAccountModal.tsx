@@ -73,7 +73,7 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
 }) => {
     if (!isOpen) return null;
 
-    const handleSuccess = (accountName: string) => {
+    const handleSuccess = () => {
         onSuccess?.();
         onClose();
     };

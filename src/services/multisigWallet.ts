@@ -332,7 +332,7 @@ export class MultisigWalletService {
         signatures
       );
 
-      const receipt = await tx.wait();
+      const _receipt = await tx.wait();
 
       // Update transaction status
       transaction.status = 'executed';

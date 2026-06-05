@@ -1,27 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import styled from "styled-components";
+import React, { useState, useEffect, useCallback } from "react";
+import { useSelector } from "react-redux";
+import styled, { css } from "styled-components";
 import { RootState } from "store";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
-    Button,
-    Input,
-} from "components";
+import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import TransactionHistoryService, {
     Transaction,
     TransactionFilter,
 } from "services/transactionHistory";
 import { RChainService } from "services/rchain";
-import TransactionPollingService from "services/transactionPolling";
-import { getTokenDisplayName } from "../../constants/token";
-import { Account } from "types/wallet";
-import { ContentPasteIcon, CopyIcon, DownloadIcon } from "components/Icons";
+import { ContentPasteIcon, DownloadIcon } from "components/Icons";
 import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
+import { getTokenDisplayName } from "constants/token";
+import { DefaultTheme } from "styled-components/dist/types";
 
 const HistoryContainer = styled.div`
     max-width: 1200px;
@@ -131,55 +123,65 @@ const TableRow = styled.tr`
     }
 `;
 
-const TableCell = styled.td<{ align?: string }>`
+const TableCell = styled.td<{
+    $align?: string;
+    $themeColorSelector?: (theme: DefaultTheme) => string;
+}>`
     padding: 6px;
-    text-align: ${({ align }) => align || "left"};
+    text-align: ${({ $align }) => $align || "left"};
     font-size: 14px;
+    ${({ $themeColorSelector, theme }) =>
+        $themeColorSelector &&
+        css`
+            color: ${$themeColorSelector(theme)};
+        `}
 `;
 
-const TableHeaderCell = styled.th<{ align?: string; width?: string }>`
+const TableHeaderCell = styled.th<{ $align?: string; $width?: string }>`
     padding: 12px 12px 12px 6px;
-    text-align: ${({ align }) => align || "left"};
+    text-align: ${({ $align }) => $align || "left"};
     font-weight: 500;
     font-size: 14px;
     color: ${({ theme }) => theme.text.secondary};
-    width: ${({ width }) => width || "auto"};
+    width: ${({ $width }) => $width || "auto"};
 `;
 
-const StatusBadge = styled.span<{ status: "pending" | "confirmed" | "failed" }>`
+const StatusBadge = styled.span<{
+    $status: "pending" | "confirmed" | "failed";
+}>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
-    background: ${({ status, theme }) =>
-        status === "confirmed"
+    background: ${({ $status, theme }) =>
+        $status === "confirmed"
             ? theme.success + "20"
-            : status === "failed"
+            : $status === "failed"
               ? theme.danger + "20"
               : theme.warning + "20"};
-    color: ${({ status, theme }) =>
-        status === "confirmed"
+    color: ${({ $status, theme }) =>
+        $status === "confirmed"
             ? theme.success
-            : status === "failed"
+            : $status === "failed"
               ? theme.danger
               : theme.warning};
 `;
 
-const TypeBadge = styled.span<{ type: "send" | "receive" | "deploy" }>`
+const TypeBadge = styled.span<{ $type: "send" | "receive" | "deploy" }>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
-    background: ${({ type, theme }) =>
-        type === "send"
+    background: ${({ $type, theme }) =>
+        $type === "send"
             ? theme.primary + "20"
-            : type === "receive"
+            : $type === "receive"
               ? theme.success + "20"
               : theme.secondary + "20"};
-    color: ${({ type, theme }) =>
-        type === "send"
+    color: ${({ $type, theme }) =>
+        $type === "send"
             ? theme.primary
-            : type === "receive"
+            : $type === "receive"
               ? theme.success
               : theme.secondary};
 `;
@@ -271,8 +273,9 @@ const statusOptions = [
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
 export const History: React.FC = () => {
-    const { selectedAccount, selectedNetwork, networks, accounts } =
-        useSelector((state: RootState) => state.wallet);
+    const { selectedAccount, selectedNetwork } = useSelector(
+        (state: RootState) => state.wallet,
+    );
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
     const isAccountUnlocked = React.useMemo(() => {
         if (!selectedAccount) return false;
@@ -282,7 +285,7 @@ export const History: React.FC = () => {
     }, [unlockedAccounts, selectedAccount]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filter, setFilter] = useState<TransactionFilter>({});
-    const [stats, setStats] = useState<any>({});
+    const [_stats, setStats] = useState<any>({});
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const handleCopy = useCallback(async (text: string) => {
@@ -298,7 +301,7 @@ export const History: React.FC = () => {
             return;
         }
 
-        const rchain = new RChainService(
+        const _rchain = new RChainService(
             selectedNetwork.url.trim(),
             selectedNetwork.readOnlyUrl,
             selectedNetwork.adminUrl,
@@ -468,16 +471,6 @@ export const History: React.FC = () => {
         } catch (error) {}
     };
 
-    const handleClearHistory = () => {
-        if (
-            window.confirm(
-                "Transaction history is now loaded directly from the blockchain. Click OK to refresh the data.",
-            )
-        ) {
-            loadTransactions();
-        }
-    };
-
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
         setFilter((prev) => ({
             ...prev,
@@ -498,16 +491,6 @@ export const History: React.FC = () => {
             filter.endDate
         );
     };
-
-    const accountOptions = useMemo(
-        () =>
-            accounts.map((account: Account) => ({
-                id: account.id,
-                value: account.id,
-                label: account.name,
-            })),
-        [accounts],
-    );
 
     return (
         <HistoryContainer>
@@ -647,18 +630,20 @@ export const History: React.FC = () => {
                                                 id={`history-transaction-row-${tx.id}`}
                                             >
                                                 <TableCell
-                                                    style={{ color: "#5A5A5A" }}
+                                                    $themeColorSelector={(
+                                                        theme: DefaultTheme,
+                                                    ) => theme.text.secondary}
                                                 >
                                                     {formatDate(tx.timestamp)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <TypeBadge type={tx.type}>
+                                                    <TypeBadge $type={tx.type}>
                                                         {tx.type}
                                                     </TypeBadge>
                                                 </TableCell>
                                                 <TableCell>
                                                     <StatusBadge
-                                                        status={tx.status}
+                                                        $status={tx.status}
                                                     >
                                                         {tx.status}
                                                     </StatusBadge>
@@ -736,6 +721,7 @@ export const History: React.FC = () => {
                                                                 16,
                                                             )}
                                                             …
+                                                            {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                                                             <a
                                                                 id={`copy-deployid-${tx.id}`}
                                                                 href="#"

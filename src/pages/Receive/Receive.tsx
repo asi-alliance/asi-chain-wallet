@@ -58,30 +58,6 @@ const QRCodeContainer = styled.div`
     box-shadow: ${({ theme }) => theme.shadowLarge};
 `;
 
-const TabContainer = styled.div`
-    display: flex;
-    margin-bottom: 24px;
-    border-bottom: 2px solid ${({ theme }) => theme.border};
-`;
-
-const Tab = styled.button<{ active: boolean }>`
-    flex: 1;
-    padding: 12px 16px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid
-        ${({ active, theme }) => (active ? theme.primary : "transparent")};
-    color: ${({ active, theme }) =>
-        active ? theme.primary : theme.text.secondary};
-    font-weight: ${({ active }) => (active ? "600" : "400")};
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-        color: ${({ theme }) => theme.primary};
-    }
-`;
-
 const SuccessMessage = styled.div`
     background: ${({ theme }) => theme.success};
     color: ${({ theme }) => theme.text.inverse};
@@ -102,7 +78,8 @@ const InfoBox = styled.div`
 
 const InfoTitle = styled.h4`
     margin: 0 0 8px 0;
-    // font-size: 16px;
+    font-size: 1rem;
+    font-weight: 500;
     color: ${({ theme }) => theme.text.primary};
 `;
 
@@ -306,9 +283,7 @@ export const Receive: React.FC = () => {
                     </AddressContainer>
 
                     <InfoBox>
-                        <InfoTitle>
-                            <h3 style={{ fontWeight: "500" }}>Important:</h3>
-                        </InfoTitle>
+                        <InfoTitle>Important</InfoTitle>
                         <InfoList>
                             <div className="text-2">
                                 <li>

@@ -37,14 +37,6 @@ const LoginContainer = styled.div`
     margin: 100px auto;
 `;
 
-const Logo = styled.h1`
-    text-align: center;
-    font-size: 32px;
-    font-weight: 700;
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 40px;
-`;
-
 const FormGroup = styled.div`
     margin-bottom: 24px;
 `;
@@ -199,7 +191,7 @@ export const Login: React.FC = () => {
     const loginAccountId: string | null = queryParams.get("id");
     const specificRedirectUrl: string | null = queryParams.get("redirectUrl");
 
-    const { isAuthenticated, hasAccounts, isLoading, error } = useSelector(
+    const { hasAccounts, isLoading, error } = useSelector(
         (state: RootState) => state.auth,
     );
 

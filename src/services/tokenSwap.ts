@@ -485,17 +485,17 @@ export class TokenSwapService {
     return path;
   }
 
-  private getWETHAddress(dex: DEXInfo): string {
+  private getWETHAddress(_dex: DEXInfo): string {
     // WETH address on mainnet
     return '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
   }
 
   private async estimateSwapGas(
-    dex: DEXInfo,
+    _dex: DEXInfo,
     fromToken: SwapToken,
     toToken: SwapToken,
-    amountIn: ethers.BigNumber,
-    userAddress?: string
+    _amountIn: ethers.BigNumber,
+    _userAddress?: string
   ): Promise<ethers.BigNumber> {
     // Return estimated gas - in production, this would simulate the transaction
     if (fromToken.address === 'ETH' || toToken.address === 'ETH') {
@@ -525,7 +525,7 @@ export class TokenSwapService {
   private async performSwap(
     quote: SwapQuote,
     userAddress: string,
-    maxSlippage?: number
+    _maxSlippage?: number
   ): Promise<ethers.ContractTransaction> {
     const router = new ethers.Contract(
       this.getDEXRouter(quote.dex),
@@ -589,7 +589,7 @@ export class TokenSwapService {
     return quote.toAmount;
   }
 
-  private async fetchTokenPrice(address: string): Promise<PriceData> {
+  private async fetchTokenPrice(_address: string): Promise<PriceData> {
     // Mock price data - in production, integrate with price API
     return {
       price: Math.random() * 1000,

@@ -153,7 +153,6 @@ export const Select: FC<ISelectProps> = ({
     disabled = false,
     placeholder = "Select option",
     options,
-    id,
     className = "",
     style,
 }) => {
