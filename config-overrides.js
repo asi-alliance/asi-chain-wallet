@@ -140,6 +140,8 @@ module.exports = function override(config, env) {
     new webpack.DefinePlugin({
       'process.env.NETWORKS': JSON.stringify(process.env.NETWORKS || '{}'),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || env),
+      'process.env.REACT_APP_EXPLORER_URL': JSON.stringify(process.env.REACT_APP_EXPLORER_URL || env),
+      'process.env.REACT_APP_FAUCET_URL': JSON.stringify(process.env.REACT_APP_FAUCET_URL || env),
     }),
   ];
   

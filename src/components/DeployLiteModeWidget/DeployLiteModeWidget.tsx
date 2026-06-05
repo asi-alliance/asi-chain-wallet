@@ -476,7 +476,11 @@ const DeployLiteModeActions: React.FC = () => {
 
     return (
         <FormRow>
-            <Button fullWidth={isTablet} onClick={loadExample}>
+            <Button
+                style={{ height: "44px", whiteSpace: "nowrap" }}
+                fullWidth={isTablet}
+                onClick={loadExample}
+            >
                 <h3>Load Example</h3>
             </Button>
         </FormRow>
@@ -592,10 +596,20 @@ const DeployLiteModeBoard: React.FC = () => {
                     </Button>
                     <Button
                         variant={clearButtonVariant}
-                        size="small"
                         onClick={clearCode}
+                        dangerHover
+                        style={{
+                            height: "30px",
+                        }}
                     >
-                        {!isLaptop && <h3 className="text-danger">Clear</h3>}
+                        {!isLaptop && (
+                            <h3
+                                style={{ fontSize: "0.75rem" }}
+                                className="text-danger"
+                            >
+                                Clear
+                            </h3>
+                        )}
                         <DeleteIcon />
                     </Button>
                 </BoardActions>

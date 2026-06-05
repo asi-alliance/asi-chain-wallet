@@ -153,6 +153,9 @@ export const Deploy: React.FC = () => {
                                         marginBottom: 0,
                                         minWidth: "200px",
                                     }}
+                                    style={{
+                                        height: "44px",
+                                    }}
                                     labelStyle={{ color: "#0D1012" }}
                                     label="Phlo Limit"
                                     value={phloLimit}
@@ -170,6 +173,9 @@ export const Deploy: React.FC = () => {
                                         minWidth: "200px",
                                     }}
                                     labelStyle={{ color: "#0D1012" }}
+                                    style={{
+                                        height: "44px",
+                                    }}
                                     label="Phlo Price"
                                     value={phloPrice}
                                     fullWidth={isTablet}

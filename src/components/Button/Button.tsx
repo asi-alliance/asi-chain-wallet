@@ -2,7 +2,7 @@ import React from "react";
 import styled, { css } from "styled-components";
 import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?:
         | "primary"
         | "secondary"
@@ -10,10 +10,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
         | "ghost"
         | "icon-button"
         | "icon-button-ghost"
+        | "icon-button-secondary"
         | "icon-button-black";
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
+    dangerHover?: boolean;
+    secondaryHover?: boolean;
+    withFadeHover?: boolean;
+    withBorderColorHover?: boolean;
 }
 
 const ButtonBase = styled.button.withConfig(
@@ -22,12 +27,17 @@ const ButtonBase = styled.button.withConfig(
         "size",
         "fullWidth",
         "loading",
+        "dangerHover",
+        "secondaryHover",
+        "withFadeHover",
+        "withBorderColorHover",
     ]),
 )<ButtonProps>`
     display: inline-flex;
     gap: 0.5rem;
     align-items: center;
     justify-content: center;
+    height: 44px;
     font-weight: 500;
     border-radius: 8px; /* ASI Wallet spec: 8px for buttons */
     transition: all 0.2s ease;
@@ -89,7 +99,7 @@ const ButtonBase = styled.button.withConfig(
             width: 100%;
         `}
 
-  ${({ variant, theme }) => {
+  ${({ variant, theme, withFadeHover, withBorderColorHover }) => {
         switch (variant) {
             case "secondary":
                 return css`
@@ -137,13 +147,23 @@ const ButtonBase = styled.button.withConfig(
                     min-height: auto;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button":
                 return css`
@@ -154,16 +174,27 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button-black":
                 return css`
@@ -174,16 +205,58 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        border-color: ${theme.text.secondary};
-                        transform: translateY(-1px);
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
+                `;
+            case "icon-button-secondary":
+                return css`
+                    background: transparent;
+                    color: ${theme.colors.text.primary};
+                    border: 0.5px solid ${theme.primary};
+                    box-shadow: none;
+                    padding: 7px;
+                    min-width: auto;
+                    min-height: auto;
+                    height: auto;
+                    aspect-ratio: 1/1;
+
+                    &:hover:not(:disabled) {
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
+
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             case "icon-button-ghost":
                 return css`
@@ -194,16 +267,27 @@ const ButtonBase = styled.button.withConfig(
                     padding: 7px;
                     min-width: auto;
                     min-height: auto;
+                    height: auto;
                     aspect-ratio: 1/1;
 
                     &:hover:not(:disabled) {
-                        transform: translateY(-1px);
-                        box-shadow: none;
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.text.secondary};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
             default: // Primary button - ASI Lime bg with Deep Space text
                 return css`
@@ -212,18 +296,28 @@ const ButtonBase = styled.button.withConfig(
                     font-weight: 600;
 
                     &:hover:not(:disabled) {
-                        background: ${theme.primaryDark}; /* Darkened ASI Lime */
-                        transform: translateY(-1px);
+                        ${withBorderColorHover &&
+                        css`
+                            border-color: ${theme.primaryDark};
+                        `}
+
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
                     }
 
-                    &:active:not(:disabled) {
-                        transform: translateY(0);
-                    }
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
                 `;
         }
     }}
 
-  ${({ loading }) =>
+  ${({ loading, variant, theme }) =>
         loading &&
         css`
             color: transparent;
@@ -236,8 +330,12 @@ const ButtonBase = styled.button.withConfig(
                 height: 20px;
                 margin: auto;
                 border: 3px solid transparent;
-                border-top-color: currentColor;
-                border-right-color: currentColor;
+                border-top-color: ${variant === "primary"
+                    ? theme.colors.background.secondary
+                    : theme.text.primary};
+                border-right-color: ${variant === "primary"
+                    ? theme.colors.background.secondary
+                    : theme.text.primary};
                 border-radius: 50%;
                 animation: spin 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)
                     infinite;
@@ -252,6 +350,24 @@ const ButtonBase = styled.button.withConfig(
                     transform: rotate(360deg);
                 }
             }
+        `}
+
+${({ withBorderColorHover, dangerHover, secondaryHover, theme }) =>
+        withBorderColorHover &&
+        css`
+            ${dangerHover &&
+            css`
+                &:hover:not(:disabled) {
+                    border-color: ${theme.danger};
+                }
+            `}
+
+            ${secondaryHover &&
+            css`
+                &:hover:not(:disabled) {
+                    border-color: ${theme.primary};
+                }
+            `}
         `}
 `;
 
@@ -289,6 +405,8 @@ export const Button: React.FC<ButtonProps> = ({
     loading = false,
     disabled,
     onClick,
+    withFadeHover = false,
+    withBorderColorHover = true,
     ...props
 }) => {
     const [ripples, setRipples] = React.useState<
@@ -321,6 +439,8 @@ export const Button: React.FC<ButtonProps> = ({
             loading={loading}
             disabled={disabled || loading}
             onClick={handleClick}
+            withFadeHover={withFadeHover}
+            withBorderColorHover={withBorderColorHover}
             {...props}
         >
             {children}

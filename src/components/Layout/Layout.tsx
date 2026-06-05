@@ -1,14 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { RootState } from "store";
-import { toggleTheme } from "store/themeSlice";
 import { selectNetwork } from "store/walletSlice";
-import { SunIcon, MoonIcon } from "components/Icons";
-import { logout } from "store/authSlice";
-import { AccountSwitcher } from "components/AccountSwitcher";
-import Logo from "components/Logo";
+import { HeaderBar } from "./HeaderBar";
+import { DesktopNavComponent } from "./DesktopNavComponent";
+import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
+import { useNavItems } from "./useNavItems";
 
 const Container = styled.div`
     min-height: 100vh;
@@ -16,159 +15,15 @@ const Container = styled.div`
     flex-direction: column;
 `;
 
-const Header = styled.header`
-    background: ${({ theme }) => theme.card};
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-
-    @media (max-width: 768px) {
-        padding: 12px 16px;
-        gap: 12px;
-        flex-wrap: wrap;
-        min-height: auto;
-    }
-`;
-
-const LeftSection = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 24px;
+const Main = styled.main<{ $fullWidth?: boolean }>`
     flex: 1;
-    min-width: 0;
-
-    @media (max-width: 768px) {
-        gap: 12px;
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-    }
-`;
-
-const LogoContainer = styled.div`
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-`;
-
-const HeaderActions = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 16px;
-
-    @media (max-width: 768px) {
-        gap: 8px;
-        flex-shrink: 0;
-    }
-`;
-
-const NetworkSelector = styled.select`
-    padding: 8px 12px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
-
-    @media (max-width: 768px) {
-        padding: 6px 8px;
-        font-size: 12px;
-        min-width: 80px;
-    }
-`;
-
-const ThemeToggle = styled.button`
-    padding: 8px 12px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    @media (max-width: 768px) {
-        padding: 6px 8px;
-        font-size: 12px;
-    }
-
-    &:hover {
-        background: ${({ theme }) => theme.primary};
-        color: white;
-    }
-`;
-
-const Main = styled.main<{ fullWidth?: boolean }>`
-    flex: 1;
-    padding: ${({ fullWidth }) => (fullWidth ? "24px" : "24px")};
-    max-width: ${({ fullWidth }) => (fullWidth ? "none" : "1200px")};
+    padding: ${({ $fullWidth }) => ($fullWidth ? "16px" : "16px")};
+    max-width: ${({ $fullWidth }) => ($fullWidth ? "none" : "1200px")};
     margin: 0 auto;
     width: 100%;
-`;
 
-const Nav = styled.nav`
-    background: ${({ theme }) => theme.surface};
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-    padding: 0 24px;
-    display: flex;
-    gap: 24px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-
-    @media (max-width: 768px) {
-        padding: 0 16px;
-        gap: 16px;
-    }
-
-    @media (max-width: 480px) {
-        padding: 0 12px;
-        gap: 12px;
-    }
-`;
-
-const NavLink = styled.button<{ active: boolean }>`
-    padding: 16px 0;
-    background: none;
-    border: none;
-    border-bottom: 3px solid
-        ${({ active, theme }) => (active ? theme.primary : "transparent")};
-    color: ${({ active, theme }) =>
-        active ? theme.primary : theme.text.secondary};
-    font-weight: ${({ active }) => (active ? "600" : "400")};
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    flex-shrink: 0;
-
-    @media (max-width: 768px) {
-        padding: 12px 0;
-        font-size: 14px;
-    }
-
-    @media (max-width: 480px) {
-        padding: 10px 0;
-        font-size: 13px;
-    }
-
-    &:hover {
-        color: ${({ theme }) => theme.primary};
-    }
-`;
-
-const LogoutButton = styled(ThemeToggle)`
-    background: ${({ theme }) => theme.danger};
-    color: white;
-
-    &:hover {
-        background: ${({ theme }) => theme.danger};
-        opacity: 0.8;
+    @media (min-width: 769px) {
+        padding: ${({ $fullWidth }) => ($fullWidth ? "24px" : "24px")};
     }
 `;
 
@@ -178,146 +33,154 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const dispatch = useDispatch();
-    const navigate = useNavigate();
     const location = useLocation();
-    const { darkMode } = useSelector((state: RootState) => state.theme);
-    const { networks, selectedNetwork, accounts } = useSelector(
+    const { networks, selectedNetwork, selectedAccount } = useSelector(
         (state: RootState) => state.wallet,
     );
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const { accounts } = useSelector((state: RootState) => state.wallet);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+    const [networkStatus, setNetworkStatus] = useState<
+        "connected" | "disconnected" | "checking"
+    >("checking");
+
+    useEffect(() => {
+        const checkNetwork = async () => {
+            if (!selectedNetwork) return;
+
+            const networkUrl =
+                selectedNetwork.readOnlyUrl || selectedNetwork.url;
+            if (!networkUrl || !networkUrl.trim()) {
+                setNetworkStatus("disconnected");
+                return;
+            }
+
+            setNetworkStatus("checking");
+            try {
+                const response = await fetch(networkUrl + "/api/status", {
+                    method: "GET",
+                    headers: { Accept: "application/json" },
+                    signal: AbortSignal.timeout(5000),
+                });
+                setNetworkStatus(response.ok ? "connected" : "disconnected");
+            } catch {
+                setNetworkStatus("disconnected");
+            } finally {
+                setLastRefresh(new Date());
+            }
+        };
+
+        checkNetwork();
+        const interval = setInterval(checkNetwork, 60000); // Check every minute
+
+        return () => clearInterval(interval);
+    }, [selectedNetwork]);
+
+    useEffect(() => {
+        const setCachedNetwork = () => {
+            if (!isAuthenticated || !selectedAccount?.address) {
+                return;
+            }
+
+            if (
+                selectedNetwork?.id &&
+                selectedAccount.networkId === selectedNetwork.id
+            ) {
+                return;
+            }
+
+            const networkByAddressMapRaw = localStorage.getItem(
+                "NETWORKS_BY_ADDRESS",
+            );
+
+            if (!networkByAddressMapRaw) {
+                return;
+            }
+
+            const networkByAddressMap = JSON.parse(networkByAddressMapRaw);
+            const lastSelectedNetworkId =
+                networkByAddressMap[selectedAccount.address];
+
+            if (!lastSelectedNetworkId) {
+                return;
+            }
+
+            if (selectedNetwork?.id === lastSelectedNetworkId) {
+                return;
+            }
+
+            const networkToSet = networks.find(
+                (network) => network.id === lastSelectedNetworkId,
+            );
+
+            if (!networkToSet) {
+                return;
+            }
+
+            dispatch(selectNetwork(networkToSet.id));
+        };
+
+        setCachedNetwork();
+    }, [
+        isAuthenticated,
+        selectedAccount,
+        networks,
+        dispatch,
+        selectedNetwork?.id,
+    ]);
+
+    const cacheNetworkByAddress = (networkId: string) => {
+        if (!isAuthenticated || !selectedAccount?.address) {
+            return;
+        }
+
+        const networkByAddressMapRaw = localStorage.getItem(
+            "NETWORKS_BY_ADDRESS",
+        );
+
+        const networkByAddressMap = !!networkByAddressMapRaw
+            ? JSON.parse(networkByAddressMapRaw)
+            : {};
+
+        networkByAddressMap[selectedAccount?.address] = networkId;
+
+        localStorage.setItem(
+            "NETWORKS_BY_ADDRESS",
+            JSON.stringify(networkByAddressMap),
+        );
+    };
 
     const handleNetworkChange = (
         event: React.ChangeEvent<HTMLSelectElement>,
     ) => {
         dispatch(selectNetwork(event.target.value));
+        cacheNetworkByAddress(event.target.value);
     };
 
-    const handleThemeToggle = () => {
-        dispatch(toggleTheme());
-    };
-
-    const handleLogout = () => {
-        dispatch(logout());
-        navigate("/login");
-    };
+    const navItems = useNavItems(accounts);
 
     return (
         <Container>
-            <Header>
-                <LeftSection>
-                    <LogoContainer onClick={() => navigate("/")}>
-                        <Logo size="large" showText={true} />
-                    </LogoContainer>
-                    {isAuthenticated && accounts.length > 0 && (
-                        <AccountSwitcher />
-                    )}
-                    {isAuthenticated && accounts.length === 0 && (
-                        <div
-                            style={{
-                                color: "var(--text-secondary)",
-                                fontSize: "14px",
-                            }}
-                        >
-                            No accounts yet
-                        </div>
-                    )}
-                </LeftSection>
-                <HeaderActions>
-                    <NetworkSelector
-                        id="header-network-selector"
-                        value={selectedNetwork.id}
-                        onChange={handleNetworkChange}
-                    >
-                        {networks.map((network) => (
-                            <option
-                                key={network.id}
-                                value={network.id}
-                                disabled={
-                                    !network.url || network.url.trim() === ""
-                                }
-                            >
-                                {network.name}
-                            </option>
-                        ))}
-                    </NetworkSelector>
-                    <ThemeToggle
-                        onClick={handleThemeToggle}
-                        title={
-                            darkMode
-                                ? "Switch to Light Mode"
-                                : "Switch to Dark Mode"
-                        }
-                    >
-                        {darkMode ? (
-                            <SunIcon size={18} />
-                        ) : (
-                            <MoonIcon size={18} />
-                        )}
-                    </ThemeToggle>
-                    {isAuthenticated && (
-                        <LogoutButton onClick={handleLogout}>
-                            Logout
-                        </LogoutButton>
-                    )}
-                </HeaderActions>
-            </Header>
-            <Nav>
-                <NavLink
-                    active={location.pathname === "/"}
-                    onClick={() => navigate("/")}
-                >
-                    Dashboard
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/accounts"}
-                    onClick={() => navigate("/accounts")}
-                >
-                    Accounts
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/send"}
-                    onClick={() => navigate("/send")}
-                >
-                    Send
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/receive"}
-                    onClick={() => navigate("/receive")}
-                >
-                    Receive
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/history"}
-                    onClick={() => navigate("/history")}
-                >
-                    Transactions
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/deploy"}
-                    onClick={() => navigate("/deploy")}
-                >
-                    Deploy
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/ide"}
-                    onClick={() => navigate("/ide")}
-                >
-                    IDE
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/keys"}
-                    onClick={() => navigate("/keys")}
-                >
-                    Generate Keys
-                </NavLink>
-                <NavLink
-                    active={location.pathname === "/settings"}
-                    onClick={() => navigate("/settings")}
-                >
-                    Network Settings
-                </NavLink>
-            </Nav>
-            <Main fullWidth={location.pathname === "/deploy"}>{children}</Main>
+            <HeaderBar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+
+            <DesktopNavComponent
+                navItems={navItems}
+                networkStatus={networkStatus}
+                lastRefresh={lastRefresh}
+                selectedNetwork={selectedNetwork}
+                networks={networks}
+                onNetworkChange={handleNetworkChange}
+            />
+
+            <MobileNavDrawerComponent
+                isOpen={mobileMenuOpen}
+                navItems={navItems}
+                onClose={() => setMobileMenuOpen(false)}
+            />
+
+            <Main $fullWidth={location.pathname === "/deploy"}>{children}</Main>
         </Container>
     );
 };

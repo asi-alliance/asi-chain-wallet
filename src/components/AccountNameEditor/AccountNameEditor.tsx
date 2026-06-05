@@ -67,6 +67,10 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
 
     const isSelected: boolean = account.id === selectedAccount?.id;
 
+    if (account.name === "Artem") {
+        console.log("IS SELECTED: ", isSelected);
+    }
+
     return (
         <StyledEditableLabel
             className={`account-name-editor`}
@@ -85,6 +89,7 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
             style={{
                 maxWidth: "100%",
             }}
+            isSelected={isSelected}
             {...labelProps}
         />
     );

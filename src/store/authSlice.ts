@@ -581,6 +581,9 @@ const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
+        setHasAccounts: (state, action: PayloadAction<boolean>) => {
+            state.hasAccounts = action.payload;
+        },
         logout: (state) => {
             state.isAuthenticated = false;
             state.unlockedAccounts = [];
@@ -732,6 +735,7 @@ export const {
     updateSettings,
     clearError,
     checkAuthentication,
+    setHasAccounts,
 } = authSlice.actions;
 
 export default authSlice.reducer;

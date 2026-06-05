@@ -56,6 +56,7 @@ const StyledInput = styled.input<{
     font-weight: 400;
     // line-height: 24px;
     min-height: 44px; /* Touch-friendly minimum */
+    height: 44px;
     background: "transparent";
     border: 2px solid
         ${({ theme, $hasError }) =>

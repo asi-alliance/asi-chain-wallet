@@ -37,7 +37,11 @@ const AddressContainer = styled.div`
     margin-bottom: 24px;
 `;
 
-const CopyButton = styled(Button)`
+const InlineButton = styled(Button)`
+    height: 44px;
+`;
+
+const CopyButton = styled(InlineButton)`
     margin-top: 16px;
 `;
 
@@ -344,7 +348,7 @@ export const Receive: React.FC = () => {
                                 <CopyIcon size={24} color="currentColor" />
                             </CopyButton>
 
-                            <Button
+                            <InlineButton
                                 variant="secondary"
                                 onClick={() => {
                                     const canvas =
@@ -364,12 +368,15 @@ export const Receive: React.FC = () => {
                             >
                                 <h3>Download QR</h3>
                                 <QRIconSecond size={24} color="currentColor" />
-                            </Button>
+                            </InlineButton>
                             <Button
                                 id="history-button"
-                                onClick={() => {}}
+                                onClick={() => {
+                                    navigate("/history");
+                                }}
                                 variant="icon-button-black"
                                 fullWidth={false}
+                                secondaryHover
                             >
                                 <HistoryIcon />
                             </Button>
@@ -393,9 +400,12 @@ export const Receive: React.FC = () => {
                                 </CopyButton>
                                 <Button
                                     id="history-button"
-                                    onClick={() => {}}
+                                    onClick={() => {
+                                        navigate("/history");
+                                    }}
                                     variant="icon-button-black"
                                     fullWidth={false}
+                                    secondaryHover
                                 >
                                     <HistoryIcon />
                                 </Button>

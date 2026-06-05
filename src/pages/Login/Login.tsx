@@ -5,12 +5,14 @@ import React, {
     useCallback,
     useRef,
 } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { RootState, AppDispatch } from "store";
-import { loginWithPassword } from "store/authSlice";
 import { selectAccount, loadAccountsFromStorage } from "store/walletSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { SecureStorage } from "services/secureStorage";
+import { loginWithPassword } from "store/authSlice";
+import { RootState, AppDispatch } from "store";
+import { Account } from "types/wallet";
 import {
     Card,
     CardHeader,
@@ -19,7 +21,6 @@ import {
     Button,
     Input,
 } from "components";
-import { SecureStorage } from "services/secureStorage";
 import {
     buildContextKey,
     getRateLimitInfo,
@@ -30,7 +31,6 @@ import {
     analyzeRecentActivity,
     SuspiciousActivityReport,
 } from "services/loginAuditLog";
-import { Account } from "types/wallet";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -372,33 +372,7 @@ export const Login: React.FC = () => {
     };
 
     if (!hasAccounts) {
-        return (
-            <LoginContainer>
-                <Logo>ASI Wallet</Logo>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Welcome</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p
-                            style={{
-                                marginBottom: "24px",
-                                textAlign: "center",
-                            }}
-                        >
-                            No accounts found. Create your first account to get
-                            started.
-                        </p>
-                        <Button
-                            id="login-create-account-button"
-                            onClick={handleCreateAccount}
-                        >
-                            Create Account
-                        </Button>
-                    </CardContent>
-                </Card>
-            </LoginContainer>
-        );
+        return <Navigate to={"/accounts"} />;
     }
 
     return (

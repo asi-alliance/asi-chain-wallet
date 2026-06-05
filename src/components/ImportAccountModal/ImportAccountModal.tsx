@@ -19,8 +19,8 @@ const Overlay = styled.div`
 const ModalContainer = styled.div`
     background: ${({ theme }) => theme.card};
     border-radius: 12px;
-    max-width: 600px;
     width: 90%;
+    max-width: 705px;
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);

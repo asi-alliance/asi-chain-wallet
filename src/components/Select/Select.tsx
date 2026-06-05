@@ -187,7 +187,7 @@ export const Select: FC<ISelectProps> = ({
             if (
                 !wrapperRef.current ||
                 wrapperRef.current.contains(target) ||
-                target.getAttribute("data-id") === DROPDOWN_ITEM_DATA_ID
+                target.closest(`[data-id="${DROPDOWN_ITEM_DATA_ID}"]`)
             ) {
                 return;
             }

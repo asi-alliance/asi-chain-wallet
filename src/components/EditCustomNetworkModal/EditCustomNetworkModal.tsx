@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, CSSProperties } from "react";
 import styled from "styled-components";
 import { Input, Button } from "components";
 import { Network } from "types/wallet";
 import { FileIcon } from "components/Icons";
+import { useScreen } from "hooks";
 
 const Overlay = styled.div`
     position: fixed;
@@ -103,6 +104,7 @@ const Label = styled.label`
     // font-size: 14px;
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
+    margin-bottom: 8px;
 `;
 
 const DirectLinks = styled.div`
@@ -134,12 +136,20 @@ const LastLink = styled(Link)`
     margin-bottom: 0;
 `;
 
-const AutoWidthInput = styled(Input)`
+const InlineInput = styled(Input)`
+    height: 44px;
+`;
+
+const AutoWidthInput = styled(InlineInput)`
     width: auto;
 
     @media (max-width: 768px) {
         width: 100%;
     }
+`;
+
+const InlineButton = styled(Button)`
+    height: 44px;
 `;
 
 const CustomNetworkActionsButtons = styled.div`
@@ -172,6 +182,8 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
     onSave,
     loading = false,
 }) => {
+    const { isLaptop } = useScreen();
+
     const [validatorHost, setValidatorHost] = useState("localhost");
     const [validatorHttpPort, setValidatorHttpPort] = useState("40403");
     const [validatorGrpcPort, setValidatorGrpcPort] = useState("40401");
@@ -241,6 +253,13 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
 
     if (!isOpen || !network) return null;
 
+    const saveCustomNetworkButtonStyle: CSSProperties = !isLaptop
+        ? {
+              minWidth: "252px",
+              flex: "1",
+          }
+        : { flex: "1" };
+
     return (
         <Overlay onClick={handleClose}>
             <ModalContainer onClick={(e) => e.stopPropagation()}>
@@ -266,7 +285,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                         <FormRow>
                             <FormGroup>
                                 <Label>IP/Domain:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-validator-host-input"
                                     className="text-2"
                                     value={validatorHost}
@@ -278,7 +297,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                             </FormGroup>
                             <FormGroup>
                                 <Label>gRPC Port:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-validator-grpc-port-input"
                                     className="text-2"
                                     value={validatorGrpcPort}
@@ -290,7 +309,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                             </FormGroup>
                             <FormGroup>
                                 <Label>HTTP Port:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-validator-http-port-input"
                                     className="text-2"
                                     value={validatorHttpPort}
@@ -333,7 +352,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                         <FormRow>
                             <FormGroup>
                                 <Label>IP/Domain:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-readonly-host-input"
                                     className="text-2"
                                     value={readOnlyHost}
@@ -345,7 +364,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                             </FormGroup>
                             <FormGroup>
                                 <Label>gRPC Port:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-readonly-grpc-port-input"
                                     className="text-2"
                                     value={readOnlyGrpcPort}
@@ -357,7 +376,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                             </FormGroup>
                             <FormGroup>
                                 <Label>HTTP Port:</Label>
-                                <Input
+                                <InlineInput
                                     id="edit-readonly-http-port-input"
                                     className="text-2"
                                     value={readOnlyHttpPort}
@@ -394,23 +413,23 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                     </ConfigSection>
 
                     <CustomNetworkActionsButtons>
-                        <Button
+                        <InlineButton
                             variant="primary"
                             onClick={handleSave}
                             loading={loading}
-                            style={{ flex: "1" }}
+                            style={saveCustomNetworkButtonStyle}
                         >
                             Save Custom Network
                             <FileIcon />
-                        </Button>
-                        <Button
-                            variant="ghost"
+                        </InlineButton>
+                        <InlineButton
+                            variant="secondary"
                             onClick={handleClose}
                             disabled={loading}
                             style={{ flex: "1" }}
                         >
                             Cancel
-                        </Button>
+                        </InlineButton>
                     </CustomNetworkActionsButtons>
                 </ModalContent>
             </ModalContainer>
