@@ -229,7 +229,7 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                         </Button>
                         {showBackButton && onBack && (
                             <Button
-                                variant="ghost"
+                                variant="secondary"
                                 onClick={onBack}
                                 style={{ flex: 1 }}
                             >
