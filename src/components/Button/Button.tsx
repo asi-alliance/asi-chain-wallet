@@ -147,11 +147,6 @@ const ButtonBase = styled.button.withConfig(
                     min-height: auto;
 
                     &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.text.secondary};
-                        `}
-
                         ${withFadeHover &&
                         css`
                             transform: translateY(-1px);
