@@ -84,9 +84,7 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
                 <ModalContent>
                     <StyledCard>
                         <StyledCardHeader>
-                            <CardTitle>
-                                <h1>Create Account</h1>
-                            </CardTitle>
+                            <CardTitle>Create Account</CardTitle>
                         </StyledCardHeader>
                         <StyledCardContent>
                             <CreateAccountForm

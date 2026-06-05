@@ -513,9 +513,7 @@ export const History: React.FC = () => {
         <HistoryContainer>
             <Card>
                 <CardHeader>
-                    <CardTitle>
-                        <h1>Transactions</h1>
-                    </CardTitle>
+                    <CardTitle>Transactions</CardTitle>
                     <RefreshText>
                         <RefreshTextLine>
                             Auto-refresh: every 30s

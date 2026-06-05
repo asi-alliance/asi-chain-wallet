@@ -2,10 +2,6 @@ import { createGlobalStyle } from "styled-components";
 import { Theme } from "./theme";
 
 export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
-/* Import modern fonts */
-  // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-  // @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700;1000&display=swap');
-  
   * {
     box-sizing: border-box;
     margin: 0;

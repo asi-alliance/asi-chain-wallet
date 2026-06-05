@@ -61,7 +61,6 @@ export const CardHeader = styled.div`
 export const CardTitle = styled.h1`
     font-size: 2rem;
     line-height: 36px;
-    font-weight: 600;
     color: ${({ theme }) => theme.text.primary};
     margin: 0;
     letter-spacing: -0.02em;

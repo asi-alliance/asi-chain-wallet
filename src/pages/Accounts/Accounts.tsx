@@ -150,9 +150,7 @@ export const Accounts: React.FC = () => {
                     <Card style={{ marginBottom: "32px" }}>
                         <CardHeader>
                             <CardTitle>
-                                <h1>
-                                    Your Accounts ({filteredAccounts.length})
-                                </h1>
+                                Your Accounts ({filteredAccounts.length})
                             </CardTitle>
                             <Button
                                 variant="icon-button-ghost"

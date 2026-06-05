@@ -753,9 +753,7 @@ export const Send: React.FC = () => {
         <SendContainer>
             <Card style={{ paddingBottom: "36px" }}>
                 <CardHeader>
-                    <CardTitle>
-                        <h1>Send ASI</h1>
-                    </CardTitle>
+                    <CardTitle>Send ASI</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {txHash && !isWaitingForBalance && (

@@ -62,11 +62,11 @@
   ],
   "protocol_handlers": [
     {
-      "protocol": "wc",
+      "protocol": "web+wc",
       "url": "./?uri=%s"
     },
     {
-      "protocol": "asiwallet",
+      "protocol": "web+asiwallet",
       "url": "./?action=%s"
     }
   ]

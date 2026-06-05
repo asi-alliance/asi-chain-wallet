@@ -201,7 +201,12 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <Provider store={store}>
-            <Router>
+            <Router
+                future={{
+                    v7_startTransition: true,
+                    v7_relativeSplatPath: true,
+                }}
+            >
                 <AppContent />
             </Router>
         </Provider>

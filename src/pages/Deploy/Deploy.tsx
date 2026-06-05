@@ -122,9 +122,7 @@ export const Deploy: React.FC = () => {
             <ModeWidget phloLimit={phloLimit} phloPrice={phloPrice}>
                 <Card>
                     <CardHeader>
-                        <CardTitle>
-                            <h1>Deploy Rholang Contract</h1>
-                        </CardTitle>
+                        <CardTitle>Deploy Rholang Contract</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <DeployHeader>

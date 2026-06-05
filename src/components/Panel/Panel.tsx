@@ -2,12 +2,12 @@ import { ExpandIcon } from "components/Icons";
 import { FC, useState, CSSProperties, ReactNode } from "react";
 import styled from "styled-components";
 
-const PanelWrapper = styled.div<{ disabled?: boolean }>`
+const PanelWrapper = styled.div<{ $disabled?: boolean }>`
     position: relative;
     min-width: 150px;
 
-    ${({ disabled, theme }) =>
-        disabled &&
+    ${({ $disabled, theme }) =>
+        $disabled &&
         `
         opacity: 0.4;
         cursor: not-allowed;
@@ -76,20 +76,21 @@ const PanelAdditionalLabel = styled.span`
     }
 `;
 
-const ArrowIconWrapper = styled.div<{ isOpen: boolean }>`
+const ArrowIconWrapper = styled.div<{ $isOpen: boolean }>`
     display: flex;
     align-items: center;
     transition: transform 0.2s ease;
-    transform: ${({ isOpen }) => (isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+    transform: ${({ $isOpen }) =>
+        $isOpen ? "rotate(180deg)" : "rotate(0deg)"};
 `;
 
-const PanelContent = styled.div<{ isOpen: boolean }>`
+const PanelContent = styled.div<{ $isOpen: boolean }>`
     border: 1px solid ${({ theme }) => theme.border};
     border-top: none;
     border-radius: 0 0 6px 6px;
     background: ${({ theme }) => theme.surface};
-    padding: ${({ isOpen }) => (isOpen ? "16px" : "0")};
-    max-height: ${({ isOpen }) => (isOpen ? "auto" : "0")};
+    padding: ${({ $isOpen }) => ($isOpen ? "16px" : "0")};
+    max-height: ${({ $isOpen }) => ($isOpen ? "auto" : "0")};
     overflow: hidden;
     transition: all 0.2s ease;
 `;
@@ -142,7 +143,7 @@ export const Panel: FC<IPanelProps> = ({
     return (
         <PanelWrapper
             className={`panel-wrapper ${className}`}
-            disabled={disabled}
+            $disabled={disabled}
             style={style}
         >
             <PanelButton
@@ -159,12 +160,12 @@ export const Panel: FC<IPanelProps> = ({
                         </PanelAdditionalLabel>
                     )}
                 </PanelHeader>
-                <ArrowIconWrapper isOpen={isExpanded}>
+                <ArrowIconWrapper $isOpen={isExpanded}>
                     <ExpandIcon size={16} />
                 </ArrowIconWrapper>
             </PanelButton>
 
-            <PanelContent isOpen={isExpanded}>{children}</PanelContent>
+            <PanelContent $isOpen={isExpanded}>{children}</PanelContent>
         </PanelWrapper>
     );
 };

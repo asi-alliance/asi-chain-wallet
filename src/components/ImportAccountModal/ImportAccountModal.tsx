@@ -79,9 +79,7 @@ export const ImportAccountModal: React.FC<ImportAccountModalProps> = ({
                 <ModalContent>
                     <StyledCard>
                         <StyledCardHeader>
-                            <CardTitle>
-                                <h1>Import Account</h1>
-                            </CardTitle>
+                            <CardTitle>Import Account</CardTitle>
                         </StyledCardHeader>
                         <StyledCardContent>
                             <ImportAccountForm

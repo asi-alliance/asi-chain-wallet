@@ -224,9 +224,7 @@ export const Receive: React.FC = () => {
         <ReceiveContainer>
             <Card>
                 <CardHeader>
-                    <CardTitle>
-                        <h1>Receive Tokens</h1>
-                    </CardTitle>
+                    <CardTitle>Receive Tokens</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {copyMessage && (

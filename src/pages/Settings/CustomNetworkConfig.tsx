@@ -19,9 +19,8 @@ const ConfigSection = styled.div`
     margin-bottom: 36px;
 `;
 
-const ConfigTitle = styled.h3`
+const ConfigTitle = styled.h2`
     // font-size: 18px;
-    font-weight: 600;
     margin-bottom: 16px;
     color: ${({ theme }) => theme.text.primary};
 `;
@@ -262,7 +261,7 @@ export const CustomNetworkConfig: React.FC = () => {
             <Card style={{ marginBottom: "43px" }}>
                 <CardHeader>
                     <CardTitle>
-                        <h1>Custom Network Configuration</h1>
+                        Custom Network Configuration
                         {selectedNetwork.id === "custom" && (
                             <span
                                 style={{
@@ -305,9 +304,7 @@ export const CustomNetworkConfig: React.FC = () => {
                     </ConfigSection>
 
                     <ConfigSection>
-                        <ConfigTitle>
-                            <h2>Validator Node</h2>
-                        </ConfigTitle>
+                        <ConfigTitle>Validator Node</ConfigTitle>
 
                         <FormRow>
                             <FormGroup>
@@ -379,9 +376,7 @@ export const CustomNetworkConfig: React.FC = () => {
                     </ConfigSection>
 
                     <ConfigSection>
-                        <ConfigTitle>
-                            <h2>Read-only Node</h2>
-                        </ConfigTitle>
+                        <ConfigTitle>Read-only Node</ConfigTitle>
 
                         <FormRow>
                             <FormGroup>
@@ -470,9 +465,7 @@ export const CustomNetworkConfig: React.FC = () => {
             {customNetworks.length > 0 && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>
-                            <h1>Existing Custom Networks</h1>
-                        </CardTitle>
+                        <CardTitle>Existing Custom Networks</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {customNetworks.map((net) => (

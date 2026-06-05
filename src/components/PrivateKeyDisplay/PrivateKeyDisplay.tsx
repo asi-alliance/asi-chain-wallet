@@ -163,16 +163,14 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
         <Container>
             <SecurityWarning>
                 <WarningIcon>🔐</WarningIcon>
-                <WarningTitle>
-                    <h3>IMPORTANT: Save Your Private Key</h3>
-                </WarningTitle>
+                <WarningTitle>IMPORTANT: Save Your Private Key</WarningTitle>
                 <WarningText>
-                    <div className="text-2">
+                    <span className="text-2">
                         This is the only time you'll see your private key in
                         plain text.
                         <strong> Save it somewhere safe!</strong> If you lose
                         this key, you'll lose access to your account forever.
-                    </div>
+                    </span>
                 </WarningText>
             </SecurityWarning>
 

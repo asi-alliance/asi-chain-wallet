@@ -63,8 +63,8 @@ export const FirstAccountCreatingWidget: React.FC<
             <WidgetContainer>
                 <Card>
                     <CardHeader style={{ marginBottom: "36px" }}>
-                        <CardTitle>
-                            <h1>Welcome!</h1>
+                        <CardTitle style={{ fontWeight: "500" }}>
+                            Welcome!
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
