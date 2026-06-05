@@ -13,6 +13,7 @@ import {
     Input,
 } from "components";
 import { getAddressLabel, getTokenDisplayName } from "../../constants/token";
+import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountSelector } from "components/AccountSelector";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
@@ -282,16 +283,15 @@ export const Receive: React.FC = () => {
                             CustomCopyIcon={FileCopyIcon}
                         />
 
-                        <div
+                        <TextSecondaryBlock
                             style={{
                                 marginBottom: "36px",
                                 fontSize: "0.75rem",
-                                color: "#666",
                             }}
                         >
                             Tip: Copy a QR code image and paste it directly in
                             the field or click the Paste button
-                        </div>
+                        </TextSecondaryBlock>
 
                         <Panel header="Show QR Code">
                             <QRCodeContainer>

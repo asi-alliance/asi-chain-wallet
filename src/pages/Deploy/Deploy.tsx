@@ -15,6 +15,7 @@ import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
 import { DeployLiteModeWidget } from "components/DeployLiteModeWidget";
 import { DeployProModeWidget } from "components/DeployProModeWidget";
+import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks/";
 
 const DeployContainer = styled.div``;
@@ -156,7 +157,9 @@ export const Deploy: React.FC = () => {
                                     style={{
                                         height: "44px",
                                     }}
-                                    labelStyle={{ color: "#0D1012" }}
+                                    labelColorSelector={(theme: DefaultTheme) =>
+                                        theme.text.primary
+                                    }
                                     label="Phlo Limit"
                                     value={phloLimit}
                                     fullWidth={isTablet}
@@ -172,7 +175,9 @@ export const Deploy: React.FC = () => {
                                         marginBottom: 0,
                                         minWidth: "200px",
                                     }}
-                                    labelStyle={{ color: "#0D1012" }}
+                                    labelColorSelector={(theme: DefaultTheme) =>
+                                        theme.text.primary
+                                    }
                                     style={{
                                         height: "44px",
                                     }}

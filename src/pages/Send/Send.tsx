@@ -23,6 +23,7 @@ import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
 import addressValidation from "utils/AddressValidation";
 import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
+import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountBalance } from "components/AccountBalance";
 import { DefaultTheme } from "styled-components/dist/types";
 import {
@@ -928,7 +929,7 @@ export const Send: React.FC = () => {
                                         minWidth: "auto",
                                     }}
                                 >
-                                    <QRIcon />
+                                    <QRIcon color="currentColor" />
                                 </Button>
                             </ButtonGroup>
                         </InputWithButton>
@@ -954,16 +955,15 @@ export const Send: React.FC = () => {
                                 {scanError}
                             </div>
                         )}
-                        <div
+                        <TextSecondaryBlock
                             style={{
                                 marginTop: "4px",
                                 fontSize: "12px",
-                                color: "#666",
                             }}
                         >
                             Tip: Copy a QR code image and paste it directly in
                             the field or click the Paste button
-                        </div>
+                        </TextSecondaryBlock>
                     </RecipientAddressFormGroup>
 
                     <InputWithButton

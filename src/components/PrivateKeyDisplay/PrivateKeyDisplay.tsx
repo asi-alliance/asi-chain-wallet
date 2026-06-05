@@ -89,6 +89,7 @@ const ActionButtons = styled.div`
     display: flex;
     gap: 12px;
     margin-top: 24px;
+    align-items: center;
 `;
 
 const InfoBox = styled.div`
@@ -222,6 +223,12 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                     </InfoBox>
 
                     <ActionButtons>
+                        <Button
+                            onClick={onContinue}
+                            style={{ flex: 1, height: "auto" }}
+                        >
+                            <h3>I've Saved My Private Key</h3>
+                        </Button>
                         {showBackButton && onBack && (
                             <Button
                                 variant="ghost"
@@ -231,9 +238,6 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                                 <h3>Back</h3>
                             </Button>
                         )}
-                        <Button onClick={onContinue} style={{ flex: 1 }}>
-                            <h3>I've Saved My Private Key</h3>
-                        </Button>
                     </ActionButtons>
                 </CardContent>
             </Card>

@@ -1,3 +1,4 @@
+import styled from "styled-components";
 import {
     type ReactElement,
     useState,
@@ -20,6 +21,7 @@ export interface ICopyButtonProps {
 
 export interface IIconProps {
     size?: number;
+    color?: string;
 }
 
 const CopyIcon = ({ size = 24 }: IIconProps): ReactElement => {
@@ -64,6 +66,10 @@ const CopiedIcon = ({ size = 24 }: IIconProps): ReactElement => {
         </svg>
     );
 };
+
+const ThemeButton = styled.button`
+    color: ${({ theme }) => theme.text.primary};
+`;
 
 const CopyButton = ({
     action,
@@ -112,7 +118,7 @@ const CopyButton = ({
 
     return (
         <span className="copy-container">
-            <button
+            <ThemeButton
                 onClick={runAction}
                 className="copy-button"
                 title={isCopied ? "Copied" : "Copy"}
@@ -122,9 +128,9 @@ const CopyButton = ({
                 {isCopied ? (
                     <CopiedIcon size={size} />
                 ) : (
-                    <CurrentCopyIcon size={size} />
+                    <CurrentCopyIcon color="currentColor" size={size} />
                 )}
-            </button>
+            </ThemeButton>
         </span>
     );
 };

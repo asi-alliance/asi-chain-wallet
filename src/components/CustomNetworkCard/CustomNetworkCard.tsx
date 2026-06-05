@@ -60,7 +60,7 @@ const NetworkUrls = styled.div`
 `;
 
 const UrlLabel = styled.div`
-    color: #666;
+    color: ${({ theme }) => theme.text.secondary};
 `;
 
 const UrlValue = styled.div`
@@ -138,6 +138,7 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                             size="small"
                             variant="icon-button"
                             onClick={handleDelete}
+                            dangerHover
                         >
                             <DeleteIcon />
                         </Button>

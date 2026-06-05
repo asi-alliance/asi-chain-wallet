@@ -33,6 +33,7 @@ export interface EditableLabelProps extends Omit<
 const EditableContainer = styled.div`
     display: flex;
     align-items: center;
+    height: 30px;
     width: 100%;
     text-wrap: nowrap;
     text-overflow: ellipsis;
@@ -110,6 +111,8 @@ const ErrorMessage = styled.span`
 `;
 
 const InlineEditableInput = styled(Input)<{ $isSelected: boolean }>`
+    padding: 0;
+
     & > div {
         margin-bottom: 0;
         width: auto;
@@ -261,6 +264,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         border: "none",
         outline: "none",
         minHeight: "auto",
+        height: "30px",
     };
 
     const currentErrorMessage: string | undefined = !isValid
