@@ -283,7 +283,7 @@ export const History: React.FC = () => {
             (account) => account.id === selectedAccount.id,
         );
     }, [unlockedAccounts, selectedAccount]);
-    const [htransactions, setTransactions] = useState<Transaction[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filter, setFilter] = useState<TransactionFilter>({});
     const [_stats, setStats] = useState<any>({});
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
