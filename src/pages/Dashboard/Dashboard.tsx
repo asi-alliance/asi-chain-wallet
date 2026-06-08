@@ -278,6 +278,7 @@ export const Dashboard: React.FC = () => {
                             </Button>
                             <Button
                                 id="history-button"
+                                title="View transaction history"
                                 onClick={() => {
                                     navigate("/history");
                                 }}
