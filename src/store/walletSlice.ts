@@ -666,7 +666,7 @@ export const sendTransaction = createAsyncThunk(
             from: from.revAddress,
             to,
             amount,
-            timestamp: new Date(),
+            timestamp: new Date().toString(),
             status: "pending",
             gasCost: generateRandomGasFee(),
         };
@@ -1043,7 +1043,7 @@ const walletSlice = createSlice({
                             from: tx.from,
                             to: tx.to ?? "",
                             amount: tx.amount ?? "",
-                            timestamp: new Date(tx.timestamp),
+                            timestamp: (new Date(tx.timestamp)).toString(),
                             status: (isPendingInStorage
                                 ? "completed"
                                 : tx.status) as Transaction["status"],

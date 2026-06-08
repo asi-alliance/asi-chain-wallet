@@ -18,7 +18,7 @@ export interface Transaction {
   from: string;
   to: string;
   amount: string;
-  timestamp: Date;
+  timestamp: string;
   status: 'pending' | 'completed' | 'failed';
   blockNumber?: number;
   error?: string;
