@@ -158,6 +158,7 @@ export const Accounts: React.FC = () => {
                                 Your Accounts ({filteredAccounts.length})
                             </CardTitle>
                             <Button
+                                title="Refresh Balances"
                                 variant="icon-button-ghost"
                                 onClick={handleRefreshBalances}
                                 loading={isLoading}
@@ -175,7 +176,6 @@ export const Accounts: React.FC = () => {
                                     />
                                 ))}
                             </AccountsGrid>
-                            {/* Create/Import section below existing accounts */}
                             <AccountsActionsFooter>
                                 <InlineButton
                                     id="create-account-button"

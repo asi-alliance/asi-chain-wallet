@@ -12,6 +12,7 @@ import "./style.css";
 
 export interface ICopyButtonProps {
     action?: () => Promise<void>;
+    title?: string;
     dataToCopy?: string;
     size?: number;
     CustomCopyIcon?: FC<IIconProps>;
@@ -77,6 +78,7 @@ const CopyButton = ({
     size,
     CustomCopyIcon,
     buttonStyle,
+    title,
     disabled = false,
 }: ICopyButtonProps) => {
     const [isCopied, setIsCopied] = useState<boolean>(false);
@@ -121,7 +123,7 @@ const CopyButton = ({
             <ThemeButton
                 onClick={runAction}
                 className="copy-button"
-                title={isCopied ? "Copied" : "Copy"}
+                title={isCopied ? "Copied" : title || "Copy"}
                 style={buttonStyle}
                 disabled={disabled}
             >

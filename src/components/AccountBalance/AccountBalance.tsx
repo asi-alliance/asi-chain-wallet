@@ -91,6 +91,7 @@ export const AccountBalance = ({
                 </div>
                 <Button
                     id={`refresh-balance-account-${account.id}`}
+                    title="Refresh Balance"
                     variant="icon-button-ghost"
                     onClick={(e) => {
                         e.stopPropagation();

@@ -36,6 +36,7 @@ export const RemoveAccountButton = ({
 
     return (
         <RemoveButton
+            title="Remove account"
             id={`remove-account-${account.id}`}
             variant="icon-button"
             onClick={(e) => {

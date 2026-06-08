@@ -180,7 +180,11 @@ export const AccountCard = ({
                             isFullMode: !fullMode,
                         })}
                     </LabelSecond>
-                    <CopyButton dataToCopy={account.revAddress} size={15} />
+                    <CopyButton
+                        dataToCopy={account.revAddress}
+                        size={15}
+                        title="Copy Address"
+                    />
                 </AccountAddress>
 
                 {fullMode && (
@@ -190,6 +194,7 @@ export const AccountCard = ({
                                 $isSelected={isSelected}
                                 id={`unlock-account-${account.id}`}
                                 variant="icon-button"
+                                title="Unlock Account"
                                 withBorderColorHover={false}
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -218,6 +223,7 @@ export const AccountCard = ({
                             $isSelected={isSelected}
                             id={`export-account-${account.id}`}
                             variant="icon-button"
+                            title="Export Keyfile"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleExportKeyfile(account.id);

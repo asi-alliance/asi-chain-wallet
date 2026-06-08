@@ -19,6 +19,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     secondaryHover?: boolean;
     withFadeHover?: boolean;
     withBorderColorHover?: boolean;
+    title?: string;
 }
 
 const ButtonBase = styled.button.withConfig(
@@ -402,6 +403,7 @@ export const Button: React.FC<ButtonProps> = ({
     onClick,
     withFadeHover = false,
     withBorderColorHover = true,
+    title,
     ...props
 }) => {
     const [ripples, setRipples] = React.useState<
@@ -436,6 +438,7 @@ export const Button: React.FC<ButtonProps> = ({
             onClick={handleClick}
             withFadeHover={withFadeHover}
             withBorderColorHover={withBorderColorHover}
+            title={title}
             {...props}
         >
             {children}

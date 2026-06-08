@@ -312,6 +312,7 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
             </LabelDisplay>
             {!disabled && (
                 <EditButton
+                    title="Edit"
                     $isSelected={isSelected}
                     onClick={(e) => {
                         e.stopPropagation();
