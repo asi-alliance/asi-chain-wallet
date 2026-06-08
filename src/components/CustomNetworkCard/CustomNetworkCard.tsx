@@ -126,6 +126,7 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                     </NetworkName>
                     <CustomNetworkActionsButtons>
                         <Button
+                            title="Edit network"
                             size="small"
                             variant="icon-button"
                             onClick={() =>
@@ -135,6 +136,7 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                             <EditIcon />
                         </Button>
                         <Button
+                            title="Delete network"
                             size="small"
                             variant="icon-button"
                             onClick={handleDelete}
