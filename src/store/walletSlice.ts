@@ -202,7 +202,6 @@ interface PendingTransaction {
     timestamp: string;
     accountId: string;
     type: "send" | "receive" | "deploy";
-    expectedBalance?: string;
 }
 
 const savePendingTransaction = (tx: PendingTransaction) => {
@@ -412,51 +411,87 @@ const calculateBalanceWithPending = (
     const normalizedRevAddress = revAddress?.toLowerCase().trim();
     const normalizedPublicKey = publicKey?.toLowerCase().trim();
     const chainBalance = parseFloat(baseBalance || "0");
-    const removals: string[] = [];
-    const EPSILON = 0.0000005; // tolerance for floating point comparisons
 
     let balance = chainBalance;
 
     for (const tx of pendingTxs) {
-        if (tx.accountId !== accountId) continue;
+        if (tx.accountId !== accountId) {
+            continue;
+        }
 
         const txFrom = (tx.from || "").toLowerCase().trim();
+        const isOwnOutgoing =
+            (tx.type === "send" || tx.type === "deploy") &&
+            (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey);
 
-        if (
-            tx.type === "send" &&
-            (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)
-        ) {
-            const expected = tx.expectedBalance
-                ? parseFloat(tx.expectedBalance)
-                : undefined;
-            if (expected !== undefined && chainBalance <= expected + EPSILON) {
-                removals.push(tx.deployId);
-                continue;
-            }
-            const amount = parseFloat(tx.amount || "0");
-            const gasFee = getGasFeeAsNumber();
-            balance -= amount + gasFee;
-        } else if (
-            tx.type === "deploy" &&
-            (txFrom === normalizedRevAddress || txFrom === normalizedPublicKey)
-        ) {
-            const expected = tx.expectedBalance
-                ? parseFloat(tx.expectedBalance)
-                : undefined;
-            if (expected !== undefined && chainBalance <= expected + EPSILON) {
-                removals.push(tx.deployId);
-                continue;
-            }
-            const gasFee = getGasFeeAsNumber();
-            balance -= gasFee;
+        if (!isOwnOutgoing) {
+            continue;
         }
-    }
 
-    if (removals.length > 0) {
-        removals.forEach(removePendingTransaction);
+        const amount = tx.type === "send" ? parseFloat(tx.amount || "0") : 0;
+
+        const gasFee = getGasFeeAsNumber();
+
+        balance -= amount + gasFee;
     }
 
     return Math.max(0, balance).toFixed(8);
+};
+
+// const RECONCILE_STALE_MS = 5 * 60 * 1000;
+
+const FINALIZED_TX_STATUSES = new Set([
+    "confirmed",
+    "completed",
+    "error",
+    "errored",
+    "failed",
+]);
+
+const reconcilePendingForAccount = async (
+    account: Account,
+    rchain: RChainService,
+): Promise<boolean> => {
+    const pendingTransactions: PendingTransaction[] =
+        loadPendingTransactions().filter((tx) => tx.accountId === account.id);
+
+    if (pendingTransactions.length === 0) {
+        return false;
+    }
+
+    let history: RChainTx[] = [];
+
+    try {
+        history = await rchain.fetchTransactionHistory(
+            account.revAddress,
+            account.publicKey,
+        );
+    } catch (error) {
+        console.warn(
+            "[reconcilePendingForAccount] Failed to load transaction history:",
+            error,
+        );
+    }
+
+    const finalizedDeployIds = new Set(
+        history
+            .filter((tx) => FINALIZED_TX_STATUSES.has(tx.status))
+            .map((tx) => tx.deployId),
+    );
+
+    let removedAny = false;
+
+    for (const transactionForCheck of pendingTransactions) {
+        if (finalizedDeployIds.has(transactionForCheck.deployId)) {
+            removePendingTransaction(transactionForCheck.deployId);
+
+            removedAny = true;
+
+            continue;
+        }
+    }
+
+    return removedAny;
 };
 
 export const fetchBalance = createAsyncThunk(
@@ -488,10 +523,32 @@ export const fetchBalance = createAsyncThunk(
             network.shardId,
             network.graphqlUrl,
         );
-        const atomicBalance = await rchain.getBalance(
+        let atomicBalance = await rchain.getBalance(
             account.revAddress,
             forceRefresh,
         );
+
+        const isPendingTransactionsExist = loadPendingTransactions().some(
+            (tx) => tx.accountId === account.id,
+        );
+
+        if (!isPendingTransactionsExist) {
+            const chainBalance = parseInt(atomicBalance) / 100000000;
+
+            return {
+                accountId: account.id,
+                balance: Math.max(0, chainBalance).toFixed(8),
+            };
+        }
+
+        const removedPending = await reconcilePendingForAccount(
+            account,
+            rchain,
+        );
+
+        if (removedPending) {
+            atomicBalance = await rchain.getBalance(account.revAddress, true);
+        }
 
         const baseBalance = (parseInt(atomicBalance) / 100000000).toString();
         const balanceWithPending = calculateBalanceWithPending(
@@ -633,26 +690,6 @@ export const sendTransaction = createAsyncThunk(
             throw new Error("Sending to Ethereum addresses is not supported");
         }
 
-        let expectedBalanceAfterConfirmation: string | undefined;
-        try {
-            const atomicBalanceBefore = await rchain.getBalance(
-                from.revAddress,
-                true,
-            );
-            const chainBalanceBefore = Number(atomicBalanceBefore) / 100000000;
-            const gasFee = getGasFeeAsNumber();
-            const expected = Math.max(
-                0,
-                chainBalanceBefore - amountNum - gasFee,
-            );
-            expectedBalanceAfterConfirmation = expected.toFixed(8);
-        } catch (error) {
-            console.warn(
-                "[sendTransaction] Failed to fetch balance before transfer for pending metadata:",
-                error,
-            );
-        }
-
         const deployId = await rchain.transfer(
             from.revAddress,
             to,
@@ -679,7 +716,6 @@ export const sendTransaction = createAsyncThunk(
             timestamp: new Date().toISOString(),
             accountId: from.id,
             type: "send",
-            expectedBalance: expectedBalanceAfterConfirmation,
         });
 
         return transaction;
