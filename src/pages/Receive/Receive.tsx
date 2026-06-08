@@ -344,6 +344,7 @@ export const Receive: React.FC = () => {
                             </InlineButton>
                             <Button
                                 id="history-button"
+                                title="View transaction history"
                                 onClick={() => {
                                     navigate("/history");
                                 }}
