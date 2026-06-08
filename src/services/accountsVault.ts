@@ -81,8 +81,13 @@ export function fromStoredRecord(record: StoredAccountRecord): SecureAccount {
 export function readFromLocalStorage(): SecureAccount[] {
     try {
         const raw = localStorage.getItem(LS_STORAGE_KEY);
+        console.log("ACCOUNTS FROM LS IN RAW: ", raw);
+
         if (!raw) return [];
         const parsed = JSON.parse(raw) as LegacyStorageShape;
+
+        console.log("ACCOUNTS FROM LS: ", parsed);
+
         return Array.isArray(parsed?.accounts) ? parsed.accounts : [];
     } catch {
         return [];

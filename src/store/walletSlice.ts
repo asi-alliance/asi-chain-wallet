@@ -737,23 +737,34 @@ const walletSlice = createSlice({
                 localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
             }
 
+            console.log("SELECT NETWORK!!!!");
+
             try {
                 const userId = SecureStorage.getCurrentUserId();
                 if (!userId) return;
 
-                const encryptedAccounts =
-                    SecureStorage.getEncryptedAccounts(userId);
+                const encryptedAccounts = SecureStorage.getEncryptedAccounts();
+
+                console.log("ENCRYPTED ACCOUNTS: ", encryptedAccounts);
+
                 const { sanitized, updates } = sanitizeAccounts(
                     encryptedAccounts,
                     network.id,
                 );
 
-                if (updates.length > 0) persistAccountNetworkUpdates(updates);
+                console.log("SANITIZED ACCOUNTS: ", encryptedAccounts);
+                console.log("UPDATED: ", updates);
+
+                if (updates.length > 0) {
+                    persistAccountNetworkUpdates(updates);
+                }
 
                 state.accounts = filterAccountsForNetwork(
                     sanitized,
                     network.id,
                 );
+
+                console.log("FILTERED ACCOUNTS FOR NETWORK: ", state.accounts);
             } catch (error) {
                 console.error(
                     "Failed to reload accounts for selected network:",
@@ -1043,7 +1054,7 @@ const walletSlice = createSlice({
                             from: tx.from,
                             to: tx.to ?? "",
                             amount: tx.amount ?? "",
-                            timestamp: (new Date(tx.timestamp)).toString(),
+                            timestamp: new Date(tx.timestamp).toString(),
                             status: (isPendingInStorage
                                 ? "completed"
                                 : tx.status) as Transaction["status"],

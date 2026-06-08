@@ -189,7 +189,7 @@ export const Dashboard: React.FC = () => {
     }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
 
     const accountIdForActions = useMemo(
-        () => selectedAccount?.id ?? accounts[0].id,
+        () => selectedAccount?.id ?? accounts[0]?.id,
         [selectedAccount, accounts],
     );
 
