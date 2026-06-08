@@ -163,7 +163,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
                     {isAuthenticated && accounts.length > 0 && (
                         <AccountSwitcher />
                     )}
-                    <DesktopButton
+                    <IconButton
                         onClick={handleThemeToggle}
                         title={
                             darkMode
@@ -176,7 +176,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
                         ) : (
                             <MoonIcon size={20} />
                         )}
-                    </DesktopButton>
+                    </IconButton>
 
                     {isAuthenticated && (
                         <DesktopButton onClick={handleLogout} title={"Logout"}>
