@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { RootState } from "store";
+import { AppDispatch, RootState } from "store";
 import {
     sendTransaction,
     fetchBalance,
@@ -32,6 +32,8 @@ import {
     QRIcon,
     VectorIcon,
 } from "components/Icons";
+import { unlockAccount } from "store/authSlice";
+import { Account } from "types/wallet";
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -218,7 +220,7 @@ const AccountSelectorWithMarginBottom = styled(AccountSelector)`
 `;
 
 export const Send: React.FC = () => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
     const { selectedAccount, selectedNetwork, isLoading, error } = useSelector(
         (state: RootState) => state.wallet,
@@ -230,6 +232,7 @@ export const Send: React.FC = () => {
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [txHash, setTxHash] = useState("");
     const [validationError, setValidationError] = useState("");
     const [addressError, setAddressError] = useState("");
@@ -471,6 +474,21 @@ export const Send: React.FC = () => {
         needsPassword,
     });
 
+    if (!selectedAccount) {
+        return (
+            <SendContainer>
+                <Card>
+                    <CardContent>
+                        <p>Please select an account first.</p>
+                        <Button onClick={() => navigate("/accounts")}>
+                            Select Account
+                        </Button>
+                    </CardContent>
+                </Card>
+            </SendContainer>
+        );
+    }
+
     const validateForm = () => {
         if (!recipient.trim()) {
             setValidationError("Recipient address is required");
@@ -548,9 +566,28 @@ export const Send: React.FC = () => {
         return true;
     };
 
-    const handleSendClick = () => {
-        if (!validateForm() || !selectedAccount) return;
-        setShowConfirmation(true);
+    const handlePasswordChange = (newPassword: string) => {
+        setPassword(newPassword);
+        setPasswordError("");
+    };
+
+    const handleSendClick = async (): Promise<void> => {
+        if (!validateForm() || !selectedAccount) {
+            return;
+        }
+
+        try {
+            await dispatch(
+                unlockAccount({ accountId: selectedAccount.id, password }),
+            ).unwrap();
+
+            setShowConfirmation(true);
+            setPasswordError("");
+        } catch (error: unknown) {
+            setPasswordError("Invalid password. Please try again.");
+
+            setTimeout(() => setPasswordError(""), 3000);
+        }
     };
 
     const handleConfirmSend = async (passwordFromModal?: string) => {
@@ -586,7 +623,7 @@ export const Send: React.FC = () => {
                 setIsWaitingForBalance(true);
                 setRecipient("");
                 setAmount("");
-                setPassword("");
+                handlePasswordChange("");
 
                 setTimeout(async () => {
                     try {
@@ -711,6 +748,7 @@ export const Send: React.FC = () => {
         setRecipient("");
         setAmount("");
         setPassword("");
+        setPasswordError("");
         setValidationError("");
         setAddressError("");
         setTxHash("");
@@ -734,21 +772,6 @@ export const Send: React.FC = () => {
             setValidationError("");
         }
     };
-
-    if (!selectedAccount) {
-        return (
-            <SendContainer>
-                <Card>
-                    <CardContent>
-                        <p>Please select an account first.</p>
-                        <Button onClick={() => navigate("/accounts")}>
-                            Select Account
-                        </Button>
-                    </CardContent>
-                </Card>
-            </SendContainer>
-        );
-    }
 
     return (
         <SendContainer>
@@ -854,8 +877,10 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
-                    {(error || validationError) && (
-                        <ErrorMessage>{error || validationError}</ErrorMessage>
+                    {(error || validationError || passwordError) && (
+                        <ErrorMessage>
+                            {error || validationError || passwordError}
+                        </ErrorMessage>
                     )}
 
                     <AccountSelectorWithMarginBottom
@@ -1023,11 +1048,13 @@ export const Send: React.FC = () => {
                                 }
                                 type="password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) =>
+                                    handlePasswordChange(e.target.value)
+                                }
                                 onInput={(e) => {
                                     const target = e.currentTarget;
                                     if (target.value !== password) {
-                                        setPassword(target.value);
+                                        handlePasswordChange(target.value);
                                     }
                                 }}
                                 autoComplete="current-password"
@@ -1116,7 +1143,7 @@ export const Send: React.FC = () => {
                 isOpen={showConfirmation}
                 onClose={() => {
                     setShowConfirmation(false);
-                    setPassword("");
+                    handlePasswordChange("");
                 }}
                 onConfirm={handleConfirmSend}
                 amount={amount}
@@ -1125,7 +1152,6 @@ export const Send: React.FC = () => {
                 senderName={selectedAccount?.name || ""}
                 estimatedFee={estimatedFee}
                 loading={isLoading}
-                needsPassword={needsPassword}
                 requirePasswordForTransaction={requirePasswordForTransaction}
             />
         </SendContainer>

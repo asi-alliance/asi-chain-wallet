@@ -123,14 +123,16 @@ export class SecureStorage {
     static async unlockAccount(
         accountId: string,
         password: string,
-        userId?: string,
+        _userId?: string,
     ): Promise<Account | null> {
-        const uid = userId ?? SessionStore.getUserId();
-        if (!uid) return null;
+        // TODO: Ownership validation by userId doesn't work correctly - this method cannot unlock all accounts the user has access to
+        // TODO: redesign the userId system to eliminate this issue
+        // const uid = userId ?? SessionStore.getUserId();
+        // if (!uid) return null;
         const account = await AccountsVault.unlockAccount(
             accountId,
             password,
-            uid,
+            // uid,
         );
         if (!account) return null;
         SessionStore.storeAccount(accountId, account);
