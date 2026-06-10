@@ -326,15 +326,24 @@ export class AccountsVault {
         revAddress?: string,
         ethAddress?: string,
         userId?: string,
+        networkId?: string,
     ): boolean {
         const pool = userId ? this.getAll(userId) : this.accounts;
         const rev = revAddress?.toLowerCase().trim() ?? "";
         const eth = ethAddress?.toLowerCase().trim() ?? "";
+        const normalizedNetworkId = networkId?.toLowerCase().trim() ?? "";
+
         return pool.some((a) => {
             const aRev = a.revAddress?.toLowerCase().trim();
             const aEth = a.ethAddress?.toLowerCase().trim();
+            const aNetworkId = a.networkId?.toLowerCase().trim();
+
             return (
-                (rev && aRev && rev === aRev) || (eth && aEth && eth === aEth)
+                ((rev && aRev && rev === aRev) ||
+                    (eth && aEth && eth === aEth)) &&
+                normalizedNetworkId &&
+                aNetworkId &&
+                normalizedNetworkId === aNetworkId
             );
         });
     }

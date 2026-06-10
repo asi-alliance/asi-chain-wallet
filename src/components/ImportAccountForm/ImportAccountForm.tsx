@@ -143,6 +143,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                 accountData.revAddress,
                 accountData.ethAddress,
                 userId || undefined,
+                selectedNetworkId,
             );
         } catch (error) {
             return false;

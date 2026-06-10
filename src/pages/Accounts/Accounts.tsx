@@ -91,9 +91,6 @@ export const Accounts: React.FC = () => {
     );
     const [showImportModal, setShowImportModal] = useState(false);
 
-    console.log("SELECTED NETWORK ID: ", selectedNetwork?.id);
-    console.log("ACCOUNT: ", accounts);
-
     const filteredAccountIds = useMemo(
         () => filteredAccounts.map((account: Account) => account.id).join(","),
         [filteredAccounts],
