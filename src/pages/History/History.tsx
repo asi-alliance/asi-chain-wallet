@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import styled from "styled-components";
+import { useSelector } from "react-redux";
+import styled, { css } from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import TransactionHistoryService, {
     Transaction,
     TransactionFilter,
 } from "services/transactionHistory";
 import { RChainService } from "services/rchain";
-import TransactionPollingService from "services/transactionPolling";
-import { getTokenDisplayName } from "../../constants/token";
+import { ContentPasteIcon, DownloadIcon } from "components/Icons";
+import { AdaptiveSelect } from "components/Select";
+import { Search } from "components/Search";
+import { AccountSelector } from "components/AccountSelector";
+import { getTokenDisplayName } from "constants/token";
+import { DefaultTheme } from "styled-components/dist/types";
 
 const HistoryContainer = styled.div`
     max-width: 1200px;
@@ -20,15 +23,58 @@ const HistoryContainer = styled.div`
 const FilterSection = styled.div`
     display: flex;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 53px;
     flex-wrap: wrap;
     align-items: flex-end;
+
+    @media (max-width: 1023px) {
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    @media (max-width: 768px) {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
 `;
 
 const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
+
+    @media (min-width: 1024px) {
+        width: auto;
+
+        &:nth-child(1) {
+            flex: 0 0 20%;
+            max-width: 20%;
+        }
+
+        &:nth-child(2) {
+            flex: 0 0 15%;
+            max-width: 15%;
+        }
+
+        &:nth-child(3),
+        &:nth-child(4) {
+            flex: 0 0 18%;
+            max-width: 18%;
+        }
+
+        &:nth-child(5) {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        width: 100%;
+        flex: none;
+        max-width: 100%;
+    }
 `;
 
 const FilterLabel = styled.label`
@@ -37,56 +83,29 @@ const FilterLabel = styled.label`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
-const FilterSelect = styled.select`
+const FilterSearch = styled(Search)`
     padding: 8px 12px;
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 6px;
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
     font-size: 14px;
-    min-width: 150px;
-`;
-
-const FilterInput = styled.input`
-    padding: 8px 12px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
-    min-width: 150px;
-`;
-
-const StatsSection = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-`;
-
-const StatCard = styled(Card)`
-    text-align: center;
-`;
-
-const StatValue = styled.div`
-    font-size: 32px;
-    font-weight: 700;
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 8px;
-`;
-
-const StatLabel = styled.div`
-    // font-size: 14px;
-    color: ${({ theme }) => theme.text.secondary};
+    min-width: auto;
 `;
 
 const TransactionTable = styled.div`
     overflow-x: auto;
+    margin-bottom: 36px;
 `;
 
 const Table = styled.table`
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
+
+    @media (max-width: 1023px) {
+        table-layout: auto;
+    }
 `;
 
 const TableHeader = styled.thead`
@@ -104,56 +123,67 @@ const TableRow = styled.tr`
     }
 `;
 
-const TableCell = styled.td<{ align?: string }>`
-    padding: 12px;
-    text-align: ${({ align }) => align || "left"};
+const TableCell = styled.td<{
+    $align?: string;
+    $themeColorSelector?: (theme: DefaultTheme) => string;
+}>`
+    padding: 6px;
+    text-align: ${({ $align }) => $align || "left"};
     font-size: 14px;
+    ${({ $themeColorSelector, theme }) =>
+        $themeColorSelector &&
+        css`
+            color: ${$themeColorSelector(theme)};
+        `}
 `;
 
-const TableHeaderCell = styled.th<{ align?: string }>`
-    padding: 12px;
-    text-align: ${({ align }) => align || "left"};
-    font-weight: 600;
+const TableHeaderCell = styled.th<{ $align?: string; $width?: string }>`
+    padding: 12px 12px 12px 6px;
+    text-align: ${({ $align }) => $align || "left"};
+    font-weight: 500;
     font-size: 14px;
     color: ${({ theme }) => theme.text.secondary};
+    width: ${({ $width }) => $width || "auto"};
 `;
 
-const StatusBadge = styled.span<{ status: "pending" | "confirmed" | "failed" }>`
+const StatusBadge = styled.span<{
+    $status: "pending" | "confirmed" | "failed";
+}>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
-    background: ${({ status, theme }) =>
-        status === "confirmed"
+    background: ${({ $status, theme }) =>
+        $status === "confirmed"
             ? theme.success + "20"
-            : status === "failed"
-            ? theme.danger + "20"
-            : theme.warning + "20"};
-    color: ${({ status, theme }) =>
-        status === "confirmed"
+            : $status === "failed"
+              ? theme.danger + "20"
+              : theme.warning + "20"};
+    color: ${({ $status, theme }) =>
+        $status === "confirmed"
             ? theme.success
-            : status === "failed"
-            ? theme.danger
-            : theme.warning};
+            : $status === "failed"
+              ? theme.danger
+              : theme.warning};
 `;
 
-const TypeBadge = styled.span<{ type: "send" | "receive" | "deploy" }>`
+const TypeBadge = styled.span<{ $type: "send" | "receive" | "deploy" }>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
-    background: ${({ type, theme }) =>
-        type === "send"
+    background: ${({ $type, theme }) =>
+        $type === "send"
             ? theme.primary + "20"
-            : type === "receive"
-            ? theme.success + "20"
-            : theme.secondary + "20"};
-    color: ${({ type, theme }) =>
-        type === "send"
+            : $type === "receive"
+              ? theme.success + "20"
+              : theme.secondary + "20"};
+    color: ${({ $type, theme }) =>
+        $type === "send"
             ? theme.primary
-            : type === "receive"
-            ? theme.success
-            : theme.secondary};
+            : $type === "receive"
+              ? theme.success
+              : theme.secondary};
 `;
 
 const AddressLink = styled.a`
@@ -172,49 +202,43 @@ const EmptyState = styled.div`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
-const ActionButtons = styled.div`
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-
-    button h3 {
-        font-size: 12px;
-        line-height: 1.4;
-        margin: 0;
-    }
-
-    @media (max-width: 768px) {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-`;
-
-const RefreshInfo = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-`;
-
 const RefreshText = styled.div`
     display: flex;
     flex-direction: column;
+    align-items: end;
     gap: 4px;
-    color: ${({ theme }) => theme.text.secondary};
+    color: ${({ theme }) => theme.textSecondaryAdditional};
     line-height: 1.4;
 `;
 
 const RefreshTextLine = styled.span`
     font-size: 12px;
     white-space: nowrap;
+
+    @media (max-width: 768px) {
+        font-size: 0.5rem;
+    }
+`;
+
+const ExportButtonsWrapper = styled.div`
+    width: 100%;
+    justify-content: end;
+    display: flex;
+    gap: 24px;
+
+    @media (max-width: 1023px) {
+        justify-content: center;
+    }
+`;
+
+const ExportButton = styled(Button)`
+    padding: 10px 24px;
 `;
 
 const formatAddress = (address: string): string => {
     if (!address) return "";
     return `${address.substring(0, 10)}...${address.substring(
-        address.length - 8
+        address.length - 8,
     )}`;
 };
 
@@ -234,19 +258,34 @@ const formatDate = (date: Date): string => {
     return new Date(date).toLocaleString();
 };
 
+const typeOptions = [
+    { id: "all", value: "all", label: "All Types" },
+    { id: "send", value: "send", label: "Send" },
+    { id: "receive", value: "receive", label: "Receive" },
+    { id: "deploy", value: "deploy", label: "Deploy" },
+];
+const statusOptions = [
+    { id: "all", value: "all", label: "All Status" },
+    { id: "pending", value: "pending", label: "Pending" },
+    { id: "confirmed", value: "confirmed", label: "Confirmed" },
+    { id: "failed", value: "failed", label: "Failed" },
+];
+const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
+
 export const History: React.FC = () => {
-    const dispatch = useDispatch();
-    const { selectedAccount, selectedNetwork, networks } = useSelector(
-        (state: RootState) => state.wallet
+    const { selectedAccount, selectedNetwork } = useSelector(
+        (state: RootState) => state.wallet,
     );
     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
     const isAccountUnlocked = React.useMemo(() => {
         if (!selectedAccount) return false;
-        return unlockedAccounts.some((account) => account.id === selectedAccount.id);
+        return unlockedAccounts.some(
+            (account) => account.id === selectedAccount.id,
+        );
     }, [unlockedAccounts, selectedAccount]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [filter, setFilter] = useState<TransactionFilter>({});
-    const [stats, setStats] = useState<any>({});
+    const [_stats, setStats] = useState<any>({});
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const handleCopy = useCallback(async (text: string) => {
@@ -262,12 +301,12 @@ export const History: React.FC = () => {
             return;
         }
 
-        const rchain = new RChainService(
+        const _rchain = new RChainService(
             selectedNetwork.url.trim(),
             selectedNetwork.readOnlyUrl,
             selectedNetwork.adminUrl,
             selectedNetwork.shardId,
-            selectedNetwork.graphqlUrl
+            selectedNetwork.graphqlUrl,
         );
 
         // Optional: lightweight pending status check disabled to avoid heavy polling
@@ -317,37 +356,37 @@ export const History: React.FC = () => {
                 selectedAccount.publicKey,
                 selectedNetwork.name,
                 selectedNetwork.graphqlUrl || "",
-                100
+                100,
             );
 
             let filteredTxs = txs;
             if (filter.type) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.type === filter.type
+                    (tx) => tx.type === filter.type,
                 );
             }
             if (filter.status) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.status === filter.status
+                    (tx) => tx.status === filter.status,
                 );
             }
             if (filter.network) {
                 filteredTxs = filteredTxs.filter(
-                    (tx) => tx.network === filter.network
+                    (tx) => tx.network === filter.network,
                 );
             }
             if (filter.startDate) {
                 const startDate = new Date(filter.startDate);
                 startDate.setHours(0, 0, 0, 0);
                 filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) >= startDate
+                    (tx) => new Date(tx.timestamp) >= startDate,
                 );
             }
             if (filter.endDate) {
                 const endDate = new Date(filter.endDate);
                 endDate.setHours(23, 59, 59, 999);
                 filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) <= endDate
+                    (tx) => new Date(tx.timestamp) <= endDate,
                 );
             }
 
@@ -413,7 +452,7 @@ export const History: React.FC = () => {
                 selectedAccount.revAddress,
                 selectedAccount.publicKey,
                 selectedNetwork.name,
-                selectedNetwork.graphqlUrl || ""
+                selectedNetwork.graphqlUrl || "",
             );
         } catch (error) {}
     };
@@ -427,19 +466,9 @@ export const History: React.FC = () => {
                 selectedAccount.revAddress,
                 selectedAccount.publicKey,
                 selectedNetwork.name,
-                selectedNetwork.graphqlUrl || ""
+                selectedNetwork.graphqlUrl || "",
             );
         } catch (error) {}
-    };
-
-    const handleClearHistory = () => {
-        if (
-            window.confirm(
-                "Transaction history is now loaded directly from the blockchain. Click OK to refresh the data."
-            )
-        ) {
-            loadTransactions();
-        }
     };
 
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
@@ -454,263 +483,91 @@ export const History: React.FC = () => {
     };
 
     const hasActiveFilters = () => {
-        return !!(filter.type || filter.status || filter.network || filter.startDate || filter.endDate);
+        return !!(
+            filter.type ||
+            filter.status ||
+            filter.network ||
+            filter.startDate ||
+            filter.endDate
+        );
     };
 
     return (
         <HistoryContainer>
             <Card>
                 <CardHeader>
-                    <CardTitle>
-                        <h1>Transactions</h1>
-                        {selectedAccount && (
-                            <span
-                                style={{
-                                    fontSize: "14px",
-                                    fontWeight: "normal",
-                                    marginLeft: "8px",
-                                    opacity: 0.7,
-                                }}
-                            >
-                                ({selectedAccount.name})
-                            </span>
-                        )}
-                    </CardTitle>
+                    <CardTitle>Transactions</CardTitle>
+                    <RefreshText>
+                        <RefreshTextLine>
+                            Auto-refresh: every 30s
+                        </RefreshTextLine>
+                        <RefreshTextLine>
+                            Last: {lastRefresh.toLocaleTimeString()}
+                        </RefreshTextLine>
+                    </RefreshText>
                 </CardHeader>
                 <CardContent>
-                    <ActionButtons>
-                        <RefreshInfo>
-                            <RefreshText>
-                                <RefreshTextLine>
-                                    Auto-refresh: every 30s
-                                </RefreshTextLine>
-                                <RefreshTextLine>
-                                    Last: {lastRefresh.toLocaleTimeString()}
-                                </RefreshTextLine>
-                            </RefreshText>
-                            <Button
-                                id="history-refresh-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={async () => {
-                                    TransactionPollingService.forceCheck();
-
-                                    if (
-                                        selectedAccount &&
-                                        selectedNetwork &&
-                                        selectedNetwork.graphqlUrl
-                                    ) {
-                                        try {
-                                                await TransactionHistoryService.syncFromBlockchain(
-                                                    selectedAccount.revAddress,
-                                                    selectedAccount.publicKey,
-                                                    selectedNetwork.name,
-                                                    selectedNetwork.graphqlUrl
-                                                );
-                                        } catch (error) {}
-                                    }
-
-                                    if (selectedAccount && selectedNetwork) {
-                                        try {
-                                            const oldBalance =
-                                                selectedAccount.balance || "0";
-                                            const balanceResult =
-                                                await dispatch(
-                                                    fetchBalance({
-                                                        account:
-                                                            selectedAccount,
-                                                        network:
-                                                            selectedNetwork,
-                                                    }) as any
-                                                );
-
-                                            if (
-                                                fetchBalance.fulfilled.match(
-                                                    balanceResult
-                                                )
-                                            ) {
-                                                const newBalance =
-                                                    balanceResult.payload
-                                                        .balance;
-
-                                                if (
-                                                    parseFloat(newBalance) >
-                                                    parseFloat(oldBalance)
-                                                ) {
-                                                    TransactionHistoryService.detectReceivedTransaction(
-                                                        selectedAccount.revAddress,
-                                                        oldBalance,
-                                                        newBalance,
-                                                        selectedNetwork.name
-                                                    );
-                                                }
-                                            }
-                                        } catch (error) {}
-                                    }
-
-                                    loadTransactions();
-                                    setLastRefresh(new Date());
-                                }}
-                            >
-                                <h3>🔄 Refresh & Sync</h3>
-                            </Button>
-                            {selectedAccount && (
-                                <Button
-                                    id="history-refresh-balance-button"
-                                    size="small"
-                                    variant="secondary"
-                                    onClick={async () => {
-                                        if (
-                                            selectedAccount &&
-                                            selectedNetwork
-                                        ) {
-                                            try {
-                                                await dispatch(
-                                                    fetchBalance({
-                                                        account:
-                                                            selectedAccount,
-                                                        network:
-                                                            selectedNetwork,
-                                                        forceRefresh: true,
-                                                    }) as any
-                                                );
-                                            } catch (error) {}
-                                        }
-                                    }}
-                                >
-                                    <h3>💰 Refresh Balance</h3>
-                                </Button>
-                            )}
-                        </RefreshInfo>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                            <Button
-                                id="history-export-json-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleExportJSON}
-                            >
-                                <h3>Export JSON</h3>
-                            </Button>
-                            <Button
-                                id="history-export-csv-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleExportCSV}
-                            >
-                                <h3>Export CSV</h3>
-                            </Button>
-                            <Button
-                                id="history-clear-button"
-                                size="small"
-                                variant="ghost"
-                                onClick={handleClearHistory}
-                            >
-                                <h3>Clear History</h3>
-                            </Button>
-                        </div>
-                    </ActionButtons>
-
                     <FilterSection>
-                        <FilterGroup>
-                            <FilterLabel>
-                                <h4>Type</h4>
-                            </FilterLabel>
-                            <FilterSelect
-                                id="history-filter-type-select"
-                                value={filter.type || "all"}
-                                onChange={(e) =>
-                                    handleFilterChange("type", e.target.value)
-                                }
-                            >
-                                <option value="all">All Types</option>
-                                <option value="send">Send</option>
-                                <option value="receive">Receive</option>
-                                <option value="deploy">Deploy</option>
-                            </FilterSelect>
-                        </FilterGroup>
+                        <AccountSelector />
 
                         <FilterGroup>
                             <FilterLabel>
-                                <h4>Status</h4>
+                                <h4 className="light">Search</h4>
                             </FilterLabel>
-                            <FilterSelect
-                                id="history-filter-status-select"
-                                value={filter.status || "all"}
-                                onChange={(e) =>
-                                    handleFilterChange("status", e.target.value)
-                                }
-                            >
-                                <option value="all">All Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="confirmed">Confirmed</option>
-                                <option value="failed">Failed</option>
-                            </FilterSelect>
-                        </FilterGroup>
-
-                        <FilterGroup>
-                            <FilterLabel>
-                                <h4>Network</h4>
-                            </FilterLabel>
-                            <FilterSelect
-                                id="history-filter-network-select"
-                                value={filter.network || "all"}
-                                onChange={(e) =>
-                                    handleFilterChange("network", e.target.value)
-                                }
-                            >
-                                <option value="all">All Networks</option>
-                                {networks.map((network) => (
-                                    <option key={network.id} value={network.name}>
-                                        {network.name}
-                                    </option>
-                                ))}
-                            </FilterSelect>
-                        </FilterGroup>
-
-                        <FilterGroup>
-                            <FilterLabel>
-                                <h4>Start Date</h4>
-                            </FilterLabel>
-                            <FilterInput
-                                id="history-filter-start-date-input"
-                                type="date"
-                                value={filter.startDate ? new Date(filter.startDate).toISOString().split('T')[0] : ""}
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        const dateStr = e.target.value;
-                                        const date = new Date(dateStr + 'T00:00:00');
-                                        handleFilterChange("startDate", date);
-                                    } else {
-                                        handleFilterChange("startDate", undefined);
-                                    }
-                                }}
+                            <FilterSearch
+                                className="text-2"
+                                placeholder="Search"
+                                disabled
+                                wrapperStyle={{ marginBottom: "0" }}
                             />
                         </FilterGroup>
 
                         <FilterGroup>
                             <FilterLabel>
-                                <h4>End Date</h4>
+                                <h4 className="light">Type</h4>
                             </FilterLabel>
-                            <FilterInput
-                                id="history-filter-end-date-input"
-                                type="date"
-                                value={filter.endDate ? new Date(filter.endDate).toISOString().split('T')[0] : ""}
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        const dateStr = e.target.value;
-                                        const date = new Date(dateStr + 'T23:59:59');
-                                        handleFilterChange("endDate", date);
-                                    } else {
-                                        handleFilterChange("endDate", undefined);
-                                    }
-                                }}
+                            <AdaptiveSelect
+                                id="history-filter-type-select"
+                                value={filter.type || "all"}
+                                onChange={(value) =>
+                                    handleFilterChange("type", value)
+                                }
+                                options={typeOptions}
+                            />
+                        </FilterGroup>
+
+                        <FilterGroup>
+                            <FilterLabel>
+                                <h4 className="light">Status</h4>
+                            </FilterLabel>
+                            <AdaptiveSelect
+                                id="history-filter-status-select"
+                                value={filter.status || "all"}
+                                onChange={(value) =>
+                                    handleFilterChange("status", value)
+                                }
+                                options={statusOptions}
+                            />
+                        </FilterGroup>
+
+                        <FilterGroup>
+                            <FilterLabel>
+                                <h4 className="light">Period</h4>
+                            </FilterLabel>
+                            <AdaptiveSelect
+                                id="history-filter-week-select"
+                                value="1 Week"
+                                onChange={() => {}}
+                                disabled
+                                placeholder="1 Week"
+                                options={weekOptions}
                             />
                         </FilterGroup>
 
                         {hasActiveFilters() && (
                             <FilterGroup>
                                 <FilterLabel>
-                                    <h4>&nbsp;</h4>
+                                    <h4 className="light">&nbsp;</h4>
                                 </FilterLabel>
                                 <Button
                                     id="history-clear-filters-button"
@@ -723,183 +580,209 @@ export const History: React.FC = () => {
                             </FilterGroup>
                         )}
                     </FilterSection>
-
-                    <StatsSection>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.total || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Total Transactions</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.sent || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Sent</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.received || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Receive</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                        <StatCard>
-                            <CardContent>
-                                <StatValue>{stats.deployed || 0}</StatValue>
-                                <StatLabel>
-                                    <h4>Deployments</h4>
-                                </StatLabel>
-                            </CardContent>
-                        </StatCard>
-                    </StatsSection>
-
                     {transactions.length > 0 ? (
-                        <TransactionTable>
-                            <Table>
-                                <TableHeader>
-                                    <tr>
-                                        <TableHeaderCell>Date</TableHeaderCell>
-                                        <TableHeaderCell>Type</TableHeaderCell>
-                                        <TableHeaderCell>
-                                            Status
-                                        </TableHeaderCell>
-                                        <TableHeaderCell>From</TableHeaderCell>
-                                        <TableHeaderCell>To</TableHeaderCell>
-                                        <TableHeaderCell align="right">
-                                            Amount
-                                        </TableHeaderCell>
-                                        <TableHeaderCell>
-                                            Details
-                                        </TableHeaderCell>
-                                    </tr>
-                                </TableHeader>
-                                <TableBody>
-                                    {transactions.map((tx) => (
-                                        <TableRow
-                                            key={tx.id}
-                                            id={`history-transaction-row-${tx.id}`}
-                                        >
-                                            <TableCell>
-                                                {formatDate(tx.timestamp)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <TypeBadge type={tx.type}>
-                                                    {tx.type}
-                                                </TypeBadge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <StatusBadge status={tx.status}>
-                                                    {tx.status}
-                                                </StatusBadge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {tx.from === "Unknown" ? (
-                                                    <span
-                                                        style={{
-                                                            color: "inherit",
-                                                            opacity: 0.5,
-                                                        }}
+                        <div className="transactions-table-wrapper">
+                            <TransactionTable>
+                                <Table>
+                                    <TableHeader>
+                                        <tr>
+                                            <TableHeaderCell
+                                                style={{ width: "10%" }}
+                                            >
+                                                Date
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "10%" }}
+                                            >
+                                                Type
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "12%" }}
+                                            >
+                                                Status
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "17%" }}
+                                            >
+                                                From
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "17%" }}
+                                            >
+                                                To
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "17%" }}
+                                            >
+                                                Amount
+                                            </TableHeaderCell>
+                                            <TableHeaderCell
+                                                style={{ width: "17%" }}
+                                            >
+                                                Details
+                                            </TableHeaderCell>
+                                        </tr>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {transactions.map((tx: Transaction) => (
+                                            <TableRow
+                                                key={tx.id}
+                                                id={`history-transaction-row-${tx.id}`}
+                                            >
+                                                <TableCell
+                                                    $themeColorSelector={(
+                                                        theme: DefaultTheme,
+                                                    ) => theme.text.secondary}
+                                                >
+                                                    {formatDate(tx.timestamp)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <TypeBadge $type={tx.type}>
+                                                        {tx.type}
+                                                    </TypeBadge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <StatusBadge
+                                                        $status={tx.status}
                                                     >
-                                                        Unknown
-                                                    </span>
-                                                ) : (
-                                                    <AddressLink
-                                                        href="#"
-                                                        onClick={(e) =>
-                                                            e.preventDefault()
-                                                        }
-                                                    >
-                                                        {formatAddress(tx.from)}
-                                                    </AddressLink>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {tx.to ? (
-                                                    <AddressLink
-                                                        href="#"
-                                                        onClick={(e) =>
-                                                            e.preventDefault()
-                                                        }
-                                                    >
-                                                        {formatAddress(tx.to)}
-                                                    </AddressLink>
-                                                ) : (
-                                                    "-"
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {formatAmount(tx.amount)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {tx.note && (
-                                                    <div
-                                                        style={{
-                                                            fontSize: "12px",
-                                                            marginBottom: "4px",
-                                                        }}
-                                                    >
-                                                        {tx.note}
-                                                    </div>
-                                                )}
-                                                {tx.deployId && (
-                                                    <div
-                                                        style={{
-                                                            fontSize: "11px",
-                                                            fontFamily:
-                                                                "monospace",
-                                                        }}
-                                                    >
-                                                        Deploy:{" "}
-                                                        {tx.deployId.substring(
-                                                            0,
-                                                            16
-                                                        )}
-                                                        ...
-                                                        <a
-                                                            id={`copy-deployid-${tx.id}`}
-                                                            href="#"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                handleCopy(
-                                                                    tx.deployId as string
-                                                                );
-                                                            }}
+                                                        {tx.status}
+                                                    </StatusBadge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {tx.from === "Unknown" ? (
+                                                        <span
                                                             style={{
-                                                                marginLeft: 8,
+                                                                color: "inherit",
+                                                                opacity: 0.5,
                                                             }}
                                                         >
-                                                            Copy
-                                                        </a>
-                                                    </div>
-                                                )}
-                                                {tx.blockHash && (
-                                                    <div
-                                                        style={{
-                                                            fontSize: "11px",
-                                                            fontFamily:
-                                                                "monospace",
-                                                        }}
-                                                    >
-                                                        Block:{" "}
-                                                        {tx.blockHash.substring(
-                                                            0,
-                                                            16
-                                                        )}
-                                                        ...
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TransactionTable>
+                                                            Unknown
+                                                        </span>
+                                                    ) : (
+                                                        <AddressLink
+                                                            href="#"
+                                                            onClick={(e) =>
+                                                                e.preventDefault()
+                                                            }
+                                                        >
+                                                            {formatAddress(
+                                                                tx.from,
+                                                            )}
+                                                        </AddressLink>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {tx.to ? (
+                                                        <AddressLink
+                                                            href="#"
+                                                            onClick={(e) =>
+                                                                e.preventDefault()
+                                                            }
+                                                        >
+                                                            {formatAddress(
+                                                                tx.to,
+                                                            )}
+                                                        </AddressLink>
+                                                    ) : (
+                                                        "-"
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {formatAmount(tx.amount)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {tx.note && (
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    "12px",
+                                                                marginBottom:
+                                                                    "4px",
+                                                            }}
+                                                        >
+                                                            {tx.note}
+                                                        </div>
+                                                    )}
+                                                    {tx.deployId && (
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    "11px",
+                                                                fontFamily:
+                                                                    "monospace",
+                                                                display:
+                                                                    "inline-flex",
+                                                                alignItems:
+                                                                    "center",
+                                                            }}
+                                                        >
+                                                            {tx.deployId.substring(
+                                                                0,
+                                                                16,
+                                                            )}
+                                                            …
+                                                            {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+                                                            <a
+                                                                title="Copy Deploy ID"
+                                                                id={`copy-deployid-${tx.id}`}
+                                                                href="#"
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.preventDefault();
+                                                                    handleCopy(
+                                                                        tx.deployId as string,
+                                                                    );
+                                                                }}
+                                                                style={{
+                                                                    marginLeft: 8,
+                                                                    height: 16,
+                                                                }}
+                                                            >
+                                                                <ContentPasteIcon />
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                    {tx.blockHash && (
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    "11px",
+                                                                fontFamily:
+                                                                    "monospace",
+                                                            }}
+                                                        >
+                                                            Block:{" "}
+                                                            {tx.blockHash.substring(
+                                                                0,
+                                                                16,
+                                                            )}
+                                                            ...
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TransactionTable>
+                            <ExportButtonsWrapper>
+                                <ExportButton
+                                    variant="secondary"
+                                    onClick={handleExportCSV}
+                                >
+                                    <h3>Export CSV</h3>
+                                    <DownloadIcon size={24} />
+                                </ExportButton>
+                                <ExportButton
+                                    variant="secondary"
+                                    onClick={handleExportJSON}
+                                >
+                                    <h3>Export JSON</h3>
+                                    <DownloadIcon size={24} />
+                                </ExportButton>
+                            </ExportButtonsWrapper>
+                        </div>
                     ) : (
                         <EmptyState>
                             {selectedAccount ? (

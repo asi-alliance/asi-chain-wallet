@@ -6,81 +6,10 @@ This guide details all environment variables and configuration options for ASI C
 
 ## Table of Contents
 
-1. [Network Configuration](#network-configuration)
-2. [Network Management](#network-management)
-3. [Transaction Storage](#transaction-storage)
-4. [Performance Settings](#performance-settings)
-5. [Docker Configuration](#docker-configuration)
-
-## Network Configuration
-
-The wallet supports multiple network endpoints configured through environment variables.
-
-### F1R3FLY Network Endpoints
-
-All network endpoints are currently commented out in `.env.example`. The active configuration is set in `docker-compose.yml`.
-
-#### Mainnet (Production - AWS Lightsail Singapore)
-
-From `docker-compose.yml`:
-```env
-REACT_APP_RCHAIN_HTTP_URL=http://44.198.8.24:40413
-REACT_APP_RCHAIN_GRPC_URL=http://44.198.8.24:40412
-REACT_APP_RCHAIN_READONLY_URL=http://44.198.8.24:40453
-```
-
-**Port Configuration**:
-- HTTP Port: `40413` (validator HTTP endpoint)
-- gRPC Port: `40412` (validator gRPC endpoint)
-- Read-only Port: `40453` (read-only queries)
-
-#### GraphQL and Indexer
-
-```env
-REACT_APP_GRAPHQL_URL=http://44.198.8.24:8080/v1/graphql
-REACT_APP_INDEXER_API_URL=http://44.198.8.24:9090
-```
-
-**Port Configuration**:
-- GraphQL: `8080` (with `/v1/graphql` path)
-- Indexer API: `9090`
-
-#### Network Identity
-
-```env
-REACT_APP_NETWORK_NAME=F1R3FLY Network
-REACT_APP_NETWORK_ID=f1r3fly-mainnet
-```
-
-### Local Development
-
-For local development with a running F1R3FLY node:
-
-```env
-REACT_APP_FIREFLY_LOCAL_URL=http://localhost:40413
-REACT_APP_FIREFLY_LOCAL_READONLY_URL=http://localhost:40453
-REACT_APP_FIREFLY_LOCAL_ADMIN_URL=http://localhost:40405
-REACT_APP_FIREFLY_LOCAL_GRAPHQL_URL=http://localhost:8080/v1/graphql
-```
-
-### Testnet
-
-Testnet endpoints are commented out in `.env.example`. To use testnet, uncomment and configure:
-
-```env
-REACT_APP_FIREFLY_TESTNET_URL=http://13.251.66.61:40413
-REACT_APP_FIREFLY_TESTNET_READONLY_URL=http://13.251.66.61:40453
-```
-
-### Legacy RChain Endpoints
-
-For backward compatibility, legacy endpoint variables are available:
-
-```env
-REACT_APP_RCHAIN_HTTP_URL=http://localhost:40413
-REACT_APP_RCHAIN_GRPC_URL=http://localhost:40412
-REACT_APP_RCHAIN_READONLY_URL=http://localhost:40453
-```
+1. [Network Management](#network-management)
+2. [Transaction Storage](#transaction-storage)
+3. [Performance Settings](#performance-settings)
+4. [Docker Configuration](#docker-configuration)
 
 ## Network Management
 
@@ -89,7 +18,7 @@ The wallet uses a dual approach for managing network configurations:
 ### Environment-based Networks
 
 - Networks are defined in `process.env.NETWORKS`
-- Create React App receives values through `config-overrides.js` (DefinePlugin + reading `.env`/`.env.local`)
+- Create React App receives values through `config-overrides.js` (DefinePlugin + reading `.env`)
 - These predefined networks are **read-only** and cannot be modified by users
 
 ### Custom Networks

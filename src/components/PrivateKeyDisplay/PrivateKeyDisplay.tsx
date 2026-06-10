@@ -63,11 +63,11 @@ const KeyContainer = styled.div`
     align-items: center;
 `;
 
-const KeyValue = styled.div<{ isVisible: boolean }>`
+const KeyValue = styled.div<{ $isVisible: boolean }>`
     flex: 1;
-    filter: ${({ isVisible }) => (isVisible ? "none" : "blur(8px)")};
+    filter: ${({ $isVisible }) => ($isVisible ? "none" : "blur(8px)")};
     transition: filter 0.3s ease;
-    user-select: ${({ isVisible }) => (isVisible ? "text" : "none")};
+    user-select: ${({ $isVisible }) => ($isVisible ? "text" : "none")};
     padding-right: 60px;
 `;
 
@@ -89,13 +89,14 @@ const ActionButtons = styled.div`
     display: flex;
     gap: 12px;
     margin-top: 24px;
+    align-items: center;
 `;
 
 const InfoBox = styled.div`
     background: ${({ theme }) => `${theme.primary}10`};
     border: 1px solid ${({ theme }) => `${theme.primary}30`};
     border-radius: 8px;
-    padding: 16px;
+    padding: 8px 8px 8px 16px;
     margin-bottom: 24px;
 `;
 
@@ -163,16 +164,14 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
         <Container>
             <SecurityWarning>
                 <WarningIcon>🔐</WarningIcon>
-                <WarningTitle>
-                    <h3>IMPORTANT: Save Your Private Key</h3>
-                </WarningTitle>
+                <WarningTitle>IMPORTANT: Save Your Private Key</WarningTitle>
                 <WarningText>
-                    <div className="text-2">
+                    <span className="text-2">
                         This is the only time you'll see your private key in
                         plain text.
                         <strong> Save it somewhere safe!</strong> If you lose
                         this key, you'll lose access to your account forever.
-                    </div>
+                    </span>
                 </WarningText>
             </SecurityWarning>
 
@@ -183,7 +182,7 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                             <h3>Account: {accountName}</h3>
                         </KeyLabel>
                         <KeyContainer>
-                            <KeyValue isVisible={isVisible}>
+                            <KeyValue $isVisible={isVisible}>
                                 <h3>{privateKey}</h3>
                             </KeyValue>
                             <ToggleButton
@@ -222,18 +221,21 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
                     </InfoBox>
 
                     <ActionButtons>
+                        <Button
+                            onClick={onContinue}
+                            style={{ flex: 1, height: "auto" }}
+                        >
+                            <h3>I've Saved My Private Key</h3>
+                        </Button>
                         {showBackButton && onBack && (
                             <Button
-                                variant="ghost"
+                                variant="secondary"
                                 onClick={onBack}
                                 style={{ flex: 1 }}
                             >
                                 <h3>Back</h3>
                             </Button>
                         )}
-                        <Button onClick={onContinue} style={{ flex: 1 }}>
-                            <h3>I've Saved My Private Key</h3>
-                        </Button>
                     </ActionButtons>
                 </CardContent>
             </Card>

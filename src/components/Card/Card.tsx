@@ -48,23 +48,26 @@ export const CardHeader = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 36px;
     padding-bottom: 16px;
     border-bottom: 1px solid ${({ theme }) => theme.border};
+
+    @media (max-width: 1023px) {
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
 `;
 
-export const CardTitle = styled.h2`
-    // font-size: 28px;
+export const CardTitle = styled.h1`
+    font-size: 2rem;
     line-height: 36px;
-    font-weight: 600;
     color: ${({ theme }) => theme.text.primary};
     margin: 0;
     letter-spacing: -0.02em;
 `;
 
 export const CardContent = styled.div`
-    font-size: 16px;
-    line-height: 26px;
+    font-size: 1rem;
     font-weight: 400;
 
     p {
