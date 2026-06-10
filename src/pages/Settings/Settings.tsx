@@ -2,15 +2,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
-    Button,
-    PrivateKeyDisplay,
-    PasswordModal,
-} from "components";
+import { PrivateKeyDisplay, PasswordModal } from "components";
 import { CustomNetworkConfig } from "./CustomNetworkConfig";
 import { SecureStorage } from "services/secureStorage";
 
@@ -19,31 +11,15 @@ const SettingsContainer = styled.div`
     margin: 0 auto;
 `;
 
-const NetworkCard = styled(Card)`
-    margin-bottom: 24px;
-    margin-top: 1.5rem;
-`;
-
-const Link = styled.div`
-    // font-size: 13px;
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 4px;
-    cursor: pointer;
-
-    &:hover {
-        text-decoration: underline;
-    }
-`;
-
 export const Settings: React.FC = () => {
     const { accounts } = useSelector((state: RootState) => state.wallet);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [selectedAccountForPrivateKey, setSelectedAccountForPrivateKey] =
         useState<string | null>(null);
-    const [privateKeyPassword, setPrivateKeyPassword] = useState("");
+    const [_privateKeyPassword, setPrivateKeyPassword] = useState("");
     const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-    const handleViewPrivateKey = (accountId: string) => {
+    const _handleViewPrivateKey = (accountId: string) => {
         setSelectedAccountForPrivateKey(accountId);
         setShowPasswordModal(true);
     };
@@ -52,7 +28,7 @@ export const Settings: React.FC = () => {
         if (selectedAccountForPrivateKey) {
             const account = await SecureStorage.unlockAccount(
                 selectedAccountForPrivateKey,
-                password
+                password,
             );
             if (account?.privateKey) {
                 setPrivateKeyPassword(password);
@@ -72,85 +48,7 @@ export const Settings: React.FC = () => {
 
     return (
         <SettingsContainer>
-            <h2>Network Settings</h2>
-
             <CustomNetworkConfig />
-
-            {/* Private Keys Section */}
-            <NetworkCard>
-                <CardHeader>
-                    <CardTitle>
-                        <h1>Private Keys Management</h1>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p style={{ marginBottom: "20px", color: "#666" }}>
-                        View and export your private keys. Keep them safe and
-                        never share them with anyone.
-                    </p>
-
-                    {accounts.length === 0 ? (
-                        <p>No accounts found. Create an account first.</p>
-                    ) : (
-                        <div
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "12px",
-                            }}
-                        >
-                            {accounts.map((account) => (
-                                <div
-                                    key={account.id}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        padding: "12px",
-                                        borderRadius: "8px",
-                                    }}
-                                >
-                                    <div>
-                                        <div
-                                            style={{
-                                                fontWeight: "600",
-                                                marginBottom: "4px",
-                                            }}
-                                        >
-                                            {account.name}
-                                        </div>
-                                        <Link>
-                                            <div
-                                                className="text-3"
-                                                style={{
-                                                    // fontSize: "12px",
-                                                    fontFamily: "monospace",
-                                                }}
-                                            >
-                                                {account.revAddress.slice(
-                                                    0,
-                                                    10
-                                                )}
-                                                ...
-                                                {account.revAddress.slice(-8)}
-                                            </div>
-                                        </Link>
-                                    </div>
-                                    <Button
-                                        variant="primary"
-                                        size="small"
-                                        onClick={() =>
-                                            handleViewPrivateKey(account.id)
-                                        }
-                                    >
-                                        <h3>View Private Key</h3>
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </NetworkCard>
 
             {/* Password Modal for Private Key */}
             {showPasswordModal && selectedAccountForPrivateKey && (
@@ -186,13 +84,13 @@ export const Settings: React.FC = () => {
                         <PrivateKeyDisplay
                             privateKey={
                                 SecureStorage.getUnlockedAccount(
-                                    selectedAccountForPrivateKey ?? ''
+                                    selectedAccountForPrivateKey ?? "",
                                 )?.privateKey ?? ""
                             }
                             accountName={
                                 accounts.find(
                                     (acc) =>
-                                        acc.id === selectedAccountForPrivateKey
+                                        acc.id === selectedAccountForPrivateKey,
                                 )?.name || ""
                             }
                             onContinue={handlePrivateKeyClose}

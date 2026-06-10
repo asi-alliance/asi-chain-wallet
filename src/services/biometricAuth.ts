@@ -480,7 +480,7 @@ export class BiometricAuthService {
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
 
-      const options: PublicKeyCredentialCreationOptions = {
+      const _options: PublicKeyCredentialCreationOptions = {
         challenge,
         rp: { name: 'Test', id: this.RP_ID },
         user: {

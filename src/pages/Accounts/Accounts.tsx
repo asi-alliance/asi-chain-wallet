@@ -1,239 +1,117 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Fragment } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import {
-    selectAccount,
-    removeAccount,
-    syncAccounts,
-    fetchBalance,
-} from "store/walletSlice";
-import {
-    createAccountWithPassword,
-    importAccountWithPassword,
-    exportAccountKeyfile,
-} from "store/authSlice";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
-    Button,
-    Input,
-    PrivateKeyDisplay,
-} from "components";
-import { PasswordSetup } from "components/PasswordSetup";
-import { SecureStorage } from "services/secureStorage";
-import { validateAccountName } from "utils/textUtils";
-import { getAddressLabel } from "../../constants/token";
-import { formatBalanceCard } from "utils/balanceUtils";
-import { importPrivateKey, importEthAddress, importRevAddress } from "utils/crypto";
-import CopyButton from "components/CopyButton";
+import { fetchBalance } from "store/walletSlice";
+import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
+import { ReloadIcon } from "components/Icons";
+import { AccountCard } from "components/AccountCard";
+import { Account } from "types/wallet";
+import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
+import { useSearchParams } from "react-router-dom";
+import { CreateAccountModal } from "components/CreateAccountModal";
+import { ImportAccountModal } from "components/ImportAccountModal";
+import { useScreen } from "hooks/";
 
-const AccountsContainer = styled.div`
-    max-width: 800px;
-    margin: 0 auto;
-`;
+const AccountsContainer = styled.div``;
 
 const AccountsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(462px, 1fr));
     gap: 20px;
     margin-bottom: 32px;
-`;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 6px 0;
 
-const AccountCard = styled(Card)<{ isSelected: boolean }>`
-    border: 2px solid
-        ${({ isSelected, theme }) =>
-            isSelected ? theme.primary : theme.border};
-    cursor: pointer;
-    transition: all 0.2s ease;
+    align-items: start;
 
-    &:hover {
-        border-color: ${({ theme }) => theme.primary};
-        transform: translateY(-2px);
+    & > * {
+        height: auto;
+        flex-shrink: 0;
     }
-`;
-
-const AccountHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-`;
-
-const AccountName = styled.h3`
-    font-size: 18px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.text.primary};
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 250px;
-`;
-
-const AccountBalance = styled.div`
-    font-size: 16px;
-    font-weight: 600;
-    color: ${({ theme }) => theme.primary};
-`;
-
-const AccountAddress = styled.div`
-    font-size: 12px;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 16px;
-    word-break: break-all;
-`;
-
-const AccountActions = styled.div`
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-`;
-
-const CreateAccountSection = styled.div`
-    margin-bottom: 32px;
-`;
-
-const ImportAccountSection = styled.div`
-    margin-bottom: 32px;
-`;
-
-const FormContainer = styled.div`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-top: 24px;
 
     @media (max-width: 768px) {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+
+        & > * {
+            width: 100%;
+        }
     }
 `;
 
-const ImportTypeSelector = styled.select`
-    padding: 12px 16px;
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 16px;
-    margin-bottom: 16px;
+const AccountsActionsFooter = styled.div`
     width: 100%;
-`;
-
-const WarningMessage = styled.div`
-    background: ${({ theme }) => `${theme.warning}20`};
-    border: 1px solid ${({ theme }) => `${theme.warning}40`};
-    color: ${({ theme }) => theme.warning};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 16px;
 
-    .icon {
-        font-size: 16px;
+    @media (max-width: 768px) {
+        flex-direction: column;
+        padding: 0 3rem;
     }
 `;
 
-const SuccessMessage = styled.div`
-    background: ${({ theme }) => `${theme.success || "#7ED321"}20`};
-    border: 1px solid ${({ theme }) => `${theme.success || "#7ED321"}40`};
-    color: ${({ theme }) => theme.success || "#7ED321"};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 24px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: slideIn 0.3s ease-out;
+const InlineButton = styled(Button)`
+    height: 44px;
+    min-width: 242px;
 
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .icon {
-        font-size: 20px;
+    @media (max-width: 768px) {
+        min-width: auto;
+        width: 100%;
     }
 `;
 
 export const Accounts: React.FC = () => {
     const dispatch = useDispatch();
-    const { accounts, selectedAccount, selectedNetwork, isLoading } =
-        useSelector((state: RootState) => state.wallet);
-    const { unlockedAccounts, isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth
+    const { accounts, selectedNetwork, isLoading } = useSelector(
+        (state: RootState) => state.wallet,
     );
+
+    const { isLaptop } = useScreen();
+
+    const [searchParams] = useSearchParams();
+    const actionParam: string | null = searchParams.get("action");
 
     const selectedNetworkId = selectedNetwork?.id;
     const filteredAccounts = useMemo(
         () =>
             selectedNetworkId
                 ? accounts.filter(
-                      (account) => account.networkId === selectedNetworkId
+                      (account: Account) =>
+                          account.networkId === selectedNetworkId,
                   )
                 : accounts,
-        [accounts, selectedNetworkId]
+        [accounts, selectedNetworkId],
     );
 
-    const [showPasswordSetup, setShowPasswordSetup] = useState(false);
-    const [showImportPassword, setShowImportPassword] = useState(false);
-    const [showPrivateKey, setShowPrivateKey] = useState(false);
-    const [pendingAccountName, setPendingAccountName] = useState("");
-    const [pendingPrivateKey, setPendingPrivateKey] = useState("");
-    const [pendingImport, setPendingImport] = useState<{
-        name: string;
-        value: string;
-        type: "private" | "public" | "eth" | "rev";
-    } | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(
+        actionParam === "create-account",
+    );
+    const [showImportModal, setShowImportModal] = useState(false);
 
-    const [newAccountName, setNewAccountName] = useState("");
-    const [importName, setImportName] = useState("");
-    const [importValue, setImportValue] = useState("");
-    const [importType, setImportType] = useState<
-        "private" | "public" | "eth" | "rev"
-    >("private");
-    const [newAccountNameError, setNewAccountNameError] = useState("");
-    const [importNameError, setImportNameError] = useState("");
-    const [importValueError, setImportValueError] = useState("");
-    const [successMessage, setSuccessMessage] = useState("");
+    console.log("SELECTED NETWORK ID: ", selectedNetwork?.id);
+    console.log("ACCOUNT: ", accounts);
 
     const filteredAccountIds = useMemo(
-        () => filteredAccounts.map((account) => account.id).join(","),
-        [filteredAccounts]
+        () => filteredAccounts.map((account: Account) => account.id).join(","),
+        [filteredAccounts],
     );
-
-    const infoMessage = !filteredAccounts?.length
-        ? "Create or import your account to access the wallet functionality"
-        : null;
-
-    useEffect(() => {
-        if (unlockedAccounts.length > 0) {
-            dispatch(syncAccounts(unlockedAccounts));
-        }
-    }, [unlockedAccounts, dispatch]);
 
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
             const timeoutId = setTimeout(() => {
-                filteredAccounts.forEach((account) => {
+                filteredAccounts.forEach((account: Account) => {
                     dispatch(
-                        fetchBalance({ account, network: selectedNetwork }) as any
+                        fetchBalance({
+                            account,
+                            network: selectedNetwork,
+                        }) as any,
                     );
                 });
             }, 100);
-            
+
             return () => clearTimeout(timeoutId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,12 +120,12 @@ export const Accounts: React.FC = () => {
     useEffect(() => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
             const interval = setInterval(() => {
-                filteredAccounts.forEach((account) => {
+                filteredAccounts.forEach((account: Account) => {
                     dispatch(
                         fetchBalance({
                             account,
                             network: selectedNetwork,
-                        }) as any
+                        }) as any,
                     );
                 });
             }, 30000);
@@ -258,554 +136,128 @@ export const Accounts: React.FC = () => {
 
     const handleRefreshBalances = () => {
         if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account) => {
+            filteredAccounts.forEach((account: Account) => {
                 dispatch(
-                    fetchBalance({ 
-                        account, 
+                    fetchBalance({
+                        account,
                         network: selectedNetwork,
                         forceRefresh: true,
-                    }) as any
+                    }) as any,
                 );
             });
         }
     };
-
-    const handleCreateAccount = () => {
-        const trimmedName = newAccountName.trim();
-        const validation = validateAccountName(trimmedName);
-
-        if (!validation.isValid) {
-            setNewAccountNameError(validation.error || "Invalid account name");
-            return;
-        }
-
-        setNewAccountNameError("");
-        setPendingAccountName(trimmedName);
-        setShowPasswordSetup(true);
-    };
-
-    const handlePasswordSet = async (password: string) => {
-        if (pendingAccountName) {
-            const resultAction = await dispatch(
-                createAccountWithPassword({
-                    name: pendingAccountName,
-                    password,
-                    networkId: selectedNetworkId,
-                }) as any
-            );
-
-            if (createAccountWithPassword.fulfilled.match(resultAction)) {
-                setPendingPrivateKey(
-                    resultAction.payload.account.privateKey || ""
-                );
-                setShowPasswordSetup(false);
-                setShowPrivateKey(true);
-            }
-        } else if (pendingImport) {
-            const resultAction = await dispatch(
-                importAccountWithPassword({
-                    ...pendingImport,
-                    password,
-                    networkId: selectedNetworkId,
-                }) as any
-            );
-
-            if (importAccountWithPassword.fulfilled.match(resultAction)) {
-                dispatch(syncAccounts([resultAction.payload.account]));
-
-                setSuccessMessage(
-                    `Account "${pendingImport.name}" imported successfully! 🎉`
-                );
-                setTimeout(() => setSuccessMessage(""), 5000);
-                setImportName("");
-                setImportValue("");
-                setPendingImport(null);
-                setShowImportPassword(false);
-            } else if (importAccountWithPassword.rejected.match(resultAction)) {
-                const errorMessage = resultAction.error?.message || 'Failed to import account';
-                if (errorMessage.includes('already exists')) {
-                    setImportValueError(errorMessage);
-                    setImportNameError("");
-                } else {
-                    setImportValueError(errorMessage);
-                    setImportNameError("");
-                }
-                setShowImportPassword(false);
-            }
-        }
-    };
-
-    const handlePrivateKeyAcknowledged = () => {
-        const userId = SecureStorage.getCurrentUserId();
-        dispatch(
-            syncAccounts(
-                SecureStorage.getEncryptedAccounts(userId || undefined).map((acc) => ({
-                    ...acc,
-                    privateKey: undefined,
-                }))
-            )
-        );
-
-        // Show success message
-        setSuccessMessage(
-            `Account "${pendingAccountName}" created successfully! 🎉`
-        );
-        setTimeout(() => setSuccessMessage(""), 5000);
-
-        setNewAccountName("");
-        setPendingAccountName("");
-        setPendingPrivateKey("");
-        setShowPrivateKey(false);
-    };
-
-    const checkAccountExistsByValue = (value: string, type: string | "private" | "public" | "eth" | "rev"): boolean => {
-        try {
-            let accountData: { revAddress?: string; ethAddress?: string };
-            const normalizedType = (type === getAddressLabel() || type === 'rev') ? 'rev' : type as 'private' | 'eth' | 'rev';
-            
-            switch (normalizedType) {
-                case 'private':
-                    accountData = importPrivateKey(value);
-                    break;
-                case 'eth':
-                    accountData = importEthAddress(value);
-                    break;
-                case 'rev':
-                    accountData = importRevAddress(value);
-                    break;
-                default:
-                    return false;
-            }
-
-            const userId = SecureStorage.getCurrentUserId();
-            return SecureStorage.accountExists(
-                accountData.revAddress,
-                accountData.ethAddress,
-                userId || undefined
-            );
-        } catch (error) {
-            return false;
-        }
-    };
-
-    const handleImportAccount = () => {
-        const trimmedName = importName.trim();
-        const trimmedValue = importValue.trim();
-
-        if (!trimmedName || !trimmedValue) {
-            return;
-        }
-
-        const validation = validateAccountName(trimmedName);
-        if (!validation.isValid) {
-            setImportNameError(validation.error || "Invalid account name");
-            setImportValueError("");
-            return;
-        }
-
-        const normalizedType = (importType === getAddressLabel() || importType === 'rev') ? 'rev' : importType as 'private' | 'eth' | 'rev';
-
-        if (checkAccountExistsByValue(trimmedValue, normalizedType)) {
-            setImportValueError("Account with this address already exists");
-            setImportNameError("");
-            return;
-        }
-
-        setImportNameError("");
-        setImportValueError("");
-
-        if (normalizedType === "private") {
-            setPendingImport({
-                name: trimmedName,
-                value: trimmedValue,
-                type: normalizedType,
-            });
-            setShowImportPassword(true);
-        } else {
-            dispatch(
-                importAccountWithPassword({
-                    name: trimmedName,
-                    value: trimmedValue,
-                    type: normalizedType,
-                    password: "",
-                }) as any
-            ).then((resultAction: any) => {
-                if (importAccountWithPassword.fulfilled.match(resultAction)) {
-                    dispatch(syncAccounts([resultAction.payload.account]));
-                    setSuccessMessage(`Account "${trimmedName}" imported successfully!`);
-                    setTimeout(() => setSuccessMessage(""), 5000);
-                    setImportName("");
-                    setImportValue("");
-                } else if (importAccountWithPassword.rejected.match(resultAction)) {
-                    const errorMessage = resultAction.error?.message || 'Failed to import account';
-                    if (errorMessage.includes('already exists')) {
-                        setImportValueError(errorMessage);
-                        setImportNameError("");
-                    } else if (errorMessage.includes('Invalid import type')) {
-                        setImportValueError(errorMessage);
-                        setImportNameError("");
-                    } else {
-                        setImportValueError(errorMessage);
-                        setImportNameError("");
-                    }
-                }
-            });
-        }
-    };
-
-    const handleSelectAccount = (accountId: string) => {
-        dispatch(selectAccount(accountId));
-    };
-
-    const handleRemoveAccount = (accountId: string) => {
-        if (window.confirm("Are you sure you want to remove this account?")) {
-            dispatch(removeAccount(accountId));
-        }
-    };
-
-    const handleExportKeyfile = (accountId: string) => {
-        dispatch(exportAccountKeyfile({ accountId }) as any);
-    };
-
-    const formatAddress = (address: string) => {
-        return `${address.slice(0, 10)}...${address.slice(-8)}`;
-    };
-
-    const getImportPlaceholder = () => {
-        switch (importType) {
-            case "private":
-                return "Enter private key (64 hex characters)";
-            case "public":
-                return "Enter public key (130 hex characters)";
-            case "eth":
-                return "Enter Ethereum address (0x...)";
-            case "rev":
-                return `Enter ${getAddressLabel()}`;
-            default:
-                return "Enter value";
-        }
-    };
-
-    if (showPasswordSetup) {
-        return (
-            <AccountsContainer>
-                <Card>
-                    <CardContent>
-                        <PasswordSetup
-                            title="Set Password for New Account"
-                            onPasswordSet={handlePasswordSet}
-                            onCancel={() => {
-                                setShowPasswordSetup(false);
-                                setPendingAccountName("");
-                            }}
-                        />
-                    </CardContent>
-                </Card>
-            </AccountsContainer>
-        );
-    }
-
-    if (showPrivateKey) {
-        return (
-            <AccountsContainer>
-                <PrivateKeyDisplay
-                    privateKey={pendingPrivateKey}
-                    accountName={pendingAccountName}
-                    onContinue={handlePrivateKeyAcknowledged}
-                    onBack={() => {
-                        setShowPrivateKey(false);
-                        setShowPasswordSetup(true);
-                    }}
-                    showBackButton={true}
-                />
-            </AccountsContainer>
-        );
-    }
-
-    if (showImportPassword) {
-        return (
-            <AccountsContainer>
-                <Card>
-                    <CardContent>
-                        <PasswordSetup
-                            title="Set Password for Imported Account"
-                            onPasswordSet={handlePasswordSet}
-                            onCancel={() => {
-                                setShowImportPassword(false);
-                                setPendingImport(null);
-                            }}
-                        />
-                    </CardContent>
-                </Card>
-            </AccountsContainer>
-        );
-    }
 
     return (
-        <AccountsContainer>
-            {successMessage && (
-                <SuccessMessage>
-                    <span className="icon">✅</span>
-                    <span>{successMessage}</span>
-                </SuccessMessage>
-            )}
-
-            {infoMessage && (
-                <SuccessMessage>
-                    <span className="icon">ℹ️</span>
-                    <span>{infoMessage}</span>
-                </SuccessMessage>
-            )}
-
-            {/* Show existing accounts first when they exist */}
-            {filteredAccounts.length > 0 && (
-                <Card style={{ marginBottom: "32px" }}>
-                    <CardHeader>
-                        <CardTitle>
-                            <h1>Your Accounts ({filteredAccounts.length})</h1>
-                        </CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="small"
-                            onClick={handleRefreshBalances}
-                            loading={isLoading}
-                        >
-                            <h3>Refresh Balances</h3>
-                        </Button>
-                    </CardHeader>
-                    <CardContent>
-                        <AccountsGrid>
-                            {filteredAccounts.map((account) => {
-                                const isUnlocked = unlockedAccounts.some(
-                                    (a) => a.id === account.id
-                                );
-                                return (
+        <Fragment>
+            <AccountsContainer>
+                {filteredAccounts.length === 0 && (
+                    <FirstAccountCreatingWidget />
+                )}
+                {filteredAccounts.length > 0 && (
+                    <Card style={{ marginBottom: "32px" }}>
+                        <CardHeader>
+                            <CardTitle>
+                                Your Accounts ({filteredAccounts.length})
+                            </CardTitle>
+                            <Button
+                                title="Refresh Balances"
+                                variant="icon-button-ghost"
+                                onClick={handleRefreshBalances}
+                                loading={isLoading}
+                                withFadeHover
+                            >
+                                <ReloadIcon />
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <AccountsGrid className="accounts-grid">
+                                {filteredAccounts.map((account: Account) => (
                                     <AccountCard
                                         key={account.id}
-                                        id={`account-card-${account.id}`}
-                                        isSelected={
-                                            selectedAccount?.id === account.id
-                                        }
-                                        onClick={() =>
-                                            handleSelectAccount(account.id)
-                                        }
+                                        account={account}
+                                    />
+                                ))}
+                            </AccountsGrid>
+                            <AccountsActionsFooter>
+                                <InlineButton
+                                    id="create-account-button"
+                                    onClick={() => setShowCreateModal(true)}
+                                    fullWidth={isLaptop}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    <h3>Create Account </h3>
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 14 14"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
                                     >
-                                        <AccountHeader>
-                                            <AccountName title={account.name}>
-                                                {account.name}
-                                            </AccountName>
-                                            <AccountBalance>
-                                                {formatBalanceCard(
-                                                    account.balance
-                                                )}
-                                            </AccountBalance>
-                                        </AccountHeader>
-
-                                        <AccountAddress>
-                                            {formatAddress(account.revAddress)}
-                                            <CopyButton dataToCopy={account.revAddress} iconSize={15}/>
-                                        </AccountAddress>
-
-                                        <AccountActions>
-                                            {selectedAccount?.id ===
-                                                account.id && (
-                                                <h5
-                                                    style={{
-                                                        // fontSize: "12px",
-                                                        color: "#7ED321",
-                                                        fontWeight: "600",
-                                                    }}
-                                                >
-                                                    SELECTED
-                                                </h5>
-                                            )}
-                                            {isUnlocked && (
-                                                <h5
-                                                    style={{
-                                                        // fontSize: "12px",
-                                                        color: "#4A90E2",
-                                                        fontWeight: "600",
-                                                        marginLeft: "8px",
-                                                    }}
-                                                >
-                                                    UNLOCKED
-                                                </h5>
-                                            )}
-                                            <Button
-                                                id={`export-account-${account.id}`}
-                                                variant="ghost"
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleExportKeyfile(
-                                                        account.id
-                                                    );
-                                                }}
-                                            >
-                                                <h3>Export</h3>
-                                            </Button>
-                                            <Button
-                                                id={`remove-account-${account.id}`}
-                                                variant="danger"
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRemoveAccount(
-                                                        account.id
-                                                    );
-                                                }}
-                                            >
-                                                <h3>Remove</h3>
-                                            </Button>
-                                        </AccountActions>
-                                    </AccountCard>
-                                );
-                            })}
-                        </AccountsGrid>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Create/Import section below existing accounts */}
-            <FormContainer>
-                <CreateAccountSection>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>
-                                <h1>Create New Account</h1>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {hasAccounts && !isAuthenticated && (
-                                <WarningMessage>
-                                    <span className="icon">⚠️</span>
-                                    <span>
-                                        You have existing accounts. Creating a
-                                        new account will not automatically log
-                                        you in. You'll need to unlock your
-                                        existing accounts with your password.
-                                    </span>
-                                </WarningMessage>
-                            )}
-                            <Input
-                                id="create-account-name-input"
-                                className="create-account-name-input text-3"
-                                label="Account Name"
-                                value={newAccountName}
-                                onChange={(e) => {
-                                    setNewAccountName(e.target.value);
-                                    if (newAccountNameError) {
-                                        setNewAccountNameError("");
-                                    }
-                                }}
-                                placeholder="Enter account name (max 30 characters)"
-                                error={newAccountNameError}
-                                maxLength={30}
-                            />
-                            <Button
-                                id="create-account-button"
-                                onClick={handleCreateAccount}
-                                disabled={!newAccountName.trim()}
-                                fullWidth
-                            >
-                                <h3>Create Account</h3>
-                            </Button>
+                                        <path
+                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                            fill="currentcolor"
+                                        />
+                                    </svg>
+                                </InlineButton>
+                                <InlineButton
+                                    id="import-account-button"
+                                    variant="secondary"
+                                    onClick={() => setShowImportModal(true)}
+                                    fullWidth={isLaptop}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    <h3>Import Account</h3>
+                                    <svg
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <g clipPath="url(#clip0_3_1930)">
+                                            <path
+                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                fill="currentcolor"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_3_1930">
+                                                <rect
+                                                    width="24"
+                                                    height="24"
+                                                    fill="currentcolor"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </InlineButton>
+                            </AccountsActionsFooter>
                         </CardContent>
                     </Card>
-                </CreateAccountSection>
+                )}
+            </AccountsContainer>
+            <CreateAccountModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onSuccess={() => {
+                    console.log("Account created successfully");
+                }}
+            />
 
-                <ImportAccountSection>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>
-                                <h1>Import Account</h1>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {hasAccounts && !isAuthenticated && (
-                                <WarningMessage>
-                                    <span className="icon">⚠️</span>
-                                    <span>
-                                        You have existing accounts. Importing a
-                                        new account will not automatically log
-                                        you in. You'll need to unlock your
-                                        existing accounts with your password.
-                                    </span>
-                                </WarningMessage>
-                            )}
-                            <Input
-                                id="import-account-name-input"
-                                className="import-account-name-input text-3"
-                                label="Account Name"
-                                value={importName}
-                                onChange={(e) => {
-                                    setImportName(e.target.value);
-                                    if (importNameError) {
-                                        setImportNameError("");
-                                    }
-                                }}
-                                placeholder="Enter account name (max 30 characters)"
-                                error={importNameError}
-                                maxLength={30}
-                            />
-
-                            <ImportTypeSelector
-                                id="import-account-type-selector"
-                                value={importType === 'rev' ? getAddressLabel() : importType}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setImportType(value === getAddressLabel() ? 'rev' : value as any);
-                                    if (importValueError) {
-                                        setImportValueError("");
-                                    }
-                                    if (importNameError) {
-                                        setImportNameError("");
-                                    }
-                                }}
-                            >
-                                <option value="private">Private Key</option>
-                                <option value="eth">
-                                    Ethereum Address (Watch Only)
-                                </option>
-                                <option value={getAddressLabel()}>
-                                    {getAddressLabel()} (Watch Only)
-                                </option>
-                            </ImportTypeSelector>
-
-                            <Input
-                                id="import-account-value-input"
-                                className="import-account-value-input text-3"
-                                label="Value"
-                                value={importValue}
-                                onChange={(e) => {
-                                    setImportValue(e.target.value);
-                                    if (importValueError) {
-                                        setImportValueError("");
-                                    }
-                                }}
-                                placeholder={getImportPlaceholder()}
-                                error={importValueError}
-                                type={
-                                    importType === "private"
-                                        ? "password"
-                                        : "text"
-                                }
-                            />
-
-                            <Button
-                                id="import-account-button"
-                                onClick={handleImportAccount}
-                                disabled={
-                                    !importName.trim() || !importValue.trim()
-                                }
-                                fullWidth
-                            >
-                                <h3>Import Account</h3>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </ImportAccountSection>
-            </FormContainer>
-        </AccountsContainer>
+            <ImportAccountModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onSuccess={() => {
+                    console.log("Account imported successfully");
+                }}
+            />
+        </Fragment>
     );
 };

@@ -176,7 +176,7 @@ export const TwoFactorSetupModal: React.FC<TwoFactorSetupModalProps> = ({
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isComplete, setIsComplete] = useState(false);
+  const [_isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
