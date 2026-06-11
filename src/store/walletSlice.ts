@@ -773,23 +773,16 @@ const walletSlice = createSlice({
                 localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
             }
 
-            console.log("SELECT NETWORK!!!!");
-
             try {
                 const userId = SecureStorage.getCurrentUserId();
                 if (!userId) return;
 
                 const encryptedAccounts = SecureStorage.getEncryptedAccounts();
 
-                console.log("ENCRYPTED ACCOUNTS: ", encryptedAccounts);
-
                 const { sanitized, updates } = sanitizeAccounts(
                     encryptedAccounts,
                     network.id,
                 );
-
-                console.log("SANITIZED ACCOUNTS: ", encryptedAccounts);
-                console.log("UPDATED: ", updates);
 
                 if (updates.length > 0) {
                     persistAccountNetworkUpdates(updates);
@@ -800,7 +793,6 @@ const walletSlice = createSlice({
                     network.id,
                 );
 
-                console.log("FILTERED ACCOUNTS FOR NETWORK: ", state.accounts);
             } catch (error) {
                 console.error(
                     "Failed to reload accounts for selected network:",

@@ -473,7 +473,7 @@ export const CustomNetworkConfig: React.FC = () => {
                                 key={net.id}
                                 network={net}
                                 onEdit={(net) => {
-                                    console.log("Edit network:", net);
+                                    console.info("Edit network:", net);
                                 }}
                                 onDelete={handleAfterCustomNetworkDelete}
                             />

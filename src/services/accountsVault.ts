@@ -81,12 +81,9 @@ export function fromStoredRecord(record: StoredAccountRecord): SecureAccount {
 export function readFromLocalStorage(): SecureAccount[] {
     try {
         const raw = localStorage.getItem(LS_STORAGE_KEY);
-        console.log("ACCOUNTS FROM LS IN RAW: ", raw);
 
         if (!raw) return [];
         const parsed = JSON.parse(raw) as LegacyStorageShape;
-
-        console.log("ACCOUNTS FROM LS: ", parsed);
 
         return Array.isArray(parsed?.accounts) ? parsed.accounts : [];
     } catch {
@@ -326,15 +323,24 @@ export class AccountsVault {
         revAddress?: string,
         ethAddress?: string,
         userId?: string,
+        networkId?: string,
     ): boolean {
         const pool = userId ? this.getAll(userId) : this.accounts;
         const rev = revAddress?.toLowerCase().trim() ?? "";
         const eth = ethAddress?.toLowerCase().trim() ?? "";
+        const normalizedNetworkId = networkId?.toLowerCase().trim() ?? "";
+
         return pool.some((a) => {
             const aRev = a.revAddress?.toLowerCase().trim();
             const aEth = a.ethAddress?.toLowerCase().trim();
+            const aNetworkId = a.networkId?.toLowerCase().trim();
+
             return (
-                (rev && aRev && rev === aRev) || (eth && aEth && eth === aEth)
+                ((rev && aRev && rev === aRev) ||
+                    (eth && aEth && eth === aEth)) &&
+                normalizedNetworkId &&
+                aNetworkId &&
+                normalizedNetworkId === aNetworkId
             );
         });
     }

@@ -156,9 +156,19 @@ export class SecureStorage {
     static accountExists(
         revAddress?: string,
         ethAddress?: string,
-        userId?: string,
+        _userId?: string,
+        networkId?: string,
     ): boolean {
-        return AccountsVault.exists(revAddress, ethAddress, userId);
+        // TODO: Ownership validation by userId doesn't work correctly - this method cannot unlock all accounts the user has access to
+        // TODO: redesign the userId system to eliminate this issue
+        // return AccountsVault.exists(revAddress, ethAddress, userId, networkId);
+
+        return AccountsVault.exists(
+            revAddress,
+            ethAddress,
+            undefined,
+            networkId,
+        );
     }
 
     static async importFromKeyfile(

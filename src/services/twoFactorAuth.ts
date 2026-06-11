@@ -373,7 +373,7 @@ export class TwoFactorAuthService {
       // Store temporarily for verification (in production, this would be sent via SMS)
       await SecureStorage.setItem('temp_sms_code', code);
       
-      console.log(`SMS Code for ${phoneNumber}: ${code}`); // For testing
+      // console.log(`SMS Code for ${phoneNumber}: ${code}`); // For testing
       
       return { success: true };
     } catch (error) {
@@ -393,7 +393,7 @@ export class TwoFactorAuthService {
       // Store temporarily for verification (in production, this would be sent via email)
       await SecureStorage.setItem('temp_email_code', code);
       
-      console.log(`Email Code for ${email}: ${code}`); // For testing
+      // console.log(`Email Code for ${email}: ${code}`); // For testing
       
       return { success: true };
     } catch (error) {

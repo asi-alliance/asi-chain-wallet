@@ -60,7 +60,6 @@ const AppContent: React.FC = () => {
     useSessionGuard();
 
     useEffect(() => {
-        console.log("[App] Initializing app, checking auth...");
         dispatch(checkAuthentication());
         dispatch(loadNetworksFromStorage());
         dispatch(loadAccountsFromStorage());

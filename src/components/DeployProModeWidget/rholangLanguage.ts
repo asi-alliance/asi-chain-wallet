@@ -144,7 +144,6 @@ export function registerRholangLanguage() {
     monaco.editor.defineTheme('rholang-dark', rholangDarkTheme);
   } catch (e) {
     // Themes might already be defined, ignore error
-    console.log('Themes already defined');
   }
 
   // Register completion provider for common patterns

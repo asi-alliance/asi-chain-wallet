@@ -34,7 +34,7 @@ export const useDeepLink = () => {
         });
         break;
       default:
-        console.log('Unknown action:', actionType);
+        console.info('Unknown action:', actionType);
     }
   };
 };

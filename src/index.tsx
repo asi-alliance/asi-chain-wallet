@@ -28,15 +28,13 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
     navigator.serviceWorker
       .register('/service-worker.js')
       .then(registration => {
-        console.log('ServiceWorker registration successful:', registration.scope);
-        
-        // Check for updates periodically
+        console.info('ServiceWorker registration successful:', registration.scope);
         setInterval(() => {
           registration.update();
         }, 60000); // Check every minute
       })
       .catch(err => {
-        console.log('ServiceWorker registration failed:', err);
+        console.error('ServiceWorker registration failed:', err);
       });
   });
 }

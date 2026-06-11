@@ -328,12 +328,6 @@ export class RChainService {
                 deployer: signedDeploy.deployer,
             };
 
-            // Debug logging
-            console.log("Deploy data:", deployData);
-            console.log("Signed deploy:", signedDeploy);
-            console.log("Web deploy:", JSON.stringify(webDeploy, null, 2));
-
-            // Send to RNode
             let result;
             try {
                 result = await this.rnodeHttp("deploy", webDeploy);
@@ -357,8 +351,6 @@ export class RChainService {
                 // For other errors, rethrow with original message
                 throw new Error(`Deploy failed: ${error.message}`);
             }
-
-            console.log("Deploy result:", result);
 
             // The deploy result should contain a signature which is the deploy ID
             // The Web API returns the signature string, sometimes with a prefix
@@ -397,12 +389,9 @@ export class RChainService {
     // Explore deploy (read-only, like F1R3FLY wallet)
     async exploreDeployData(rholangCode: string): Promise<any> {
         try {
-            console.log("Sending explore-deploy to:", this.readOnlyUrl);
-
             // F1R3wallet sends the Rholang code directly as a string, not as a deploy object
             const result = await this.rnodeHttp("explore-deploy", rholangCode);
 
-            console.log("Explore-deploy result:", result);
             return result.expr;
         } catch (error: any) {
             console.error("Explore deploy failed:", error);
@@ -431,9 +420,6 @@ export class RChainService {
         deployId: string,
         maxAttempts: number = 20,
     ): Promise<any> {
-        console.log(`[GraphQL] Waiting for deploy result: ${deployId}`);
-        console.log(`[GraphQL] Using endpoint: ${this.graphqlUrl}`);
-
         // Check for mixed-content issue: if page is HTTPS and GraphQL is HTTP, skip GraphQL and use fallback
         const isMixedContent =
             typeof window !== "undefined" &&
@@ -456,7 +442,7 @@ export class RChainService {
             graphqlEndpoint.startsWith("http://")
         ) {
             graphqlEndpoint = graphqlEndpoint.replace("http://", "https://");
-            console.log(
+            console.info(
                 `[GraphQL] Converted HTTP to HTTPS to avoid mixed-content: ${graphqlEndpoint}`,
             );
         }
@@ -503,15 +489,6 @@ export class RChainService {
                         deployId: deployId,
                     },
                 };
-
-                console.log(
-                    `[GraphQL] Querying indexer for deploy ${deployId} (attempt ${i + 1}/${maxAttempts})`,
-                );
-                console.log(`[GraphQL] Endpoint:`, graphqlEndpoint);
-                console.log(
-                    `[GraphQL] Request payload:`,
-                    JSON.stringify(graphqlQuery, null, 2),
-                );
 
                 let response;
                 try {
@@ -582,9 +559,6 @@ export class RChainService {
                     return this.waitForDeployResultFallback(deployId);
                 }
 
-                console.log(`[GraphQL] Response:`, response.data);
-
-                // Check for GraphQL errors in response
                 if (response.data?.errors) {
                     console.error(
                         "[GraphQL] GraphQL errors:",
@@ -601,10 +575,6 @@ export class RChainService {
                     response.data.data.deployments.length > 0
                 ) {
                     const deploy = response.data.data.deployments[0];
-                    console.log(
-                        `[GraphQL] ✅ Deploy ${deployId} found in block ${deploy.block_number} after ${i + 1} attempts`,
-                    );
-                    console.log(`[GraphQL] Deploy details:`, deploy);
 
                     if (deploy.errored) {
                         return {
@@ -629,9 +599,6 @@ export class RChainService {
                     };
                 }
 
-                console.log(
-                    `[GraphQL] Deploy ${deployId} not found in indexer... (${i + 1}/${maxAttempts})`,
-                );
             } catch (error: any) {
                 console.error(
                     `[GraphQL] Error checking indexer for deploy ${deployId}:`,
@@ -656,7 +623,6 @@ export class RChainService {
 
     // Fallback method using read-only node API (doesn't require GraphQL)
     private async waitForDeployResultFallback(deployId: string): Promise<any> {
-        console.log(`[GraphQL] Using fallback method for deploy ${deployId}`);
 
         try {
             const blocksResult = await this.readOnlyClient.get(
@@ -677,9 +643,6 @@ export class RChainService {
                         );
 
                         if (foundDeploy) {
-                            console.log(
-                                `[GraphQL] ✅ Deploy ${deployId} found via fallback method in block ${block.blockHash}`,
-                            );
                             return {
                                 status: "completed",
                                 message:
@@ -694,9 +657,6 @@ export class RChainService {
                 }
             }
 
-            console.log(
-                `[GraphQL] Deploy ${deployId} not found in recent blocks. It may still be processing.`,
-            );
             return {
                 status: "pending",
                 message:

@@ -15,11 +15,11 @@ class TransactionPollingService {
   // Start polling for pending transactions
   static start(): void {
     if (this.isPolling) {
-      console.log('[Transaction Polling] Already polling, skipping start');
+      console.info('[Transaction Polling] Already polling, skipping start');
       return;
     }
 
-    console.log('[Transaction Polling] Starting transaction status polling...');
+    console.info('[Transaction Polling] Starting transaction status polling...');
     this.isPolling = true;
 
     this.pollInterval = setInterval(() => {
@@ -35,7 +35,7 @@ class TransactionPollingService {
       this.pollInterval = null;
     }
     this.isPolling = false;
-    console.log('[Transaction Polling] Stopped transaction status polling');
+    console.info('[Transaction Polling] Stopped transaction status polling');
   }
 
   // Check if polling is active
@@ -113,7 +113,7 @@ class TransactionPollingService {
 
     for (const account of affectedAccounts) {
       try {
-        console.log(`[Transaction Polling] Refreshing balance for ${account.name}...`);
+        console.info(`[Transaction Polling] Refreshing balance for ${account.name}...`);
         const oldBalance = account.balance || '0';
         
         const balanceResult = await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
@@ -122,7 +122,7 @@ class TransactionPollingService {
           const newBalance = balanceResult.payload.balance;
           
           if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-            console.log(`[Transaction Polling] Balance increased for ${account.name}, checking for received transactions...`);
+            console.info(`[Transaction Polling] Balance increased for ${account.name}, checking for received transactions...`);
             try {
               TransactionHistoryService.detectReceivedTransaction(
                 account.revAddress,
@@ -143,7 +143,7 @@ class TransactionPollingService {
 
   // Force check all pending transactions (manual trigger)
   static forceCheck(): void {
-    console.log('[Transaction Polling] Force checking pending transactions...');
+    console.info('[Transaction Polling] Force checking pending transactions...');
     this.pollPendingTransactions();
   }
 
@@ -159,8 +159,7 @@ class TransactionPollingService {
         return;
       }
 
-      console.log(`[Transaction Polling] Checking ${pendingTxs.length} pending transactions...`);
-
+      console.info(`[Transaction Polling] Checking ${pendingTxs.length} pending transactions...`);
       const rchain = new RChainService(
         network.url,
         network.readOnlyUrl,
@@ -193,11 +192,11 @@ class TransactionPollingService {
           const result = await rchain.waitForDeployResult(tx.deployId, 1);
           
           if (result.status === 'completed') {
-            console.log(`[Transaction Polling] ✅ Deploy ${tx.deployId} completed!`);
+            console.info(`[Transaction Polling] ✅ Deploy ${tx.deployId} completed!`);
             hasUpdates = true;
             continue;
           } else if (result.status === 'errored') {
-            console.log(`[Transaction Polling] ❌ Deploy ${tx.deployId} errored: ${result.error}`);
+            console.error(`[Transaction Polling] ❌ Deploy ${tx.deployId} errored: ${result.error}`);
             hasUpdates = true;
             continue;
           } else {
@@ -211,7 +210,7 @@ class TransactionPollingService {
 
       if (hasUpdates) {
         localStorage.setItem('asi_wallet_pending_transactions', JSON.stringify(updatedTxs));
-        console.log(`[Transaction Polling] Updated pending transactions. Remaining: ${updatedTxs.length}`);
+        console.info(`[Transaction Polling] Updated pending transactions. Remaining: ${updatedTxs.length}`);
         
         if (updatedTxs.length < pendingTxs.length) {
           const state = store.getState();

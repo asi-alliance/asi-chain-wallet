@@ -91,7 +91,7 @@ export const Dashboard: React.FC = () => {
                 )
                     .then((result) => {
                         if (result.added > 0 || result.updated > 0) {
-                            console.log(
+                            console.info(
                                 `[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`,
                             );
                         }
@@ -115,9 +115,6 @@ export const Dashboard: React.FC = () => {
                         const newBalance = result.payload.balance;
 
                         if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-                            console.log(
-                                `[Dashboard] Balance increased for ${selectedAccount.name}, checking for received transactions...`,
-                            );
                             try {
                                 TransactionHistoryService.detectReceivedTransaction(
                                     selectedAccount.revAddress,
@@ -162,9 +159,6 @@ export const Dashboard: React.FC = () => {
                             if (
                                 parseFloat(newBalance) > parseFloat(oldBalance)
                             ) {
-                                console.log(
-                                    `[Dashboard Auto-refresh] Balance increased for ${selectedAccount.name}, checking for received transactions...`,
-                                );
                                 try {
                                     TransactionHistoryService.detectReceivedTransaction(
                                         selectedAccount.revAddress,

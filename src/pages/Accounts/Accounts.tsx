@@ -91,9 +91,6 @@ export const Accounts: React.FC = () => {
     );
     const [showImportModal, setShowImportModal] = useState(false);
 
-    console.log("SELECTED NETWORK ID: ", selectedNetwork?.id);
-    console.log("ACCOUNT: ", accounts);
-
     const filteredAccountIds = useMemo(
         () => filteredAccounts.map((account: Account) => account.id).join(","),
         [filteredAccounts],
@@ -247,7 +244,7 @@ export const Accounts: React.FC = () => {
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
-                    console.log("Account created successfully");
+                    console.info("Account created successfully");
                 }}
             />
 
@@ -255,7 +252,7 @@ export const Accounts: React.FC = () => {
                 isOpen={showImportModal}
                 onClose={() => setShowImportModal(false)}
                 onSuccess={() => {
-                    console.log("Account imported successfully");
+                    console.info("Account imported successfully");
                 }}
             />
         </Fragment>

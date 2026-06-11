@@ -66,19 +66,14 @@ class BalancePollingService {
     const config = this.getConfig();
     
     if (!config.enabled) {
-      console.log('Balance polling is disabled');
+      console.info('Balance polling is disabled');
       return;
     }
 
-    // Clear any existing interval
     this.stop();
 
-    console.log(`Starting balance polling every ${config.intervalMinutes} minutes`);
-
-    // Perform initial poll
     this.pollBalances();
 
-    // Set up interval
     const intervalMs = config.intervalMinutes * 60 * 1000;
     this.pollingInterval = setInterval(() => {
       this.pollBalances();
@@ -90,14 +85,14 @@ class BalancePollingService {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
-      console.log('Balance polling stopped');
+      console.info('Balance polling stopped');
     }
   }
 
   // Perform balance polling for all accounts
   static async pollBalances(): Promise<void> {
     if (this.isPolling) {
-      console.log('Balance polling already in progress, skipping...');
+      console.info('Balance polling already in progress, skipping...');
       return;
     }
 
@@ -112,7 +107,7 @@ class BalancePollingService {
       return;
     }
 
-    console.log(`[Balance Polling] Starting poll for ${accounts.length} accounts on ${selectedNetwork.name}...`);
+    console.info(`[Balance Polling] Starting poll for ${accounts.length} accounts on ${selectedNetwork.name}...`);
 
     try {
       // Store current balances before fetching
@@ -120,13 +115,11 @@ class BalancePollingService {
       accounts.forEach(account => {
         const prevBalance = account.balance || '0';
         previousBalances.set(account.id, prevBalance);
-        console.log(`[Balance Polling] Account ${account.name}: current balance = ${prevBalance} ${getTokenDisplayName()}`);
       });
 
       // Fetch balance for each account
       for (const account of accounts) {
         try {
-          console.log(`[Balance Polling] Fetching balance for ${account.name}...`);
           
           // Dispatch the fetchBalance action
           const result = await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
@@ -134,11 +127,9 @@ class BalancePollingService {
           if (result.payload) {
             const newBalance = (result.payload as any).balance;
             const oldBalance = previousBalances.get(account.id) || '0';
-            console.log(`[Balance Polling] ${account.name}: ${oldBalance} → ${newBalance} ${getTokenDisplayName()}`);
             
             // Detect received transactions if balance increased
             if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-              console.log(`[Balance Polling] Balance increased for ${account.name}, checking for received transactions...`);
               try {
                 TransactionHistoryService.detectReceivedTransaction(
                   account.revAddress,
@@ -147,7 +138,6 @@ class BalancePollingService {
                   selectedNetwork.name
                 );
               } catch (error) {
-                console.error(`[Balance Polling] Error detecting received transaction for ${account.name}:`, error);
               }
             }
           }
@@ -164,7 +154,7 @@ class BalancePollingService {
       config.lastPollTime = new Date();
       this.saveConfig(config);
 
-      console.log('[Balance Polling] Completed successfully');
+      console.info('[Balance Polling] Completed successfully');
     } catch (error) {
       console.error('[Balance Polling] Error:', error);
     } finally {

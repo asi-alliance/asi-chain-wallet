@@ -515,16 +515,10 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         [],
     );
 
-    // Helper function to check if account is unlocked
     const isAccountUnlocked = (account: any): boolean => {
         const isUnlocked = unlockedAccounts.some(
             (unlockedAcc) => unlockedAcc.id === account?.id,
         );
-        console.log("IDE page - isAccountUnlocked:", {
-            selectedAccount: account,
-            unlockedAccounts: unlockedAccounts,
-            isUnlocked: isUnlocked,
-        });
         return isUnlocked;
     };
 

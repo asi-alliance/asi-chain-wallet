@@ -33,7 +33,6 @@ import {
     VectorIcon,
 } from "components/Icons";
 import { unlockAccount } from "store/authSlice";
-import { Account } from "types/wallet";
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -466,14 +465,6 @@ export const Send: React.FC = () => {
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
     const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
 
-    console.log("Send Debug:", {
-        selectedAccount: selectedAccount?.id,
-        unlockedAccounts: unlockedAccounts.map((a) => a.id),
-        isAccountUnlocked,
-        requirePasswordForTransaction,
-        needsPassword,
-    });
-
     if (!selectedAccount) {
         return (
             <SendContainer>
@@ -669,14 +660,14 @@ export const Send: React.FC = () => {
                                 setIsWaitingForBalance(false);
 
                                 if (newBalance !== initialBalance) {
-                                    console.log(
+                                    console.info(
                                         "[Send] Balance updated from",
                                         initialBalance,
                                         "to",
                                         newBalance,
                                     );
                                 } else {
-                                    console.log(
+                                    console.info(
                                         "[Send] Balance update timeout - transaction may still be processing",
                                     );
                                     const sentAmount = parseFloat(amount);
@@ -687,9 +678,6 @@ export const Send: React.FC = () => {
                                         fee;
 
                                     if (expectedNewBalance >= 0) {
-                                        console.log(
-                                            "[Send] Updating balance locally as fallback",
-                                        );
                                         dispatch(
                                             updateAccountBalance({
                                                 accountId: selectedAccount.id,
@@ -711,9 +699,6 @@ export const Send: React.FC = () => {
                                 parseFloat(initialBalance) - sentAmount - fee;
 
                             if (expectedNewBalance >= 0) {
-                                console.log(
-                                    "[Send] Updating balance locally due to fetch failure",
-                                );
                                 dispatch(
                                     updateAccountBalance({
                                         accountId: selectedAccount.id,
