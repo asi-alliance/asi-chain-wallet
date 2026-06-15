@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
 import { RChainService } from "services/rchain";
 import { SecureStorage } from "services/secureStorage";
 import { getGasFeeAsNumber } from "../../constants/gas";
-import { Button, DeploymentConfirmationModal } from "components";
+import { Button, DeploymentConfirmationModal, PasswordModal } from "components";
 import { DeleteIcon, PreviewIcon } from "components/Icons";
 import { useScreen } from "hooks/";
 
@@ -193,18 +193,21 @@ interface DeployLiteModeContextValue {
     deployId: string;
     showDeployConfirmation: boolean;
     showExploreConfirmation: boolean;
+    showPasswordModal: boolean;
     phloLimit: string;
     phloPrice: string;
     selectedAccount: RootState["wallet"]["selectedAccount"];
     isAccountUnlocked: boolean;
     loadExample: () => void;
     clearCode: () => void;
+    handlePasswordSubmit: (password: string) => Promise<void>;
     handleDeployClick: () => void;
     handleExploreClick: () => void;
     handleConfirmDeploy: () => void;
     handleConfirmExplore: () => void;
     closeDeployConfirmation: () => void;
     closeExploreConfirmation: () => void;
+    closePasswordModal: () => void;
 }
 
 const DeployLiteModeContext = createContext<DeployLiteModeContextValue | null>(
@@ -242,16 +245,28 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
     const [error, setError] = useState("");
     const [result, setResult] = useState<any>(null);
     const [deployId, setDeployId] = useState("");
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showDeployConfirmation, setShowDeployConfirmation] = useState(false);
     const [showExploreConfirmation, setShowExploreConfirmation] =
         useState(false);
+
+    const accountPassword = useRef<string>("");
 
     const isAccountUnlocked = unlockedAccounts.some(
         (unlockedAcc) => unlockedAcc.id === selectedAccount?.id,
     );
 
     const handleDeployClick = () => {
-        if (!selectedAccount || !code.trim()) return;
+        if (!selectedAccount || !code.trim()) {
+            return;
+        }
+
+        if (!isAccountUnlocked) {
+            setShowPasswordModal(true);
+
+            return;
+        }
+
         setShowDeployConfirmation(true);
     };
 
@@ -343,7 +358,8 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
             const unlockedAccount = unlockedAccounts.find(
                 (acc) => acc.id === selectedAccount.id,
             );
-            const privateKey = unlockedAccount?.privateKey;
+            const privateKey =
+                accountPassword.current ?? unlockedAccount?.privateKey;
 
             if (!privateKey) {
                 throw new Error(
@@ -362,6 +378,8 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
                 const gasFee = getGasFeeAsNumber();
                 const expected = Math.max(0, chainBalanceBefore - gasFee);
                 expectedBalanceAfterConfirmation = expected.toFixed(8);
+
+                accountPassword.current = "";
             } catch (error) {
                 console.warn(
                     "[Deploy] Failed to fetch balance before deploy for pending metadata:",
@@ -432,6 +450,35 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
         }
     };
 
+    const handlePasswordSubmit = async (password: string): Promise<void> => {
+        let privateKey = selectedAccount!.privateKey;
+
+        try {
+            if (!privateKey && password) {
+                const userId = SecureStorage.getCurrentUserId();
+                const unlockedAccount = await SecureStorage.unlockAccount(
+                    selectedAccount!.id,
+                    password,
+                    userId ?? undefined,
+                );
+                privateKey = unlockedAccount!.privateKey;
+            }
+
+            if (!privateKey) {
+                throw new Error("Failed to access private key");
+            }
+
+            setShowPasswordModal(false);
+            setShowDeployConfirmation(true);
+
+            accountPassword.current = password;
+        } catch (error: unknown) {
+            setError("Incorrect account password");
+            setShowPasswordModal(false);
+            setShowDeployConfirmation(false);
+        }
+    };
+
     const loadExample = () => {
         setCode(exampleContract);
     };
@@ -449,18 +496,21 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
         deployId,
         showDeployConfirmation,
         showExploreConfirmation,
+        showPasswordModal,
         phloLimit,
         phloPrice,
         selectedAccount,
         isAccountUnlocked,
         loadExample,
         clearCode,
+        handlePasswordSubmit,
         handleDeployClick,
         handleExploreClick,
         handleConfirmDeploy,
         handleConfirmExplore,
         closeDeployConfirmation: () => setShowDeployConfirmation(false),
         closeExploreConfirmation: () => setShowExploreConfirmation(false),
+        closePasswordModal: () => setShowPasswordModal(false),
     };
 
     return (
@@ -497,17 +547,19 @@ const DeployLiteModeBoard: React.FC = () => {
         deployId,
         showDeployConfirmation,
         showExploreConfirmation,
+        showPasswordModal,
         phloLimit,
         phloPrice,
         selectedAccount,
-        isAccountUnlocked,
         clearCode,
+        handlePasswordSubmit,
         handleDeployClick,
         handleExploreClick,
         handleConfirmDeploy,
         handleConfirmExplore,
         closeDeployConfirmation,
         closeExploreConfirmation,
+        closePasswordModal,
     } = useDeployLiteMode();
 
     const { isLaptop } = useScreen();
@@ -577,11 +629,7 @@ const DeployLiteModeBoard: React.FC = () => {
                         id="deploy-contract-button"
                         onClick={handleDeployClick}
                         loading={isLoading}
-                        disabled={
-                            !code.trim() ||
-                            !selectedAccount ||
-                            !isAccountUnlocked
-                        }
+                        disabled={!code.trim() || !selectedAccount}
                     >
                         <h3>Deploy</h3>
                     </DeployButton>
@@ -651,6 +699,14 @@ const DeployLiteModeBoard: React.FC = () => {
                 accountAddress={selectedAccount?.revAddress || ""}
                 isExplore={true}
                 loading={isLoading}
+            />
+
+            <PasswordModal
+                isOpen={showPasswordModal}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordSubmit}
+                title="Enter Password to Deploy"
+                description="Your private key is encrypted. Please enter your password to deploy the contract."
             />
         </>
     );
