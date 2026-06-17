@@ -28,6 +28,7 @@ import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
 import { History } from "pages/History";
 import { useIdleTimer, useDeepLink, useSessionGuard } from "hooks";
+import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 
@@ -87,9 +88,11 @@ const AppContent: React.FC = () => {
                 <Route
                     path="/accounts"
                     element={
-                        <Layout>
-                            <Accounts />
-                        </Layout>
+                        <ExistingAccountGuard>
+                            <Layout>
+                                <Accounts />
+                            </Layout>
+                        </ExistingAccountGuard>
                     }
                 />
 
