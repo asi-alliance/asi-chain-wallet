@@ -250,7 +250,7 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
     const [showExploreConfirmation, setShowExploreConfirmation] =
         useState(false);
 
-    const accountPassword = useRef<string>("");
+    const accountPrivateKey = useRef<string | null>(null);
 
     const isAccountUnlocked = unlockedAccounts.some(
         (unlockedAcc) => unlockedAcc.id === selectedAccount?.id,
@@ -358,8 +358,9 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
             const unlockedAccount = unlockedAccounts.find(
                 (acc) => acc.id === selectedAccount.id,
             );
+
             const privateKey =
-                accountPassword.current ?? unlockedAccount?.privateKey;
+                accountPrivateKey.current ?? unlockedAccount?.privateKey;
 
             if (!privateKey) {
                 throw new Error(
@@ -379,7 +380,7 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
                 const expected = Math.max(0, chainBalanceBefore - gasFee);
                 expectedBalanceAfterConfirmation = expected.toFixed(8);
 
-                accountPassword.current = "";
+                accountPrivateKey.current = null;
             } catch (error) {
                 console.warn(
                     "[Deploy] Failed to fetch balance before deploy for pending metadata:",
@@ -471,7 +472,7 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
             setShowPasswordModal(false);
             setShowDeployConfirmation(true);
 
-            accountPassword.current = password;
+            accountPrivateKey.current = privateKey;
         } catch (error: unknown) {
             setError("Incorrect account password");
             setShowPasswordModal(false);
