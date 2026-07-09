@@ -180,6 +180,11 @@ const ChainSelectorRow = styled.div`
     gap: 24px;
     align-items: flex-end;
     margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 16px;
+    }
 `;
 
 const ChainField = styled.div`
@@ -188,6 +193,10 @@ const ChainField = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
 `;
 
 const ChainFieldLabel = styled.label`
@@ -202,6 +211,11 @@ const ChainArrow = styled.span`
     align-items: center;
     padding-bottom: 10px;
     color: ${({ theme }) => theme.primary};
+
+    @media (max-width: 768px) {
+        align-self: center;
+        padding-bottom: initial;
+    }
 `;
 
 interface BridgeNetwork {
