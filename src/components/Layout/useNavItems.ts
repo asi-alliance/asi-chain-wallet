@@ -14,6 +14,7 @@ export const useNavItems = (accounts: any[] | undefined): NavItem[] => {
         return [
             { path: "/", label: "Wallet" },
             { path: "/send", label: "Send" },
+            { path: "/bridge", label: "Bridge" },
             { path: "/receive", label: "Receive" },
             { path: "/accounts", label: "Accounts" },
             { path: "/history", label: "Transactions" },
