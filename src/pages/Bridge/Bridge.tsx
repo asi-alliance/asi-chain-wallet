@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -17,8 +17,16 @@ import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
 import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountBalance } from "components/AccountBalance";
+import { Select } from "components/Select";
+import { ISelectOption } from "components/Select/Select";
 import { DefaultTheme } from "styled-components/dist/types";
-import { ContentPasteIcon, ExploreIcon, HistoryIcon } from "components/Icons";
+import {
+    ContentPasteIcon,
+    ExploreIcon,
+    HistoryIcon,
+    ReceiveIcon,
+} from "components/Icons";
+import { getGasFeeAsNumber } from "constants/gas";
 
 const BridgeContainer = styled.div`
     max-width: 946px;
@@ -52,6 +60,24 @@ const ActionButtons = styled.div`
     gap: 16px;
     justify-content: center;
     align-items: center;
+`;
+
+const LockButton = styled(Button)`
+    min-width: 220px;
+    height: 44px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
+`;
+
+const ClearAllButton = styled(Button)`
+    min-width: 170px;
+    height: 44px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
 `;
 
 const ErrorMessage = styled.div`
@@ -121,69 +147,6 @@ const LoadingMessage = styled.div`
     }
 `;
 
-const QRScannerModal = styled.div<{ $isOpen: boolean }>`
-    display: ${({ $isOpen }) => ($isOpen ? "flex" : "none")};
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-`;
-
-const QRScannerContent = styled.div`
-    background: ${({ theme }) => theme.background};
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 80vh;
-    overflow: auto;
-`;
-
-const QRScannerHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-`;
-
-const QRScannerTitle = styled.h3`
-    margin: 0;
-    color: ${({ theme }) => theme.text.primary};
-`;
-
-const CloseButton = styled.button`
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: ${({ theme }) => theme.text.secondary};
-
-    &:hover {
-        color: ${({ theme }) => theme.text.primary};
-    }
-`;
-
-const VideoContainer = styled.div`
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-    border-radius: 8px;
-    overflow: hidden;
-    background: ${({ theme }) => theme.surface};
-`;
-
-const Video = styled.video`
-    width: 100%;
-    height: auto;
-    display: block;
-`;
-
 const InputWithButton = styled.div`
     display: flex;
     gap: 8px;
@@ -206,7 +169,59 @@ const AccountSelectorWithMarginBottom = styled(AccountSelector)`
 
 const BridgeCardContent = styled(CardContent)`
     padding: 0 159px;
+
+    @media (max-width: 768px) {
+        padding: initial;
+    }
 `;
+
+const ChainSelectorRow = styled.div`
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+    margin-bottom: 36px;
+`;
+
+const ChainField = styled.div`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const ChainFieldLabel = styled.label`
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.primary};
+`;
+
+const ChainArrow = styled.span`
+    flex-shrink: 0;
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    color: ${({ theme }) => theme.primary};
+`;
+
+interface BridgeNetwork {
+    key: string;
+    label: string;
+}
+
+const MOCK_BRIDGE_NETWORKS: BridgeNetwork[] = [
+    { key: "asi", label: "ASI Chain" },
+    { key: "sepolia", label: "Sepolia" },
+    { key: "baseSepolia", label: "Base Sepolia" },
+    { key: "fetchhubDorado", label: "FetchHub Dorado" },
+    { key: "cardanoPreprod", label: "Cardano Preprod" },
+];
+
+const DEFAULT_SOURCE_CHAIN = "asi";
+
+const defaultDestinationFor = (source: string): string =>
+    MOCK_BRIDGE_NETWORKS.find((network) => network.key !== source)?.key ??
+    source;
 
 export const Bridge: React.FC = () => {
     const navigate = useNavigate();
@@ -221,14 +236,18 @@ export const Bridge: React.FC = () => {
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
     const [password, setPassword] = useState("");
-    const [showQRScanner, setShowQRScanner] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    const [srcChainKey, setSrcChainKey] = useState(DEFAULT_SOURCE_CHAIN);
+    const [dstChainKey, setDstChainKey] = useState(() =>
+        defaultDestinationFor(DEFAULT_SOURCE_CHAIN),
+    );
 
     const [txHash] = useState("");
     const [isWaitingForBalance] = useState(false);
     const [error] = useState("");
-    const [validationError] = useState("");
+    const [validationError, setValidationError] = useState("");
     const [passwordError] = useState("");
     const [addressError] = useState("");
     const [scanError] = useState("");
@@ -244,6 +263,58 @@ export const Bridge: React.FC = () => {
         setRecipient("");
         setAmount("");
         setPassword("");
+    };
+
+    const sourceOptions = useMemo<ISelectOption[]>(
+        () =>
+            MOCK_BRIDGE_NETWORKS.map((network) => ({
+                id: network.key,
+                value: network.key,
+                label: network.label,
+            })),
+        [],
+    );
+
+    const destinationOptions = useMemo<ISelectOption[]>(
+        () =>
+            MOCK_BRIDGE_NETWORKS.filter(
+                (network) => network.key !== srcChainKey,
+            ).map((network) => ({
+                id: network.key,
+                value: network.key,
+                label: network.label,
+            })),
+        [srcChainKey],
+    );
+
+    const maxAmount = () => {
+        const balance = parseFloat(selectedAccount?.balance || "0");
+        const max = Math.max(0, balance - getGasFeeAsNumber());
+
+        if (max <= 0) {
+            setValidationError("Insufficient balance to cover gas fees");
+            setAmount("0");
+        } else {
+            const maxRounded = Math.floor(max * 100000000) / 100000000;
+            setAmount(maxRounded.toFixed(8));
+            setValidationError("");
+        }
+    };
+
+    const handleSourceChange = (key: string): void => {
+        setSrcChainKey(key);
+
+        if (key === dstChainKey) {
+            setDstChainKey(defaultDestinationFor(key));
+        }
+    };
+
+    const handleDestinationChange = (key: string): void => {
+        if (key === srcChainKey) {
+            return;
+        }
+
+        setDstChainKey(key);
     };
 
     if (!selectedAccount) {
@@ -380,6 +451,32 @@ export const Bridge: React.FC = () => {
                         <AccountBalance account={selectedAccount} />
                     </BalanceInfo>
 
+                    <ChainSelectorRow>
+                        <ChainField>
+                            <ChainFieldLabel>Source</ChainFieldLabel>
+                            <Select
+                                id="bridge-source-select"
+                                value={srcChainKey}
+                                onChange={handleSourceChange}
+                                options={sourceOptions}
+                                style={{ width: "100%" }}
+                            />
+                        </ChainField>
+                        <ChainArrow aria-hidden="true">
+                            <ReceiveIcon size={24} />
+                        </ChainArrow>
+                        <ChainField>
+                            <ChainFieldLabel>Destination</ChainFieldLabel>
+                            <Select
+                                id="bridge-destination-select"
+                                value={dstChainKey}
+                                onChange={handleDestinationChange}
+                                options={destinationOptions}
+                                style={{ width: "100%" }}
+                            />
+                        </ChainField>
+                    </ChainSelectorRow>
+
                     {!isAccountUnlocked && (
                         <InfoMessage>
                             Account is locked. You'll need to enter your
@@ -419,6 +516,7 @@ export const Bridge: React.FC = () => {
                             <Button
                                 id="bridge-max-amount-button"
                                 variant="secondary"
+                                onClick={maxAmount}
                                 style={{
                                     aspectRatio: "1/1",
                                     width: "44px",
@@ -481,9 +579,8 @@ export const Bridge: React.FC = () => {
                             </div>
                             <ButtonGroup>
                                 <Button
-                                    id="bridge-qr-scan-button"
+                                    id="bridge-explore-scan-button"
                                     variant="icon-button-black"
-                                    onClick={() => setShowQRScanner(true)}
                                     style={{
                                         aspectRatio: "1/1",
                                         width: "44px",
@@ -540,7 +637,7 @@ export const Bridge: React.FC = () => {
                     )}
 
                     <ActionButtons>
-                        <Button
+                        <LockButton
                             id="bridge-transaction-button"
                             onClick={() => setShowConfirmation(true)}
                             loading={isLoading}
@@ -551,20 +648,18 @@ export const Bridge: React.FC = () => {
                                 !!validationError ||
                                 !!addressError
                             }
-                            style={{ minWidth: "220px", height: "44px" }}
                         >
                             <h3>Lock on ASI Chain</h3>
-                        </Button>
-                        <Button
+                        </LockButton>
+                        <ClearAllButton
                             variant="secondary"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleClearAll();
                             }}
-                            style={{ minWidth: "170px", height: "44px" }}
                         >
                             <h3>Clear all</h3>
-                        </Button>
+                        </ClearAllButton>
                         <Button
                             id="history-button"
                             title="View transaction history"
@@ -580,37 +675,6 @@ export const Bridge: React.FC = () => {
                     </ActionButtons>
                 </BridgeCardContent>
             </Card>
-
-            <QRScannerModal $isOpen={showQRScanner}>
-                <QRScannerContent>
-                    <QRScannerHeader>
-                        <QRScannerTitle>Scan QR Code</QRScannerTitle>
-                        <CloseButton onClick={() => setShowQRScanner(false)}>
-                            ×
-                        </CloseButton>
-                    </QRScannerHeader>
-
-                    {scanError ? (
-                        <ErrorMessage>{scanError}</ErrorMessage>
-                    ) : (
-                        <VideoContainer>
-                            <Video />
-                        </VideoContainer>
-                    )}
-
-                    <div
-                        style={{
-                            marginTop: "16px",
-                            textAlign: "center",
-                            color: "#999",
-                        }}
-                    >
-                        <small>
-                            Position the QR code within the frame to scan
-                        </small>
-                    </div>
-                </QRScannerContent>
-            </QRScannerModal>
 
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
