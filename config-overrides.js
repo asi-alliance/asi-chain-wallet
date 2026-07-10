@@ -227,6 +227,23 @@ module.exports = function override(config, env) {
     };
   }
 
+  // Cardano SDK (Mesh / cardano-serialization-lib) ships WebAssembly modules.
+  config.experiments = {
+    ...(config.experiments || {}),
+    asyncWebAssembly: true,
+    topLevelAwait: true,
+  };
+
+  config.module.rules.forEach((rule) => {
+    if (rule.oneOf) {
+      rule.oneOf.forEach((loader) => {
+        if (loader.type === 'asset/resource' && Array.isArray(loader.exclude)) {
+          loader.exclude.push(/\.wasm$/);
+        }
+      });
+    }
+  });
+
   config.ignoreWarnings = [
     /Failed to parse source map/,
     /Critical dependency: the request of a dependency is an expression/,

@@ -288,6 +288,38 @@ export class RChainService {
         return await this.sendDeploy(transferRho, privateKey);
     }
 
+    // Lock tokens on the ASI bridge for cross-chain transfer.
+    // fromAddr is derived on-chain from the signed deploy's deployer.
+    async bridgeLock(
+        amountBaseUnits: string,
+        recipient: string,
+        destChainId: number,
+        privateKey: string,
+        bridgeUri: string,
+        phloLimit: number = 5_000_000_000,
+    ): Promise<string> {
+        const lockRho = `
+      new deployId(\`rho:system:deployId\`),
+          deployerId(\`rho:system:deployerId\`),
+          rl(\`rho:registry:lookup\`),
+          VaultAddress(\`rho:vault:address\`),
+          SystemVaultCh, bridgeCh, fromAddrCh, fromAuthKeyCh, ret in {
+        rl!(\`rho:vault:system\`, *SystemVaultCh) |
+        rl!(\`${bridgeUri}\`, *bridgeCh) |
+        for (@(_, SystemVault) <- SystemVaultCh; bridge <- bridgeCh) {
+          VaultAddress!("fromDeployerId", *deployerId, *fromAddrCh) |
+          @SystemVault!("deployerAuthKey", *deployerId, *fromAuthKeyCh) |
+          for (@fromAddr <- fromAddrCh; fromAuthKey <- fromAuthKeyCh) {
+            bridge!("lock", (fromAddr, ${amountBaseUnits}, "${recipient}", ${destChainId}), *fromAuthKey, *ret) |
+            for (@result <- ret) { deployId!(result) }
+          }
+        }
+      }
+    `;
+
+        return await this.sendDeploy(lockRho, privateKey, phloLimit);
+    }
+
     // Send deploy (like F1R3FLY wallet)
     async sendDeploy(
         rholangCode: string,
