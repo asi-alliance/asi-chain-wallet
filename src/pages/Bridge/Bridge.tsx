@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -40,6 +40,9 @@ import {
     recipientPlaceholderFor,
 } from "utils/bridgeRecipient";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
+import { useEvmBridge } from "hooks/useEvmBridge";
+import { useCosmosWallet } from "hooks/useCosmosWallet";
+import { useClearCrossNetworksData } from "hooks/useClearCrossNetworksData";
 import { buildCardanoLockTx } from "utils/cardanoTx";
 
 const BridgeContainer = styled.div`
@@ -265,6 +268,14 @@ export const Bridge: React.FC = () => {
     const dstChain = bridgeChainForKey(dstChainKey);
     const srcKind = srcChain.kind;
 
+    const evm = useEvmBridge(srcChain.evmId);
+    const cosmos = useCosmosWallet();
+
+    const clearCrossNetworksData = useClearCrossNetworksData({
+        onCardanoClear: cardano.disconnect,
+        onCosmosClear: cosmos.disconnect,
+    });
+
     const isAccountUnlocked =
         selectedAccount &&
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
@@ -290,6 +301,51 @@ export const Bridge: React.FC = () => {
         address: cardano.address,
         balance: cardanoBalanceDisplay,
     };
+
+    const evmBalanceDisplay = formatToken(
+        evm.tokenBalance ?? BigInt(0),
+        srcChain.nativeDecimals,
+    );
+    const evmAccountView: AccountView = {
+        id: "evm-wallet",
+        name: "EVM Wallet",
+        address: evm.address ?? "",
+        balance: evmBalanceDisplay,
+    };
+
+    const cosmosBalanceDisplay = formatToken(
+        BigInt(cosmos.balanceRaw || "0"),
+        srcChain.nativeDecimals,
+    );
+    const cosmosAccountView: AccountView = {
+        id: "cosmos-wallet",
+        name: cosmos.provider || srcChain.shortLabel,
+        address: cosmos.address ?? "",
+        balance: cosmosBalanceDisplay,
+    };
+
+    const needsEvmApproval =
+        srcKind === "evm" &&
+        evm.allowance !== undefined &&
+        rawAmount > BigInt(0) &&
+        evm.allowance < rawAmount;
+
+    const busy =
+        srcKind === "evm" ? evm.isPending || evm.isConfirming : isLoading;
+    const shownTxHash =
+        srcKind === "evm"
+            ? evm.isSuccess && evm.txHash
+                ? evm.txHash
+                : ""
+            : txHash;
+    const shownError =
+        (srcKind === "evm" ? evm.error?.message : lockError) || "";
+
+    useEffect(() => {
+        if (evm.isSuccess) {
+            evm.refetch();
+        }
+    }, [evm.isSuccess, evm.refetch]);
 
     const sourceOptions = useMemo<ISelectOption[]>(
         () =>
@@ -345,6 +401,20 @@ export const Bridge: React.FC = () => {
                     srcChain.nativeDecimals,
                 ),
             );
+        } else if (srcKind === "evm") {
+            setAmount(
+                formatToken(
+                    evm.tokenBalance ?? BigInt(0),
+                    srcChain.nativeDecimals,
+                ),
+            );
+        } else if (srcKind === "cosmos") {
+            setAmount(
+                formatToken(
+                    BigInt(cosmos.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
         }
     };
 
@@ -361,6 +431,43 @@ export const Bridge: React.FC = () => {
             await cardano.connect();
         } catch {
             /* error surfaced via cardano.error */
+        }
+    };
+
+    const handleConnectCosmos = async (): Promise<void> => {
+        try {
+            await cosmos.connect();
+        } catch {
+            /* error surfaced via cosmos.error */
+        }
+    };
+
+    const handleEvmAction = (): void => {
+        if (evm.wrongNetwork) {
+            evm.switchToSource();
+        } else if (needsEvmApproval) {
+            evm.approve(rawAmount);
+        } else {
+            evm.lock(rawAmount, recipient.trim(), dstChain.routeId);
+        }
+    };
+
+    const handleCosmosLock = async (): Promise<void> => {
+        setLockError("");
+        setTxHash("");
+        setIsLoading(true);
+        try {
+            const result = await cosmos.lock(
+                rawAmount,
+                recipient.trim(),
+                dstChain.routeId,
+            );
+            setTxHash(result.transactionHash);
+            setAmount("");
+        } catch (err: any) {
+            setLockError(err?.message || String(err));
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -428,30 +535,50 @@ export const Bridge: React.FC = () => {
             setShowConfirmation(true);
         } else if (srcKind === "cardano") {
             handleCardanoLock();
+        } else if (srcKind === "evm") {
+            handleEvmAction();
+        } else if (srcKind === "cosmos") {
+            handleCosmosLock();
         }
     };
 
     const lockDisabled =
-        isLoading ||
-        !canSend ||
+        busy ||
+        (srcKind === "evm"
+            ? !evm.isConnected || (!evm.wrongNetwork && !canSend)
+            : !canSend) ||
         (srcKind === "asi" && needsPassword && !password) ||
         (srcKind === "cardano" && !cardano.connected) ||
-        (srcKind !== "asi" && srcKind !== "cardano");
+        (srcKind === "cosmos" && !cosmos.connected);
 
-    const lockLabel =
-        srcKind === "cardano"
-            ? `Lock with ${cardano.walletName || "wallet"}`
-            : `Lock on ${srcChain.label}`;
+    const lockLabel = (() => {
+        if (srcKind === "cardano")
+            return `Lock with ${cardano.walletName || "wallet"}`;
+        if (srcKind === "evm") {
+            if (evm.wrongNetwork) return `Switch to ${srcChain.label}`;
+            if (needsEvmApproval) return "Approve";
+        }
+        return `Lock on ${srcChain.label}`;
+    })();
 
     const copyTxHash = async (): Promise<void> => {
         try {
-            await navigator.clipboard.writeText(txHash);
+            await navigator.clipboard.writeText(shownTxHash);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
         } catch {
             /* clipboard unavailable */
         }
     };
+
+    // useEffect(() => {
+    //     console.log("SRC KIND: ", srcKind);
+
+    //     console.log("CARDANO: ", cardano);
+
+    //     console.log("EVM: ", evm);
+    //     console.log("COSMOS: ", cosmos);
+    // }, [evm, cosmos, cardano]);
 
     if (!selectedAccount) {
         return (
@@ -473,9 +600,20 @@ export const Bridge: React.FC = () => {
             <Card style={{ paddingBottom: "36px" }}>
                 <CardHeader>
                     <CardTitle>Bridge</CardTitle>
+                    {(evm.isConnected ||
+                        cardano.connected ||
+                        cosmos.connected) && (
+                        <ClearAllButton
+                            id="bridge-clear-networks-button"
+                            variant="danger"
+                            onClick={clearCrossNetworksData}
+                        >
+                            <h3>Disconnect wallets</h3>
+                        </ClearAllButton>
+                    )}
                 </CardHeader>
                 <BridgeCardContent>
-                    {txHash && (
+                    {shownTxHash && (
                         <SuccessMessage>
                             <div
                                 style={{
@@ -492,7 +630,7 @@ export const Bridge: React.FC = () => {
                                         {srcKind === "asi"
                                             ? "Deploy ID"
                                             : "Tx hash"}
-                                        : {txHash}
+                                        : {shownTxHash}
                                     </div>
                                 </div>
                                 <Button
@@ -510,14 +648,14 @@ export const Bridge: React.FC = () => {
                         </SuccessMessage>
                     )}
 
-                    {isLoading && (
+                    {busy && (
                         <LoadingMessage>
                             <span className="spinner"></span>
                             Locking tokens on {srcChain.label}...
                         </LoadingMessage>
                     )}
 
-                    {lockError && <ErrorMessage>{lockError}</ErrorMessage>}
+                    {shownError && <ErrorMessage>{shownError}</ErrorMessage>}
 
                     <ChainSelectorRow>
                         <ChainField>
@@ -595,12 +733,85 @@ export const Bridge: React.FC = () => {
                             </ConnectWalletRow>
                         ))}
 
-                    {srcKind !== "asi" && srcKind !== "cardano" && (
-                        <InfoMessage>
-                            Source {srcChain.label} is not supported yet. Choose
-                            ASI Chain or Cardano Preprod.
-                        </InfoMessage>
-                    )}
+                    {srcKind === "evm" &&
+                        (evm.isConnected ? (
+                            <>
+                                <AccountSectionWrapper>
+                                    <AccountSwitcher
+                                        fullWidth
+                                        disabled
+                                        accounts={[evmAccountView]}
+                                        selectedId={evmAccountView.id}
+                                        onSelect={() => undefined}
+                                    />
+                                </AccountSectionWrapper>
+                                <BalanceInfo className="balance-info">
+                                    <AccountBalance
+                                        balance={evmBalanceDisplay}
+                                        loading={evm.isPending}
+                                        onRefresh={evm.refetch}
+                                    />
+                                </BalanceInfo>
+                                {evm.wrongNetwork && (
+                                    <InfoMessage>
+                                        Wrong network. Switch your wallet to{" "}
+                                        {srcChain.label}.
+                                    </InfoMessage>
+                                )}
+                            </>
+                        ) : (
+                            <ConnectWalletRow>
+                                <Button
+                                    id="bridge-connect-evm-button"
+                                    onClick={evm.openConnect}
+                                    style={{
+                                        minWidth: "220px",
+                                        height: "44px",
+                                    }}
+                                >
+                                    <h3>Connect EVM Wallet</h3>
+                                </Button>
+                            </ConnectWalletRow>
+                        ))}
+
+                    {srcKind === "cosmos" &&
+                        (cosmos.connected ? (
+                            <>
+                                <AccountSectionWrapper>
+                                    <AccountSwitcher
+                                        fullWidth
+                                        disabled
+                                        accounts={[cosmosAccountView]}
+                                        selectedId={cosmosAccountView.id}
+                                        onSelect={() => undefined}
+                                    />
+                                </AccountSectionWrapper>
+                                <BalanceInfo className="balance-info">
+                                    <AccountBalance
+                                        balance={cosmosBalanceDisplay}
+                                        loading={cosmos.loading}
+                                        onRefresh={cosmos.refreshBalance}
+                                    />
+                                </BalanceInfo>
+                            </>
+                        ) : (
+                            <ConnectWalletRow>
+                                <Button
+                                    id="bridge-connect-cosmos-button"
+                                    onClick={handleConnectCosmos}
+                                    loading={cosmos.loading}
+                                    style={{
+                                        minWidth: "220px",
+                                        height: "44px",
+                                    }}
+                                >
+                                    <h3>Connect Fetch Wallet</h3>
+                                </Button>
+                                {cosmos.error && (
+                                    <ErrorMessage>{cosmos.error}</ErrorMessage>
+                                )}
+                            </ConnectWalletRow>
+                        ))}
 
                     {srcKind === "asi" && !isAccountUnlocked && (
                         <InfoMessage>
@@ -732,7 +943,7 @@ export const Bridge: React.FC = () => {
                         <LockButton
                             id="bridge-transaction-button"
                             onClick={handleLockClick}
-                            loading={isLoading}
+                            loading={busy}
                             disabled={lockDisabled}
                         >
                             <h3>{lockLabel}</h3>

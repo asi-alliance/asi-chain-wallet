@@ -57,6 +57,22 @@ const FETCHHUB_DORADO_BRIDGE_ADDRESS = env(
     "REACT_APP_FETCHHUB_DORADO_BRIDGE_ADDRESS",
     "fetch133z0cwzwmrmmck3c0jgg9g3lfk2gqnkvgyjcnqlxa655xqpyxldszczv8t",
 );
+const FETCHHUB_DORADO_CHAIN_ID = env(
+    "REACT_APP_FETCHHUB_DORADO_CHAIN_ID",
+    "dorado-1",
+);
+const FETCHHUB_DORADO_RPC_URL = env(
+    "REACT_APP_FETCHHUB_DORADO_RPC_URL",
+    "https://rpc-dorado.fetch.ai:443",
+);
+const FETCHHUB_DORADO_REST_URL = env(
+    "REACT_APP_FETCHHUB_DORADO_REST_URL",
+    "https://rest-dorado.fetch.ai:443",
+);
+const FETCHHUB_DORADO_DENOM = env(
+    "REACT_APP_FETCHHUB_DORADO_DENOM",
+    "atestfet",
+);
 const CARDANO_PREPROD_BRIDGE_ADDRESS = env(
     "REACT_APP_CARDANO_PREPROD_BRIDGE_ADDRESS",
     "addr_test1wpa3uz0pr7ysg64pvz2hdr5g20s5ruwt3zgf3dxk8qpkjjc5xcrsg",
@@ -87,6 +103,7 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         shortLabel: "Sepolia",
         routeId: SEPOLIA_ROUTE_ID,
         nativeDecimals: 18,
+        evmId: SEPOLIA_ROUTE_ID,
     },
     {
         key: "baseSepolia",
@@ -95,6 +112,7 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         shortLabel: "Base",
         routeId: BASE_SEPOLIA_ROUTE_ID,
         nativeDecimals: 18,
+        evmId: BASE_SEPOLIA_ROUTE_ID,
     },
     {
         key: "fetchhubDorado",
@@ -105,6 +123,11 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         nativeDecimals: 18,
         addressPrefix: "fetch",
         bridgeAddress: FETCHHUB_DORADO_BRIDGE_ADDRESS,
+        cosmosChainId: FETCHHUB_DORADO_CHAIN_ID,
+        rpcUrl: FETCHHUB_DORADO_RPC_URL,
+        restUrl: FETCHHUB_DORADO_REST_URL,
+        denom: FETCHHUB_DORADO_DENOM,
+        displayDenom: "TESTFET",
     },
     {
         key: "cardanoPreprod",

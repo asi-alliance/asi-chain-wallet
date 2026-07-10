@@ -34,6 +34,7 @@ export type CardanoWalletState = {
     lovelaceRaw: string;
     connect: () => Promise<CardanoWalletConnection>;
     refreshBalance: () => Promise<void>;
+    disconnect: () => void;
 };
 
 const hexToBytes = (hex: string): Uint8Array => {
@@ -211,6 +212,17 @@ export const useCardanoWallet = (): CardanoWalletState => {
         return () => window.clearInterval(interval);
     }, [api, refreshBalanceFor]);
 
+    const disconnect = useCallback(() => {
+        setApi(null);
+        setAddress("");
+        setWalletName("");
+        setBalanceRaw("0");
+        setLovelaceRaw("0");
+        setError("");
+        setLoading(false);
+        setBalanceLoading(false);
+    }, []);
+
     return {
         api,
         address,
@@ -223,5 +235,6 @@ export const useCardanoWallet = (): CardanoWalletState => {
         lovelaceRaw,
         connect,
         refreshBalance,
+        disconnect,
     };
 };
