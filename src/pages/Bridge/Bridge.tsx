@@ -13,11 +13,6 @@ import {
     Input,
     PasswordInput,
     TransactionConfirmationModal,
-    ASIAccountSwitcher,
-    ASIAccountBalance,
-    AccountSwitcher,
-    AccountBalance,
-    AccountView,
 } from "components";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
@@ -34,16 +29,17 @@ import {
     SOURCE_CHAIN_KEYS,
 } from "constants/bridgeChains";
 import { formatToken, parseTokenInput } from "utils/tokenFormat";
-import {
-    recipientErrorFor,
-    recipientLabelFor,
-    recipientPlaceholderFor,
-} from "utils/bridgeRecipient";
+import { recipientErrorFor } from "utils/bridgeRecipient";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { useClearCrossNetworksData } from "hooks/useClearCrossNetworksData";
 import { buildCardanoLockTx } from "utils/cardanoTx";
+import {
+    BridgeWalletSelector,
+    IWalletSessionContext,
+    WalletKind,
+} from "components/BridgeWalletSelector";
 
 const BridgeContainer = styled.div`
     max-width: 946px;
@@ -59,28 +55,6 @@ const InputFormGroup = styled(FormGroup)`
 
     @media (max-width: 768px) {
         margin-bottom: 20px;
-    }
-`;
-
-const AccountSectionWrapper = styled.div`
-    margin-bottom: 24px;
-`;
-
-const ConnectWalletRow = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 36px;
-`;
-
-const BalanceInfo = styled.div`
-    margin-bottom: 36px;
-    display: flex;
-    justify-content: center;
-
-    @media (max-width: 768px) {
-        margin-bottom: 49px;
     }
 `;
 
@@ -139,15 +113,6 @@ const SuccessMessage = styled.div`
         color: ${({ theme }) => theme.text.inverse};
         opacity: 0.8;
     }
-`;
-
-const InfoMessage = styled.div`
-    background: ${({ theme }) => `${theme.primary}20`};
-    color: ${({ theme }) => theme.text.primary};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
 `;
 
 const LoadingMessage = styled.div`
@@ -251,6 +216,7 @@ export const Bridge: React.FC = () => {
 
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
+    const [amountError, setAmountError] = useState("");
     const [password, setPassword] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -271,6 +237,116 @@ export const Bridge: React.FC = () => {
     const evm = useEvmBridge(srcChain.evmId);
     const cosmos = useCosmosWallet();
 
+    const walletSessionContext: IWalletSessionContext = {
+        asi: {
+            account: selectedAccount,
+        },
+
+        cardano: {
+            connected: cardano.connected,
+            loading: cardano.loading,
+            error: cardano.error,
+
+            connect: async () => {
+                cardano.connect();
+            },
+            disconnect: async () => {
+                cardano.disconnect();
+            },
+
+            account: {
+                id: "cardano-wallet",
+                name: cardano.walletName || srcChain.shortLabel,
+                address: cardano.address || "",
+                balance: formatToken(
+                    BigInt(cardano.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            },
+
+            balance: formatToken(
+                BigInt(cardano.balanceRaw || "0"),
+                srcChain.nativeDecimals,
+            ),
+
+            balanceLoading: cardano.balanceLoading,
+            refreshBalance: cardano.refreshBalance,
+        },
+
+        evm: {
+            connected: evm.isConnected,
+            loading: evm.isPending,
+            error: evm.error?.message,
+
+            connect: evm.openConnect,
+
+            account: {
+                id: "evm-wallet",
+                name: "EVM Wallet",
+                address: evm.address || "",
+                balance: formatToken(
+                    evm.tokenBalance ?? BigInt(0),
+                    srcChain.nativeDecimals,
+                ),
+            },
+
+            balance: formatToken(
+                evm.tokenBalance ?? BigInt(0),
+                srcChain.nativeDecimals,
+            ),
+
+            refreshBalance: async () => {
+                evm.refetch();
+            },
+
+            wrongNetwork: evm.wrongNetwork,
+            switchNetwork: async () => {
+                evm.switchToSource();
+            },
+        },
+
+        cosmos: {
+            connected: cosmos.connected,
+            loading: cosmos.loading,
+            error: cosmos.error,
+
+            connect: cosmos.connect,
+            disconnect: async () => {
+                cosmos.disconnect();
+            },
+
+            account: {
+                id: "cosmos-wallet",
+                name: cosmos.provider || srcChain.shortLabel,
+                address: cosmos.address || "",
+                balance: formatToken(
+                    BigInt(cosmos.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            },
+
+            balance: formatToken(
+                BigInt(cosmos.balanceRaw || "0"),
+                srcChain.nativeDecimals,
+            ),
+
+            balanceLoading: cosmos.loading,
+            refreshBalance: cosmos.refreshBalance,
+        },
+    };
+
+    const sourceWallet = walletSessionContext[srcKind];
+    const destinationWallet = walletSessionContext[dstChain.kind];
+
+    const hasWalletAccount = (
+        wallet: IWalletSessionContext[WalletKind],
+    ): boolean => {
+        return Boolean(wallet.account?.address);
+    };
+
+    const sourceAccountLoaded = hasWalletAccount(sourceWallet);
+    const destinationAccountLoaded = hasWalletAccount(destinationWallet);
+
     const clearCrossNetworksData = useClearCrossNetworksData({
         onCardanoClear: cardano.disconnect,
         onCosmosClear: cosmos.disconnect,
@@ -279,50 +355,12 @@ export const Bridge: React.FC = () => {
     const isAccountUnlocked =
         selectedAccount &&
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
+
     const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
 
-    const recipientError = recipientErrorFor(dstChain, recipient);
     const rawAmount = amount.trim()
         ? parseTokenInput(amount, srcChain.nativeDecimals)
         : BigInt(0);
-    const canSend =
-        amount.trim() !== "" &&
-        rawAmount > BigInt(0) &&
-        recipient.trim() !== "" &&
-        !recipientError;
-
-    const cardanoBalanceDisplay = formatToken(
-        BigInt(cardano.balanceRaw || "0"),
-        srcChain.nativeDecimals,
-    );
-    const cardanoAccountView: AccountView = {
-        id: "cardano-wallet",
-        name: cardano.walletName || srcChain.shortLabel,
-        address: cardano.address,
-        balance: cardanoBalanceDisplay,
-    };
-
-    const evmBalanceDisplay = formatToken(
-        evm.tokenBalance ?? BigInt(0),
-        srcChain.nativeDecimals,
-    );
-    const evmAccountView: AccountView = {
-        id: "evm-wallet",
-        name: "EVM Wallet",
-        address: evm.address ?? "",
-        balance: evmBalanceDisplay,
-    };
-
-    const cosmosBalanceDisplay = formatToken(
-        BigInt(cosmos.balanceRaw || "0"),
-        srcChain.nativeDecimals,
-    );
-    const cosmosAccountView: AccountView = {
-        id: "cosmos-wallet",
-        name: cosmos.provider || srcChain.shortLabel,
-        address: cosmos.address ?? "",
-        balance: cosmosBalanceDisplay,
-    };
 
     const needsEvmApproval =
         srcKind === "evm" &&
@@ -376,6 +414,7 @@ export const Bridge: React.FC = () => {
         setAmount("");
         setTxHash("");
         setLockError("");
+        setAmountError("");
     };
 
     const handleDestinationChange = (key: string): void => {
@@ -386,6 +425,7 @@ export const Bridge: React.FC = () => {
         setDstChainKey(nextKey);
         setTxHash("");
         setLockError("");
+        setAmountError("");
     };
 
     const maxAmount = (): void => {
@@ -423,23 +463,9 @@ export const Bridge: React.FC = () => {
         setAmount("");
         setPassword("");
         setTxHash("");
+
         setLockError("");
-    };
-
-    const handleConnectCardano = async (): Promise<void> => {
-        try {
-            await cardano.connect();
-        } catch {
-            /* error surfaced via cardano.error */
-        }
-    };
-
-    const handleConnectCosmos = async (): Promise<void> => {
-        try {
-            await cosmos.connect();
-        } catch {
-            /* error surfaced via cosmos.error */
-        }
+        setAmountError("");
     };
 
     const handleEvmAction = (): void => {
@@ -542,14 +568,104 @@ export const Bridge: React.FC = () => {
         }
     };
 
+    const handleAmountChange = (value: string) => {
+        setAmount(value);
+
+        if (!value.trim()) {
+            setAmountError("");
+            return;
+        }
+
+        const amountValue = Number(value);
+
+        if (isNaN(amountValue) || amountValue <= 0) {
+            setAmountError("Valid amount is required");
+            return;
+        }
+
+        if (srcKind === "asi") {
+            const balance = Number(selectedAccount?.balance || "0");
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)} ASI`,
+                );
+                return;
+            }
+
+            const totalRequired = amountValue + getGasFeeAsNumber();
+
+            if (totalRequired > balance) {
+                const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
+
+                setAmountError(
+                    `Amount + fee exceeds balance. Max: ${maxSendable.toFixed(
+                        8,
+                    )} ASI`,
+                );
+                return;
+            }
+        }
+
+        if (srcKind === "evm") {
+            if (evm.tokenBalance !== undefined) {
+                const balance = Number(
+                    formatToken(evm.tokenBalance, srcChain.nativeDecimals),
+                );
+
+                if (amountValue > balance) {
+                    setAmountError(
+                        `Insufficient balance. You have ${balance.toFixed(8)}`,
+                    );
+                    return;
+                }
+            }
+        }
+
+        if (srcKind === "cardano") {
+            const balance = Number(
+                formatToken(
+                    BigInt(cardano.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)}`,
+                );
+                return;
+            }
+        }
+
+        if (srcKind === "cosmos") {
+            const balance = Number(
+                formatToken(
+                    BigInt(cosmos.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)}`,
+                );
+                return;
+            }
+        }
+
+        setAmountError("");
+    };
+
+    const isAmountValid =
+        amount.trim() !== "" && rawAmount > BigInt(0) && !amountError;
+
     const lockDisabled =
         busy ||
-        (srcKind === "evm"
-            ? !evm.isConnected || (!evm.wrongNetwork && !canSend)
-            : !canSend) ||
-        (srcKind === "asi" && needsPassword && !password) ||
-        (srcKind === "cardano" && !cardano.connected) ||
-        (srcKind === "cosmos" && !cosmos.connected);
+        !sourceAccountLoaded ||
+        !destinationAccountLoaded ||
+        !isAmountValid ||
+        (srcKind === "asi" && needsPassword && !password);
 
     const lockLabel = (() => {
         if (srcKind === "cardano")
@@ -683,6 +799,13 @@ export const Bridge: React.FC = () => {
                         </ChainField>
                     </ChainSelectorRow>
 
+                    <h2 style={{ marginBottom: "8px" }}>Source account</h2>
+
+                    <BridgeWalletSelector
+                        chainKind={srcKind}
+                        wallet={walletSessionContext[srcKind]}
+                    />
+                    {/* 
                     {srcKind === "asi" && (
                         <>
                             <AccountSectionWrapper>
@@ -818,7 +941,7 @@ export const Bridge: React.FC = () => {
                             Account is locked. You'll need to enter your
                             password to submit the lock.
                         </InfoMessage>
-                    )}
+                    )} */}
 
                     <InputFormGroup>
                         <InputWithButton className="input-with-button">
@@ -841,7 +964,9 @@ export const Bridge: React.FC = () => {
                                 }}
                                 type="number"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                                onChange={(e) =>
+                                    handleAmountChange(e.target.value)
+                                }
                                 placeholder="Enter amount"
                                 step="0.00000001"
                                 min="0"
@@ -870,9 +995,20 @@ export const Bridge: React.FC = () => {
                         >
                             8 decimal places (1 ASI = 1.00000000)
                         </TextSecondaryBlock>
+                        {amountError && (
+                            <div
+                                style={{
+                                    marginTop: "8px",
+                                    color: "#ff4d4f",
+                                    fontSize: "14px",
+                                }}
+                            >
+                                {amountError}
+                            </div>
+                        )}
                     </InputFormGroup>
 
-                    <InputFormGroup>
+                    {/* <InputFormGroup>
                         <label
                             style={{
                                 display: "block",
@@ -918,7 +1054,14 @@ export const Bridge: React.FC = () => {
                                 {recipientError}
                             </div>
                         )}
-                    </InputFormGroup>
+                    </InputFormGroup> */}
+
+                    <h2 style={{ marginBottom: "8px" }}>Destination account</h2>
+
+                    <BridgeWalletSelector
+                        chainKind={dstChain.kind}
+                        wallet={walletSessionContext[dstChain.kind]}
+                    />
 
                     {srcKind === "asi" && needsPassword && (
                         <FormGroup>
