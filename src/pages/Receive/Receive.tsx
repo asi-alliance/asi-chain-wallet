@@ -17,7 +17,7 @@ import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountSelector } from "components/AccountSelector";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
-import { AccountBalance } from "components/AccountBalance";
+import { ASIAccountBalance } from "components/ASIAccountBalance";
 import {
     CopyIcon,
     FileCopyIcon,
@@ -228,7 +228,7 @@ export const Receive: React.FC = () => {
                     </SelectToolbar>
 
                     <BalanceInfo className="balance-info">
-                        <AccountBalance
+                        <ASIAccountBalance
                             account={selectedAccount}
                             style={{ marginBottom: "0" }}
                         />

@@ -1,18 +1,16 @@
 import { CSSProperties, ReactElement } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
 import styled from "styled-components";
 import { Button } from "components/Button";
 import { ReloadIcon } from "components/Icons";
 import { formatBalanceCard } from "utils/balanceUtils";
-import { Account } from "types/wallet";
 
 interface IAccountBalanceProps {
-    account: Account;
+    balance: string;
+    loading?: boolean;
+    onRefresh?: () => void;
     isSelected?: boolean;
     style?: CSSProperties;
-    onBalanceUpdate?: () => void;
+    refreshButtonId?: string;
 }
 
 const AmountBalanceCard = styled.div`
@@ -55,28 +53,14 @@ const CustomReloadIcon = styled(ReloadIcon)<{ $isSelected: boolean }>`
 `;
 
 export const AccountBalance = ({
-    account,
+    balance,
+    loading = false,
+    onRefresh,
     isSelected = false,
     style,
-    onBalanceUpdate,
+    refreshButtonId,
 }: IAccountBalanceProps): ReactElement => {
-    const dispatch = useDispatch();
-    const { selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
-
-    const { amount, currency } = formatBalanceCard(account.balance);
-
-    const handleRefreshBalance = () => {
-        dispatch(
-            fetchBalance({
-                account,
-                network: selectedNetwork,
-                forceRefresh: true,
-            }) as any,
-        );
-        onBalanceUpdate?.();
-    };
+    const { amount, currency } = formatBalanceCard(balance);
 
     return (
         <AmountBalanceCard className="account-balance-card" style={style}>
@@ -90,14 +74,14 @@ export const AccountBalance = ({
                     </AccountCurrency>
                 </div>
                 <Button
-                    id={`refresh-balance-account-${account.id}`}
+                    id={refreshButtonId}
                     title="Refresh Balance"
                     variant="icon-button-ghost"
                     onClick={(e) => {
                         e.stopPropagation();
-                        handleRefreshBalance();
+                        onRefresh?.();
                     }}
-                    loading={isLoading}
+                    loading={loading}
                     withFadeHover
                 >
                     <CustomReloadIcon

@@ -6,7 +6,7 @@ import { RootState } from "store";
 import { logout } from "store/authSlice";
 import { CloseIcon } from "components/Icons";
 import { Button } from "components/Button";
-import { AccountSwitcher } from "components/AccountSwitcher";
+import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;
@@ -222,7 +222,7 @@ export const MobileNavDrawerComponent: React.FC<
                     </MobileNavSection>
                 </MobileNavContent>
                 <MobileNavFooter>
-                    <AccountSwitcher
+                    <ASIAccountSwitcher
                         adaptive={false}
                         layout="vertical"
                         fullWidth
