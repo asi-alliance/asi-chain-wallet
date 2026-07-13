@@ -20,12 +20,10 @@ type BuildCardanoLockTxInput = {
     nonce?: string;
 };
 
-const DEFAULT_KOIOS_PREPROD_URL = "https://preprod.koios.rest/api/v1";
 const MIN_BROWSER_LOCK_LOVELACE = BigInt(3000000);
 
 const cardanoProviderUrl = (): string =>
-    process.env.REACT_APP_CARDANO_PREPROD_KOIOS_URL ||
-    DEFAULT_KOIOS_PREPROD_URL;
+    process.env.REACT_APP_CARDANO_PREPROD_KOIOS_URL ?? "";
 
 const formatAda = (lovelace: bigint): string => {
     const sign = lovelace < BigInt(0) ? "-" : "";

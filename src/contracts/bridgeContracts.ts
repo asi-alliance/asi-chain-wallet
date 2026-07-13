@@ -7,29 +7,16 @@ interface ContractSet {
     token: Addr;
 }
 
-const envAddr = (value: string | undefined, fallback: Addr): Addr =>
-    (value || fallback) as Addr;
+const envAddr = (value: string | undefined): Addr => (value ?? "") as Addr;
 
 const CONTRACTS_BY_CHAIN: Record<number, ContractSet> = {
     [sepolia.id]: {
-        bridge: envAddr(
-            process.env.REACT_APP_SEPOLIA_BRIDGE_ADDRESS,
-            "0x50cf69b013cbc050A16eEf8F06e8277f1EfD7C00",
-        ),
-        token: envAddr(
-            process.env.REACT_APP_SEPOLIA_TOKEN_ADDRESS,
-            "0xdc0F1fD7D3687421B75B2757F8a2036A34162a3F",
-        ),
+        bridge: envAddr(process.env.REACT_APP_SEPOLIA_BRIDGE_ADDRESS),
+        token: envAddr(process.env.REACT_APP_SEPOLIA_TOKEN_ADDRESS),
     },
     [baseSepolia.id]: {
-        bridge: envAddr(
-            process.env.REACT_APP_BASE_SEPOLIA_BRIDGE_ADDRESS,
-            "0x46E5F040e0cBE399BED36d53fEE46962dE54B394",
-        ),
-        token: envAddr(
-            process.env.REACT_APP_BASE_SEPOLIA_TOKEN_ADDRESS,
-            "0xEA7327D6c2BFfaF1e732Cd60FBfEdDD554997CA7",
-        ),
+        bridge: envAddr(process.env.REACT_APP_BASE_SEPOLIA_BRIDGE_ADDRESS),
+        token: envAddr(process.env.REACT_APP_BASE_SEPOLIA_TOKEN_ADDRESS),
     },
 };
 

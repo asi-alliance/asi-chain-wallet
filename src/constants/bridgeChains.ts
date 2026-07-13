@@ -1,3 +1,4 @@
+import { sepolia, baseSepolia } from "viem/chains";
 import {
     ASI_CHAIN_DECIMALS,
     CARDANO_TOKEN_DECIMALS,
@@ -34,56 +35,37 @@ export interface BridgeChainConfig {
     assetName?: string;
 }
 
-const env = (key: string, fallback: string): string =>
-    process.env[key] ?? fallback;
+const envStr = (key: string): string => process.env[key] ?? "";
+const envNum = (key: string): number => Number(process.env[key] ?? "");
 
-const SEPOLIA_ROUTE_ID = 11155111;
-const BASE_SEPOLIA_ROUTE_ID = 84532;
+const SEPOLIA_ROUTE_ID = sepolia.id;
+const BASE_SEPOLIA_ROUTE_ID = baseSepolia.id;
 
-export const ASI_BRIDGE_URI = env(
-    "REACT_APP_ASI_BRIDGE_URI",
-    "rho:id:9j876bswk1dd99m7657ianiow4tgxj33r3oaq9rqyxj1cbzox6cdth",
-);
+export const ASI_BRIDGE_URI = envStr("REACT_APP_ASI_BRIDGE_URI");
 
-const ASI_ROUTE_ID = Number(env("REACT_APP_ASI_CHAIN_ID", "0"));
-const FETCHHUB_DORADO_ROUTE_ID = Number(
-    env("REACT_APP_FETCHHUB_DORADO_ROUTE_ID", "4361"),
-);
-const CARDANO_PREPROD_ROUTE_ID = Number(
-    env("REACT_APP_CARDANO_PREPROD_ROUTE_ID", "181501"),
-);
+const ASI_ROUTE_ID = envNum("REACT_APP_ASI_CHAIN_ID");
+const FETCHHUB_DORADO_ROUTE_ID = envNum("REACT_APP_FETCHHUB_DORADO_ROUTE_ID");
+const CARDANO_PREPROD_ROUTE_ID = envNum("REACT_APP_CARDANO_PREPROD_ROUTE_ID");
 
-const FETCHHUB_DORADO_BRIDGE_ADDRESS = env(
+const FETCHHUB_DORADO_BRIDGE_ADDRESS = envStr(
     "REACT_APP_FETCHHUB_DORADO_BRIDGE_ADDRESS",
-    "fetch133z0cwzwmrmmck3c0jgg9g3lfk2gqnkvgyjcnqlxa655xqpyxldszczv8t",
 );
-const FETCHHUB_DORADO_CHAIN_ID = env(
-    "REACT_APP_FETCHHUB_DORADO_CHAIN_ID",
-    "dorado-1",
-);
-const FETCHHUB_DORADO_RPC_URL = env(
-    "REACT_APP_FETCHHUB_DORADO_RPC_URL",
-    "https://rpc-dorado.fetch.ai:443",
-);
-const FETCHHUB_DORADO_REST_URL = env(
-    "REACT_APP_FETCHHUB_DORADO_REST_URL",
-    "https://rest-dorado.fetch.ai:443",
-);
-const FETCHHUB_DORADO_DENOM = env(
-    "REACT_APP_FETCHHUB_DORADO_DENOM",
-    "atestfet",
-);
-const CARDANO_PREPROD_BRIDGE_ADDRESS = env(
+const FETCHHUB_DORADO_CHAIN_ID = envStr("REACT_APP_FETCHHUB_DORADO_CHAIN_ID");
+const FETCHHUB_DORADO_RPC_URL = envStr("REACT_APP_FETCHHUB_DORADO_RPC_URL");
+const FETCHHUB_DORADO_REST_URL = envStr("REACT_APP_FETCHHUB_DORADO_REST_URL");
+const FETCHHUB_DORADO_DENOM = envStr("REACT_APP_FETCHHUB_DORADO_DENOM");
+const CARDANO_PREPROD_BRIDGE_ADDRESS = envStr(
     "REACT_APP_CARDANO_PREPROD_BRIDGE_ADDRESS",
-    "addr_test1wpa3uz0pr7ysg64pvz2hdr5g20s5ruwt3zgf3dxk8qpkjjc5xcrsg",
 );
-const CARDANO_PREPROD_POLICY_ID = env(
-    "REACT_APP_CARDANO_PREPROD_POLICY_ID",
-    "def68337867cb4f1f95b6b811fedbfcdd7780d10a95cc072077088ea",
-);
-const CARDANO_PREPROD_ASSET_NAME = env(
+const CARDANO_PREPROD_POLICY_ID = envStr("REACT_APP_CARDANO_PREPROD_POLICY_ID");
+const CARDANO_PREPROD_ASSET_NAME = envStr(
     "REACT_APP_CARDANO_PREPROD_ASSET_NAME",
-    "415349",
+);
+const CARDANO_PREPROD_NETWORK_ID = envStr(
+    "REACT_APP_CARDANO_PREPROD_NETWORK_ID",
+);
+const CARDANO_PREPROD_NETWORK_MAGIC = envNum(
+    "REACT_APP_CARDANO_PREPROD_NETWORK_MAGIC",
 );
 
 export const BRIDGE_CHAINS: BridgeChainConfig[] = [
@@ -136,8 +118,8 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         shortLabel: "Cardano",
         routeId: CARDANO_PREPROD_ROUTE_ID,
         nativeDecimals: CARDANO_TOKEN_DECIMALS,
-        cardanoNetworkId: "preprod",
-        networkMagic: 1,
+        cardanoNetworkId: CARDANO_PREPROD_NETWORK_ID,
+        networkMagic: CARDANO_PREPROD_NETWORK_MAGIC,
         bridgeAddress: CARDANO_PREPROD_BRIDGE_ADDRESS,
         assetPolicyId: CARDANO_PREPROD_POLICY_ID,
         assetName: CARDANO_PREPROD_ASSET_NAME,
