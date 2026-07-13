@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import type { OfflineSigner } from "@cosmjs/proto-signing";
 import {
@@ -6,6 +6,8 @@ import {
     BridgeChainKey,
     BridgeChainConfig,
 } from "constants/bridgeChains";
+import { formatToken } from "utils/tokenFormat";
+import { CosmosWalletSession } from "types/bridgeWalletSession";
 
 type WalletProvider = "asi-wallet" | "keplr";
 
@@ -58,6 +60,7 @@ export interface CosmosWalletApi {
         recipient: string,
         destChainId: number,
     ) => Promise<CosmosLockResult>;
+    session: CosmosWalletSession;
 }
 
 interface ConnectedCosmosWallet {
@@ -214,7 +217,7 @@ export const useCosmosWallet = (
                     await keplr.enable?.(chainId);
                     nextSigner = window.getOfflineSignerAuto
                         ? await window.getOfflineSignerAuto(chainId)
-                        : window.getOfflineSigner?.(chainId) ?? null;
+                        : (window.getOfflineSigner?.(chainId) ?? null);
                     nextProvider = "keplr";
                 }
 
@@ -257,6 +260,24 @@ export const useCosmosWallet = (
         } finally {
             setLoading(false);
         }
+    }, [address, refreshBalanceFor]);
+
+    useEffect(() => {
+        if (!address) {
+            return;
+        }
+
+        refreshBalanceFor(address).catch((err) => {
+            setError(err instanceof Error ? err.message : String(err));
+        });
+
+        const interval = window.setInterval(() => {
+            refreshBalanceFor(address).catch((err) => {
+                setError(err instanceof Error ? err.message : String(err));
+            });
+        }, 30000);
+
+        return () => window.clearInterval(interval);
     }, [address, refreshBalanceFor]);
 
     const lock = useCallback(
@@ -318,6 +339,38 @@ export const useCosmosWallet = (
         setLoading(false);
     }, []);
 
+    const balanceDisplay = formatToken(
+        BigInt(balanceRaw || "0"),
+        chain.nativeDecimals,
+    );
+
+    const session: CosmosWalletSession = {
+        connected: !!address && !!signer,
+        loading,
+        error,
+
+        connect: async () => {
+            try {
+                await connect();
+            } catch {}
+        },
+        disconnect: async () => {
+            disconnect();
+        },
+
+        account: {
+            id: "cosmos-wallet",
+            name: provider || chain.shortLabel,
+            address: address || "",
+            balance: balanceDisplay,
+        },
+
+        balance: balanceDisplay,
+
+        balanceLoading: loading,
+        refreshBalance,
+    };
+
     return {
         address,
         balanceRaw,
@@ -329,5 +382,6 @@ export const useCosmosWallet = (
         refreshBalance,
         disconnect,
         lock,
+        session,
     };
 };

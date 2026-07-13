@@ -13,6 +13,9 @@ import {
     TokenABI,
     contractsForChain,
 } from "contracts/bridgeContracts";
+import { BridgeChainConfig } from "constants/bridgeChains";
+import { formatToken } from "utils/tokenFormat";
+import { EvmWalletSession } from "types/bridgeWalletSession";
 
 const EVM_APPROVE_GAS = BigInt(100000);
 const EVM_LOCK_GAS = BigInt(500000);
@@ -34,23 +37,28 @@ export interface EvmBridgeState {
     approve: (amountRaw: bigint) => void;
     lock: (amountRaw: bigint, recipient: string, destChainId: number) => void;
     refetch: () => void;
+    session: EvmWalletSession;
 }
 
-export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
+export const useEvmBridge = (
+    chain: BridgeChainConfig,
+    isDestination = false,
+): EvmBridgeState => {
+    const evmId = chain.evmId;
     const { address, isConnected } = useAccount();
     const currentChainId = useChainId();
     const { openConnectModal } = useConnectModal();
     const { switchChain } = useSwitchChain();
-    const contracts = contractsForChain(srcEvmId);
+    const contracts = contractsForChain(evmId);
 
-    const enabledReads = !!address && !!srcEvmId;
+    const enabledReads = !!address && !!evmId;
 
     const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
         address: contracts.token,
         abi: TokenABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: srcEvmId,
+        chainId: evmId,
         query: { enabled: enabledReads, refetchInterval: 30000 },
     });
 
@@ -59,7 +67,7 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
         abi: TokenABI,
         functionName: "allowance",
         args: address ? [address, contracts.bridge] : undefined,
-        chainId: srcEvmId,
+        chainId: evmId,
         query: { enabled: enabledReads, refetchInterval: 30000 },
     });
 
@@ -67,8 +75,8 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
         address: contracts.bridge,
         abi: BridgeABI,
         functionName: "totalLocked",
-        chainId: srcEvmId,
-        query: { enabled: !!srcEvmId, refetchInterval: 30000 },
+        chainId: evmId,
+        query: { enabled: !!evmId, refetchInterval: 30000 },
     });
 
     const {
@@ -82,15 +90,10 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
         { hash: txHash },
     );
 
-    // console.log("EVM src evm id: ", srcEvmId);
-
-    // console.log("EVM Current chain id: ", currentChainId);
-
-    const wrongNetwork =
-        isConnected && !!srcEvmId && currentChainId !== srcEvmId;
+    const wrongNetwork = isConnected && !!evmId && currentChainId !== evmId;
 
     const switchToSource = (): void => {
-        if (srcEvmId) switchChain({ chainId: srcEvmId });
+        if (evmId) switchChain({ chainId: evmId });
     };
 
     const approve = (amountRaw: bigint): void => {
@@ -99,7 +102,7 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
             abi: TokenABI,
             functionName: "approve",
             args: [contracts.bridge, amountRaw],
-            chainId: srcEvmId,
+            chainId: evmId,
             gas: EVM_APPROVE_GAS,
         });
     };
@@ -114,7 +117,7 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
             abi: BridgeABI,
             functionName: "lock",
             args: [amountRaw, recipient, BigInt(destChainId)],
-            chainId: srcEvmId,
+            chainId: evmId,
             gas: EVM_LOCK_GAS,
         });
     };
@@ -123,6 +126,43 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
         refetchBalance();
         refetchAllowance();
     }, [refetchBalance, refetchAllowance]);
+
+    const openConnect = (): void => {
+        openConnectModal?.();
+    };
+
+    const balanceDisplay = formatToken(
+        tokenBalance ?? BigInt(0),
+        chain.nativeDecimals,
+    );
+
+    const session: EvmWalletSession = {
+        connected: isConnected,
+        loading: isPending,
+        error: error?.message,
+
+        connect: openConnect,
+
+        account: {
+            id: "evm-wallet",
+            name: "EVM Wallet",
+            address: address || "",
+            balance: balanceDisplay,
+        },
+
+        balance: balanceDisplay,
+
+        refreshBalance: async () => {
+            refetch();
+        },
+
+        wrongNetwork: isDestination ? false : wrongNetwork,
+        switchNetwork: async () => {
+            if (!isDestination) {
+                switchToSource();
+            }
+        },
+    };
 
     return {
         address,
@@ -136,10 +176,11 @@ export const useEvmBridge = (srcEvmId?: number): EvmBridgeState => {
         isConfirming,
         isSuccess,
         error,
-        openConnect: () => openConnectModal?.(),
+        openConnect,
         switchToSource,
         approve,
         lock,
         refetch,
+        session,
     };
 };

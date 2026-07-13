@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { UTxO } from "@meshsdk/core";
 import { bridgeChainForKey } from "constants/bridgeChains";
 import { sumCardanoAsset, sumCardanoLovelace } from "utils/cardanoTx";
+import { formatToken } from "utils/tokenFormat";
+import { CardanoWalletSession } from "types/bridgeWalletSession";
 
 export type CardanoWalletApi = {
     getUsedAddresses: () => Promise<string[]>;
@@ -35,6 +37,7 @@ export type CardanoWalletState = {
     connect: () => Promise<CardanoWalletConnection>;
     refreshBalance: () => Promise<void>;
     disconnect: () => void;
+    session: CardanoWalletSession;
 };
 
 const hexToBytes = (hex: string): Uint8Array => {
@@ -50,38 +53,31 @@ const cardanoProvider = (): {
     key: string;
     provider: CardanoWalletProvider;
 } | null => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+        return null;
+    }
+
     const cardano = (
         window as Window & {
             cardano?: Record<string, CardanoWalletProvider | undefined>;
         }
     ).cardano;
-    console.log(
-        "[Cardano] window.cardano keys:",
-        cardano ? Object.keys(cardano) : "undefined (no wallet injected)",
-    );
-    if (!cardano) return null;
+
+    if (!cardano) {
+        return null;
+    }
+
     const keys = ["yoroi", "yoroi_nightly", "lace", "eternl", "nami"];
+
     for (const key of keys) {
         const provider = cardano[key];
         const hasEnable = typeof provider?.enable === "function";
-        console.log(
-            `[Cardano] provider "${key}":`,
-            provider
-                ? hasEnable
-                    ? "available"
-                    : "present but no enable()"
-                : "not found",
-        );
+
         if (hasEnable) {
-            console.log("[Cardano] auto-selected provider:", key);
             return { key, provider };
         }
     }
-    console.warn(
-        "[Cardano] no supported wallet with enable() found among",
-        keys,
-    );
+
     return null;
 };
 
@@ -126,81 +122,61 @@ export const useCardanoWallet = (): CardanoWalletState => {
         }
     }, [api, refreshBalanceFor]);
 
-    const connect =
-        useCallback(async (): Promise<CardanoWalletConnection> => {
-            setLoading(true);
-            setError("");
-            try {
-                console.log("[Cardano] connect() called");
-                const found = cardanoProvider();
-                if (!found) {
-                    console.error(
-                        "[Cardano] no supported wallet available — install/enable Yoroi Nightly, Lace, Eternl or Nami, and open the app over http://localhost or https",
-                    );
-                    throw new Error(
-                        "Yoroi, Lace, Eternl, or Nami web wallet is not available",
-                    );
-                }
-                const { BrowserWallet } = await import("@meshsdk/core");
-                console.log(
-                    "[Cardano] calling enable() on:",
-                    found.key,
-                    "(no popup here means the site is already authorized)",
+    const connect = useCallback(async (): Promise<CardanoWalletConnection> => {
+        setLoading(true);
+        setError("");
+        try {
+            const found = cardanoProvider();
+
+            if (!found) {
+                throw new Error(
+                    "Yoroi, Lace, Eternl, or Nami web wallet is not available",
                 );
-                const wallet = await BrowserWallet.enable(found.key);
-                console.log("[Cardano] enable() resolved for:", found.key);
-                const used = await wallet.getUsedAddresses().catch((err) => {
-                    console.warn("[Cardano] getUsedAddresses() failed:", err);
-                    return [] as string[];
-                });
-                console.log("[Cardano] used addresses:", used);
-                const rawAddress =
-                    used[0] || (await wallet.getChangeAddress());
-                console.log(
-                    "[Cardano] raw address (used[0] or change):",
-                    rawAddress,
-                );
-                const bech32 = await normalizeCardanoAddress(rawAddress);
-                console.log("[Cardano] normalized bech32 address:", bech32);
-                if (!bech32.startsWith("addr_test1")) {
-                    console.error(
-                        "[Cardano] wallet is NOT on Preprod/Testnet — expected addr_test1..., got:",
-                        bech32,
-                        "→ switch the selected wallet to Preprod network",
-                    );
-                    throw new Error("Select a Cardano Preprod/Testnet wallet");
-                }
-                const nextWalletName = found.provider.name || found.key;
-                console.log(
-                    "[Cardano] connected:",
-                    nextWalletName,
-                    "address:",
-                    bech32,
-                );
-                setApi(wallet);
-                setAddress(bech32);
-                setWalletName(nextWalletName);
-                setBalanceLoading(true);
-                try {
-                    await refreshBalanceFor(wallet);
-                } catch (balanceErr: any) {
-                    setError(balanceErr.message || String(balanceErr));
-                } finally {
-                    setBalanceLoading(false);
-                }
-                return {
-                    api: wallet,
-                    address: bech32,
-                    walletName: nextWalletName,
-                };
-            } catch (err: any) {
-                const message = err.message || String(err);
-                setError(message);
-                throw new Error(message);
-            } finally {
-                setLoading(false);
             }
-        }, [refreshBalanceFor]);
+
+            const { BrowserWallet } = await import("@meshsdk/core");
+
+            const wallet = await BrowserWallet.enable(found.key);
+
+            const used = await wallet.getUsedAddresses().catch((err) => {
+                console.warn("[Cardano] getUsedAddresses() failed:", err);
+                return [] as string[];
+            });
+
+            const rawAddress = used[0] || (await wallet.getChangeAddress());
+
+            const bech32 = await normalizeCardanoAddress(rawAddress);
+
+            if (!bech32.startsWith("addr_test1")) {
+                throw new Error("Select a Cardano Preprod/Testnet wallet");
+            }
+
+            const nextWalletName = found.provider.name || found.key;
+
+            setApi(wallet);
+            setAddress(bech32);
+            setWalletName(nextWalletName);
+            setBalanceLoading(true);
+            try {
+                await refreshBalanceFor(wallet);
+            } catch (balanceErr: any) {
+                setError(balanceErr.message || String(balanceErr));
+            } finally {
+                setBalanceLoading(false);
+            }
+            return {
+                api: wallet,
+                address: bech32,
+                walletName: nextWalletName,
+            };
+        } catch (err: any) {
+            const message = err.message || String(err);
+            setError(message);
+            throw new Error(message);
+        } finally {
+            setLoading(false);
+        }
+    }, [refreshBalanceFor]);
 
     useEffect(() => {
         if (!api) return;
@@ -223,6 +199,38 @@ export const useCardanoWallet = (): CardanoWalletState => {
         setBalanceLoading(false);
     }, []);
 
+    const balanceDisplay = formatToken(
+        BigInt(balanceRaw || "0"),
+        chain.nativeDecimals,
+    );
+
+    const session: CardanoWalletSession = {
+        connected: !!api && !!address,
+        loading,
+        error,
+
+        connect: async () => {
+            try {
+                await connect();
+            } catch {}
+        },
+        disconnect: async () => {
+            disconnect();
+        },
+
+        account: {
+            id: "cardano-wallet",
+            name: walletName || chain.shortLabel,
+            address: address || "",
+            balance: balanceDisplay,
+        },
+
+        balance: balanceDisplay,
+
+        balanceLoading,
+        refreshBalance,
+    };
+
     return {
         api,
         address,
@@ -236,5 +244,6 @@ export const useCardanoWallet = (): CardanoWalletState => {
         connect,
         refreshBalance,
         disconnect,
+        session,
     };
 };

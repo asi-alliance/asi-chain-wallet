@@ -29,7 +29,6 @@ import {
     SOURCE_CHAIN_KEYS,
 } from "constants/bridgeChains";
 import { formatToken, parseTokenInput } from "utils/tokenFormat";
-import { recipientErrorFor } from "utils/bridgeRecipient";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
@@ -234,109 +233,30 @@ export const Bridge: React.FC = () => {
     const dstChain = bridgeChainForKey(dstChainKey);
     const srcKind = srcChain.kind;
 
-    const evm = useEvmBridge(srcChain.evmId);
+    const evm = useEvmBridge(srcChain, false);
+    const evmDestination = useEvmBridge(dstChain, true);
     const cosmos = useCosmosWallet();
 
-    const walletSessionContext: IWalletSessionContext = {
-        asi: {
-            account: selectedAccount,
-        },
-
-        cardano: {
-            connected: cardano.connected,
-            loading: cardano.loading,
-            error: cardano.error,
-
-            connect: async () => {
-                cardano.connect();
-            },
-            disconnect: async () => {
-                cardano.disconnect();
-            },
-
-            account: {
-                id: "cardano-wallet",
-                name: cardano.walletName || srcChain.shortLabel,
-                address: cardano.address || "",
-                balance: formatToken(
-                    BigInt(cardano.balanceRaw || "0"),
-                    srcChain.nativeDecimals,
-                ),
-            },
-
-            balance: formatToken(
-                BigInt(cardano.balanceRaw || "0"),
-                srcChain.nativeDecimals,
-            ),
-
-            balanceLoading: cardano.balanceLoading,
-            refreshBalance: cardano.refreshBalance,
-        },
-
-        evm: {
-            connected: evm.isConnected,
-            loading: evm.isPending,
-            error: evm.error?.message,
-
-            connect: evm.openConnect,
-
-            account: {
-                id: "evm-wallet",
-                name: "EVM Wallet",
-                address: evm.address || "",
-                balance: formatToken(
-                    evm.tokenBalance ?? BigInt(0),
-                    srcChain.nativeDecimals,
-                ),
-            },
-
-            balance: formatToken(
-                evm.tokenBalance ?? BigInt(0),
-                srcChain.nativeDecimals,
-            ),
-
-            refreshBalance: async () => {
-                evm.refetch();
-            },
-
-            wrongNetwork: evm.wrongNetwork,
-            switchNetwork: async () => {
-                evm.switchToSource();
-            },
-        },
-
-        cosmos: {
-            connected: cosmos.connected,
-            loading: cosmos.loading,
-            error: cosmos.error,
-
-            connect: cosmos.connect,
-            disconnect: async () => {
-                cosmos.disconnect();
-            },
-
-            account: {
-                id: "cosmos-wallet",
-                name: cosmos.provider || srcChain.shortLabel,
-                address: cosmos.address || "",
-                balance: formatToken(
-                    BigInt(cosmos.balanceRaw || "0"),
-                    srcChain.nativeDecimals,
-                ),
-            },
-
-            balance: formatToken(
-                BigInt(cosmos.balanceRaw || "0"),
-                srcChain.nativeDecimals,
-            ),
-
-            balanceLoading: cosmos.loading,
-            refreshBalance: cosmos.refreshBalance,
-        },
+    const asiSession: IWalletSessionContext["asi"] = {
+        account: selectedAccount,
     };
 
-    const sourceWallet = walletSessionContext[srcKind];
-    const destinationWallet = walletSessionContext[dstChain.kind];
+    const sourceWalletSessionContext: IWalletSessionContext = {
+        asi: asiSession,
+        cardano: cardano.session,
+        cosmos: cosmos.session,
+        evm: evm.session,
+    };
+
+    const destinationWalletSessionContext: IWalletSessionContext = {
+        asi: asiSession,
+        cardano: cardano.session,
+        cosmos: cosmos.session,
+        evm: evmDestination.session,
+    };
+
+    const sourceWallet = sourceWalletSessionContext[srcKind];
+    const destinationWallet = destinationWalletSessionContext[dstChain.kind];
 
     const hasWalletAccount = (
         wallet: IWalletSessionContext[WalletKind],
@@ -687,15 +607,6 @@ export const Bridge: React.FC = () => {
         }
     };
 
-    // useEffect(() => {
-    //     console.log("SRC KIND: ", srcKind);
-
-    //     console.log("CARDANO: ", cardano);
-
-    //     console.log("EVM: ", evm);
-    //     console.log("COSMOS: ", cosmos);
-    // }, [evm, cosmos, cardano]);
-
     if (!selectedAccount) {
         return (
             <BridgeContainer>
@@ -803,7 +714,7 @@ export const Bridge: React.FC = () => {
 
                     <BridgeWalletSelector
                         chainKind={srcKind}
-                        wallet={walletSessionContext[srcKind]}
+                        wallet={sourceWalletSessionContext[srcKind]}
                     />
 
                     <InputFormGroup>
@@ -875,7 +786,7 @@ export const Bridge: React.FC = () => {
 
                     <BridgeWalletSelector
                         chainKind={dstChain.kind}
-                        wallet={walletSessionContext[dstChain.kind]}
+                        wallet={destinationWalletSessionContext[dstChain.kind]}
                     />
 
                     {srcKind === "asi" && needsPassword && (

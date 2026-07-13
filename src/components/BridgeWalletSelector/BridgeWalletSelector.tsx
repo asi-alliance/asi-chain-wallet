@@ -4,66 +4,12 @@ import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { Button } from "components/Button";
 import styled from "styled-components";
-import { Account } from "types/wallet";
+import {
+    IWalletSessionContext,
+    WalletKind,
+} from "types/bridgeWalletSession";
 
-interface IWalletAccount {
-    id: string;
-    name: string;
-    address: string;
-    balance: string;
-}
-
-export interface IWalletSessionContext {
-    asi: {
-        account?: Account | null;
-    };
-
-    cardano: {
-        connected: boolean;
-        loading: boolean;
-        error?: string;
-
-        connect: () => Promise<void>;
-        disconnect: () => Promise<void>;
-
-        account?: IWalletAccount;
-
-        balance: string;
-        balanceLoading: boolean;
-        refreshBalance: () => Promise<void>;
-    };
-
-    evm: {
-        connected: boolean;
-        loading: boolean;
-        error?: string;
-
-        connect: () => void;
-
-        account?: IWalletAccount;
-
-        balance: string;
-        refreshBalance: () => Promise<void>;
-
-        wrongNetwork: boolean;
-        switchNetwork: () => Promise<void>;
-    };
-
-    cosmos: {
-        connected: boolean;
-        loading: boolean;
-        error?: string;
-
-        connect: () => Promise<void>;
-        disconnect: () => Promise<void>;
-
-        account?: IWalletAccount;
-
-        balance: string;
-        balanceLoading: boolean;
-        refreshBalance: () => Promise<void>;
-    };
-}
+export type { IWalletSessionContext, WalletKind };
 
 const ConnectWalletRow = styled.div`
     display: flex;
@@ -256,8 +202,6 @@ export function CosmosWalletSection({
         </>
     );
 }
-
-export type WalletKind = keyof IWalletSessionContext;
 
 interface BridgeWalletSelectorProps {
     chainKind: WalletKind;
