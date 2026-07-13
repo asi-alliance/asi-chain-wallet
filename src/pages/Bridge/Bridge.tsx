@@ -32,7 +32,6 @@ import { formatToken, parseTokenInput } from "utils/tokenFormat";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
-import { useClearCrossNetworksData } from "hooks/useClearCrossNetworksData";
 import { buildCardanoLockTx } from "utils/cardanoTx";
 import {
     BridgeWalletSelector,
@@ -266,11 +265,6 @@ export const Bridge: React.FC = () => {
 
     const sourceAccountLoaded = hasWalletAccount(sourceWallet);
     const destinationAccountLoaded = hasWalletAccount(destinationWallet);
-
-    const clearCrossNetworksData = useClearCrossNetworksData({
-        onCardanoClear: cardano.disconnect,
-        onCosmosClear: cosmos.disconnect,
-    });
 
     const isAccountUnlocked =
         selectedAccount &&
@@ -627,17 +621,6 @@ export const Bridge: React.FC = () => {
             <Card style={{ paddingBottom: "36px" }}>
                 <CardHeader>
                     <CardTitle>Bridge</CardTitle>
-                    {(evm.isConnected ||
-                        cardano.connected ||
-                        cosmos.connected) && (
-                        <ClearAllButton
-                            id="bridge-clear-networks-button"
-                            variant="danger"
-                            onClick={clearCrossNetworksData}
-                        >
-                            <h3>Disconnect wallets</h3>
-                        </ClearAllButton>
-                    )}
                 </CardHeader>
                 <BridgeCardContent>
                     {shownTxHash && (
