@@ -204,7 +204,7 @@ interface PendingTransaction {
     type: "send" | "receive" | "deploy";
 }
 
-const savePendingTransaction = (tx: PendingTransaction) => {
+export const savePendingTransaction = (tx: PendingTransaction) => {
     if (typeof window === "undefined" || !window.localStorage) {
         return;
     }

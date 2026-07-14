@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { AppDispatch, RootState } from "store";
-import { bridgeLock } from "store/walletSlice";
+import { bridgeLock, savePendingTransaction } from "store/walletSlice";
 import {
     Card,
     CardHeader,
@@ -433,6 +433,17 @@ export const Bridge: React.FC = () => {
                 }),
             ).unwrap();
             setTxHash(result.deployId);
+
+            savePendingTransaction({
+                deployId: result.deployId,
+                from: selectedAccount.revAddress,
+                to: recipient.trim(),
+                amount,
+                timestamp: new Date().toISOString(),
+                accountId: selectedAccount.id,
+                type: "send",
+            });
+
             setAmount("");
             setPassword("");
         } catch (err: any) {
