@@ -13,7 +13,7 @@ interface NetworkConfig {
     IndexerURL?: string;
 }
 
-const parseNetworksFromEnv = (): Network[] => {
+export const parseNetworksFromEnv = (): Network[] => {
     const networks: Network[] = [];
 
     try {
