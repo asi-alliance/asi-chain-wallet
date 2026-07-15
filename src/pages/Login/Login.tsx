@@ -6,7 +6,10 @@ import React, {
     useRef,
 } from "react";
 import styled from "styled-components";
-import { selectAccount, loadAccountsFromStorage } from "store/walletSlice";
+import {
+    selectAccount,
+    loadWalletsFromStorage,
+} from "store/WalletsStore/walletsStoreSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { buildUrlWithParams } from "utils/navigationUtils";
@@ -326,7 +329,7 @@ export const Login: React.FC = () => {
             );
 
             if (loginWithPassword.fulfilled.match(resultAction)) {
-                dispatch(loadAccountsFromStorage());
+                dispatch(loadWalletsFromStorage());
 
                 if (selectedAccountName) {
                     const accountToSelect = resultAction.payload.find(

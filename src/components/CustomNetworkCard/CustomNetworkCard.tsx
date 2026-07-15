@@ -4,7 +4,10 @@ import { Button } from "components";
 import { Network } from "types/wallet";
 import { DeleteIcon, EditIcon } from "components/Icons";
 import { useDispatch } from "react-redux";
-import { removeNetwork, updateNetwork } from "store/walletSlice";
+import {
+    removeNetwork,
+    updateNetwork,
+} from "store/WalletsStore/walletsStoreSlice";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
 
 const NetworkItem = styled.div`

@@ -1,7 +1,10 @@
 import React from "react";
 import styled from "styled-components";
 import { EditableLabel } from "components/EditableLabel";
-import { selectAccountById, updateAccountName } from "store/walletSlice";
+import {
+    selectAccountById,
+    updateAccountName,
+} from "store/WalletsStore/walletsStoreSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { Account } from "types/wallet";
 import { RootState } from "store";

@@ -4,6 +4,7 @@ import {
     Client,
     IAccountMetadata,
     IWalletMetadata,
+    NetworkName,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
@@ -173,8 +174,15 @@ export class SdkWalletService {
         getSdkClient()?.getWalletManager().clear();
     }
 
-    static removeWallet(walletId: string): Promise<void> {
+    static removeWallet(walletId: string): Promise<Wallet> {
         return requireSdkClient().removeWallet(walletId);
+    }
+
+    static removeAccount(
+        walletId: string,
+        accountId: string,
+    ): Promise<Account> {
+        return requireSdkClient().removeAccount(walletId, accountId);
     }
 
     static renameAccount(
@@ -183,6 +191,10 @@ export class SdkWalletService {
         name: string,
     ): Promise<void> {
         return requireSdkClient().renameAccount(walletId, accountId, name);
+    }
+
+    static setNetwork(network: NetworkName): void {
+        return requireSdkClient().setNetwork(network);
     }
 
     static async hasStoredWallets(): Promise<boolean> {

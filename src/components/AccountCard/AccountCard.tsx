@@ -7,7 +7,7 @@ import { buildUrlWithParams } from "utils/navigationUtils";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useDispatch, useSelector } from "react-redux";
 import { exportAccountKeyfile } from "store/authSlice";
-import { selectAccount } from "store/walletSlice";
+import { selectAccount } from "store/WalletsStore/walletsStoreSlice";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";

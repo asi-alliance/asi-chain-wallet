@@ -2,7 +2,10 @@ import React, { useState, useEffect, Fragment } from "react";
 import styled from "styled-components";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
-import { updateNetwork, addNetwork } from "store/walletSlice";
+import {
+    updateNetwork,
+    addNetwork,
+} from "store/WalletsStore/walletsStoreSlice";
 import {
     Card,
     CardHeader,

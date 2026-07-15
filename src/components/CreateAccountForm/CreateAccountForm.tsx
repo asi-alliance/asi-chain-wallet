@@ -5,7 +5,7 @@ import { Input, Button } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { PrivateKeyDisplay } from "components/PrivateKeyDisplay";
 import { createAccountWithPassword } from "store/authSlice";
-import { syncAccounts } from "store/walletSlice";
+import { syncAccounts } from "store/WalletsStore/walletsStoreSlice";
 import { SecureStorage } from "services/secureStorage";
 import { RootState } from "store";
 import { useScreen, useValidAccountUpdating } from "hooks";

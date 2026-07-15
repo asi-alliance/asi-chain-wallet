@@ -1,7 +1,10 @@
 import React, { CSSProperties, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
-import { selectAccount, fetchBalance } from "store/walletSlice";
+import {
+    selectAccount,
+    fetchBalance,
+} from "store/WalletsStore/walletsStoreSlice";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
 
 interface IASIAccountSwitcherProps {

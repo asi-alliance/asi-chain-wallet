@@ -1,5 +1,8 @@
 import styled from "styled-components";
-import { removeAccount, selectWallets } from "store/walletSlice";
+import {
+    removeAccount,
+    selectWallets,
+} from "store/WalletsStore/walletsStoreSlice";
 import { logout, setHasAccounts } from "store/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { DeleteIcon } from "components/Icons";

@@ -1,7 +1,7 @@
 import { CSSProperties, ReactElement } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { fetchBalance } from "store/WalletsStore/walletsStoreSlice";
 import { AccountBalance } from "components/AccountBalance";
 import { Account } from "types/wallet";
 

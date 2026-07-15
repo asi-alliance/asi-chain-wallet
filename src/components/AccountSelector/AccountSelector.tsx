@@ -3,7 +3,7 @@ import { ISelectOption, ISelectProps } from "components/Select/Select";
 import { CSSProperties, ReactElement, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
-import { selectAccount } from "store/walletSlice";
+import { selectAccount } from "store/WalletsStore/walletsStoreSlice";
 import styled from "styled-components";
 import { Account } from "types/wallet";
 

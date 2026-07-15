@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { fetchBalance } from "store/WalletsStore/walletsStoreSlice";
 import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
 import TransactionHistoryService from "../../services/transactionHistory";
@@ -151,7 +151,7 @@ export const Dashboard: React.FC = () => {
                     dispatch(
                         fetchBalance({
                             accountId: selectedAccount.id,
-                        address: selectedAccount.revAddress,
+                            address: selectedAccount.revAddress,
                             network: selectedNetwork,
                         }) as any,
                     ).then((result: any) => {

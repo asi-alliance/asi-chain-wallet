@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { AppDispatch, RootState } from "store";
-import { bridgeLock, savePendingTransaction } from "store/walletSlice";
+import {
+    bridgeLock,
+    savePendingTransaction,
+} from "store/WalletsStore/walletsStoreSlice";
 import {
     Card,
     CardHeader,
@@ -201,10 +204,10 @@ export const Bridge: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
     const selectedAccount = useSelector(
-        (state: RootState) => state.wallet.selectedAccount,
+        (state: RootState) => state.walletsStore.selectedAccount,
     );
     const selectedNetwork = useSelector(
-        (state: RootState) => state.wallet.selectedNetwork,
+        (state: RootState) => state.walletsStore.selectedNetwork,
     );
     const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
         (state: RootState) => state.auth,

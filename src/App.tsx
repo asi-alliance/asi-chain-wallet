@@ -8,12 +8,8 @@ import {
 import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
-import { store, RootState } from "store";
+import { store, RootState, AppDispatch } from "store";
 import { checkAuthentication } from "store/authSlice";
-import {
-    loadNetworksFromStorage,
-    loadAccountsFromStorage,
-} from "store/walletSlice";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
 import { Layout } from "components";
@@ -34,6 +30,7 @@ import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
+import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -56,7 +53,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const AppContent: React.FC = () => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
     const theme = darkMode ? darkTheme : lightTheme;
@@ -67,8 +64,8 @@ const AppContent: React.FC = () => {
 
     useEffect(() => {
         dispatch(checkAuthentication());
-        dispatch(loadNetworksFromStorage());
-        dispatch(loadAccountsFromStorage());
+        // dispatch(loadNetworksFromStorage());
+        dispatch(loadWalletsFromStorage());
     }, [dispatch]);
 
     useEffect(() => {

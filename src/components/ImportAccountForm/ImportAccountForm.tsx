@@ -7,7 +7,7 @@ import { getAddressLabel } from "../../constants/token";
 import { useDispatch, useSelector } from "react-redux";
 import { SecureStorage } from "services/secureStorage";
 import { AdaptiveSelect } from "components/Select";
-import { syncAccounts } from "store/walletSlice";
+import { syncAccounts } from "store/WalletsStore/walletsStoreSlice";
 import { Input, Button } from "components";
 import { RootState } from "store";
 import {

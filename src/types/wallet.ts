@@ -45,12 +45,10 @@ export interface Network {
     shardId?: string;
 }
 
-export interface WalletState {
-    accounts: Account[];
+export interface WalletStoreState {
     wallets: IWalletMeta[];
     balances: Record<string, string>;
     selectedAccountId: string | null;
-    selectedAccount: Account | null;
     transactions: Transaction[];
     networks: Network[];
     selectedNetwork: Network;

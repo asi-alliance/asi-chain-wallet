@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { selectAccounts } from "store/walletSlice";
+import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
 import { Account } from "types/wallet";
 
 interface IUseValidAccountUpdatingResponse {

@@ -8,7 +8,7 @@ import {
     sendTransaction,
     fetchBalance,
     updateAccountBalance,
-} from "store/walletSlice";
+} from "store/WalletsStore/walletsStoreSlice";
 import {
     Card,
     CardHeader,
@@ -630,7 +630,7 @@ export const Send: React.FC = () => {
                         await dispatch(
                             fetchBalance({
                                 accountId: selectedAccount.id,
-                    address: selectedAccount.revAddress,
+                                address: selectedAccount.revAddress,
                                 network: selectedNetwork,
                                 forceRefresh: true,
                             }) as any,
@@ -654,7 +654,7 @@ export const Send: React.FC = () => {
                         const balanceResult = await dispatch(
                             fetchBalance({
                                 accountId: selectedAccount.id,
-                    address: selectedAccount.revAddress,
+                                address: selectedAccount.revAddress,
                                 network: selectedNetwork,
                                 forceRefresh: true,
                             }) as any,

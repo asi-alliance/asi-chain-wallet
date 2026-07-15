@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, Fragment } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { fetchBalance } from "store/WalletsStore/walletsStoreSlice";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
