@@ -319,7 +319,8 @@ export const Send: React.FC = () => {
         if (selectedAccount && selectedNetwork) {
             dispatch(
                 fetchBalance({
-                    account: selectedAccount,
+                    accountId: selectedAccount.id,
+                    address: selectedAccount.revAddress,
                     network: selectedNetwork,
                 }) as any,
             );
@@ -332,7 +333,8 @@ export const Send: React.FC = () => {
         const interval = setInterval(() => {
             dispatch(
                 fetchBalance({
-                    account: selectedAccount,
+                    accountId: selectedAccount.id,
+                    address: selectedAccount.revAddress,
                     network: selectedNetwork,
                 }) as any,
             );
@@ -627,7 +629,8 @@ export const Send: React.FC = () => {
                     try {
                         await dispatch(
                             fetchBalance({
-                                account: selectedAccount,
+                                accountId: selectedAccount.id,
+                    address: selectedAccount.revAddress,
                                 network: selectedNetwork,
                                 forceRefresh: true,
                             }) as any,
@@ -650,7 +653,8 @@ export const Send: React.FC = () => {
                     try {
                         const balanceResult = await dispatch(
                             fetchBalance({
-                                account: selectedAccount,
+                                accountId: selectedAccount.id,
+                    address: selectedAccount.revAddress,
                                 network: selectedNetwork,
                                 forceRefresh: true,
                             }) as any,

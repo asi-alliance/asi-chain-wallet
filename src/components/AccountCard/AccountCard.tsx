@@ -162,7 +162,7 @@ export const AccountCard = ({
             <AccountHeader $fullMode={fullMode}>
                 <AccountNameEditor accountId={account.id} />
 
-                {fullMode && <RemoveAccountButton account={account} />}
+                {fullMode && <RemoveAccountButton accountId={account.id} />}
             </AccountHeader>
 
             <ASIAccountBalance account={account} isSelected={isSelected} />

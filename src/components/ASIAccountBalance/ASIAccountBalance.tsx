@@ -26,7 +26,8 @@ export const ASIAccountBalance = ({
     const handleRefresh = () => {
         dispatch(
             fetchBalance({
-                account,
+                accountId: account.id,
+                address: account.revAddress,
                 network: selectedNetwork,
                 forceRefresh: true,
             }) as any,

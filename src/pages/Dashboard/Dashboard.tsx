@@ -107,7 +107,8 @@ export const Dashboard: React.FC = () => {
             if (selectedNetwork.readOnlyUrl) {
                 dispatch(
                     fetchBalance({
-                        account: selectedAccount,
+                        accountId: selectedAccount.id,
+                        address: selectedAccount.revAddress,
                         network: selectedNetwork,
                     }) as any,
                 ).then((result: any) => {
@@ -149,7 +150,8 @@ export const Dashboard: React.FC = () => {
 
                     dispatch(
                         fetchBalance({
-                            account: selectedAccount,
+                            accountId: selectedAccount.id,
+                        address: selectedAccount.revAddress,
                             network: selectedNetwork,
                         }) as any,
                     ).then((result: any) => {

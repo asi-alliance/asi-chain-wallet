@@ -116,7 +116,7 @@ class TransactionPollingService {
         console.info(`[Transaction Polling] Refreshing balance for ${account.name}...`);
         const oldBalance = account.balance || '0';
         
-        const balanceResult = await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
+        const balanceResult = await store.dispatch(fetchBalance({ accountId: account.id, address: account.revAddress, network: selectedNetwork }));
         
         if (fetchBalance.fulfilled.match(balanceResult)) {
           const newBalance = balanceResult.payload.balance;
@@ -217,7 +217,7 @@ class TransactionPollingService {
           const { accounts } = state.wallet;
           for (const account of accounts) {
             try {
-              await store.dispatch(fetchBalance({ account, network }));
+              await store.dispatch(fetchBalance({ accountId: account.id, address: account.revAddress, network }));
             } catch (error) {
               console.error(`[Transaction Polling] Error refreshing balance:`, error);
             }

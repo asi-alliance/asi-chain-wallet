@@ -56,7 +56,8 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
         const balancePromises = filteredAccounts.map((account) =>
             dispatch(
                 fetchBalance({
-                    account,
+                    accountId: account.id,
+                    address: account.revAddress,
                     network: selectedNetwork,
                     forceRefresh,
                 }) as any,

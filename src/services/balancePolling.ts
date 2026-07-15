@@ -122,7 +122,7 @@ class BalancePollingService {
         try {
           
           // Dispatch the fetchBalance action
-          const result = await store.dispatch(fetchBalance({ account, network: selectedNetwork }));
+          const result = await store.dispatch(fetchBalance({ accountId: account.id, address: account.revAddress, network: selectedNetwork }));
           
           if (result.payload) {
             const newBalance = (result.payload as any).balance;

@@ -34,7 +34,6 @@ import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
-import { SdkProvider } from "sdk";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -228,9 +227,7 @@ const App: React.FC = () => {
             >
                 <QueryProvider>
                     <EvmProvider>
-                        <SdkProvider>
-                            <AppContent />
-                        </SdkProvider>
+                        <AppContent />
                     </EvmProvider>
                 </QueryProvider>
             </Router>

@@ -1,10 +1,17 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import {
+    createSlice,
+    createAsyncThunk,
+    PayloadAction,
+    Draft,
+} from "@reduxjs/toolkit";
 import { Account, Transaction, Network, WalletState } from "types/wallet";
 import { AuthState, loginWithPassword } from "./authSlice";
 import { SecureStorage } from "services/secureStorage";
 import { RChainService } from "services/rchain";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../constants/gas";
 import { RootState } from "store";
+import { SdkWalletService } from "sdk/SdkWalletService";
+import { projectWalletAccounts } from "sdk/accountProjection";
 
 interface NetworkConfig {
     name: string;
@@ -157,7 +164,7 @@ const persistSelectedAccountId = (accountId: string | null) => {
     }
 };
 
-const updateSelectedAccountForNetwork = (state: WalletState) => {
+const updateSelectedAccountForNetwork = (state: Draft<WalletState>) => {
     const networkId = state.selectedNetwork?.id;
     const availableAccounts = filterAccountsForNetwork(
         state.accounts,
@@ -178,6 +185,7 @@ const updateSelectedAccountForNetwork = (state: WalletState) => {
     }
 
     state.selectedAccount = nextSelected || null;
+    state.selectedAccountId = nextSelected ? nextSelected.id : null;
     persistSelectedAccountId(nextSelected ? nextSelected.id : null);
 };
 
@@ -390,6 +398,9 @@ const createInitialState = (): WalletState => {
 
     return {
         accounts: [],
+        wallets: [],
+        balances: {},
+        selectedAccountId: null,
         selectedAccount: null,
         transactions: [],
         networks: networks,
@@ -449,11 +460,12 @@ const FINALIZED_TX_STATUSES = new Set([
 ]);
 
 const reconcilePendingForAccount = async (
-    account: Account,
+    accountId: string,
+    address: string,
     rchain: RChainService,
 ): Promise<boolean> => {
     const pendingTransactions: PendingTransaction[] =
-        loadPendingTransactions().filter((tx) => tx.accountId === account.id);
+        loadPendingTransactions().filter((tx) => tx.accountId === accountId);
 
     if (pendingTransactions.length === 0) {
         return false;
@@ -462,10 +474,7 @@ const reconcilePendingForAccount = async (
     let history: RChainTx[] = [];
 
     try {
-        history = await rchain.fetchTransactionHistory(
-            account.revAddress,
-            account.publicKey,
-        );
+        history = await rchain.fetchTransactionHistory(address, "");
     } catch (error) {
         console.warn(
             "[reconcilePendingForAccount] Failed to load transaction history:",
@@ -494,26 +503,38 @@ const reconcilePendingForAccount = async (
     return removedAny;
 };
 
+export const loadWallets = createAsyncThunk("wallet/loadWallets", () =>
+    SdkWalletService.loadWallets(),
+);
+
 export const fetchBalance = createAsyncThunk(
     "wallet/fetchBalance",
     async (
         {
-            account,
+            accountId,
+            address,
             network,
             forceRefresh = false,
-        }: { account: Account; network: Network; forceRefresh?: boolean },
+        }: {
+            accountId: string;
+            address: string;
+            network: Network;
+            forceRefresh?: boolean;
+        },
         { getState },
     ) => {
-        const state = getState() as { auth: AuthState };
+        const state = getState() as { auth: AuthState; wallet: WalletState };
+        const knownBalance = state.wallet.balances[accountId] ?? "0";
+
         if (
             !state.auth.isAuthenticated ||
             state.auth.unlockedAccounts.length === 0
         ) {
-            return { accountId: account.id, balance: account.balance ?? "0" };
+            return { accountId, balance: knownBalance };
         }
 
         if (!network.readOnlyUrl || !network.readOnlyUrl.trim()) {
-            return { accountId: account.id, balance: account.balance ?? "0" };
+            return { accountId, balance: knownBalance };
         }
 
         const rchain = new RChainService(
@@ -523,42 +544,40 @@ export const fetchBalance = createAsyncThunk(
             network.shardId,
             network.graphqlUrl,
         );
-        let atomicBalance = await rchain.getBalance(
-            account.revAddress,
-            forceRefresh,
-        );
+        let atomicBalance = await rchain.getBalance(address, forceRefresh);
 
         const isPendingTransactionsExist = loadPendingTransactions().some(
-            (tx) => tx.accountId === account.id,
+            (tx) => tx.accountId === accountId,
         );
 
         if (!isPendingTransactionsExist) {
             const chainBalance = parseInt(atomicBalance) / 100000000;
 
             return {
-                accountId: account.id,
+                accountId,
                 balance: Math.max(0, chainBalance).toFixed(8),
             };
         }
 
         const removedPending = await reconcilePendingForAccount(
-            account,
+            accountId,
+            address,
             rchain,
         );
 
         if (removedPending) {
-            atomicBalance = await rchain.getBalance(account.revAddress, true);
+            atomicBalance = await rchain.getBalance(address, true);
         }
 
         const baseBalance = (parseInt(atomicBalance) / 100000000).toString();
         const balanceWithPending = calculateBalanceWithPending(
             baseBalance,
-            account.id,
-            account.revAddress,
-            account.publicKey,
+            accountId,
+            address,
+            "",
         );
 
-        return { accountId: account.id, balance: balanceWithPending };
+        return { accountId, balance: balanceWithPending };
     },
 );
 
@@ -614,7 +633,8 @@ export const fetchTransactionHistory = createAsyncThunk(
                     if (account) {
                         dispatch(
                             fetchBalance({
-                                account,
+                                accountId: account.id,
+                                address: account.revAddress,
                                 network: selectedNetwork,
                                 forceRefresh: true,
                             }),
@@ -826,6 +846,7 @@ const walletSlice = createSlice({
                     account.networkId === state.selectedNetwork?.id)
             ) {
                 state.selectedAccount = account;
+                state.selectedAccountId = action.payload;
                 persistSelectedAccountId(action.payload);
             }
         },
@@ -863,7 +884,6 @@ const walletSlice = createSlice({
                     sanitized,
                     network.id,
                 );
-
             } catch (error) {
                 console.error(
                     "Failed to reload accounts for selected network:",
@@ -1082,6 +1102,29 @@ const walletSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            .addCase(loadWallets.fulfilled, (state, action) => {
+                state.wallets = action.payload;
+
+                const projected = projectWalletAccounts(
+                    action.payload,
+                    state.selectedNetwork?.id,
+                );
+
+                state.accounts = projected.map((account) => {
+                    const existing = state.accounts.find(
+                        (a) => a.id === account.id,
+                    );
+
+                    return existing
+                        ? { ...account, balance: existing.balance }
+                        : account;
+                });
+
+                updateSelectedAccountForNetwork(state);
+            })
+            .addCase(loadWallets.rejected, (state, action) => {
+                state.error = action.error.message || "Failed to load wallets";
+            })
             .addCase(loginWithPassword.fulfilled, (state) => {
                 // Load ALL accounts for display — userId filtering is only for unlock, not visibility
                 const networkId = state.selectedNetwork?.id;
@@ -1097,6 +1140,9 @@ const walletSlice = createSlice({
                 state.isLoading = true;
             })
             .addCase(fetchBalance.fulfilled, (state, action) => {
+                state.balances[action.payload.accountId] =
+                    action.payload.balance;
+
                 const account = state.accounts.find(
                     (a) => a.id === action.payload.accountId,
                 );
@@ -1193,6 +1239,11 @@ const walletSlice = createSlice({
 export const selectAccountById = (state: RootState, accountId: string) =>
     state.wallet.accounts.find((account: Account) => account.id === accountId);
 export const selectAccounts = (state: RootState) => state.wallet.accounts;
+export const selectWallets = (state: RootState) => state.wallet.wallets;
+export const selectSelectedAccountId = (state: RootState) =>
+    state.wallet.selectedAccountId;
+export const selectBalanceByAccountId = (state: RootState, accountId: string) =>
+    state.wallet.balances[accountId] ?? "0";
 
 export const {
     syncAccounts,
