@@ -7,7 +7,6 @@ const ACCOUNTS_MIGRATED_KEY = hashValue('asi_wallet_accounts_migrated_v1');
 const SETTINGS_MIGRATED_KEY = hashValue('asi_wallet_settings_migrated_v1');
 
 export const DEFAULT_SETTINGS: WalletSettings = {
-  requirePasswordForTransaction: false,
   idleTimeout: 15,
 };
 

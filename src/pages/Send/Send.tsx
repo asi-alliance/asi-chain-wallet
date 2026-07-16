@@ -225,9 +225,7 @@ export const Send: React.FC = () => {
     const { selectedAccount, selectedNetwork, isLoading, error } = useSelector(
         (state: RootState) => state.wallet,
     );
-    const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
-        (state: RootState) => state.auth,
-    );
+    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
@@ -466,7 +464,7 @@ export const Send: React.FC = () => {
     const isAccountUnlocked =
         selectedAccount &&
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
-    const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
+    const needsPassword = !isAccountUnlocked;
 
     if (!selectedAccount) {
         return (
@@ -1037,11 +1035,7 @@ export const Send: React.FC = () => {
                                 id="send-password-input"
                                 data-testid="send-password-input"
                                 data-cy="send-password-input"
-                                label={
-                                    requirePasswordForTransaction
-                                        ? "Transaction Password"
-                                        : "Account Password"
-                                }
+                                label="Account Password"
                                 value={password}
                                 onChange={(e) =>
                                     handlePasswordChange(e.target.value)
@@ -1147,7 +1141,6 @@ export const Send: React.FC = () => {
                 senderName={selectedAccount?.name || ""}
                 estimatedFee={estimatedFee}
                 loading={isLoading}
-                requirePasswordForTransaction={requirePasswordForTransaction}
             />
         </SendContainer>
     );

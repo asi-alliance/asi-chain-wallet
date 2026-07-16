@@ -209,9 +209,7 @@ export const Bridge: React.FC = () => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
-    const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
-        (state: RootState) => state.auth,
-    );
+    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
     const cardano = useCardanoWallet();
 
@@ -273,7 +271,7 @@ export const Bridge: React.FC = () => {
         selectedAccount &&
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
 
-    const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
+    const needsPassword = !isAccountUnlocked;
 
     const rawAmount = amount.trim()
         ? parseTokenInput(amount, srcChain.nativeDecimals)
@@ -792,11 +790,7 @@ export const Bridge: React.FC = () => {
                                 id="bridge-password-input"
                                 data-testid="bridge-password-input"
                                 data-cy="bridge-password-input"
-                                label={
-                                    requirePasswordForTransaction
-                                        ? "Transaction Password"
-                                        : "Account Password"
-                                }
+                                label="Account Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 autoComplete="current-password"
@@ -851,7 +845,6 @@ export const Bridge: React.FC = () => {
                 senderAddress={selectedAccount?.revAddress || ""}
                 senderName={selectedAccount?.name || ""}
                 loading={isLoading}
-                requirePasswordForTransaction={requirePasswordForTransaction}
             />
         </BridgeContainer>
     );

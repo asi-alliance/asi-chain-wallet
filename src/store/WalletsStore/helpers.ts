@@ -44,3 +44,20 @@ export const getWalletAndAccountFromWalletsMeta = (
 
     return null;
 };
+
+export const addWalletToWalletsStore = (
+    wallets: IWalletMeta[],
+    wallet: IWalletMeta,
+): void => {
+    const index = wallets.findIndex(
+        (walletMeta) => walletMeta.signerId === wallet.signerId,
+    );
+
+    if (index === -1) {
+        wallets.push(wallet);
+
+        return;
+    }
+
+    wallets[index] = wallet;
+};

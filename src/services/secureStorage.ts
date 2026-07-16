@@ -63,8 +63,6 @@ export class SecureStorage {
             );
             settingsCache = settingsRecord
                 ? {
-                      requirePasswordForTransaction:
-                          settingsRecord.requirePasswordForTransaction,
                       idleTimeout: settingsRecord.idleTimeout,
                   }
                 : readLegacySettings();

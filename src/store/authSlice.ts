@@ -1,12 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { SecureStorage, SecureAccount } from "services/secureStorage";
-import { Account, Network } from "types/wallet";
-import {
-    generateKeyPair,
-    importPrivateKey,
-    importEthAddress,
-    importRevAddress,
-} from "utils/crypto";
+import { SecureStorage } from "services/secureStorage";
+import { SdkWalletService } from "sdk";
+import { IWalletMeta } from "types/wallet";
 import { withLoginLock } from "services/loginLock";
 import {
     broadcastSessionLogin,
@@ -27,38 +22,20 @@ import {
     resetRateLimit,
     formatLockoutMessage,
 } from "services/loginRateLimit";
+import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
+import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
+import { RootState } from "store";
 
 export interface AuthState {
     isAuthenticated: boolean;
-    hasAccounts: boolean;
-    unlockedAccounts: Account[];
-    requirePasswordForTransaction: boolean;
     idleTimeout: number;
     lastActivity: number;
     isLoading: boolean;
     error: string | null;
 }
 
-const initUserId = SecureStorage.getCurrentUserId();
-const initUnlockedAccounts = SecureStorage.getAllUnlockedAccounts();
-const initHasUnlocked = initUnlockedAccounts.length > 0;
-const initSessionToken = SecureStorage.getSessionToken();
-const initIsAuthenticated =
-    SecureStorage.isAuthenticated() &&
-    initHasUnlocked &&
-    !!initUserId &&
-    !!initSessionToken;
-
-if (!initIsAuthenticated && SecureStorage.isAuthenticated()) {
-    SecureStorage.setAuthenticated(false);
-}
-
 const initialState: AuthState = {
-    isAuthenticated: initIsAuthenticated,
-    hasAccounts: SecureStorage.hasAccounts(initUserId ?? undefined),
-    unlockedAccounts: initUnlockedAccounts,
-    requirePasswordForTransaction:
-        SecureStorage.getSettings().requirePasswordForTransaction,
+    isAuthenticated: false,
     idleTimeout: SecureStorage.getSettings().idleTimeout,
     lastActivity: Date.now(),
     isLoading: false,
@@ -71,85 +48,22 @@ type CreateAccountPayload = {
     networkId?: string;
 };
 
-export const createAccountWithPassword = createAsyncThunk(
-    "auth/createAccountWithPassword",
-    async (
-        { name, password, networkId }: CreateAccountPayload,
-        { getState },
-    ) => {
-        const state = getState() as { wallet: { selectedNetwork?: Network } };
-        const selectedNetworkId =
-            networkId || state.wallet?.selectedNetwork?.id;
+export const createAccountWithPassword = createAsyncThunk<
+    IWalletMeta,
+    CreateAccountPayload
+>("auth/createAccountWithPassword", async ({ name, password }) => {
+    const privateKeyHex = SdkWalletService.generatePrivateKeyHex();
 
-        const userId = SecureStorage.generateUserIdFromPassword(password, name);
-        const hadAccountsBefore = SecureStorage.hasAccounts(userId);
-
-        const keyPair = generateKeyPair();
-        const account: Account = {
-            id: Date.now().toString(),
-            name,
-            address: keyPair.revAddress,
-            revAddress: keyPair.revAddress,
-            ethAddress: keyPair.ethAddress,
-            publicKey: keyPair.publicKey,
-            privateKey: keyPair.privateKey,
-            balance: "0",
-            ...(selectedNetworkId ? { networkId: selectedNetworkId } : {}),
-            createdAt: new Date(),
-        };
-
-        await SecureStorage.saveAccount(account, password, userId, name);
-        await SecureStorage.unlockAccount(account.id, password, userId);
-
-        if (!hadAccountsBefore) {
-            SecureStorage.setAuthenticated(true);
-        }
-
-        SecureStorage.setCurrentUserId(userId);
-        const sessionToken = SecureStorage.generateSessionToken();
-        SecureStorage.setSessionToken(sessionToken);
-        broadcastSessionLogin(sessionToken);
-
-        return { account, isFirstAccount: !hadAccountsBefore };
-    },
-);
-
-const normalizeAddress = (address: string | undefined): string => {
-    if (!address) return "";
-    return address.toLowerCase().trim();
-};
-const checkAccountExists = (
-    newAccount: Account,
-    userId?: string | null,
-): boolean => {
-    const existingAccounts = userId
-        ? SecureStorage.getEncryptedAccounts(userId)
-        : SecureStorage.getEncryptedAccounts();
-    const normalizedNewRev = normalizeAddress(newAccount.revAddress);
-    const normalizedNewEth = normalizeAddress(newAccount.ethAddress);
-
-    return existingAccounts.some((existing) => {
-        const normalizedExistingRev = normalizeAddress(existing.revAddress);
-        const normalizedExistingEth = normalizeAddress(existing.ethAddress);
-
-        if (
-            normalizedNewRev &&
-            normalizedExistingRev &&
-            normalizedNewRev === normalizedExistingRev
-        ) {
-            return true;
-        }
-        if (
-            normalizedNewEth &&
-            normalizedExistingEth &&
-            normalizedNewEth === normalizedExistingEth
-        ) {
-            return true;
-        }
-
-        return false;
+    const wallet = await SdkWalletService.createPrivateKeyWallet({
+        name,
+        privateKeyHex,
+        password,
     });
-};
+
+    broadcastSessionLogin(SecureStorage.generateSessionToken());
+
+    return wallet;
+});
 
 type ImportAccountPayload = {
     name: string;
@@ -159,196 +73,58 @@ type ImportAccountPayload = {
     networkId?: string;
 };
 
-export const importAccountWithPassword = createAsyncThunk(
-    "auth/importAccountWithPassword",
-    async (
-        { name, value, type, password, networkId }: ImportAccountPayload,
-        { getState },
-    ) => {
-        const state = getState() as { wallet: { selectedNetwork?: Network } };
-        const selectedNetworkId =
-            networkId || state.wallet?.selectedNetwork?.id;
-
-        const userId = SecureStorage.generateUserIdFromPassword(password, name);
-        const hadAccountsBefore = SecureStorage.hasAccounts(userId);
-
-        let accountData;
-
-        switch (type) {
-            case "private":
-                accountData = importPrivateKey(value);
-                break;
-            case "eth":
-                accountData = importEthAddress(value);
-                break;
-            case "rev":
-                accountData = importRevAddress(value);
-                break;
-            default:
-                throw new Error("Invalid import type");
-        }
-
-        const account: Account = {
-            id: Date.now().toString(),
-            name,
-            address: accountData.revAddress!,
-            revAddress: accountData.revAddress!,
-            ethAddress: accountData.ethAddress!,
-            publicKey: accountData.publicKey || "",
-            privateKey: accountData.privateKey,
-            balance: "0",
-            ...(selectedNetworkId ? { networkId: selectedNetworkId } : {}),
-            createdAt: new Date(),
-        };
-
-        if (checkAccountExists(account, userId)) {
-            throw new Error("Account with this address already exists");
-        }
-
-        if (account.privateKey) {
-            await SecureStorage.saveAccount(account, password, userId, name);
-            await SecureStorage.unlockAccount(account.id, password, userId);
-        }
-
-        if (!hadAccountsBefore) {
-            SecureStorage.setAuthenticated(true);
-        }
-
-        SecureStorage.setCurrentUserId(userId);
-        const sessionToken = SecureStorage.generateSessionToken();
-        SecureStorage.setSessionToken(sessionToken);
-        broadcastSessionLogin(sessionToken);
-
-        return { account, isFirstAccount: !hadAccountsBefore };
-    },
-);
-
-type ImportKeyfilePayload = {
-    keyfileContent: string;
-    name: string;
-    networkId?: string;
-};
-
-export const importFromKeyfile = createAsyncThunk(
-    "auth/importFromKeyfile",
-    async (
-        { keyfileContent, name, networkId }: ImportKeyfilePayload,
-        { getState },
-    ) => {
-        const state = getState() as { wallet: { selectedNetwork?: Network } };
-        const selectedNetworkId =
-            networkId || state.wallet?.selectedNetwork?.id;
-
-        let userId = SecureStorage.getCurrentUserId();
-        if (!userId) {
-            throw new Error("Please login first before importing a keyfile");
-        }
-
-        const secureAccount = await SecureStorage.importFromKeyfile(
-            keyfileContent,
-            name,
-            selectedNetworkId,
-            userId,
+export const importAccountWithPassword = createAsyncThunk<
+    IWalletMeta,
+    ImportAccountPayload
+>("auth/importAccountWithPassword", async ({ name, value, type, password }) => {
+    if (type !== "private") {
+        throw new Error(
+            "Only private key import is supported. Watch-only import was removed with the SDK migration.",
         );
-        return secureAccount;
-    },
-);
+    }
 
-interface LoginAttemptResult {
-    unlockedAccounts: Account[];
-    foundUserId: string | null;
-    accountsToMigrate: string[];
-    noAccountFound: boolean;
-}
-
-const tryUnlockByName = async (
-    accountName: string,
-    password: string,
-    allAccounts: SecureAccount[],
-): Promise<LoginAttemptResult> => {
-    const userId = SecureStorage.generateUserIdFromPassword(
+    const wallet = await SdkWalletService.createPrivateKeyWallet({
+        name,
+        privateKeyHex: value,
         password,
-        accountName,
-    );
-    const matchingAccounts = allAccounts.filter(
-        (acc) => acc.name === accountName,
-    );
-    const unlockedAccounts: Account[] = [];
-    const accountsToMigrate: string[] = [];
-
-    if (matchingAccounts.length === 0) {
-        return {
-            unlockedAccounts: [],
-            foundUserId: null,
-            accountsToMigrate: [],
-            noAccountFound: true,
-        };
-    }
-
-    for (const account of matchingAccounts) {
-        const userIdMatches = !account.userId || account.userId === userId;
-        if (!userIdMatches) continue;
-
-        const unlocked = await SecureStorage.unlockAccount(
-            account.id,
-            password,
-            userId,
-        );
-        if (!unlocked) continue;
-
-        unlockedAccounts.push(unlocked);
-        if (!account.userId) accountsToMigrate.push(account.id);
-    }
-
-    return {
-        unlockedAccounts,
-        foundUserId: unlockedAccounts.length > 0 ? userId : null,
-        accountsToMigrate,
-        noAccountFound: false,
-    };
-};
-
-const tryUnlockAllNames = async (
-    password: string,
-    allAccounts: SecureAccount[],
-): Promise<LoginAttemptResult> => {
-    const uniqueNames = Array.from(
-        new Set(allAccounts.filter((acc) => acc.name).map((acc) => acc.name)),
-    );
-
-    for (const name of uniqueNames) {
-        const result = await tryUnlockByName(name, password, allAccounts);
-        if (result.foundUserId && result.unlockedAccounts.length > 0) {
-            return result;
-        }
-    }
-
-    return {
-        unlockedAccounts: [],
-        foundUserId: null,
-        accountsToMigrate: [],
-        noAccountFound: uniqueNames.length === 0,
-    };
-};
-
-const migrateAccountUserIds = (accountIds: string[], userId: string): void => {
-    if (accountIds.length === 0) return;
-
-    const allAccounts = SecureStorage.getEncryptedAccounts();
-    let needsUpdate = false;
-
-    const updatedAccounts = allAccounts.map((acc) => {
-        if (accountIds.includes(acc.id) && !acc.userId) {
-            needsUpdate = true;
-            return { ...acc, userId };
-        }
-        return acc;
     });
 
-    if (needsUpdate) {
-        SecureStorage.saveEncryptedAccounts(updatedAccounts);
-    }
-};
+    broadcastSessionLogin(SecureStorage.generateSessionToken());
+
+    return wallet;
+});
+
+// type ImportKeyfilePayload = {
+//     keyfileContent: string;
+//     name: string;
+//     networkId?: string;
+// };
+
+//TODO: Restore after the SDK ships keyfile export/import support
+// export const importFromKeyfile = createAsyncThunk(
+//     "auth/importFromKeyfile",
+//     async (
+//         { keyfileContent, name, networkId }: ImportKeyfilePayload,
+//         { getState },
+//     ) => {
+//         const state = getState() as { wallet: { selectedNetwork?: Network } };
+//         const selectedNetworkId =
+//             networkId || state.wallet?.selectedNetwork?.id;
+
+//         let userId = SecureStorage.getCurrentUserId();
+//         if (!userId) {
+//             throw new Error("Please login first before importing a keyfile");
+//         }
+
+//         const secureAccount = await SecureStorage.importFromKeyfile(
+//             keyfileContent,
+//             name,
+//             selectedNetworkId,
+//             userId,
+//         );
+//         return secureAccount;
+//     },
+// );
 
 const LOCK_WAIT_THRESHOLD_MS = 500;
 
@@ -428,170 +204,154 @@ async function handleLoginOutcome(
     }
 }
 
-export const loginWithPassword = createAsyncThunk(
-    "auth/loginWithPassword",
-    async ({
-        password,
-        accountName,
-    }: {
-        password: string;
-        accountName?: string;
-    }) => {
-        const loginType = accountName
-            ? LoginType.ByName
-            : LoginType.AllAccounts;
-        const contextKey = buildContextKey(accountName);
-        let failureReason: FailureReason | undefined;
-        let succeeded = false;
+export const loginWithPassword = createAsyncThunk<
+    IWalletMeta[],
+    { password: string; accountName?: string }
+>("auth/loginWithPassword", async ({ password, accountName }) => {
+    const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
+    const contextKey = buildContextKey(accountName);
+    let failureReason: FailureReason | undefined;
+    let succeeded = false;
 
-        try {
-            const rateLimitStatus = await checkRateLimit(contextKey);
-            if (rateLimitStatus.locked) {
+    try {
+        const rateLimitStatus = await checkRateLimit(contextKey);
+        if (rateLimitStatus.locked) {
+            failureReason = FailureReason.RateLimited;
+            throw new Error(formatLockoutMessage(rateLimitStatus.remainingMs));
+        }
+
+        const lockWaitStart = Date.now();
+
+        const unlockedWallets = await withLoginLock(async () => {
+            // Double-check rate limit inside the lock (TOCTOU: another tab may have
+            // triggered lockout between the outer check and acquiring this lock)
+            const innerStatus = await checkRateLimit(contextKey);
+            if (innerStatus.locked) {
                 failureReason = FailureReason.RateLimited;
-                throw new Error(
-                    formatLockoutMessage(rateLimitStatus.remainingMs),
-                );
+                throw new Error(formatLockoutMessage(innerStatus.remainingMs));
             }
 
-            const lockWaitStart = Date.now();
-
-            const accounts = await withLoginLock(async () => {
-                // Double-check rate limit inside the lock (TOCTOU: another tab may have
-                // triggered lockout between the outer check and acquiring this lock)
-                const innerStatus = await checkRateLimit(contextKey);
-                if (innerStatus.locked) {
-                    failureReason = FailureReason.RateLimited;
-                    throw new Error(
-                        formatLockoutMessage(innerStatus.remainingMs),
-                    );
-                }
-
-                const lockWaitMs = Date.now() - lockWaitStart;
-                if (lockWaitMs > LOCK_WAIT_THRESHOLD_MS) {
-                    failureReason = FailureReason.LockContention;
-                }
-
-                const allAccounts = SecureStorage.getEncryptedAccounts();
-
-                if (allAccounts.length === 0) {
-                    failureReason = FailureReason.NoAccount;
-                    throw new Error("No accounts found");
-                }
-
-                const result = accountName
-                    ? await tryUnlockByName(accountName, password, allAccounts)
-                    : await tryUnlockAllNames(password, allAccounts);
-
-                if (
-                    !result.foundUserId ||
-                    result.unlockedAccounts.length === 0
-                ) {
-                    failureReason = result.noAccountFound
-                        ? FailureReason.NoAccount
-                        : FailureReason.WrongPassword;
-                    throw new Error(
-                        result.noAccountFound
-                            ? "Account not found"
-                            : "Incorrect password",
-                    );
-                }
-
-                migrateAccountUserIds(
-                    result.accountsToMigrate,
-                    result.foundUserId,
-                );
-                SecureStorage.setCurrentUserId(result.foundUserId);
-                SecureStorage.setAuthenticated(true);
-
-                const sessionToken = SecureStorage.generateSessionToken();
-                SecureStorage.setSessionToken(sessionToken);
-                broadcastSessionLogin(sessionToken);
-
-                return result.unlockedAccounts;
-            });
-
-            succeeded = true;
-            return accounts;
-        } catch (err: unknown) {
-            if (!failureReason) {
-                failureReason = classifyLoginError(err);
+            const lockWaitMs = Date.now() - lockWaitStart;
+            if (lockWaitMs > LOCK_WAIT_THRESHOLD_MS) {
+                failureReason = FailureReason.LockContention;
             }
-            throw err;
-        } finally {
-            await handleLoginOutcome(
-                succeeded,
-                contextKey,
-                failureReason,
-                accountName,
-                loginType,
-            );
-        }
-    },
-);
 
-export const unlockAccount = createAsyncThunk(
-    "auth/unlockAccount",
-    async ({
-        accountId,
-        password,
-    }: {
-        accountId: string;
-        password: string;
-    }) => {
-        const userId = SecureStorage.getCurrentUserId();
-        if (!userId) {
-            throw new Error("Please login first");
-        }
+            const walletsMeta = await SdkWalletService.loadWallets();
 
-        const account = await SecureStorage.unlockAccount(
-            accountId,
-            password,
-            userId,
+            if (walletsMeta.length === 0) {
+                failureReason = FailureReason.NoAccount;
+                throw new Error("No accounts found");
+            }
+
+            const candidates = accountName
+                ? walletsMeta.filter((wallet) =>
+                      wallet.accounts.some(
+                          (account) => account.name === accountName,
+                      ),
+                  )
+                : walletsMeta;
+
+            if (candidates.length === 0) {
+                failureReason = FailureReason.NoAccount;
+                throw new Error("Account not found");
+            }
+
+            const unlocked: IWalletMeta[] = [];
+
+            for (const wallet of candidates) {
+                try {
+                    unlocked.push(
+                        await SdkWalletService.unlockWallet(
+                            wallet.signerId,
+                            password,
+                        ),
+                    );
+                } catch {
+                    failureReason = FailureReason.WrongPassword;
+                }
+            }
+
+            if (unlocked.length === 0) {
+                failureReason = FailureReason.WrongPassword;
+                throw new Error("Incorrect password");
+            }
+
+            broadcastSessionLogin(SecureStorage.generateSessionToken());
+
+            return unlocked;
+        });
+
+        succeeded = true;
+
+        return unlockedWallets;
+    } catch (err: unknown) {
+        if (!failureReason) {
+            failureReason = classifyLoginError(err);
+        }
+        throw err;
+    } finally {
+        await handleLoginOutcome(
+            succeeded,
+            contextKey,
+            failureReason,
+            accountName,
+            loginType,
         );
-        if (!account) {
-            throw new Error("Incorrect password or account not found");
-        }
-        return account;
-    },
-);
+    }
+});
 
-export const exportAccountKeyfile = createAsyncThunk(
-    "auth/exportAccountKeyfile",
-    async ({ accountId }: { accountId: string }) => {
-        const keyfile = SecureStorage.exportAccount(accountId);
-        if (!keyfile) {
-            throw new Error("Account not found");
-        }
+export const unlockAccount = createAsyncThunk<
+    IWalletMeta,
+    { accountId: string; password: string },
+    { state: RootState }
+>("auth/unlockAccount", async ({ accountId, password }, { getState }) => {
+    const walletAndAccountPath = getWalletAndAccountFromWalletsMeta(
+        getState().walletsStore.wallets,
+        accountId,
+    );
 
-        const blob = new Blob([keyfile], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `asi-wallet-${accountId}-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    if (!walletAndAccountPath) {
+        throw new Error("Account not found");
+    }
 
-        return { accountId, success: true };
-    },
-);
+    return SdkWalletService.unlockWallet(
+        walletAndAccountPath.wallet.signerId,
+        password,
+    );
+});
+
+export const logout = createAsyncThunk("auth/logout", async () => {
+    SdkWalletService.lockAll();
+    clearSessionBroadcast();
+});
+
+//TODO: Restore after the SDK ships keyfile export/import support
+// export const exportAccountKeyfile = createAsyncThunk(
+//     "auth/exportAccountKeyfile",
+//     async ({ accountId }: { accountId: string }) => {
+//         const keyfile = SecureStorage.exportAccount(accountId);
+//         if (!keyfile) {
+//             throw new Error("Account not found");
+//         }
+
+//         const blob = new Blob([keyfile], { type: "application/json" });
+//         const url = URL.createObjectURL(blob);
+//         const a = document.createElement("a");
+//         a.href = url;
+//         a.download = `asi-wallet-${accountId}-${Date.now()}.json`;
+//         document.body.appendChild(a);
+//         a.click();
+//         document.body.removeChild(a);
+//         URL.revokeObjectURL(url);
+
+//         return { accountId, success: true };
+//     },
+// );
 
 const authSlice = createSlice({
     name: "auth",
     initialState,
     reducers: {
-        setHasAccounts: (state, action: PayloadAction<boolean>) => {
-            state.hasAccounts = action.payload;
-        },
-        logout: (state) => {
-            state.isAuthenticated = false;
-            state.unlockedAccounts = [];
-            state.error = null;
-            SecureStorage.clearSession();
-            SecureStorage.setAuthenticated(false);
-            clearSessionBroadcast();
-        },
         updateActivity: (state) => {
             state.lastActivity = Date.now();
             SecureStorage.updateLastActivity();
@@ -599,14 +359,9 @@ const authSlice = createSlice({
         updateSettings: (
             state,
             action: PayloadAction<{
-                requirePasswordForTransaction?: boolean;
                 idleTimeout?: number;
             }>,
         ) => {
-            if (action.payload.requirePasswordForTransaction !== undefined) {
-                state.requirePasswordForTransaction =
-                    action.payload.requirePasswordForTransaction;
-            }
             if (action.payload.idleTimeout !== undefined) {
                 state.idleTimeout = action.payload.idleTimeout;
             }
@@ -616,23 +371,8 @@ const authSlice = createSlice({
             state.error = null;
         },
         checkAuthentication: (state) => {
-            const userId = SecureStorage.getCurrentUserId();
-            const unlockedAccounts = SecureStorage.getAllUnlockedAccounts();
-            const token = SecureStorage.getSessionToken();
-            const hasUnlocked = unlockedAccounts.length > 0;
-            const isAuthenticated =
-                SecureStorage.isAuthenticated() &&
-                hasUnlocked &&
-                !!userId &&
-                !!token;
-
-            state.isAuthenticated = isAuthenticated;
-            state.hasAccounts = SecureStorage.hasAccounts(userId ?? undefined);
-            state.unlockedAccounts = unlockedAccounts;
-
-            if (!isAuthenticated && SecureStorage.isAuthenticated()) {
-                SecureStorage.setAuthenticated(false);
-            }
+            state.isAuthenticated =
+                SdkWalletService.getUnlockedWallets().length > 0;
         },
     },
     extraReducers: (builder) => {
@@ -641,13 +381,9 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(createAccountWithPassword.fulfilled, (state, action) => {
+            .addCase(createAccountWithPassword.fulfilled, (state) => {
                 state.isLoading = false;
-                state.hasAccounts = true;
-                if (action.payload.isFirstAccount) {
-                    state.isAuthenticated = true;
-                }
-                state.unlockedAccounts.push(action.payload.account);
+                state.isAuthenticated = true;
             })
             .addCase(createAccountWithPassword.rejected, (state, action) => {
                 state.isLoading = false;
@@ -658,40 +394,22 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(importAccountWithPassword.fulfilled, (state, action) => {
+            .addCase(importAccountWithPassword.fulfilled, (state) => {
                 state.isLoading = false;
-                state.hasAccounts = true;
-                if (action.payload.isFirstAccount) {
-                    state.isAuthenticated = true;
-                }
-                state.unlockedAccounts.push(action.payload.account);
+                state.isAuthenticated = true;
             })
             .addCase(importAccountWithPassword.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error =
                     action.error.message || "Failed to import account";
             })
-            .addCase(importFromKeyfile.pending, (state) => {
-                state.isLoading = true;
-                state.error = null;
-            })
-            .addCase(importFromKeyfile.fulfilled, (state) => {
-                state.isLoading = false;
-                state.hasAccounts = true;
-            })
-            .addCase(importFromKeyfile.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error =
-                    action.error.message || "Failed to import keyfile";
-            })
             .addCase(loginWithPassword.pending, (state) => {
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(loginWithPassword.fulfilled, (state, action) => {
+            .addCase(loginWithPassword.fulfilled, (state) => {
                 state.isLoading = false;
                 state.isAuthenticated = true;
-                state.unlockedAccounts = action.payload;
             })
             .addCase(loginWithPassword.rejected, (state, action) => {
                 state.isLoading = false;
@@ -701,41 +419,32 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(unlockAccount.fulfilled, (state, action) => {
+            .addCase(unlockAccount.fulfilled, (state) => {
                 state.isLoading = false;
-                const exists = state.unlockedAccounts.find(
-                    (a) => a.id === action.payload.id,
-                );
-                if (!exists) {
-                    state.unlockedAccounts.push(action.payload);
-                }
+                state.isAuthenticated = true;
             })
             .addCase(unlockAccount.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error =
                     action.error.message || "Failed to unlock account";
             })
-            .addCase(exportAccountKeyfile.pending, (state) => {
-                state.isLoading = true;
+            .addCase(logout.fulfilled, (state) => {
+                state.isAuthenticated = false;
+                state.error = null;
             })
-            .addCase(exportAccountKeyfile.fulfilled, (state) => {
-                state.isLoading = false;
-            })
-            .addCase(exportAccountKeyfile.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error =
-                    action.error.message || "Failed to export keyfile";
+            .addCase(loadWalletsFromStorage.fulfilled, (state, action) => {
+                state.isAuthenticated = action.payload.some(
+                    (wallet) => wallet.isUnlocked,
+                );
             });
     },
 });
 
 export const {
-    logout,
     updateActivity,
     updateSettings,
     clearError,
     checkAuthentication,
-    setHasAccounts,
 } = authSlice.actions;
 
 export default authSlice.reducer;

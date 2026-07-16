@@ -126,7 +126,6 @@ interface TransactionConfirmationProps {
     estimatedFee?: string;
     loading?: boolean;
     needsPassword?: boolean;
-    requirePasswordForTransaction?: boolean;
 }
 
 export const TransactionConfirmationModal: React.FC<
@@ -141,7 +140,6 @@ export const TransactionConfirmationModal: React.FC<
     senderName,
     loading = false,
     needsPassword = false,
-    requirePasswordForTransaction = false,
 }) => {
     const { isLaptop } = useScreen();
 
@@ -233,11 +231,7 @@ export const TransactionConfirmationModal: React.FC<
                             id="transaction-confirmation-password-input"
                             data-testid="transaction-confirmation-password-input"
                             data-cy="transaction-confirmation-password-input"
-                            label={
-                                requirePasswordForTransaction
-                                    ? "Transaction Password"
-                                    : "Account Password"
-                            }
+                            label="Account Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             onInput={(e) => {

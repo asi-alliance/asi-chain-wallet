@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
     Account,
     Network,
@@ -18,8 +18,15 @@ import {
     sendTransaction,
     updateAccountName,
 } from "./thunks";
-import { getAccountFromWalletsMeta } from "./helpers";
+import { addWalletToWalletsStore, getAccountFromWalletsMeta } from "./helpers";
 import { Transaction } from "types/transactions";
+import {
+    createAccountWithPassword,
+    importAccountWithPassword,
+    loginWithPassword,
+    logout,
+    unlockAccount,
+} from "store/authSlice";
 
 interface NetworkConfig {
     name: string;
@@ -307,27 +314,6 @@ const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
-        // syncAccounts: (state, action: PayloadAction<Account[]>) => {
-        //     const networkId = state.selectedNetwork?.id;
-
-        //     const { sanitized, updates } = sanitizeAccounts(
-        //         action.payload,
-        //         networkId,
-        //     );
-        //     persistAccountNetworkUpdates(updates);
-
-        //     const matchingAccounts = filterAccountsForNetwork(
-        //         sanitized,
-        //         networkId,
-        //     );
-        //     mergeAccounts(state.accounts, matchingAccounts);
-
-        //     state.accounts = filterAccountsForNetwork(
-        //         state.accounts,
-        //         networkId,
-        //     );
-        //     updateSelectedAccountForNetwork(state);
-        // },
         selectAccount: (state, action: PayloadAction<string>) => {
             const targetAccount: IAccountMeta | null =
                 getAccountFromWalletsMeta(state.wallets, action.payload);
@@ -570,17 +556,6 @@ const walletsStoreSlice = createSlice({
                     action.error.message ??
                     "Failed to update account name";
             })
-            // .addCase(loginWithPassword.fulfilled, (state) => {
-            //     // Load ALL accounts for display — userId filtering is only for unlock, not visibility
-            //     const networkId = state.selectedNetwork?.id;
-            //     const { sanitized, updates } = sanitizeAccounts(
-            //         SecureStorage.getEncryptedAccounts(),
-            //         networkId,
-            //     );
-            //     persistAccountNetworkUpdates(updates);
-            //     state.accounts = filterAccountsForNetwork(sanitized, networkId);
-            //     updateSelectedAccountForNetwork(state);
-            // })
             .addCase(fetchBalance.pending, (state) => {
                 state.isLoading = true;
             })
@@ -626,6 +601,27 @@ const walletsStoreSlice = createSlice({
                 state.error =
                     action.error.message ??
                     "Failed to fetch transaction history";
+            })
+            .addCase(createAccountWithPassword.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
+            })
+            .addCase(importAccountWithPassword.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
+            })
+            .addCase(unlockAccount.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
+            })
+            .addCase(loginWithPassword.fulfilled, (state, action) => {
+                action.payload.forEach((unlockedWallet) => {
+                    addWalletToWalletsStore(state.wallets, unlockedWallet);
+                });
+            })
+            .addCase(logout.fulfilled, (state) => {
+                state.wallets = state.wallets.map((walletMeta) => ({
+                    ...walletMeta,
+                    id: undefined,
+                    isUnlocked: false,
+                }));
             });
     },
 });
@@ -641,6 +637,17 @@ export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
 export const selectBalanceByAccountId = (state: RootState, accountId: string) =>
     state.walletsStore.balances[accountId] ?? "0";
+
+export const selectUnlockedWallets = createSelector(
+    [selectWallets],
+    (wallets: IWalletMeta[]) => wallets.filter((w) => w.isUnlocked),
+);
+export const selectHasWallets = (state: RootState) =>
+    state.walletsStore.wallets.length > 0;
+export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
+    state.walletsStore.wallets.some(
+        (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
+    );
 
 export const {
     // syncAccounts,
