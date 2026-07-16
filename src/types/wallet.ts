@@ -1,4 +1,5 @@
-import { WalletTypes } from "@asichain/asi-wallet-sdk";
+import { Address, WalletTypes } from "@asichain/asi-wallet-sdk";
+import { Transaction } from "./transactions";
 
 export interface Account {
     id: string;
@@ -12,19 +13,6 @@ export interface Account {
     isMetamask?: boolean;
     networkId?: string;
     createdAt: Date;
-}
-
-export interface Transaction {
-    id: string;
-    deployId: string;
-    from: string;
-    to: string;
-    amount: string;
-    timestamp: string;
-    status: "pending" | "completed" | "failed";
-    blockNumber?: number;
-    error?: string;
-    gasCost?: string;
 }
 
 export interface Deploy {
@@ -60,7 +48,7 @@ export interface IAccountMeta {
     id: string;
     name: string;
     index: number | null;
-    address: string;
+    address: Address;
 }
 
 export interface IWalletMeta {

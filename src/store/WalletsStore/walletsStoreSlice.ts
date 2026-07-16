@@ -1,14 +1,12 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
     Account,
-    Transaction,
     Network,
     WalletStoreState,
     IWalletMeta,
     IAccountMeta,
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
-import { generateRandomGasFee } from "../../constants/gas";
 import { RootState } from "store";
 import { SdkWalletService } from "sdk";
 import { NetworkName } from "@asichain/asi-wallet-sdk";
@@ -21,6 +19,7 @@ import {
     updateAccountName,
 } from "./thunks";
 import { getAccountFromWalletsMeta } from "./helpers";
+import { Transaction } from "types/transactions";
 
 interface NetworkConfig {
     name: string;
@@ -160,19 +159,6 @@ const persistSelectedAccountId = (accountId: string | null) => {
         localStorage.removeItem("selectedAccountId");
     }
 };
-
-// Raw shape returned by RChainService.fetchTransactionHistory
-interface RChainTx {
-    deployId: string;
-    blockNumber?: number;
-    blockHash?: string;
-    from: string;
-    to?: string;
-    amount?: string;
-    status: string;
-    timestamp: string;
-    type: "send" | "receive" | "deploy";
-}
 
 const loadNetworks = (accountId?: string | null): Network[] => {
     const result: Network[] = [...defaultNetworks];
@@ -624,36 +610,22 @@ const walletsStoreSlice = createSlice({
                 state.isLoading = false;
             })
             .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
-                const newTransactions = (action.payload as RChainTx[]).map(
-                    (tx) => {
-                        return {
-                            id: tx.deployId,
-                            deployId: tx.deployId,
-                            from: tx.from,
-                            to: tx.to ?? "",
-                            amount: tx.amount ?? "",
-                            timestamp: new Date(tx.timestamp).toString(),
-                            status: tx.status as Transaction["status"],
-                            blockNumber: tx.blockNumber,
-                            gasCost:
-                                tx.type === "send"
-                                    ? generateRandomGasFee()
-                                    : undefined,
-                        };
-                    },
-                );
-
                 const existingIds = new Set(
                     state.transactions.map((tx) => tx.id),
                 );
-                const uniqueNewTransactions = newTransactions.filter(
+                const newTransactions = action.payload.filter(
                     (tx) => !existingIds.has(tx.id),
                 );
 
                 state.transactions = [
-                    ...uniqueNewTransactions,
+                    ...newTransactions,
                     ...state.transactions,
                 ];
+            })
+            .addCase(fetchTransactionHistory.rejected, (state, action) => {
+                state.error =
+                    action.error.message ??
+                    "Failed to fetch transaction history";
             });
     },
 });

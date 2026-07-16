@@ -1,14 +1,19 @@
 import {
     Account,
     Address,
+    ApiClientManager,
+    ApiServiceRegistry,
     Client,
     IAccountMetadata,
+    ITransferRequest,
     IWalletMetadata,
     NetworkName,
+    Transaction,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
 import { IAccountMeta, IWalletMeta } from "types/wallet";
+import { IPagination } from "types/transactions";
 
 export class SdkWalletService {
     private static readonly PRIVATE_KEY_BYTES = 32;
@@ -141,8 +146,10 @@ export class SdkWalletService {
                 const accounts: IAccountMeta[] = [];
 
                 for (const publicAccountMetadata of publicWalletMeta.accounts) {
-                    const currentAddress: string | undefined =
-                        addressByAccountId.get(publicAccountMetadata.id);
+                    const currentAddress: Address | undefined =
+                        addressByAccountId.get(publicAccountMetadata.id) as
+                            | Address
+                            | undefined;
 
                     if (!currentAddress) {
                         throw new Error(
@@ -226,6 +233,37 @@ export class SdkWalletService {
         );
 
         return client.toDisplayAmount(atomicBalance);
+    }
+
+    static async getTransactionsHistory(
+        address: string,
+        pagination: IPagination,
+    ): Promise<Transaction[]> {
+        const history: Transaction[] =
+            await ApiServiceRegistry.getInstance().accountData.getTransactionHistory(
+                address,
+                undefined,
+                pagination,
+            );
+
+        return history;
+    }
+
+    static async transfer(
+        {
+            walletId,
+            accountId,
+            to,
+            amount,
+        }: Omit<ITransferRequest, "amount"> & { amount: string },
+        password: string,
+    ): Promise<string> {
+        const client = requireSdkClient();
+
+        return client.transfer(
+            { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
+            password,
+        );
     }
 
     static async hasStoredWallets(): Promise<boolean> {

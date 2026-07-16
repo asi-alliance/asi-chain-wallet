@@ -31,6 +31,7 @@ import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
+import { SdkClientProvider } from "sdk";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -224,7 +225,9 @@ const App: React.FC = () => {
             >
                 <QueryProvider>
                     <EvmProvider>
-                        <AppContent />
+                        <SdkClientProvider>
+                            <AppContent />
+                        </SdkClientProvider>
                     </EvmProvider>
                 </QueryProvider>
             </Router>
