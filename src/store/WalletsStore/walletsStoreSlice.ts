@@ -1,10 +1,4 @@
-import { updateAccountName } from "store/walletSlice";
-import {
-    createSlice,
-    createAsyncThunk,
-    PayloadAction,
-    Draft,
-} from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
     Account,
     Transaction,
@@ -13,18 +7,18 @@ import {
     IWalletMeta,
     IAccountMeta,
 } from "types/wallet";
-import { loginWithPassword } from "../authSlice";
 import { SecureStorage } from "services/secureStorage";
 import { generateRandomGasFee } from "../../constants/gas";
 import { RootState } from "store";
-import { requireSdkClient, SdkWalletService } from "sdk";
-import { Client, NetworkName, Wallet } from "@asichain/asi-wallet-sdk";
+import { SdkWalletService } from "sdk";
+import { NetworkName } from "@asichain/asi-wallet-sdk";
 import {
     fetchBalance,
     fetchTransactionHistory,
     loadWalletsFromStorage,
     removeWallet,
     sendTransaction,
+    updateAccountName,
 } from "./thunks";
 import { getAccountFromWalletsMeta } from "./helpers";
 
@@ -605,22 +599,16 @@ const walletsStoreSlice = createSlice({
                 state.isLoading = true;
             })
             .addCase(fetchBalance.fulfilled, (state, action) => {
-                state.balances[action.payload.accountId] =
-                    action.payload.balance;
+                const { accountId, balance } = action.payload;
 
-                const account = state.accounts.find(
-                    (a) => a.id === action.payload.accountId,
-                );
-                if (account) {
-                    account.balance = action.payload.balance;
-                }
-                if (state.selectedAccount?.id === action.payload.accountId) {
-                    state.selectedAccount.balance = action.payload.balance;
-                }
+                state.balances[accountId] = balance;
                 state.isLoading = false;
             })
             .addCase(fetchBalance.rejected, (state, action) => {
-                state.error = action.error.message || "Failed to fetch balance";
+                state.error =
+                    (action.payload as string) ??
+                    action.error.message ??
+                    "Failed to fetch balance";
                 state.isLoading = false;
             })
             .addCase(sendTransaction.pending, (state) => {

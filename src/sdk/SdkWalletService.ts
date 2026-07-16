@@ -138,20 +138,31 @@ export class SdkWalletService {
                     return SdkWalletService.mapWallet(unlockedWallet);
                 }
 
+                const accounts: IAccountMeta[] = [];
+
+                for (const publicAccountMetadata of publicWalletMeta.accounts) {
+                    const currentAddress: string | undefined =
+                        addressByAccountId.get(publicAccountMetadata.id);
+
+                    if (!currentAddress) {
+                        throw new Error(
+                            "SdkWalletService.loadWallets: Insensitive Cache Storage not has address for some account",
+                        );
+                    }
+
+                    accounts.push({
+                        id: publicAccountMetadata.id,
+                        name: publicAccountMetadata.name,
+                        index: publicAccountMetadata.index,
+                        address: currentAddress,
+                    });
+                }
+
                 return {
                     signerId: publicWalletMeta.signerId,
                     type: publicWalletMeta.type,
                     isUnlocked: false,
-                    accounts: publicWalletMeta.accounts.map(
-                        (publicAccountMetadata: IAccountMetadata) => ({
-                            id: publicAccountMetadata.id,
-                            name: publicAccountMetadata.name,
-                            index: publicAccountMetadata.index,
-                            address: (addressByAccountId.get(
-                                publicAccountMetadata.id,
-                            ) ?? "") as Address,
-                        }),
-                    ),
+                    accounts,
                 };
             },
         );
@@ -195,6 +206,26 @@ export class SdkWalletService {
 
     static setNetwork(network: NetworkName): void {
         return requireSdkClient().setNetwork(network);
+    }
+
+    static async getBalance(address: string): Promise<string> {
+        const client = requireSdkClient();
+        const atomicBalance = await client.getBalance(address as Address);
+
+        return client.toDisplayAmount(atomicBalance);
+    }
+
+    static async getAvailableBalance(
+        walletId: string,
+        accountId: string,
+    ): Promise<string> {
+        const client = requireSdkClient();
+        const atomicBalance = await client.getAvailableBalance(
+            walletId,
+            accountId,
+        );
+
+        return client.toDisplayAmount(atomicBalance);
     }
 
     static async hasStoredWallets(): Promise<boolean> {

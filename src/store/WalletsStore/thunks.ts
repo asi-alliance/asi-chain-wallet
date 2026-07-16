@@ -12,7 +12,11 @@ import {
     WalletStoreState,
 } from "types/wallet";
 import { IAccountDefaultUpdateFieldsPayload } from "./walletsStoreSlice";
-import { getAccountFromWalletsMeta } from "./helpers";
+import {
+    getAccountFromWalletsMeta,
+    getWalletAndAccountFromWalletsMeta,
+    IWalletAndAccountPathFromMeta,
+} from "./helpers";
 import { RootState } from "store";
 
 export const loadWalletsFromStorage = createAsyncThunk(
@@ -56,6 +60,14 @@ export interface IAccountUpdateNameResponse {
     name: string;
 }
 
+export interface IAccountDefaultGetFieldsPayload {
+    accountId: string;
+}
+
+export interface IAccountGetBalanceResponse extends IAccountDefaultGetFieldsPayload {
+    balance: string;
+}
+
 export const updateAccountName = createAsyncThunk<
     IAccountUpdateNameResponse,
     IAccountUpdateNamePayload,
@@ -95,49 +107,36 @@ export const updateAccountName = createAsyncThunk<
     },
 );
 
-export const fetchBalance = createAsyncThunk(
+export const fetchBalance = createAsyncThunk<
+    IAccountGetBalanceResponse,
+    IAccountDefaultGetFieldsPayload,
+    { state: RootState }
+>(
     "wallets-store/fetchBalance",
-    async (
-        {
-            accountId,
-            address,
-            network,
-            forceRefresh = false,
-        }: {
-            accountId: string;
-            address: string;
-            network: Network;
-            forceRefresh?: boolean;
-        },
-        { getState },
-    ) => {
-        const state = getState() as {
-            auth: AuthState;
-            walletsStore: WalletStoreState;
-        };
-        const knownBalance = state.walletsStore.balances[accountId] ?? "0";
+    async ({ accountId }, { rejectWithValue, getState }) => {
+        const { wallets } = getState().walletsStore;
 
-        if (
-            !state.auth.isAuthenticated ||
-            state.auth.unlockedAccounts.length === 0
-        ) {
-            return { accountId, balance: knownBalance };
+        const walletAndAccountPath: IWalletAndAccountPathFromMeta | null =
+            getWalletAndAccountFromWalletsMeta(wallets, accountId);
+
+        if (!walletAndAccountPath) {
+            return rejectWithValue(
+                "walletsStoreSlice.fetchBalance: Incorrect account id",
+            );
         }
 
-        if (!network.readOnlyUrl || !network.readOnlyUrl.trim()) {
-            return { accountId, balance: knownBalance };
+        const { wallet, account } = walletAndAccountPath;
+
+        if (wallet.isUnlocked && wallet.id) {
+            const balance = await SdkWalletService.getAvailableBalance(
+                wallet.id,
+                accountId,
+            );
+
+            return { accountId, balance };
         }
 
-        const rchain = new RChainService(
-            network.url,
-            network.readOnlyUrl,
-            network.adminUrl,
-            network.shardId,
-            network.graphqlUrl,
-        );
-        let atomicBalance = await rchain.getBalance(address, forceRefresh);
-
-        const balance = (parseInt(atomicBalance) / 100000000).toString();
+        const balance = await SdkWalletService.getBalance(account.address);
 
         return { accountId, balance };
     },
