@@ -19,6 +19,7 @@ import {
     updateAccountName,
 } from "./thunks";
 import { addWalletToWalletsStore, getAccountFromWalletsMeta } from "./helpers";
+import { parseNetworksFromEnv } from "./networksEnv";
 import { Transaction } from "types/transactions";
 import {
     createAccountWithPassword,
@@ -27,64 +28,6 @@ import {
     logout,
     unlockAccount,
 } from "store/authSlice";
-
-interface NetworkConfig {
-    name: string;
-    ValidatorURL: string;
-    ReadOnlyURL?: string;
-    IndexerURL?: string;
-}
-
-export const parseNetworksFromEnv = (): Network[] => {
-    const networks: Network[] = [];
-
-    try {
-        const networksEnv = process.env.NETWORKS;
-
-        if (!networksEnv) {
-            console.warn(
-                "NETWORKS environment variable is not set. Using empty networks.",
-            );
-            return networks;
-        }
-
-        const config = JSON.parse(networksEnv) as Record<string, NetworkConfig>;
-
-        Object.entries(config).forEach(([key, networkConfig]) => {
-            if (!networkConfig) {
-                return;
-            }
-
-            const id = key
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9-]/g, "");
-
-            const validatorUrl = networkConfig.ValidatorURL?.trim() || "";
-            if (!validatorUrl) {
-                console.warn(
-                    `[parseNetworksFromEnv] Skipping network "${key}" because ValidatorURL is empty`,
-                );
-                return;
-            }
-
-            const graphqlUrl = networkConfig.IndexerURL?.trim() || undefined;
-
-            networks.push({
-                id,
-                name: networkConfig.name || key,
-                url: validatorUrl,
-                readOnlyUrl: networkConfig.ReadOnlyURL?.trim() || undefined,
-                graphqlUrl,
-                shardId: "root",
-            });
-        });
-    } catch (error) {
-        console.error("Failed to parse NETWORKS:", error);
-    }
-
-    return networks;
-};
 
 const defaultNetworks: Network[] = parseNetworksFromEnv();
 
@@ -306,7 +249,8 @@ export interface IAccountDefaultUpdateFieldsPayload {
     accountId: string;
 }
 
-export interface IAccountUpdateBalancePayload extends IAccountDefaultUpdateFieldsPayload {
+export interface IAccountUpdateBalancePayload {
+    accountId: string;
     balance: string;
 }
 
@@ -603,7 +547,7 @@ const walletsStoreSlice = createSlice({
                     "Failed to fetch transaction history";
             })
             .addCase(createAccountWithPassword.fulfilled, (state, action) => {
-                addWalletToWalletsStore(state.wallets, action.payload);
+                addWalletToWalletsStore(state.wallets, action.payload.wallet);
             })
             .addCase(importAccountWithPassword.fulfilled, (state, action) => {
                 addWalletToWalletsStore(state.wallets, action.payload);
@@ -628,11 +572,18 @@ const walletsStoreSlice = createSlice({
 
 export const selectAccountById = (state: RootState, accountId: string) =>
     getAccountFromWalletsMeta(state.walletsStore.wallets, accountId);
-export const selectAccounts = (state: RootState) =>
-    state.walletsStore.wallets.flatMap((walletMeta: IWalletMeta) =>
-        walletMeta.accounts.map((accountMeta: IAccountMeta) => accountMeta),
-    );
+export const selectWalletByAccountId = (state: RootState, accountId: string) =>
+    state.walletsStore.wallets.find((walletMeta: IWalletMeta) =>
+        walletMeta.accounts.some(
+            (accountMeta: IAccountMeta) => accountMeta.id === accountId,
+        ),
+    ) ?? null;
 export const selectWallets = (state: RootState) => state.walletsStore.wallets;
+export const selectAccounts = createSelector(
+    [selectWallets],
+    (wallets: IWalletMeta[]) =>
+        wallets.flatMap((walletMeta: IWalletMeta) => walletMeta.accounts),
+);
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
 export const selectBalanceByAccountId = (state: RootState, accountId: string) =>

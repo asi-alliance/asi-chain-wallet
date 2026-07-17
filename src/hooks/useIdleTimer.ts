@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from 'store';
+import { useAppDispatch } from 'store/hooks';
 import { logout, updateActivity } from 'store/authSlice';
 
 /**
  * Hook that manages idle timeout and automatic logout
  */
 export const useIdleTimer = () => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { isAuthenticated, idleTimeout } = useSelector((state: RootState) => state.auth);
   

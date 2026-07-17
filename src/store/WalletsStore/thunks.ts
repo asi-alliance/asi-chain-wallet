@@ -1,4 +1,7 @@
-import { IAccountDefaultUpdateFieldsPayload } from "./walletsStoreSlice";
+import {
+    IAccountDefaultUpdateFieldsPayload,
+    updateTransactionStatus,
+} from "./walletsStoreSlice";
 import { Account, IAccountMeta, Network } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { generateRandomGasFee } from "constants/gas";
@@ -179,7 +182,7 @@ export const sendTransaction = createAsyncThunk<
     "wallets-store/sendTransaction",
     async (
         { walletId, accountId, to, amount, password }: ITransferPayload,
-        { getState },
+        { getState, dispatch },
     ) => {
         //TODO: Updated after auth redesign
         // if (!SecureStorage.hasSessionToken()) {
@@ -210,6 +213,23 @@ export const sendTransaction = createAsyncThunk<
             },
             password,
         );
+
+        SdkWalletService.watchDeploy(deployId, {
+            onConfirmed: () => {
+                dispatch(
+                    updateTransactionStatus({ deployId, status: "completed" }),
+                );
+            },
+            onError: (error: Error) => {
+                dispatch(
+                    updateTransactionStatus({
+                        deployId,
+                        status: "failed",
+                        error: error.message,
+                    }),
+                );
+            },
+        });
 
         const transaction: Transaction = {
             id: deployId,

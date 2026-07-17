@@ -3,18 +3,12 @@ import styled from "styled-components";
 import { useScreen, useValidAccountUpdating } from "hooks/";
 import { importAccountWithPassword } from "store/authSlice";
 import { PasswordSetup } from "components/PasswordSetup";
-import { getAddressLabel } from "../../constants/token";
-import { useDispatch, useSelector } from "react-redux";
-import { SecureStorage } from "services/secureStorage";
-import { AdaptiveSelect } from "components/Select";
-import { syncAccounts } from "store/WalletsStore/walletsStoreSlice";
+import { useSelector } from "react-redux";
+import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
 import { Input, Button } from "components";
 import { RootState } from "store";
-import {
-    importPrivateKey,
-    importEthAddress,
-    importRevAddress,
-} from "utils/crypto";
+import { useAppDispatch } from "store/hooks";
+import { importPrivateKey } from "utils/crypto";
 
 const FormGroup = styled.div`
     margin-bottom: 16px;
@@ -34,12 +28,6 @@ const ActionButtons = styled.div`
     }
 `;
 
-const Label = styled.label`
-    // font-size: 14px;
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.primary};
-`;
-
 const AdaptiveButton = styled(Button)`
     min-width: 242px;
 
@@ -51,14 +39,7 @@ const AdaptiveButton = styled(Button)`
 interface PendingImport {
     name: string;
     value: string;
-    type: "private" | "public" | "eth" | "rev";
 }
-
-const importTypeOptions = [
-    { id: "private", value: "private", label: "Private Key" },
-    { id: "eth", value: "eth", label: "Ethereum Address" },
-    { id: "rev", value: "rev", label: getAddressLabel() },
-];
 
 interface ImportAccountFormProps {
     onSuccess?: () => void;
@@ -77,9 +58,12 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     customAccountName,
     firstAccount = false,
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
-    const { selectedNetwork } = useSelector((state: RootState) => state.wallet);
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork,
+    );
+    const accounts = useSelector(selectAccounts);
     const { isLaptop } = useScreen();
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
@@ -90,9 +74,6 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     const [step, setStep] = useState<Step>("form");
     const [importName, setImportName] = useState("");
     const [importValue, setImportValue] = useState("");
-    const [importType, setImportType] = useState<
-        "private" | "public" | "eth" | "rev"
-    >("private");
     const [importNameError, setImportNameError] = useState("");
     const [importValueError, setImportValueError] = useState("");
     const [pendingImport, setPendingImport] = useState<PendingImport | null>(
@@ -113,38 +94,11 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         updateImportName(customAccountName);
     }, [customAccountName]);
 
-    const checkAccountExistsByValue = (
-        value: string,
-        type: string | "private" | "public" | "eth" | "rev",
-    ): boolean => {
+    const checkAccountExistsByValue = (value: string): boolean => {
         try {
-            let accountData: { revAddress?: string; ethAddress?: string };
-            const normalizedType =
-                type === getAddressLabel() || type === "rev"
-                    ? "rev"
-                    : (type as "private" | "eth" | "rev");
+            const { revAddress } = importPrivateKey(value);
 
-            switch (normalizedType) {
-                case "private":
-                    accountData = importPrivateKey(value);
-                    break;
-                case "eth":
-                    accountData = importEthAddress(value);
-                    break;
-                case "rev":
-                    accountData = importRevAddress(value);
-                    break;
-                default:
-                    return false;
-            }
-
-            const userId = SecureStorage.getCurrentUserId();
-            return SecureStorage.accountExists(
-                accountData.revAddress,
-                accountData.ethAddress,
-                userId || undefined,
-                selectedNetworkId,
-            );
+            return accounts.some((account) => account.address === revAddress);
         } catch (error) {
             return false;
         }
@@ -179,12 +133,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             return;
         }
 
-        const normalizedType =
-            importType === getAddressLabel() || importType === "rev"
-                ? "rev"
-                : (importType as "private" | "eth" | "rev");
-
-        if (checkAccountExistsByValue(trimmedValue, normalizedType)) {
+        if (checkAccountExistsByValue(trimmedValue)) {
             setImportValueError("Account with this address already exists");
             return;
         }
@@ -192,39 +141,11 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         setImportNameError("");
         setImportValueError("");
 
-        if (normalizedType === "private") {
-            setPendingImport({
-                name: trimmedName,
-                value: trimmedValue,
-                type: normalizedType,
-            });
-            setStep("password");
-        } else {
-            setLoading(true);
-            dispatch(
-                importAccountWithPassword({
-                    name: trimmedName,
-                    value: trimmedValue,
-                    type: normalizedType,
-                    password: "",
-                    networkId: selectedNetworkId,
-                }) as any,
-            ).then((resultAction: any) => {
-                setLoading(false);
-                if (importAccountWithPassword.fulfilled.match(resultAction)) {
-                    dispatch(syncAccounts([resultAction.payload.account]));
-                    onSuccess?.();
-                    handleCancel();
-                } else if (
-                    importAccountWithPassword.rejected.match(resultAction)
-                ) {
-                    const errorMessage =
-                        resultAction.error?.message ||
-                        "Failed to import account";
-                    setImportValueError(errorMessage);
-                }
-            });
-        }
+        setPendingImport({
+            name: trimmedName,
+            value: trimmedValue,
+        });
+        setStep("password");
     };
 
     const handlePasswordSet = async (password: string) => {
@@ -235,15 +156,15 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         const resultAction = await dispatch(
             importAccountWithPassword({
                 ...pendingImport,
+                type: "private",
                 password,
                 networkId: selectedNetworkId,
-            }) as any,
+            }),
         );
 
         setLoading(false);
 
         if (importAccountWithPassword.fulfilled.match(resultAction)) {
-            dispatch(syncAccounts([resultAction.payload.account]));
             onSuccess?.();
             handleCancel();
         } else if (importAccountWithPassword.rejected.match(resultAction)) {
@@ -251,19 +172,6 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                 resultAction.error?.message || "Failed to import account";
             setImportValueError(errorMessage);
             setStep("form");
-        }
-    };
-
-    const getImportPlaceholder = () => {
-        switch (importType) {
-            case "private":
-                return "Enter private key (64 hex characters)";
-            case "eth":
-                return "Enter Ethereum address (0x...)";
-            case "rev":
-                return `Enter ${getAddressLabel()}`;
-            default:
-                return "Enter value";
         }
     };
 
@@ -304,17 +212,6 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             </FormGroup>
 
             <FormGroup>
-                <Label style={{ marginBottom: "8px" }}>Mode</Label>
-
-                <AdaptiveSelect
-                    value={importType}
-                    onChange={(value) => setImportType(value as any)}
-                    options={importTypeOptions}
-                    placeholder="Select import type"
-                />
-            </FormGroup>
-
-            <FormGroup>
                 <Input
                     id="import-account-value-input"
                     label="Private Key"
@@ -325,7 +222,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                             setImportValueError("");
                         }
                     }}
-                    placeholder={getImportPlaceholder()}
+                    placeholder="Enter private key (64 hex characters)"
                     error={importValueError}
                     disabled={loading}
                 />

@@ -1,10 +1,10 @@
 import styled from "styled-components";
-import {
-    removeAccount,
-    selectWallets,
-} from "store/WalletsStore/walletsStoreSlice";
-import { logout, setHasAccounts } from "store/authSlice";
-import { useDispatch, useSelector } from "react-redux";
+import { selectWallets } from "store/WalletsStore/walletsStoreSlice";
+import { removeWallet } from "store/WalletsStore/thunks";
+import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
+import { logout } from "store/authSlice";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
 import { DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
 import { IWalletMeta } from "types/wallet";
@@ -22,17 +22,36 @@ const RemoveButton = styled(Button)`
 export const RemoveAccountButton = ({
     accountId,
 }: IRemoveAccountButtonProps): ReactElement => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
     const wallets: IWalletMeta[] = useSelector(selectWallets);
 
     const handleRemoveAccount = () => {
-        if (window.confirm("Are you sure you want to remove this account?")) {
-            dispatch(removeAccount(accountId));
+        if (!window.confirm("Are you sure you want to remove this account?")) {
+            return;
         }
 
+        const walletAndAccountPath = getWalletAndAccountFromWalletsMeta(
+            wallets,
+            accountId,
+        );
+
+        if (!walletAndAccountPath?.wallet.id) {
+            console.error(
+                "RemoveAccountButton: wallet is locked or not found, cannot remove",
+            );
+
+            return;
+        }
+
+        dispatch(
+            removeWallet({
+                walletId: walletAndAccountPath.wallet.id,
+                accountId,
+            }),
+        );
+
         if (wallets.length === 1) {
-            dispatch(setHasAccounts(false));
             dispatch(logout());
         }
     };

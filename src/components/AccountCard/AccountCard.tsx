@@ -6,17 +6,20 @@ import { DownloadIcon, LockPassIcon } from "components/Icons";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useDispatch, useSelector } from "react-redux";
-import { exportAccountKeyfile } from "store/authSlice";
-import { selectAccount } from "store/WalletsStore/walletsStoreSlice";
+import {
+    selectAccount,
+    selectIsAccountUnlocked,
+    selectSelectedAccountId,
+} from "store/WalletsStore/walletsStoreSlice";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";
-import { Account } from "types/wallet";
+import { IAccountMeta } from "types/wallet";
 import { ReactElement } from "react";
 import { RootState } from "store";
 
 interface IAccountCardProps {
-    account: Account;
+    account: IAccountMeta;
     fullMode?: boolean;
     className?: string;
 }
@@ -124,16 +127,19 @@ export const AccountCard = ({
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const isUnlocked = useSelector((state: RootState) =>
+        selectIsAccountUnlocked(state, account.id),
+    );
 
     const handleSelectAccount = (accountId: string) => {
         dispatch(selectAccount(accountId));
     };
 
-    const handleExportKeyfile = (accountId: string) => {
-        dispatch(exportAccountKeyfile({ accountId }) as any);
-    };
+    //TODO: Restore after the SDK ships keyfile export/import support
+    // const handleExportKeyfile = (accountId: string) => {
+    //     dispatch(exportAccountKeyfile({ accountId }) as any);
+    // };
 
     const formatAddress = (
         address: string,
@@ -146,10 +152,7 @@ export const AccountCard = ({
         return `${address.slice(0, visibleSymbolsCount)}...${address.slice(-visibleSymbolsCount)}`;
     };
 
-    const isUnlocked = unlockedAccounts.some(
-        (unlockedAccount: Account) => unlockedAccount.id === account.id,
-    );
-    const isSelected = selectedAccount?.id === account.id;
+    const isSelected = selectedAccountId === account.id;
 
     return (
         <AccountCardWrapper
@@ -176,12 +179,12 @@ export const AccountCard = ({
                         style={{ marginRight: 10, lineHeight: "27px" }}
                         $isSelected={isSelected}
                     >
-                        {formatAddress(account.revAddress, {
+                        {formatAddress(account.address, {
                             isFullMode: !fullMode,
                         })}
                     </LabelSecond>
                     <CopyButton
-                        dataToCopy={account.revAddress}
+                        dataToCopy={account.address}
                         size={15}
                         title="Copy Address"
                     />
@@ -219,14 +222,15 @@ export const AccountCard = ({
                                 <LockPassIcon />
                             </ActionButton>
                         )}
+                        {/* TODO: Restore keyfile export after the SDK ships keyfile export/import support */}
                         <ActionButton
                             $isSelected={isSelected}
                             id={`export-account-${account.id}`}
                             variant="icon-button"
-                            title="Export Keyfile"
+                            title="Keyfile export is temporarily unavailable"
+                            disabled
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleExportKeyfile(account.id);
                             }}
                             withBorderColorHover={false}
                             withFadeHover

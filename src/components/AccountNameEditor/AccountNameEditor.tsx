@@ -3,10 +3,13 @@ import styled from "styled-components";
 import { EditableLabel } from "components/EditableLabel";
 import {
     selectAccountById,
-    updateAccountName,
+    selectSelectedAccountId,
+    selectWalletByAccountId,
 } from "store/WalletsStore/walletsStoreSlice";
-import { useDispatch, useSelector } from "react-redux";
-import { Account } from "types/wallet";
+import { updateAccountName } from "store/WalletsStore/thunks";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import { IAccountMeta } from "types/wallet";
 import { RootState } from "store";
 import { EditableLabelProps } from "components/EditableLabel/EditableLabel";
 import { useValidAccountUpdating } from "hooks";
@@ -45,11 +48,14 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     accountId,
     ...labelProps
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
-    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
-    const account: Account | undefined = useSelector((state: RootState) =>
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const account: IAccountMeta | null = useSelector((state: RootState) =>
         selectAccountById(state, accountId),
+    );
+    const wallet = useSelector((state: RootState) =>
+        selectWalletByAccountId(state, accountId),
     );
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField, reset } =
@@ -60,15 +66,24 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     }
 
     const handleUpdateAccountName = (newName: string) => {
+        if (!wallet?.id) {
+            console.error(
+                "AccountNameEditor: wallet is locked or not found, cannot rename",
+            );
+
+            return;
+        }
+
         dispatch(
             updateAccountName({
+                walletId: wallet.id,
                 accountId: accountId,
                 name: newName,
             }),
         );
     };
 
-    const isSelected: boolean = account.id === selectedAccount?.id;
+    const isSelected: boolean = account.id === selectedAccountId;
 
     return (
         <StyledEditableLabel

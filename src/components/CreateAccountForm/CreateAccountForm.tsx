@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { Input, Button } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { PrivateKeyDisplay } from "components/PrivateKeyDisplay";
 import { createAccountWithPassword } from "store/authSlice";
-import { syncAccounts } from "store/WalletsStore/walletsStoreSlice";
-import { SecureStorage } from "services/secureStorage";
+import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import { useScreen, useValidAccountUpdating } from "hooks";
 
 const WarningMessage = styled.div`
@@ -70,12 +70,15 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     customAccountName,
     firstAccount = false,
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
-    const { selectedNetwork } = useSelector((state: RootState) => state.wallet);
-    const { isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth,
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork,
     );
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
+    );
+    const hasWallets = useSelector(selectHasWallets);
 
     const { isLaptop } = useScreen();
 
@@ -145,29 +148,18 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
                 name: pendingAccountName,
                 password,
                 networkId: selectedNetworkId,
-            }) as any,
+            }),
         );
 
         setLoading(false);
 
         if (createAccountWithPassword.fulfilled.match(resultAction)) {
-            setPendingPrivateKey(resultAction.payload.account.privateKey || "");
+            setPendingPrivateKey(resultAction.payload.privateKeyHex);
             setStep("privateKey");
         }
     };
 
     const handlePrivateKeyAcknowledged = () => {
-        const userId = SecureStorage.getCurrentUserId();
-        dispatch(
-            syncAccounts(
-                SecureStorage.getEncryptedAccounts(userId || undefined).map(
-                    (acc) => ({
-                        ...acc,
-                        privateKey: undefined,
-                    }),
-                ),
-            ),
-        );
         onSuccess?.(pendingAccountName);
     };
 
@@ -212,7 +204,7 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     // Step: Form
     return (
         <FormContainer>
-            {hasAccounts && !isAuthenticated && (
+            {hasWallets && !isAuthenticated && (
                 <WarningMessage>
                     <span className="icon">⚠️</span>
                     <span>

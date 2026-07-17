@@ -2,15 +2,17 @@ import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { PropsWithChildren } from "react";
 import { RootState } from "store";
+import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
 
 export const ExistingAccountGuard = ({
     children,
 }: PropsWithChildren): JSX.Element => {
-    const { isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth,
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
     );
+    const hasWallets = useSelector(selectHasWallets);
 
-    if (hasAccounts && !isAuthenticated) {
+    if (hasWallets && !isAuthenticated) {
         return <Navigate to={"/login"} />;
     }
 

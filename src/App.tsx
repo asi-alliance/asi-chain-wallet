@@ -15,22 +15,26 @@ import { lightTheme, darkTheme } from "styles/theme";
 import { Layout } from "components";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
-import { Bridge } from "pages/Bridge";
+//TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
+// import { Bridge } from "pages/Bridge";
 import { Receive } from "pages/Receive";
 import { Accounts } from "pages/Accounts";
-import { Deploy } from "pages/Deploy";
-import { IDE } from "pages/IDE";
+//TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
+// import { Deploy } from "pages/Deploy";
+// import { IDE } from "pages/IDE";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
 import { History } from "pages/History";
 import { useIdleTimer, useDeepLink, useSessionGuard } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
-import TransactionPollingService from "services/transactionPolling";
+//TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
+// import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
+import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
 import { SdkClientProvider } from "sdk";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -38,11 +42,12 @@ import "@rainbow-me/rainbowkit/styles.css";
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
-    const { isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth,
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
     );
+    const hasWallets = useSelector(selectHasWallets);
 
-    if (!hasAccounts) {
+    if (!hasWallets) {
         return <Navigate to="/accounts" replace />;
     }
 
@@ -69,16 +74,17 @@ const AppContent: React.FC = () => {
         dispatch(loadWalletsFromStorage());
     }, [dispatch]);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            TransactionPollingService.start();
-        } else {
-            TransactionPollingService.stop();
-        }
-        return () => {
-            TransactionPollingService.stop();
-        };
-    }, [isAuthenticated]);
+    //TODO: Removed legacy RChain polling. Deploy status is now tracked via the SDK DeployStatusPoller in the sendTransaction thunk.
+    // useEffect(() => {
+    //     if (isAuthenticated) {
+    //         TransactionPollingService.start();
+    //     } else {
+    //         TransactionPollingService.stop();
+    //     }
+    //     return () => {
+    //         TransactionPollingService.stop();
+    //     };
+    // }, [isAuthenticated]);
 
     return (
         <ThemeProvider theme={theme}>
@@ -122,6 +128,7 @@ const AppContent: React.FC = () => {
                     }
                 />
 
+                {/* TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
                 <Route
                     path="/bridge"
                     element={
@@ -132,6 +139,7 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
+                */}
 
                 <Route
                     path="/receive"
@@ -155,6 +163,7 @@ const AppContent: React.FC = () => {
                     }
                 />
 
+                {/* TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
                 <Route
                     path="/deploy"
                     element={
@@ -176,6 +185,7 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
+                */}
 
                 <Route
                     path="/settings"

@@ -2,10 +2,13 @@ import { Select } from "components/Select";
 import { ISelectOption, ISelectProps } from "components/Select/Select";
 import { CSSProperties, ReactElement, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { selectAccount } from "store/WalletsStore/walletsStoreSlice";
+import {
+    selectAccount,
+    selectAccounts,
+    selectSelectedAccountId,
+} from "store/WalletsStore/walletsStoreSlice";
 import styled from "styled-components";
-import { Account } from "types/wallet";
+import { IAccountMeta } from "types/wallet";
 
 const FilterGroup = styled.div`
     display: flex;
@@ -42,13 +45,12 @@ export const AccountSelector = ({
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
     const dispatch = useDispatch();
-    const { selectedAccount, accounts } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const accounts = useSelector(selectAccounts);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
 
     const accountOptions = useMemo(
         () =>
-            accounts.map((account: Account) => {
+            accounts.map((account: IAccountMeta) => {
                 const baseOption: ISelectOption = {
                     id: account.id,
                     value: account.id,
@@ -78,7 +80,7 @@ export const AccountSelector = ({
             </FilterLabel>
             <Select
                 id="history-filter-account-select"
-                value={selectedAccount?.id}
+                value={selectedAccountId ?? undefined}
                 onChange={(accountId) => dispatch(selectAccount(accountId))}
                 placeholder="Select account"
                 options={accountOptions}

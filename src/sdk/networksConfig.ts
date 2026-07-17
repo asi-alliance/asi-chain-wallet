@@ -4,7 +4,7 @@ import {
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
 import { Network } from "types/wallet";
-import { parseNetworksFromEnv } from "store/WalletsStore/walletsStoreSlice";
+import { parseNetworksFromEnv } from "store/WalletsStore/networksEnv";
 
 const NETWORK_NAMES: NetworkName[] = ["Dev", "DevNet", "TestNet", "MainNet"];
 

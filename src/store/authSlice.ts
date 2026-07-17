@@ -48,8 +48,13 @@ type CreateAccountPayload = {
     networkId?: string;
 };
 
+export interface ICreateAccountResponse {
+    wallet: IWalletMeta;
+    privateKeyHex: string;
+}
+
 export const createAccountWithPassword = createAsyncThunk<
-    IWalletMeta,
+    ICreateAccountResponse,
     CreateAccountPayload
 >("auth/createAccountWithPassword", async ({ name, password }) => {
     const privateKeyHex = SdkWalletService.generatePrivateKeyHex();
@@ -62,7 +67,7 @@ export const createAccountWithPassword = createAsyncThunk<
 
     broadcastSessionLogin(SecureStorage.generateSessionToken());
 
-    return wallet;
+    return { wallet, privateKeyHex };
 });
 
 type ImportAccountPayload = {

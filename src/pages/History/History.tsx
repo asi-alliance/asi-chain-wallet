@@ -1,19 +1,35 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import styled, { css } from "styled-components";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccountById,
+    selectSelectedAccountId,
+} from "store/WalletsStore/walletsStoreSlice";
+import { fetchTransactionHistory } from "store/WalletsStore/thunks";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
-import TransactionHistoryService, {
-    Transaction,
-    TransactionFilter,
-} from "services/transactionHistory";
-import { RChainService } from "services/rchain";
+import { Transaction } from "types/transactions";
 import { ContentPasteIcon, DownloadIcon } from "components/Icons";
 import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
 import { getTokenDisplayName } from "constants/token";
 import { DefaultTheme } from "styled-components/dist/types";
+
+type TransactionType = "send" | "receive";
+type TransactionStatus = "pending" | "completed" | "failed";
+
+interface TransactionView extends Transaction {
+    type: TransactionType;
+}
+
+interface TransactionFilter {
+    type?: TransactionType;
+    status?: TransactionStatus;
+    startDate?: string;
+    endDate?: string;
+}
 
 const HistoryContainer = styled.div`
     max-width: 1200px;
@@ -147,27 +163,27 @@ const TableHeaderCell = styled.th<{ $align?: string; $width?: string }>`
 `;
 
 const StatusBadge = styled.span<{
-    $status: "pending" | "confirmed" | "failed";
+    $status: TransactionStatus;
 }>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     background: ${({ $status, theme }) =>
-        $status === "confirmed"
+        $status === "completed"
             ? theme.success + "20"
             : $status === "failed"
               ? theme.danger + "20"
               : theme.warning + "20"};
     color: ${({ $status, theme }) =>
-        $status === "confirmed"
+        $status === "completed"
             ? theme.success
             : $status === "failed"
               ? theme.danger
               : theme.warning};
 `;
 
-const TypeBadge = styled.span<{ $type: "send" | "receive" | "deploy" }>`
+const TypeBadge = styled.span<{ $type: TransactionType }>`
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
@@ -254,7 +270,7 @@ const formatAmount = (amount?: string): string => {
     }
 };
 
-const formatDate = (date: Date): string => {
+const formatDate = (date: string | Date): string => {
     return new Date(date).toLocaleString();
 };
 
@@ -262,30 +278,36 @@ const typeOptions = [
     { id: "all", value: "all", label: "All Types" },
     { id: "send", value: "send", label: "Send" },
     { id: "receive", value: "receive", label: "Receive" },
-    { id: "deploy", value: "deploy", label: "Deploy" },
+    //TODO: Restore the deploy option when the SDK includes deploy transactions in history
+    // { id: "deploy", value: "deploy", label: "Deploy" },
 ];
 const statusOptions = [
     { id: "all", value: "all", label: "All Status" },
     { id: "pending", value: "pending", label: "Pending" },
-    { id: "confirmed", value: "confirmed", label: "Confirmed" },
+    { id: "completed", value: "completed", label: "Completed" },
     { id: "failed", value: "failed", label: "Failed" },
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
+const toTransactionView = (
+    transaction: Transaction,
+    ownAddress: string,
+): TransactionView => ({
+    ...transaction,
+    type: transaction.from === ownAddress ? "send" : "receive",
+});
+
 export const History: React.FC = () => {
-    const { selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
+    const dispatch = useAppDispatch();
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const selectedAccount = useSelector((state: RootState) =>
+        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
-    const isAccountUnlocked = React.useMemo(() => {
-        if (!selectedAccount) return false;
-        return unlockedAccounts.some(
-            (account) => account.id === selectedAccount.id,
-        );
-    }, [unlockedAccounts, selectedAccount]);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const transactions = useSelector(
+        (state: RootState) => state.walletsStore.transactions,
+    );
+
     const [filter, setFilter] = useState<TransactionFilter>({});
-    const [_stats, setStats] = useState<any>({});
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const handleCopy = useCallback(async (text: string) => {
@@ -294,145 +316,15 @@ export const History: React.FC = () => {
         } catch {}
     }, []);
 
-    const checkPendingTransactionStatuses = useCallback(async () => {
-        if (!selectedAccount || !selectedNetwork || !isAccountUnlocked) return;
+    const loadTransactions = useCallback(() => {
+        if (!selectedAccount) return;
 
-        if (!selectedNetwork.graphqlUrl || !selectedNetwork.graphqlUrl.trim()) {
-            return;
-        }
-
-        const _rchain = new RChainService(
-            selectedNetwork.url.trim(),
-            selectedNetwork.readOnlyUrl,
-            selectedNetwork.adminUrl,
-            selectedNetwork.shardId,
-            selectedNetwork.graphqlUrl,
-        );
-
-        // Optional: lightweight pending status check disabled to avoid heavy polling
-        // const pendingTxs = await TransactionHistoryService.getTransactions(
-        //     selectedAccount.revAddress,
-        //     selectedAccount.publicKey,
-        //     selectedNetwork.name,
-        //     selectedNetwork.graphqlUrl,
-        //     25
-        // ).then((txs) => txs.filter((tx) => tx.status === "pending"));
-        // for (const tx of pendingTxs) {
-        //     if (!tx.deployId) continue;
-        //     try {
-        //         await rchain.waitForDeployResult(tx.deployId, 1);
-        //     } catch (error) {
-        //         console.error(
-        //             `Error checking deploy status for ${tx.deployId}:`,
-        //             error
-        //         );
-        //     }
-        // }
-    }, [selectedAccount, selectedNetwork, isAccountUnlocked]);
-
-    const loadTransactions = useCallback(async () => {
-        if (!selectedAccount || !selectedNetwork) {
-            setTransactions([]);
-            setStats({
-                total: 0,
-                sent: 0,
-                received: 0,
-                deployed: 0,
-                pending: 0,
-                confirmed: 0,
-                failed: 0,
-            });
-            return;
-        }
-
-        try {
-            if (!selectedAccount.revAddress || !selectedAccount.publicKey) {
-                setTransactions([]);
-                return;
-            }
-
-            const txs = await TransactionHistoryService.getTransactions(
-                selectedAccount.revAddress,
-                selectedAccount.publicKey,
-                selectedNetwork.name,
-                selectedNetwork.graphqlUrl || "",
-                100,
-            );
-
-            let filteredTxs = txs;
-            if (filter.type) {
-                filteredTxs = filteredTxs.filter(
-                    (tx) => tx.type === filter.type,
-                );
-            }
-            if (filter.status) {
-                filteredTxs = filteredTxs.filter(
-                    (tx) => tx.status === filter.status,
-                );
-            }
-            if (filter.network) {
-                filteredTxs = filteredTxs.filter(
-                    (tx) => tx.network === filter.network,
-                );
-            }
-            if (filter.startDate) {
-                const startDate = new Date(filter.startDate);
-                startDate.setHours(0, 0, 0, 0);
-                filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) >= startDate,
-                );
-            }
-            if (filter.endDate) {
-                const endDate = new Date(filter.endDate);
-                endDate.setHours(23, 59, 59, 999);
-                filteredTxs = filteredTxs.filter(
-                    (tx) => new Date(tx.timestamp) <= endDate,
-                );
-            }
-
-            setTransactions(filteredTxs);
-
-            const statistics = {
-                total: filteredTxs.length,
-                sent: filteredTxs.filter((tx) => tx.type === "send").length,
-                received: filteredTxs.filter((tx) => tx.type === "receive")
-                    .length,
-                deployed: filteredTxs.filter((tx) => tx.type === "deploy")
-                    .length,
-                pending: filteredTxs.filter((tx) => tx.status === "pending")
-                    .length,
-                confirmed: filteredTxs.filter((tx) => tx.status === "confirmed")
-                    .length,
-                failed: filteredTxs.filter((tx) => tx.status === "failed")
-                    .length,
-            };
-            setStats(statistics);
-        } catch (error) {
-            setTransactions([]);
-            setStats({
-                total: 0,
-                sent: 0,
-                received: 0,
-                deployed: 0,
-                pending: 0,
-                confirmed: 0,
-                failed: 0,
-            });
-        }
-    }, [selectedAccount, selectedNetwork, filter]);
+        dispatch(fetchTransactionHistory({ address: selectedAccount.address }));
+    }, [dispatch, selectedAccount]);
 
     useEffect(() => {
         loadTransactions();
-
-        checkPendingTransactionStatuses().then(() => {
-            loadTransactions();
-        });
-    }, [
-        loadTransactions,
-        checkPendingTransactionStatuses,
-        selectedAccount,
-        selectedNetwork,
-    ]);
+    }, [loadTransactions]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -443,32 +335,42 @@ export const History: React.FC = () => {
         return () => clearInterval(interval);
     }, [loadTransactions]);
 
-    const handleExportJSON = async () => {
-        if (!selectedAccount || !selectedNetwork) return;
+    const visibleTransactions = useMemo<TransactionView[]>(() => {
+        if (!selectedAccount) return [];
 
-        try {
-            await TransactionHistoryService.downloadTransactions(
-                "json",
-                selectedAccount.revAddress,
-                selectedAccount.publicKey,
-                selectedNetwork.name,
-                selectedNetwork.graphqlUrl || "",
-            );
-        } catch (error) {}
+        let result = transactions.map((tx) =>
+            toTransactionView(tx, selectedAccount.address),
+        );
+
+        if (filter.type) {
+            result = result.filter((tx) => tx.type === filter.type);
+        }
+        if (filter.status) {
+            result = result.filter((tx) => tx.status === filter.status);
+        }
+        if (filter.startDate) {
+            const startDate = new Date(filter.startDate);
+            startDate.setHours(0, 0, 0, 0);
+            result = result.filter((tx) => new Date(tx.timestamp) >= startDate);
+        }
+        if (filter.endDate) {
+            const endDate = new Date(filter.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            result = result.filter((tx) => new Date(tx.timestamp) <= endDate);
+        }
+
+        return result;
+    }, [transactions, selectedAccount, filter]);
+
+    //TODO: Restore transaction export once the SDK exposes a history download flow
+    const handleExportJSON = () => {
+        // if (!selectedAccount) return;
+        // downloadTransactions("json", visibleTransactions, selectedAccount.address);
     };
 
-    const handleExportCSV = async () => {
-        if (!selectedAccount || !selectedNetwork) return;
-
-        try {
-            await TransactionHistoryService.downloadTransactions(
-                "csv",
-                selectedAccount.revAddress,
-                selectedAccount.publicKey,
-                selectedNetwork.name,
-                selectedNetwork.graphqlUrl || "",
-            );
-        } catch (error) {}
+    const handleExportCSV = () => {
+        // if (!selectedAccount) return;
+        // downloadTransactions("csv", visibleTransactions, selectedAccount.address);
     };
 
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
@@ -486,7 +388,6 @@ export const History: React.FC = () => {
         return !!(
             filter.type ||
             filter.status ||
-            filter.network ||
             filter.startDate ||
             filter.endDate
         );
@@ -580,7 +481,7 @@ export const History: React.FC = () => {
                             </FilterGroup>
                         )}
                     </FilterSection>
-                    {transactions.length > 0 ? (
+                    {visibleTransactions.length > 0 ? (
                         <div className="transactions-table-wrapper">
                             <TransactionTable>
                                 <Table>
@@ -624,7 +525,7 @@ export const History: React.FC = () => {
                                         </tr>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactions.map((tx: Transaction) => (
+                                        {visibleTransactions.map((tx) => (
                                             <TableRow
                                                 key={tx.id}
                                                 id={`history-transaction-row-${tx.id}`}
@@ -691,18 +592,6 @@ export const History: React.FC = () => {
                                                     {formatAmount(tx.amount)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {tx.note && (
-                                                        <div
-                                                            style={{
-                                                                fontSize:
-                                                                    "12px",
-                                                                marginBottom:
-                                                                    "4px",
-                                                            }}
-                                                        >
-                                                            {tx.note}
-                                                        </div>
-                                                    )}
                                                     {tx.deployId && (
                                                         <div
                                                             style={{
@@ -741,23 +630,6 @@ export const History: React.FC = () => {
                                                             >
                                                                 <ContentPasteIcon />
                                                             </a>
-                                                        </div>
-                                                    )}
-                                                    {tx.blockHash && (
-                                                        <div
-                                                            style={{
-                                                                fontSize:
-                                                                    "11px",
-                                                                fontFamily:
-                                                                    "monospace",
-                                                            }}
-                                                        >
-                                                            Block:{" "}
-                                                            {tx.blockHash.substring(
-                                                                0,
-                                                                16,
-                                                            )}
-                                                            ...
                                                         </div>
                                                     )}
                                                 </TableCell>

@@ -17,20 +17,11 @@ export const store = configureStore({
         getDefaultMiddleware({
             serializableCheck: {
                 ignoredActions: [
-                    "walletsStore/setAccounts",
-                    "walletsStore/addAccount",
-                    "auth/createAccountWithPassword/fulfilled",
-                    "auth/importAccountWithPassword/fulfilled",
-                    "auth/loginWithPassword/fulfilled",
                     "hardwareWallet/sign/fulfilled",
                     "multisig/createWallet/fulfilled",
                     "multisig/loadWalletDetails/fulfilled",
                 ],
                 ignoredPaths: [
-                    "walletsStore.accounts",
-                    "walletsStore.selectedAccount",
-                    "auth.unlockedAccounts",
-                    "auth.lastActivity",
                     "hardwareWallet.accounts",
                     "hardwareWallet.selectedAccount",
                     "multisig.wallets",

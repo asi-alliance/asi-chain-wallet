@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, Fragment } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/WalletsStore/walletsStoreSlice";
+import { useAppDispatch } from "store/hooks";
+import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
+import { fetchBalance } from "store/WalletsStore/thunks";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
-import { Account } from "types/wallet";
+import { IAccountMeta } from "types/wallet";
 import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
 import { useSearchParams } from "react-router-dom";
 import { CreateAccountModal } from "components/CreateAccountModal";
@@ -64,9 +66,13 @@ const InlineButton = styled(Button)`
 `;
 
 export const Accounts: React.FC = () => {
-    const dispatch = useDispatch();
-    const { accounts, selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork,
+    );
+    const isLoading = useSelector(
+        (state: RootState) => state.walletsStore.isLoading,
     );
 
     const { isLaptop } = useScreen();
@@ -74,88 +80,56 @@ export const Accounts: React.FC = () => {
     const [searchParams] = useSearchParams();
     const actionParam: string | null = searchParams.get("action");
 
-    const selectedNetworkId = selectedNetwork?.id;
-    const filteredAccounts = useMemo(
-        () =>
-            selectedNetworkId
-                ? accounts.filter(
-                      (account: Account) =>
-                          account.networkId === selectedNetworkId,
-                  )
-                : accounts,
-        [accounts, selectedNetworkId],
-    );
-
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
     const [showImportModal, setShowImportModal] = useState(false);
 
-    const filteredAccountIds = useMemo(
-        () => filteredAccounts.map((account: Account) => account.id).join(","),
-        [filteredAccounts],
+    const accountIds = useMemo(
+        () => accounts.map((account: IAccountMeta) => account.id).join(","),
+        [accounts],
     );
 
     useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
+        if (accounts.length > 0) {
             const timeoutId = setTimeout(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
+                accounts.forEach((account: IAccountMeta) => {
+                    dispatch(fetchBalance({ accountId: account.id }));
                 });
             }, 100);
 
             return () => clearTimeout(timeoutId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
+    }, [selectedNetwork?.id, accountIds]);
 
     useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
+        if (accounts.length > 0) {
             const interval = setInterval(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
+                accounts.forEach((account: IAccountMeta) => {
+                    dispatch(fetchBalance({ accountId: account.id }));
                 });
             }, 30000);
             return () => clearInterval(interval);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
+    }, [selectedNetwork?.id, accountIds]);
 
     const handleRefreshBalances = () => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account: Account) => {
-                dispatch(
-                    fetchBalance({
-                        account,
-                        network: selectedNetwork,
-                        forceRefresh: true,
-                    }) as any,
-                );
-            });
-        }
+        accounts.forEach((account: IAccountMeta) => {
+            dispatch(fetchBalance({ accountId: account.id }));
+        });
     };
 
     return (
         <Fragment>
             <AccountsContainer>
-                {filteredAccounts.length === 0 && (
-                    <FirstAccountCreatingWidget />
-                )}
-                {filteredAccounts.length > 0 && (
+                {accounts.length === 0 && <FirstAccountCreatingWidget />}
+                {accounts.length > 0 && (
                     <Card style={{ marginBottom: "32px" }}>
                         <CardHeader>
                             <CardTitle>
-                                Your Accounts ({filteredAccounts.length})
+                                Your Accounts ({accounts.length})
                             </CardTitle>
                             <Button
                                 title="Refresh Balances"
@@ -169,7 +143,7 @@ export const Accounts: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                             <AccountsGrid className="accounts-grid">
-                                {filteredAccounts.map((account: Account) => (
+                                {accounts.map((account: IAccountMeta) => (
                                     <AccountCard
                                         key={account.id}
                                         account={account}

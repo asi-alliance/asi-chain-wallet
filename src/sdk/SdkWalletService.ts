@@ -1,10 +1,10 @@
 import {
     Account,
     Address,
-    ApiClientManager,
     ApiServiceRegistry,
     Client,
-    IAccountMetadata,
+    IDeployWatchCallbacks,
+    IDeployWatchHandle,
     ITransferRequest,
     IWalletMetadata,
     NetworkName,
@@ -263,6 +263,16 @@ export class SdkWalletService {
         return client.transfer(
             { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
             password,
+        );
+    }
+
+    static watchDeploy(
+        deployId: string,
+        callbacks: IDeployWatchCallbacks,
+    ): IDeployWatchHandle {
+        return ApiServiceRegistry.getInstance().poller.watch(
+            deployId,
+            callbacks,
         );
     }
 

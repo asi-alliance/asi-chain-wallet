@@ -1,8 +1,9 @@
 import React, { Fragment } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import { logout } from "store/authSlice";
 import { CloseIcon } from "components/Icons";
 import { Button } from "components/Button";
@@ -168,8 +169,10 @@ export const MobileNavDrawerComponent: React.FC<
 > = ({ isOpen, navItems, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const dispatch = useDispatch();
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const dispatch = useAppDispatch();
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
+    );
 
     const handleNavigation = (path: string) => {
         navigate(path);

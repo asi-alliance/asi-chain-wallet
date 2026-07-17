@@ -1,10 +1,12 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/authSlice";
+import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { SunIcon, MoonIcon, MenuIcon, LogoutIcon } from "components/Icons";
 
@@ -134,11 +136,13 @@ interface HeaderBarProps {
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { darkMode } = useSelector((state: RootState) => state.theme);
-    const { accounts } = useSelector((state: RootState) => state.wallet);
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const hasWallets = useSelector(selectHasWallets);
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
+    );
 
     const handleThemeToggle = () => {
         dispatch(toggleTheme());
@@ -160,9 +164,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
                 </LeftSection>
 
                 <HeaderActions>
-                    {isAuthenticated && accounts.length > 0 && (
-                        <ASIAccountSwitcher />
-                    )}
+                    {isAuthenticated && hasWallets && <ASIAccountSwitcher />}
                     <IconButton
                         onClick={handleThemeToggle}
                         title={

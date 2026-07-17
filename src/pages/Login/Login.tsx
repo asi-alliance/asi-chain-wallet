@@ -8,15 +8,14 @@ import React, {
 import styled from "styled-components";
 import {
     selectAccount,
-    loadWalletsFromStorage,
+    selectAccountById,
+    selectWallets,
 } from "store/WalletsStore/walletsStoreSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { SecureStorage } from "services/secureStorage";
 import { loginWithPassword } from "store/authSlice";
 import { RootState, AppDispatch } from "store";
-import { Account } from "types/wallet";
 import {
     Card,
     CardHeader,
@@ -171,20 +170,6 @@ function formatCountdown(ms: number): string {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-const getAccountNameById = (accountId: string): string => {
-    const accounts = SecureStorage.getEncryptedAccounts();
-
-    const targetAccount: Account | undefined = accounts.find(
-        (account: Account) => account.id === accountId,
-    );
-
-    if (!targetAccount) {
-        return "";
-    }
-
-    return targetAccount.name;
-};
-
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
@@ -195,14 +180,17 @@ export const Login: React.FC = () => {
     const loginAccountId: string | null = queryParams.get("id");
     const specificRedirectUrl: string | null = queryParams.get("redirectUrl");
 
-    const { hasAccounts, isLoading, error } = useSelector(
-        (state: RootState) => state.auth,
+    const isLoading = useSelector((state: RootState) => state.auth.isLoading);
+    const error = useSelector((state: RootState) => state.auth.error);
+    const wallets = useSelector(selectWallets);
+    const loginAccount = useSelector((state: RootState) =>
+        loginAccountId ? selectAccountById(state, loginAccountId) : null,
     );
 
+    const hasWallets = wallets.length > 0;
+
     const [password, setPassword] = useState("");
-    const [selectedAccountName, setSelectedAccountName] = useState<string>(
-        () => (!loginAccountId ? "" : getAccountNameById(loginAccountId)),
-    );
+    const [selectedAccountName, setSelectedAccountName] = useState<string>("");
     const [showError, setShowError] = useState(false);
 
     // Rate limit UI state
@@ -230,12 +218,14 @@ export const Login: React.FC = () => {
         remainingAttempts > 0;
 
     const availableAccountNames = useMemo(() => {
-        const accounts = SecureStorage.getEncryptedAccounts();
-        const uniqueNames = Array.from(
-            new Set(accounts.filter((acc) => acc.name).map((acc) => acc.name!)),
+        return Array.from(
+            new Set(
+                wallets.flatMap((wallet) =>
+                    wallet.accounts.map((account) => account.name),
+                ),
+            ),
         );
-        return uniqueNames;
-    }, []);
+    }, [wallets]);
 
     // ── Rate limit polling ──────────────────────────────────────────────────
 
@@ -302,10 +292,19 @@ export const Login: React.FC = () => {
     // ── Existing effects ────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (availableAccountNames.length > 0 && !selectedAccountName) {
+        if (selectedAccountName) {
+            return;
+        }
+
+        if (loginAccount) {
+            setSelectedAccountName(loginAccount.name);
+            return;
+        }
+
+        if (availableAccountNames.length > 0) {
             setSelectedAccountName(availableAccountNames[0]);
         }
-    }, [availableAccountNames, selectedAccountName]);
+    }, [availableAccountNames, selectedAccountName, loginAccount]);
 
     useEffect(() => {
         if (error) {
@@ -329,22 +328,20 @@ export const Login: React.FC = () => {
             );
 
             if (loginWithPassword.fulfilled.match(resultAction)) {
-                dispatch(loadWalletsFromStorage());
+                const unlockedAccounts = resultAction.payload.flatMap(
+                    (wallet) => wallet.accounts,
+                );
+                const accountToSelect = selectedAccountName
+                    ? unlockedAccounts.find(
+                          (account) => account.name === selectedAccountName,
+                      )
+                    : unlockedAccounts[0];
 
-                if (selectedAccountName) {
-                    const accountToSelect = resultAction.payload.find(
-                        (acc) => acc.name === selectedAccountName,
-                    );
-                    if (accountToSelect) {
-                        dispatch(selectAccount(accountToSelect.id));
-                    }
-                } else if (resultAction.payload.length > 0) {
-                    dispatch(selectAccount(resultAction.payload[0].id));
+                if (accountToSelect) {
+                    dispatch(selectAccount(accountToSelect.id));
                 }
 
-                const currentRedirectUrl: string = specificRedirectUrl ?? "/";
-
-                navigate(currentRedirectUrl);
+                navigate(specificRedirectUrl ?? "/");
             } else {
                 setSecurityWarningDismissed(false);
                 await refreshRateLimitInfo();
@@ -376,7 +373,7 @@ export const Login: React.FC = () => {
         );
     };
 
-    if (!hasAccounts) {
+    if (!hasWallets) {
         return <Navigate to={"/accounts"} />;
     }
 
