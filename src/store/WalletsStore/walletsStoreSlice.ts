@@ -487,9 +487,20 @@ const walletsStoreSlice = createSlice({
                 state.isLoading = true;
             })
             .addCase(updateAccountName.fulfilled, (state, action) => {
-                const { account, name } = action.payload;
+                const { accountId, name } = action.payload;
 
-                account.name = name;
+                const targetAccount: IAccountMeta | null =
+                    getAccountFromWalletsMeta(state.wallets, accountId);
+
+                if (!targetAccount) {
+                    console.error(
+                        "walletsStoreSlice.updateAccountName: Incorrect account id",
+                    );
+
+                    return;
+                }
+
+                targetAccount.name = name;
                 state.isLoading = false;
             })
             .addCase(updateAccountName.rejected, (state, action) => {

@@ -163,7 +163,10 @@ export const AccountCard = ({
             onClick={() => handleSelectAccount(account.id)}
         >
             <AccountHeader $fullMode={fullMode}>
-                <AccountNameEditor accountId={account.id} />
+                <AccountNameEditor
+                    disabled={!isUnlocked}
+                    accountId={account.id}
+                />
 
                 {fullMode && <RemoveAccountButton accountId={account.id} />}
             </AccountHeader>
