@@ -40,11 +40,21 @@ export const envStr = (key: string): string => {
     return process.env[key];
 };
 export const envNum = (key: string): number => {
-    if (!process.env[key]) {
+    const raw: string | undefined = process.env[key];
+
+    if (raw === undefined || raw.trim() === "") {
         throw new Error(`Env variable with key ${key} not found`);
     }
 
-    return Number(process.env[key]);
+    const parsed = Number(raw);
+
+    if (!Number.isFinite(parsed)) {
+        throw new Error(
+            `Env variable with key ${key} is not a valid number: "${raw}"`,
+        );
+    }
+
+    return parsed;
 };
 
 const SEPOLIA_ROUTE_ID = sepolia.id;
