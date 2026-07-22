@@ -38,7 +38,7 @@ const SwitcherButton = styled.button<{
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 180px;
-    max-width: ${({ $fullWidth }) =>
+    ${({ $fullWidth }) =>
         !$fullWidth &&
         css`
             max-width: 280px;
