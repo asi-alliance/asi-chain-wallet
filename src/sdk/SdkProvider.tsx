@@ -32,7 +32,7 @@ export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
 
             console.info(
                 "[sdk] Client initialized. Networks:",
-                createdClient.getNetworks(),
+                createdClient.getNetworksNames(),
                 "current:",
                 createdClient.getCurrentNetwork(),
             );
