@@ -39,6 +39,14 @@ export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
             .catch((error: unknown) => {
                 console.error("[sdk] Failed to initialize Client:", error);
             });
+
+        return () => {
+            if (!client) {
+                return;
+            }
+
+            client.close();
+        };
     }, []);
 
     return (
