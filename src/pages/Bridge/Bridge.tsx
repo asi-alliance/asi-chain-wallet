@@ -212,7 +212,6 @@ export const Bridge: React.FC = () => {
 
     const cardano = useCardanoWallet();
 
-    const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
     const [amountError, setAmountError] = useState("");
     const [password, setPassword] = useState("");
@@ -373,7 +372,6 @@ export const Bridge: React.FC = () => {
     };
 
     const handleClearAll = (): void => {
-        setRecipient("");
         setAmount("");
         setPassword("");
         setTxHash("");
@@ -848,7 +846,7 @@ export const Bridge: React.FC = () => {
                 }}
                 onConfirm={handleAsiLock}
                 amount={amount}
-                recipient={recipient}
+                recipient={destinationWallet.account!.address}
                 senderAddress={selectedAccount?.revAddress || ""}
                 senderName={selectedAccount?.name || ""}
                 loading={isLoading}
