@@ -1,8 +1,5 @@
 import { sepolia, baseSepolia } from "viem/chains";
-import {
-    ASI_CHAIN_DECIMALS,
-    CARDANO_TOKEN_DECIMALS,
-} from "utils/tokenFormat";
+import { ASI_CHAIN_DECIMALS, CARDANO_TOKEN_DECIMALS } from "utils/tokenFormat";
 
 export type BridgeChainKey =
     | "asi"
@@ -35,8 +32,20 @@ export interface BridgeChainConfig {
     assetName?: string;
 }
 
-const envStr = (key: string): string => process.env[key] ?? "";
-const envNum = (key: string): number => Number(process.env[key] ?? "");
+export const envStr = (key: string): string => {
+    if (!process.env[key]) {
+        throw new Error(`Env variable with key ${key} not found`);
+    }
+
+    return process.env[key];
+};
+export const envNum = (key: string): number => {
+    if (!process.env[key]) {
+        throw new Error(`Env variable with key ${key} not found`);
+    }
+
+    return Number(process.env[key]);
+};
 
 const SEPOLIA_ROUTE_ID = sepolia.id;
 const BASE_SEPOLIA_ROUTE_ID = baseSepolia.id;
@@ -145,7 +154,5 @@ export const DESTINATION_CHAIN_KEYS: BridgeChainKey[] = [
 export const bridgeChainForKey = (key: BridgeChainKey): BridgeChainConfig =>
     BRIDGE_CHAINS.find((chain) => chain.key === key) ?? BRIDGE_CHAINS[0];
 
-export const defaultDestinationFor = (
-    source: BridgeChainKey,
-): BridgeChainKey =>
+export const defaultDestinationFor = (source: BridgeChainKey): BridgeChainKey =>
     DESTINATION_CHAIN_KEYS.find((key) => key !== source) ?? "asi";
