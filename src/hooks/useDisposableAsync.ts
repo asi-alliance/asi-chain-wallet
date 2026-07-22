@@ -4,6 +4,7 @@ export interface IDisposableAsyncHandlers<T> {
     onResolve: (value: T) => void;
     onDispose: (value: T) => void;
     onError?: (error: unknown, disposed: boolean) => void;
+    onUnmount?: () => void;
 }
 
 export const useDisposableAsync = <T>(
@@ -38,6 +39,12 @@ export const useDisposableAsync = <T>(
 
         return () => {
             disposed = true;
+
+            if (!handlersRef.current.onUnmount) {
+                return;
+            }
+
+            handlersRef.current.onUnmount();
         };
     }, []);
 };
