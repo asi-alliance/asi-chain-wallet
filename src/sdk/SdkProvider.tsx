@@ -1,11 +1,6 @@
-import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
-} from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Client } from "@asichain/asi-wallet-sdk";
+import { useDisposableAsync } from "hooks/useDisposableAsync";
 import { DEFAULT_NETWORK, NETWORKS_CONFIG } from "./networksConfig";
 
 interface SdkContextValue {
@@ -18,44 +13,35 @@ const SdkContext = createContext<SdkContextValue>({
     isReady: false,
 });
 
+const createSdkClient = (): Promise<Client> =>
+    Client.create({
+        networksConfig: NETWORKS_CONFIG,
+        defaultNetwork: DEFAULT_NETWORK,
+    });
+
 export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const [client, setClient] = useState<Client | null>(null);
-    const clientRef = useRef<Client | null>(null);
 
-    useEffect(() => {
-        if (client) {
-            return;
-        }
+    useDisposableAsync(createSdkClient, {
+        onResolve: (createdClient) => {
+            setClient(createdClient);
 
-        Client.create({
-            networksConfig: NETWORKS_CONFIG,
-            defaultNetwork: DEFAULT_NETWORK,
-        })
-            .then((createdClient) => {
-                setClient(createdClient);
-                clientRef.current = createdClient;
-
-                console.info(
-                    "[sdk] Client initialized. Networks:",
-                    createdClient.getNetworksNames(),
-                    "current:",
-                    createdClient.getCurrentNetwork(),
-                );
-            })
-            .catch((error: unknown) => {
-                console.error("[sdk] Failed to initialize Client:", error);
-            });
-
-        return () => {
-            if (!clientRef.current) {
-                return;
-            }
-
-            clientRef.current.close();
-        };
-    }, []);
+            console.info(
+                "[sdk] Client initialized. Networks:",
+                createdClient.getNetworks(),
+                "current:",
+                createdClient.getCurrentNetwork(),
+            );
+        },
+        onDispose: (createdClient) => {
+            createdClient.close();
+        },
+        onError: (error) => {
+            console.error("[sdk] Failed to initialize Client:", error);
+        },
+    });
 
     return (
         <SdkContext.Provider value={{ client, isReady: client !== null }}>

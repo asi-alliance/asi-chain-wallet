@@ -226,7 +226,7 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                 }}
             >
-                <QueryProvider>
+                <QueryProvider> 
                     <EvmProvider>
                         <SdkProvider>
                             <AppContent />
