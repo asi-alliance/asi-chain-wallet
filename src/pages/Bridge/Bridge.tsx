@@ -388,7 +388,11 @@ export const Bridge: React.FC = () => {
         } else if (needsEvmApproval) {
             evm.approve(rawAmount);
         } else {
-            evm.lock(rawAmount, recipient.trim(), dstChain.routeId);
+            evm.lock(
+                rawAmount,
+                destinationWallet.account!.address,
+                dstChain.routeId,
+            );
         }
     };
 
@@ -399,7 +403,7 @@ export const Bridge: React.FC = () => {
         try {
             const result = await cosmos.lock(
                 rawAmount,
-                recipient.trim(),
+                destinationWallet.account!.address,
                 dstChain.routeId,
             );
             setTxHash(result.transactionHash);
@@ -421,7 +425,7 @@ export const Bridge: React.FC = () => {
             const result = await dispatch(
                 bridgeLock({
                     from: selectedAccount,
-                    recipient: recipient.trim(),
+                    recipient: destinationWallet.account!.address,
                     amountBaseUnits: parseTokenInput(
                         amount,
                         srcChain.nativeDecimals,
@@ -437,7 +441,7 @@ export const Bridge: React.FC = () => {
             savePendingTransaction({
                 deployId: result.deployId,
                 from: selectedAccount.revAddress,
-                to: recipient.trim(),
+                to: destinationWallet.account!.address,
                 amount,
                 timestamp: new Date().toISOString(),
                 accountId: selectedAccount.id,
@@ -463,7 +467,7 @@ export const Bridge: React.FC = () => {
                 wallet: cardano.api,
                 chain: srcChain,
                 senderAddress: cardano.address,
-                recipient: recipient.trim(),
+                recipient: destinationWallet.account!.address,
                 amount: parseTokenInput(amount, srcChain.nativeDecimals),
                 destChainId: dstChain.routeId,
             });
