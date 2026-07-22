@@ -295,6 +295,7 @@ export const Bridge: React.FC = () => {
     useEffect(() => {
         if (evm.isSuccess) {
             evm.refetch();
+            setAmount("");
         }
     }, [evm.isSuccess, evm.refetch]);
 
@@ -328,6 +329,7 @@ export const Bridge: React.FC = () => {
         setTxHash("");
         setLockError("");
         setAmountError("");
+        evm.reset();
     };
 
     const handleDestinationChange = (key: string): void => {
@@ -339,6 +341,7 @@ export const Bridge: React.FC = () => {
         setTxHash("");
         setLockError("");
         setAmountError("");
+        evm.reset();
     };
 
     const maxAmount = (): void => {
@@ -378,6 +381,7 @@ export const Bridge: React.FC = () => {
 
         setLockError("");
         setAmountError("");
+        evm.reset();
     };
 
     const handleEvmAction = (): void => {
