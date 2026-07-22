@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import { Client } from "@asichain/asi-wallet-sdk";
 import { DEFAULT_NETWORK, NETWORKS_CONFIG } from "./networksConfig";
 
@@ -16,6 +22,7 @@ export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const [client, setClient] = useState<Client | null>(null);
+    const clientRef = useRef<Client | null>(null);
 
     useEffect(() => {
         if (client) {
@@ -28,6 +35,7 @@ export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
         })
             .then((createdClient) => {
                 setClient(createdClient);
+                clientRef.current = createdClient;
 
                 console.info(
                     "[sdk] Client initialized. Networks:",
@@ -41,11 +49,11 @@ export const SdkProvider: React.FC<{ children: React.ReactNode }> = ({
             });
 
         return () => {
-            if (!client) {
+            if (!clientRef.current) {
                 return;
             }
 
-            client.close();
+            clientRef.current.close();
         };
     }, []);
 
