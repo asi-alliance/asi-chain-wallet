@@ -282,22 +282,60 @@ export const Bridge: React.FC = () => {
         evm.allowance < rawAmount;
 
     const busy =
-        srcKind === "evm" ? evm.isPending || evm.isConfirming : isLoading;
-    const shownTxHash =
         srcKind === "evm"
-            ? evm.isSuccess && evm.txHash
-                ? evm.txHash
-                : ""
-            : txHash;
+            ? evm.isPending ||
+              evm.isConfirming ||
+              (evm.isSuccess && evm.lastAction === "approve")
+            : isLoading;
+    const isEvmLockSuccess =
+        srcKind === "evm" &&
+        evm.isSuccess &&
+        evm.lastAction === "lock" &&
+        !!evm.txHash;
+    const shownTxHash = isEvmLockSuccess
+        ? (evm.txHash as string)
+        : srcKind === "evm"
+          ? ""
+          : txHash;
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) || "";
 
     useEffect(() => {
-        if (evm.isSuccess) {
-            evm.refetch();
+        if (srcKind !== "evm" || !evm.isSuccess || !evm.lastAction) {
+            return;
+        }
+
+        if (evm.lastAction === "approve") {
+            const approveTxHash = evm.txHash;
+            let cancelled = false;
+
+            void (async () => {
+                try {
+                    await evm.refetch();
+                } finally {
+                    if (!cancelled) {
+                        evm.resetIfCurrent(approveTxHash);
+                    }
+                }
+            })();
+
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        if (evm.lastAction === "lock") {
+            void evm.refetch();
             setAmount("");
         }
-    }, [evm.isSuccess, evm.refetch]);
+    }, [
+        srcKind,
+        evm.isSuccess,
+        evm.lastAction,
+        evm.txHash,
+        evm.refetch,
+        evm.resetIfCurrent,
+    ]);
 
     const sourceOptions = useMemo<ISelectOption[]>(
         () =>
@@ -678,7 +716,9 @@ export const Bridge: React.FC = () => {
                     {busy && (
                         <LoadingMessage>
                             <span className="spinner"></span>
-                            Locking tokens on {srcChain.label}...
+                            {srcKind === "evm" && evm.lastAction === "approve"
+                                ? `Approving tokens on ${srcChain.label}...`
+                                : `Locking tokens on ${srcChain.label}...`}
                         </LoadingMessage>
                     )}
 
