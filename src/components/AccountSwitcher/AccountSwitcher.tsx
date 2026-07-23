@@ -358,7 +358,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
             <SwitcherButton
                 $fullWidth={fullWidth}
                 $disabled={disabled}
-                id="header-account-switcher"
                 onClick={handleToggle}
                 onKeyDown={handleKeyDown}
                 $layout={layout}
