@@ -211,8 +211,9 @@ async function handleLoginOutcome(
 
 export const loginWithPassword = createAsyncThunk<
     IWalletMeta[],
-    { password: string; accountName?: string }
->("auth/loginWithPassword", async ({ password, accountName }) => {
+    { password: string; accountName?: string },
+    { state: RootState }
+>("auth/loginWithPassword", async ({ password, accountName }, { getState }) => {
     const loginType = accountName ? LoginType.ByName : LoginType.AllAccounts;
     const contextKey = buildContextKey(accountName);
     let failureReason: FailureReason | undefined;

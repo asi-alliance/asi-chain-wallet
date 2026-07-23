@@ -25,7 +25,8 @@ import { Accounts } from "pages/Accounts";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
-import { History } from "pages/History";
+//TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
+// import { History } from "pages/History";
 import { useIdleTimer, useDeepLink, useSessionGuard } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 //TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
@@ -152,6 +153,7 @@ const AppContent: React.FC = () => {
                     }
                 />
 
+                {/* TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
                 <Route
                     path="/history"
                     element={
@@ -162,6 +164,7 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
+                */}
 
                 {/* TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
                 <Route

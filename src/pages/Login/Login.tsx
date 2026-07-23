@@ -187,7 +187,7 @@ export const Login: React.FC = () => {
         loginAccountId ? selectAccountById(state, loginAccountId) : null,
     );
 
-    const hasWallets = wallets.length > 0;
+    // const hasWallets = wallets.length > 0;
 
     const [password, setPassword] = useState("");
     const [selectedAccountName, setSelectedAccountName] = useState<string>("");
@@ -373,9 +373,9 @@ export const Login: React.FC = () => {
         );
     };
 
-    if (!hasWallets) {
-        return <Navigate to={"/accounts"} />;
-    }
+    // if (!hasWallets) {
+    //     return <Navigate to={"/accounts"} />;
+    // }
 
     return (
         <LoginContainer>

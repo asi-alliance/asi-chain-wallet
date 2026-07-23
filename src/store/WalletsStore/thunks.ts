@@ -150,23 +150,30 @@ export const fetchBalance = createAsyncThunk<
 
 export const fetchTransactionHistory = createAsyncThunk<
     Transaction[],
-    { address: string; limit?: number }
->("wallets-store/fetchTransactionHistory", async ({ address, limit = 50 }) => {
-    const history = await SdkWalletService.getTransactionsHistory(address, {
-        limit,
-    });
+    { address: string; publicKey: string; limit?: number }
+>(
+    "wallets-store/fetchTransactionHistory",
+    async ({ address, publicKey, limit = 50 }) => {
+        const history = await SdkWalletService.getTransactionsHistory(
+            address,
+            publicKey,
+            {
+                limit,
+            },
+        );
 
-    return history.map((tx) => ({
-        id: tx.id,
-        deployId: tx.deployId ?? tx.id,
-        from: tx.from,
-        to: tx.to ?? "",
-        amount: tx.amount ?? "",
-        timestamp: tx.timestamp.toString(),
-        status: tx.status === "confirmed" ? "completed" : tx.status,
-        gasCost: tx.type === "send" ? generateRandomGasFee() : undefined,
-    }));
-});
+        return history.map((tx) => ({
+            id: tx.id,
+            deployId: tx.deployId ?? tx.id,
+            from: tx.from,
+            to: tx.to ?? "",
+            amount: tx.amount ?? "",
+            timestamp: tx.timestamp.toString(),
+            status: tx.status === "confirmed" ? "completed" : tx.status,
+            gasCost: tx.type === "send" ? generateRandomGasFee() : undefined,
+        }));
+    },
+);
 
 export const sendTransaction = createAsyncThunk<
     Transaction,

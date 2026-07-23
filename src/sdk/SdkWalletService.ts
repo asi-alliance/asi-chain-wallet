@@ -237,12 +237,13 @@ export class SdkWalletService {
 
     static async getTransactionsHistory(
         address: string,
+        publicKey: string,
         pagination: IPagination,
     ): Promise<Transaction[]> {
         const history: Transaction[] =
             await ApiServiceRegistry.getInstance().accountData.getTransactionHistory(
                 address,
-                undefined,
+                publicKey,
                 pagination,
             );
 

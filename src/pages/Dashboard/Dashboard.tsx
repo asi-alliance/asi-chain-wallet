@@ -11,7 +11,8 @@ import {
 } from "store/WalletsStore/walletsStoreSlice";
 import {
     fetchBalance,
-    fetchTransactionHistory,
+    //TODO: Restore fetchTransactionHistory usage once the single active wallet session lands and every account in the slice comes from an SDK Account entity carrying its publicKey.
+    // fetchTransactionHistory,
 } from "store/WalletsStore/thunks";
 import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
@@ -84,9 +85,10 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         if (selectedAccount && isAccountUnlocked) {
             dispatch(fetchBalance({ accountId: selectedAccount.id }));
-            dispatch(
-                fetchTransactionHistory({ address: selectedAccount.address }),
-            );
+            //TODO: Restore fetchTransactionHistory usage once the single active wallet session lands and every account in the slice comes from an SDK Account entity carrying its publicKey.
+            // dispatch(
+            //     fetchTransactionHistory({ address: selectedAccount.address }),
+            // );
         }
     }, [dispatch, selectedAccount, isAccountUnlocked]);
 
@@ -94,11 +96,12 @@ export const Dashboard: React.FC = () => {
         if (selectedAccount && isAccountUnlocked) {
             const interval = setInterval(() => {
                 dispatch(fetchBalance({ accountId: selectedAccount.id }));
-                dispatch(
-                    fetchTransactionHistory({
-                        address: selectedAccount.address,
-                    }),
-                );
+                //TODO: Restore fetchTransactionHistory usage once the single active wallet session lands and every account in the slice comes from an SDK Account entity carrying its publicKey.
+                // dispatch(
+                //     fetchTransactionHistory({
+                //         address: selectedAccount.address,
+                //     }),
+                // );
             }, 30000);
 
             return () => clearInterval(interval);

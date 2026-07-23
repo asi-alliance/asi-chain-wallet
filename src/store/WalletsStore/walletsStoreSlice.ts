@@ -567,6 +567,8 @@ const walletsStoreSlice = createSlice({
                 addWalletToWalletsStore(state.wallets, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
+                state.selectedAccountId = action.payload[0].id!;
+
                 action.payload.forEach((unlockedWallet) => {
                     addWalletToWalletsStore(state.wallets, unlockedWallet);
                 });
