@@ -367,7 +367,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                     {selectedAccount ? (
                         <>
                             <AccountName
-                                id="header-account-name"
                                 title={selectedAccount.name}
                             >
                                 {truncateText(selectedAccount.name, 20)}
@@ -384,7 +383,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                     {selectedAccount && (
                         <AccountBalance
                             $adaptive={adaptive}
-                            id="header-account-balance"
                         >
                             <h5>
                                 {isLoading ? (
