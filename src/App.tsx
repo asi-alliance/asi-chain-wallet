@@ -19,6 +19,7 @@ import { lightTheme, darkTheme } from "styles/theme";
 import { Layout } from "components";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
+import { Bridge } from "pages/Bridge";
 import { Receive } from "pages/Receive";
 import { Accounts } from "pages/Accounts";
 import { Deploy } from "pages/Deploy";
@@ -114,6 +115,17 @@ const AppContent: React.FC = () => {
                         <ProtectedRoute>
                             <Layout>
                                 <Send />
+                            </Layout>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/bridge"
+                    element={
+                        <ProtectedRoute>
+                            <Layout>
+                                <Bridge />
                             </Layout>
                         </ProtectedRoute>
                     }

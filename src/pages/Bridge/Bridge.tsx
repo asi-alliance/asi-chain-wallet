@@ -1,0 +1,710 @@
+import React, { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
+import { RootState } from "store";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    Button,
+    Input,
+    PasswordInput,
+    TransactionConfirmationModal,
+} from "components";
+import { AccountSelector } from "components/AccountSelector";
+import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
+import { TextSecondaryBlock } from "styles/sharedStyledComponents";
+import { AccountBalance } from "components/AccountBalance";
+import { Select } from "components/Select";
+import { ISelectOption } from "components/Select/Select";
+import { DefaultTheme } from "styled-components/dist/types";
+import {
+    ContentPasteIcon,
+    ExploreIcon,
+    HistoryIcon,
+    ReceiveIcon,
+} from "components/Icons";
+import { getGasFeeAsNumber } from "constants/gas";
+
+const BridgeContainer = styled.div`
+    max-width: 946px;
+    margin: 0 auto;
+`;
+
+const FormGroup = styled.div`
+    margin-bottom: 24px;
+`;
+
+const InputFormGroup = styled(FormGroup)`
+    margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        margin-bottom: 20px;
+    }
+`;
+
+const BalanceInfo = styled.div`
+    margin-bottom: 36px;
+    display: flex;
+    justify-content: center;
+
+    @media (max-width: 768px) {
+        margin-bottom: 49px;
+    }
+`;
+
+const ActionButtons = styled.div`
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+`;
+
+const LockButton = styled(Button)`
+    min-width: 220px;
+    height: 44px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
+`;
+
+const ClearAllButton = styled(Button)`
+    min-width: 170px;
+    height: 44px;
+
+    @media (max-width: 768px) {
+        min-width: auto;
+    }
+`;
+
+const ErrorMessage = styled.div`
+    background: ${({ theme }) => theme.danger};
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+`;
+
+const SuccessMessage = styled.div`
+    background: ${({ theme }) => theme.success};
+    color: ${({ theme }) => theme.text.inverse};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
+    box-shadow: ${({ theme }) => theme.shadowLarge};
+
+    * {
+        color: ${({ theme }) => theme.text.inverse} !important;
+    }
+
+    .deploy-id {
+        font-size: 12px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid ${({ theme }) => `${theme.text.inverse}20`};
+        color: ${({ theme }) => theme.text.inverse};
+        opacity: 0.8;
+    }
+`;
+
+const InfoMessage = styled.div`
+    background: ${({ theme }) => `${theme.primary}20`};
+    color: ${({ theme }) => theme.text.primary};
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+`;
+
+const LoadingMessage = styled.div`
+    background: ${({ theme }) => `${theme.primary}20`};
+    color: ${({ theme }) => theme.primary};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    text-align: center;
+
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid ${({ theme }) => theme.primary};
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
+const InputWithButton = styled.div`
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+`;
+
+const ButtonGroup = styled.div`
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0;
+`;
+
+const AccountSelectorWithMarginBottom = styled(AccountSelector)`
+    margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        margin-bottom: 15px;
+    }
+`;
+
+const BridgeCardContent = styled(CardContent)`
+    padding: 0 159px;
+
+    @media (max-width: 768px) {
+        padding: initial;
+    }
+`;
+
+const ChainSelectorRow = styled.div`
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+    margin-bottom: 36px;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 16px;
+    }
+`;
+
+const ChainField = styled.div`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
+`;
+
+const ChainFieldLabel = styled.label`
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.primary};
+`;
+
+const ChainArrow = styled.span`
+    flex-shrink: 0;
+    align-self: flex-end;
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    color: ${({ theme }) => theme.primary};
+
+    @media (max-width: 768px) {
+        align-self: center;
+        padding-bottom: initial;
+    }
+`;
+
+interface BridgeNetwork {
+    key: string;
+    label: string;
+}
+
+const MOCK_BRIDGE_NETWORKS: BridgeNetwork[] = [
+    { key: "asi", label: "ASI Chain" },
+    { key: "sepolia", label: "Sepolia" },
+    { key: "baseSepolia", label: "Base Sepolia" },
+    { key: "fetchhubDorado", label: "FetchHub Dorado" },
+    { key: "cardanoPreprod", label: "Cardano Preprod" },
+];
+
+const DEFAULT_SOURCE_CHAIN = "asi";
+
+const defaultDestinationFor = (source: string): string =>
+    MOCK_BRIDGE_NETWORKS.find((network) => network.key !== source)?.key ??
+    source;
+
+export const Bridge: React.FC = () => {
+    const navigate = useNavigate();
+    const selectedAccount = useSelector(
+        (state: RootState) => state.wallet.selectedAccount,
+    );
+
+    const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
+        (state: RootState) => state.auth,
+    );
+
+    const [recipient, setRecipient] = useState("");
+    const [amount, setAmount] = useState("");
+    const [password, setPassword] = useState("");
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const [srcChainKey, setSrcChainKey] = useState(DEFAULT_SOURCE_CHAIN);
+    const [dstChainKey, setDstChainKey] = useState(() =>
+        defaultDestinationFor(DEFAULT_SOURCE_CHAIN),
+    );
+
+    const [txHash] = useState("");
+    const [isWaitingForBalance] = useState(false);
+    const [error] = useState("");
+    const [validationError, setValidationError] = useState("");
+    const [passwordError] = useState("");
+    const [addressError] = useState("");
+    const [scanError] = useState("");
+    const [estimatedFee] = useState("");
+    const [isLoading] = useState(false);
+
+    const isAccountUnlocked =
+        selectedAccount &&
+        unlockedAccounts.some((a) => a.id === selectedAccount.id);
+    const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
+
+    const handleClearAll = (): void => {
+        setRecipient("");
+        setAmount("");
+        setPassword("");
+    };
+
+    const sourceOptions = useMemo<ISelectOption[]>(
+        () =>
+            MOCK_BRIDGE_NETWORKS.map((network) => ({
+                id: network.key,
+                value: network.key,
+                label: network.label,
+            })),
+        [],
+    );
+
+    const destinationOptions = useMemo<ISelectOption[]>(
+        () =>
+            MOCK_BRIDGE_NETWORKS.filter(
+                (network) => network.key !== srcChainKey,
+            ).map((network) => ({
+                id: network.key,
+                value: network.key,
+                label: network.label,
+            })),
+        [srcChainKey],
+    );
+
+    const maxAmount = () => {
+        const balance = parseFloat(selectedAccount?.balance || "0");
+        const max = Math.max(0, balance - getGasFeeAsNumber());
+
+        if (max <= 0) {
+            setValidationError("Insufficient balance to cover gas fees");
+            setAmount("0");
+        } else {
+            const maxRounded = Math.floor(max * 100000000) / 100000000;
+            setAmount(maxRounded.toFixed(8));
+            setValidationError("");
+        }
+    };
+
+    const handleSourceChange = (key: string): void => {
+        setSrcChainKey(key);
+
+        if (key === dstChainKey) {
+            setDstChainKey(defaultDestinationFor(key));
+        }
+    };
+
+    const handleDestinationChange = (key: string): void => {
+        if (key === srcChainKey) {
+            return;
+        }
+
+        setDstChainKey(key);
+    };
+
+    if (!selectedAccount) {
+        return (
+            <BridgeContainer>
+                <Card>
+                    <BridgeCardContent>
+                        <p>Please select an account first.</p>
+                        <Button onClick={() => navigate("/accounts")}>
+                            Select Account
+                        </Button>
+                    </BridgeCardContent>
+                </Card>
+            </BridgeContainer>
+        );
+    }
+
+    return (
+        <BridgeContainer>
+            <Card style={{ paddingBottom: "36px" }}>
+                <CardHeader>
+                    <CardTitle>Bridge</CardTitle>
+                </CardHeader>
+                <BridgeCardContent>
+                    {txHash && !isWaitingForBalance && (
+                        <SuccessMessage>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div style={{ flex: "1", minWidth: "200px" }}>
+                                    <div>
+                                        Transaction completed successfully!
+                                    </div>
+                                    <div className="deploy-id">
+                                        Deploy ID: {txHash}
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    style={{
+                                        flexShrink: 0,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                    onClick={async () => {
+                                        try {
+                                            await navigator.clipboard.writeText(
+                                                txHash,
+                                            );
+                                            setCopied(true);
+                                            setTimeout(
+                                                () => setCopied(false),
+                                                1500,
+                                            );
+                                        } catch {}
+                                    }}
+                                >
+                                    {copied ? "Copied!" : "Copy"}
+                                </Button>
+                            </div>
+                        </SuccessMessage>
+                    )}
+
+                    {txHash && isWaitingForBalance && (
+                        <LoadingMessage>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div style={{ flex: "1", minWidth: "200px" }}>
+                                    <span className="spinner"></span>
+                                    Transaction sent! Waiting for balance
+                                    update...
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    style={{
+                                        flexShrink: 0,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                    onClick={async () => {
+                                        try {
+                                            await navigator.clipboard.writeText(
+                                                txHash,
+                                            );
+                                            setCopied(true);
+                                            setTimeout(
+                                                () => setCopied(false),
+                                                1500,
+                                            );
+                                        } catch {}
+                                    }}
+                                >
+                                    {copied ? "Copied!" : "Copy"}
+                                </Button>
+                            </div>
+                            <div
+                                style={{
+                                    fontSize: "12px",
+                                    opacity: 0.8,
+                                    marginTop: "8px",
+                                    wordBreak: "break-all",
+                                }}
+                            >
+                                Deploy ID: {txHash}
+                            </div>
+                        </LoadingMessage>
+                    )}
+
+                    {(error || validationError || passwordError) && (
+                        <ErrorMessage>
+                            {error || validationError || passwordError}
+                        </ErrorMessage>
+                    )}
+
+                    <AccountSelectorWithMarginBottom
+                        fullWidth
+                        labelMode={AccountSelectorLabelMods.FULL}
+                    />
+
+                    <BalanceInfo className="balance-info">
+                        <AccountBalance account={selectedAccount} />
+                    </BalanceInfo>
+
+                    <ChainSelectorRow>
+                        <ChainField>
+                            <ChainFieldLabel>Source</ChainFieldLabel>
+                            <Select
+                                id="bridge-source-select"
+                                value={srcChainKey}
+                                onChange={handleSourceChange}
+                                options={sourceOptions}
+                                style={{ width: "100%" }}
+                            />
+                        </ChainField>
+                        <ChainArrow aria-hidden="true">
+                            <ReceiveIcon size={24} />
+                        </ChainArrow>
+                        <ChainField>
+                            <ChainFieldLabel>Destination</ChainFieldLabel>
+                            <Select
+                                id="bridge-destination-select"
+                                value={dstChainKey}
+                                onChange={handleDestinationChange}
+                                options={destinationOptions}
+                                style={{ width: "100%" }}
+                            />
+                        </ChainField>
+                    </ChainSelectorRow>
+
+                    {!isAccountUnlocked && (
+                        <InfoMessage>
+                            Account is locked. You'll need to enter your
+                            password to send the transaction.
+                        </InfoMessage>
+                    )}
+
+                    <InputFormGroup>
+                        <InputWithButton className="input-with-button">
+                            <Input
+                                id="bridge-amount-input"
+                                className="bridge-amount-input text-3"
+                                label="Amount"
+                                labelStyle={{
+                                    fontWeight: "500",
+                                }}
+                                labelColorSelector={(theme: DefaultTheme) =>
+                                    theme.colors.text.primary
+                                }
+                                wrapperStyle={{
+                                    marginBottom: "0",
+                                }}
+                                style={{
+                                    fontSize: "0.75rem",
+                                    height: "44px",
+                                }}
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                placeholder="Enter amount"
+                                step="0.00000001"
+                                min="0"
+                                max={selectedAccount.balance}
+                                copyable
+                                CustomCopyIcon={ContentPasteIcon}
+                            />
+                            <Button
+                                id="bridge-max-amount-button"
+                                variant="secondary"
+                                onClick={maxAmount}
+                                style={{
+                                    aspectRatio: "1/1",
+                                    width: "44px",
+                                    alignSelf: "flex-end",
+                                    minWidth: "44px",
+                                }}
+                            >
+                                <h3>Max</h3>
+                            </Button>
+                        </InputWithButton>
+                        <TextSecondaryBlock
+                            style={{
+                                marginTop: "4px",
+                                fontSize: "12px",
+                            }}
+                        >
+                            8 decimal places (1 ASI = 1.00000000)
+                        </TextSecondaryBlock>
+                    </InputFormGroup>
+
+                    <InputFormGroup>
+                        <label
+                            style={{
+                                display: "block",
+                                marginBottom: "4px",
+                                fontWeight: "500",
+                            }}
+                        >
+                            ETH recipient address (0x...)
+                        </label>
+                        <InputWithButton className="input-with-button">
+                            <div style={{ flex: 1 }}>
+                                <Input
+                                    id="bridge-recipient-input"
+                                    className="bridge-recipient-input text-3"
+                                    type="text"
+                                    value={recipient}
+                                    onChange={(e) =>
+                                        setRecipient(e.target.value)
+                                    }
+                                    placeholder={`Enter address`}
+                                    wrapperStyle={{
+                                        marginBottom: "0",
+                                    }}
+                                    style={{
+                                        width: "100%",
+                                        fontSize: "0.75rem",
+                                        height: "44px",
+                                        border: `2px solid ${
+                                            addressError ? "#ff4d4f" : "#e0e0e0"
+                                        }`,
+                                        borderRadius: "8px",
+                                        background: "transparent",
+                                        color: "inherit",
+                                        outline: "none",
+                                    }}
+                                    copyable
+                                    CustomCopyIcon={ContentPasteIcon}
+                                />
+                            </div>
+                            <ButtonGroup>
+                                <Button
+                                    id="bridge-explore-scan-button"
+                                    variant="icon-button-black"
+                                    style={{
+                                        aspectRatio: "1/1",
+                                        width: "44px",
+                                        alignSelf: "flex-end",
+                                        minWidth: "auto",
+                                        borderWidth: "2px",
+                                    }}
+                                >
+                                    <ExploreIcon />
+                                </Button>
+                            </ButtonGroup>
+                        </InputWithButton>
+                        {addressError && (
+                            <div
+                                style={{
+                                    marginTop: "8px",
+                                    color: "#ff4d4f",
+                                    fontSize: "14px",
+                                }}
+                            >
+                                {addressError}
+                            </div>
+                        )}
+                        {scanError && (
+                            <div
+                                style={{
+                                    marginTop: "8px",
+                                    color: "#ff4d4f",
+                                    fontSize: "14px",
+                                }}
+                            >
+                                {scanError}
+                            </div>
+                        )}
+                    </InputFormGroup>
+
+                    {needsPassword && (
+                        <FormGroup>
+                            <PasswordInput
+                                id="bridge-password-input"
+                                data-testid="bridge-password-input"
+                                data-cy="bridge-password-input"
+                                label={
+                                    requirePasswordForTransaction
+                                        ? "Transaction Password"
+                                        : "Account Password"
+                                }
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
+                                placeholder="Enter password"
+                            />
+                        </FormGroup>
+                    )}
+
+                    <ActionButtons>
+                        <LockButton
+                            id="bridge-transaction-button"
+                            onClick={() => setShowConfirmation(true)}
+                            loading={isLoading}
+                            disabled={
+                                !recipient ||
+                                !amount ||
+                                (needsPassword && !password) ||
+                                !!validationError ||
+                                !!addressError
+                            }
+                        >
+                            <h3>Lock on ASI Chain</h3>
+                        </LockButton>
+                        <ClearAllButton
+                            variant="secondary"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleClearAll();
+                            }}
+                        >
+                            <h3>Clear all</h3>
+                        </ClearAllButton>
+                        <Button
+                            id="history-button"
+                            title="View transaction history"
+                            onClick={() => {
+                                navigate("/history");
+                            }}
+                            variant="icon-button-black"
+                            fullWidth={false}
+                            secondaryHover
+                        >
+                            <HistoryIcon />
+                        </Button>
+                    </ActionButtons>
+                </BridgeCardContent>
+            </Card>
+
+            <TransactionConfirmationModal
+                isOpen={showConfirmation}
+                onClose={() => {
+                    setShowConfirmation(false);
+                    setPassword("");
+                }}
+                onConfirm={() => setShowConfirmation(false)}
+                amount={amount}
+                recipient={recipient}
+                senderAddress={selectedAccount?.revAddress || ""}
+                senderName={selectedAccount?.name || ""}
+                estimatedFee={estimatedFee}
+                loading={isLoading}
+                requirePasswordForTransaction={requirePasswordForTransaction}
+            />
+        </BridgeContainer>
+    );
+};
