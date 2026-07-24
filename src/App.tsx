@@ -32,6 +32,10 @@ import { useIdleTimer, useDeepLink, useSessionGuard } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
+import { QueryProvider } from "components/QueryProvider";
+import { EvmProvider } from "components/EvmProvider";
+
+import "@rainbow-me/rainbowkit/styles.css";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -221,7 +225,11 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                 }}
             >
-                <AppContent />
+                <QueryProvider>
+                    <EvmProvider>
+                        <AppContent />
+                    </EvmProvider>
+                </QueryProvider>
             </Router>
         </Provider>
     );

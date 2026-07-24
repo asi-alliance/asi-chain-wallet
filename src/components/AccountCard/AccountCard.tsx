@@ -4,7 +4,7 @@ import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEdito
 import { RemoveAccountButton } from "components/RemoveAccountButton";
 import { DownloadIcon, LockPassIcon } from "components/Icons";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { AccountBalance } from "components/AccountBalance";
+import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useDispatch, useSelector } from "react-redux";
 import { exportAccountKeyfile } from "store/authSlice";
 import { selectAccount } from "store/walletSlice";
@@ -165,7 +165,7 @@ export const AccountCard = ({
                 {fullMode && <RemoveAccountButton account={account} />}
             </AccountHeader>
 
-            <AccountBalance account={account} isSelected={isSelected} />
+            <ASIAccountBalance account={account} isSelected={isSelected} />
 
             <AccountCardFooter>
                 <AccountAddress $isSelected={isSelected}>

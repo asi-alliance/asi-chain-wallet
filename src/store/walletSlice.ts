@@ -204,7 +204,7 @@ interface PendingTransaction {
     type: "send" | "receive" | "deploy";
 }
 
-const savePendingTransaction = (tx: PendingTransaction) => {
+export const savePendingTransaction = (tx: PendingTransaction) => {
     if (typeof window === "undefined" || !window.localStorage) {
         return;
     }
@@ -719,6 +719,77 @@ export const sendTransaction = createAsyncThunk(
         });
 
         return transaction;
+    },
+);
+
+export const bridgeLock = createAsyncThunk(
+    "wallet/bridgeLock",
+    async ({
+        from,
+        recipient,
+        amountBaseUnits,
+        destChainId,
+        bridgeUri,
+        password,
+        network,
+    }: {
+        from: Account;
+        recipient: string;
+        amountBaseUnits: string;
+        destChainId: number;
+        bridgeUri: string;
+        password?: string;
+        network: Network;
+    }) => {
+        if (!SecureStorage.hasSessionToken()) {
+            throw new Error("Session expired. Please login again.");
+        }
+
+        let privateKey: string | undefined;
+
+        const unlockedAccount = SecureStorage.getUnlockedAccount(from.id);
+        if (unlockedAccount?.privateKey) {
+            privateKey = unlockedAccount.privateKey;
+        } else if (password) {
+            const unlocked = await SecureStorage.unlockAccount(
+                from.id,
+                password,
+            );
+            if (unlocked?.privateKey) {
+                privateKey = unlocked.privateKey;
+            }
+        }
+
+        if (!privateKey) {
+            throw new Error(
+                "Account is locked. Please provide password or unlock account first.",
+            );
+        }
+
+        const validatorUrl = network.url?.trim();
+        if (!validatorUrl) {
+            throw new Error(
+                `Network "${network.name}" has no validator URL configured`,
+            );
+        }
+
+        const rchain = new RChainService(
+            validatorUrl,
+            network.readOnlyUrl,
+            network.adminUrl,
+            network.shardId,
+            network.graphqlUrl,
+        );
+
+        const deployId = await rchain.bridgeLock(
+            amountBaseUnits,
+            recipient,
+            destChainId,
+            privateKey,
+            bridgeUri,
+        );
+
+        return { deployId };
     },
 );
 

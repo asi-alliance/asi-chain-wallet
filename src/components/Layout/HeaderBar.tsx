@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "store";
 import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/authSlice";
-import { AccountSwitcher } from "components/AccountSwitcher";
+import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { SunIcon, MoonIcon, MenuIcon, LogoutIcon } from "components/Icons";
 
 const HeaderStyled = styled.header`
@@ -161,7 +161,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
 
                 <HeaderActions>
                     {isAuthenticated && accounts.length > 0 && (
-                        <AccountSwitcher />
+                        <ASIAccountSwitcher />
                     )}
                     <IconButton
                         onClick={handleThemeToggle}

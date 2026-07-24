@@ -25,7 +25,7 @@ import addressValidation from "utils/AddressValidation";
 import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
 import { TextSecondaryBlock } from "styles/sharedStyledComponents";
-import { AccountBalance } from "components/AccountBalance";
+import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { DefaultTheme } from "styled-components/dist/types";
 import {
     ContentPasteIcon,
@@ -881,7 +881,7 @@ export const Send: React.FC = () => {
                     />
 
                     <BalanceInfo className="balance-info">
-                        <AccountBalance account={selectedAccount} />
+                        <ASIAccountBalance account={selectedAccount} />
                     </BalanceInfo>
 
                     {!isAccountUnlocked && (

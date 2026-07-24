@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { RootState } from "store";
+import { AppDispatch, RootState } from "store";
+import { bridgeLock, savePendingTransaction } from "store/walletSlice";
 import {
     Card,
     CardHeader,
@@ -13,20 +14,30 @@ import {
     PasswordInput,
     TransactionConfirmationModal,
 } from "components";
-import { AccountSelector } from "components/AccountSelector";
-import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
-import { TextSecondaryBlock } from "styles/sharedStyledComponents";
-import { AccountBalance } from "components/AccountBalance";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
+import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { DefaultTheme } from "styled-components/dist/types";
-import {
-    ContentPasteIcon,
-    ExploreIcon,
-    HistoryIcon,
-    ReceiveIcon,
-} from "components/Icons";
+import { ContentPasteIcon, HistoryIcon, ReceiveIcon } from "components/Icons";
 import { getGasFeeAsNumber } from "constants/gas";
+import {
+    ASI_BRIDGE_URI,
+    BridgeChainKey,
+    bridgeChainForKey,
+    defaultDestinationFor,
+    DESTINATION_CHAIN_KEYS,
+    SOURCE_CHAIN_KEYS,
+} from "constants/bridgeChains";
+import { formatToken, parseTokenInput } from "utils/tokenFormat";
+import { useCardanoWallet } from "hooks/useCardanoWallet";
+import { useEvmBridge } from "hooks/useEvmBridge";
+import { useCosmosWallet } from "hooks/useCosmosWallet";
+import { buildCardanoLockTx } from "utils/cardanoTx";
+import {
+    BridgeWalletSelector,
+    IWalletSessionContext,
+    WalletKind,
+} from "components/BridgeWalletSelector";
 
 const BridgeContainer = styled.div`
     max-width: 946px;
@@ -42,16 +53,6 @@ const InputFormGroup = styled(FormGroup)`
 
     @media (max-width: 768px) {
         margin-bottom: 20px;
-    }
-`;
-
-const BalanceInfo = styled.div`
-    margin-bottom: 36px;
-    display: flex;
-    justify-content: center;
-
-    @media (max-width: 768px) {
-        margin-bottom: 49px;
     }
 `;
 
@@ -86,6 +87,7 @@ const ErrorMessage = styled.div`
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 16px;
+    word-break: break-all;
 `;
 
 const SuccessMessage = styled.div`
@@ -109,15 +111,6 @@ const SuccessMessage = styled.div`
         color: ${({ theme }) => theme.text.inverse};
         opacity: 0.8;
     }
-`;
-
-const InfoMessage = styled.div`
-    background: ${({ theme }) => `${theme.primary}20`};
-    color: ${({ theme }) => theme.text.primary};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
 `;
 
 const LoadingMessage = styled.div`
@@ -151,20 +144,6 @@ const InputWithButton = styled.div`
     display: flex;
     gap: 8px;
     align-items: flex-end;
-`;
-
-const ButtonGroup = styled.div`
-    display: flex;
-    gap: 8px;
-    margin-bottom: 0;
-`;
-
-const AccountSelectorWithMarginBottom = styled(AccountSelector)`
-    margin-bottom: 36px;
-
-    @media (max-width: 768px) {
-        margin-bottom: 15px;
-    }
 `;
 
 const BridgeCardContent = styled(CardContent)`
@@ -218,117 +197,425 @@ const ChainArrow = styled.span`
     }
 `;
 
-interface BridgeNetwork {
-    key: string;
-    label: string;
-}
-
-const MOCK_BRIDGE_NETWORKS: BridgeNetwork[] = [
-    { key: "asi", label: "ASI Chain" },
-    { key: "sepolia", label: "Sepolia" },
-    { key: "baseSepolia", label: "Base Sepolia" },
-    { key: "fetchhubDorado", label: "FetchHub Dorado" },
-    { key: "cardanoPreprod", label: "Cardano Preprod" },
-];
-
-const DEFAULT_SOURCE_CHAIN = "asi";
-
-const defaultDestinationFor = (source: string): string =>
-    MOCK_BRIDGE_NETWORKS.find((network) => network.key !== source)?.key ??
-    source;
-
 export const Bridge: React.FC = () => {
+    const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
     const selectedAccount = useSelector(
         (state: RootState) => state.wallet.selectedAccount,
     );
-
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.wallet.selectedNetwork,
+    );
     const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
         (state: RootState) => state.auth,
     );
 
-    const [recipient, setRecipient] = useState("");
+    const cardano = useCardanoWallet();
+
     const [amount, setAmount] = useState("");
+    const [amountError, setAmountError] = useState("");
     const [password, setPassword] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const [srcChainKey, setSrcChainKey] = useState(DEFAULT_SOURCE_CHAIN);
-    const [dstChainKey, setDstChainKey] = useState(() =>
-        defaultDestinationFor(DEFAULT_SOURCE_CHAIN),
+    const [srcChainKey, setSrcChainKey] = useState<BridgeChainKey>("asi");
+    const [dstChainKey, setDstChainKey] = useState<BridgeChainKey>(() =>
+        defaultDestinationFor("asi"),
     );
 
-    const [txHash] = useState("");
-    const [isWaitingForBalance] = useState(false);
-    const [error] = useState("");
-    const [validationError, setValidationError] = useState("");
-    const [passwordError] = useState("");
-    const [addressError] = useState("");
-    const [scanError] = useState("");
-    const [estimatedFee] = useState("");
-    const [isLoading] = useState(false);
+    const [txHash, setTxHash] = useState("");
+    const [lockError, setLockError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    const srcChain = bridgeChainForKey(srcChainKey);
+    const dstChain = bridgeChainForKey(dstChainKey);
+    const srcKind = srcChain.kind;
+
+    const evm = useEvmBridge(srcChain, false);
+    const evmDestination = useEvmBridge(dstChain, true);
+    const cosmos = useCosmosWallet();
+
+    const asiSession: IWalletSessionContext["asi"] = {
+        account: selectedAccount,
+    };
+
+    const sourceWalletSessionContext: IWalletSessionContext = {
+        asi: asiSession,
+        cardano: cardano.session,
+        cosmos: cosmos.session,
+        evm: evm.session,
+    };
+
+    const destinationWalletSessionContext: IWalletSessionContext = {
+        asi: asiSession,
+        cardano: cardano.session,
+        cosmos: cosmos.session,
+        evm: evmDestination.session,
+    };
+
+    const sourceWallet = sourceWalletSessionContext[srcKind];
+    const destinationWallet = destinationWalletSessionContext[dstChain.kind];
+
+    const hasWalletAccount = (
+        wallet: IWalletSessionContext[WalletKind],
+    ): boolean => {
+        return Boolean(wallet.account?.address);
+    };
+
+    const sourceAccountLoaded = hasWalletAccount(sourceWallet);
+    const destinationAccountLoaded = hasWalletAccount(destinationWallet);
 
     const isAccountUnlocked =
         selectedAccount &&
         unlockedAccounts.some((a) => a.id === selectedAccount.id);
+
     const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
 
-    const handleClearAll = (): void => {
-        setRecipient("");
-        setAmount("");
-        setPassword("");
-    };
+    const rawAmount = amount.trim()
+        ? parseTokenInput(amount, srcChain.nativeDecimals)
+        : BigInt(0);
+
+    const needsEvmApproval =
+        srcKind === "evm" &&
+        evm.allowance !== undefined &&
+        rawAmount > BigInt(0) &&
+        evm.allowance < rawAmount;
+
+    const busy =
+        srcKind === "evm" ? evm.isPending || evm.isConfirming : isLoading;
+    const shownTxHash =
+        srcKind === "evm"
+            ? evm.isSuccess && evm.txHash
+                ? evm.txHash
+                : ""
+            : txHash;
+    const shownError =
+        (srcKind === "evm" ? evm.error?.message : lockError) || "";
+
+    useEffect(() => {
+        if (evm.isSuccess) {
+            evm.refetch();
+            setAmount("");
+        }
+    }, [evm.isSuccess, evm.refetch]);
 
     const sourceOptions = useMemo<ISelectOption[]>(
         () =>
-            MOCK_BRIDGE_NETWORKS.map((network) => ({
-                id: network.key,
-                value: network.key,
-                label: network.label,
-            })),
+            SOURCE_CHAIN_KEYS.map((key) => {
+                const chain = bridgeChainForKey(key);
+                return { id: key, value: key, label: chain.label };
+            }),
         [],
     );
 
     const destinationOptions = useMemo<ISelectOption[]>(
         () =>
-            MOCK_BRIDGE_NETWORKS.filter(
-                (network) => network.key !== srcChainKey,
-            ).map((network) => ({
-                id: network.key,
-                value: network.key,
-                label: network.label,
-            })),
+            DESTINATION_CHAIN_KEYS.filter((key) => key !== srcChainKey).map(
+                (key) => {
+                    const chain = bridgeChainForKey(key);
+                    return { id: key, value: key, label: chain.label };
+                },
+            ),
         [srcChainKey],
     );
 
-    const maxAmount = () => {
-        const balance = parseFloat(selectedAccount?.balance || "0");
-        const max = Math.max(0, balance - getGasFeeAsNumber());
-
-        if (max <= 0) {
-            setValidationError("Insufficient balance to cover gas fees");
-            setAmount("0");
-        } else {
-            const maxRounded = Math.floor(max * 100000000) / 100000000;
-            setAmount(maxRounded.toFixed(8));
-            setValidationError("");
-        }
-    };
-
     const handleSourceChange = (key: string): void => {
-        setSrcChainKey(key);
-
-        if (key === dstChainKey) {
-            setDstChainKey(defaultDestinationFor(key));
+        const nextKey = key as BridgeChainKey;
+        setSrcChainKey(nextKey);
+        if (nextKey === dstChainKey) {
+            setDstChainKey(defaultDestinationFor(nextKey));
         }
+        setAmount("");
+        setTxHash("");
+        setLockError("");
+        setAmountError("");
+        evm.reset();
     };
 
     const handleDestinationChange = (key: string): void => {
-        if (key === srcChainKey) {
+        const nextKey = key as BridgeChainKey;
+        if (nextKey === srcChainKey) {
+            return;
+        }
+        setDstChainKey(nextKey);
+        setTxHash("");
+        setLockError("");
+        setAmountError("");
+        evm.reset();
+    };
+
+    const maxAmount = (): void => {
+        if (srcKind === "asi") {
+            const balance = parseFloat(selectedAccount?.balance || "0");
+            const max = Math.max(0, balance - getGasFeeAsNumber());
+            const maxRounded = Math.floor(max * 100000000) / 100000000;
+            setAmount(maxRounded.toFixed(8));
+        } else if (srcKind === "cardano") {
+            setAmount(
+                formatToken(
+                    BigInt(cardano.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+        } else if (srcKind === "evm") {
+            setAmount(
+                formatToken(
+                    evm.tokenBalance ?? BigInt(0),
+                    srcChain.nativeDecimals,
+                ),
+            );
+        } else if (srcKind === "cosmos") {
+            setAmount(
+                formatToken(
+                    BigInt(cosmos.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+        }
+    };
+
+    const handleClearAll = (): void => {
+        setAmount("");
+        setPassword("");
+        setTxHash("");
+
+        setLockError("");
+        setAmountError("");
+        evm.reset();
+    };
+
+    const handleEvmAction = (): void => {
+        if (evm.wrongNetwork) {
+            evm.switchToSource();
+        } else if (needsEvmApproval) {
+            evm.approve(rawAmount);
+        } else {
+            evm.lock(
+                rawAmount,
+                destinationWallet.account!.address,
+                dstChain.routeId,
+            );
+        }
+    };
+
+    const handleCosmosLock = async (): Promise<void> => {
+        setLockError("");
+        setTxHash("");
+        setIsLoading(true);
+        try {
+            const result = await cosmos.lock(
+                rawAmount,
+                destinationWallet.account!.address,
+                dstChain.routeId,
+            );
+            setTxHash(result.transactionHash);
+            setAmount("");
+        } catch (err: any) {
+            setLockError(err?.message || String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAsiLock = async (passwordFromModal?: string): Promise<void> => {
+        if (!selectedAccount) return;
+        setShowConfirmation(false);
+        setLockError("");
+        setTxHash("");
+        setIsLoading(true);
+        try {
+            const result = await dispatch(
+                bridgeLock({
+                    from: selectedAccount,
+                    recipient: destinationWallet.account!.address,
+                    amountBaseUnits: parseTokenInput(
+                        amount,
+                        srcChain.nativeDecimals,
+                    ).toString(),
+                    destChainId: dstChain.routeId,
+                    bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
+                    password: passwordFromModal ?? password,
+                    network: selectedNetwork,
+                }),
+            ).unwrap();
+            setTxHash(result.deployId);
+
+            savePendingTransaction({
+                deployId: result.deployId,
+                from: selectedAccount.revAddress,
+                to: destinationWallet.account!.address,
+                amount,
+                timestamp: new Date().toISOString(),
+                accountId: selectedAccount.id,
+                type: "send",
+            });
+
+            setAmount("");
+            setPassword("");
+        } catch (err: any) {
+            setLockError(err?.message || String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCardanoLock = async (): Promise<void> => {
+        if (!cardano.api || !cardano.address) return;
+        setLockError("");
+        setTxHash("");
+        setIsLoading(true);
+        try {
+            const build = await buildCardanoLockTx({
+                wallet: cardano.api,
+                chain: srcChain,
+                senderAddress: cardano.address,
+                recipient: destinationWallet.account!.address,
+                amount: parseTokenInput(amount, srcChain.nativeDecimals),
+                destChainId: dstChain.routeId,
+            });
+            const signed = await cardano.api.signTx(
+                build.unsignedTxCbor,
+                false,
+            );
+            const submitted = await cardano.api.submitTx(signed);
+            setTxHash(submitted || build.txHash);
+            setAmount("");
+        } catch (err: any) {
+            setLockError(err?.message || String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleLockClick = (): void => {
+        if (srcKind === "asi") {
+            setShowConfirmation(true);
+        } else if (srcKind === "cardano") {
+            handleCardanoLock();
+        } else if (srcKind === "evm") {
+            handleEvmAction();
+        } else if (srcKind === "cosmos") {
+            handleCosmosLock();
+        }
+    };
+
+    const handleAmountChange = (value: string) => {
+        setAmount(value);
+
+        if (!value.trim()) {
+            setAmountError("");
             return;
         }
 
-        setDstChainKey(key);
+        const amountValue = Number(value);
+
+        if (isNaN(amountValue) || amountValue <= 0) {
+            setAmountError("Valid amount is required");
+            return;
+        }
+
+        if (srcKind === "asi") {
+            const balance = Number(selectedAccount?.balance || "0");
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)} ASI`,
+                );
+                return;
+            }
+
+            const totalRequired = amountValue + getGasFeeAsNumber();
+
+            if (totalRequired > balance) {
+                const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
+
+                setAmountError(
+                    `Amount + fee exceeds balance. Max: ${maxSendable.toFixed(
+                        8,
+                    )} ASI`,
+                );
+                return;
+            }
+        }
+
+        if (srcKind === "evm") {
+            if (evm.tokenBalance !== undefined) {
+                const balance = Number(
+                    formatToken(evm.tokenBalance, srcChain.nativeDecimals),
+                );
+
+                if (amountValue > balance) {
+                    setAmountError(
+                        `Insufficient balance. You have ${balance.toFixed(8)}`,
+                    );
+                    return;
+                }
+            }
+        }
+
+        if (srcKind === "cardano") {
+            const balance = Number(
+                formatToken(
+                    BigInt(cardano.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)}`,
+                );
+                return;
+            }
+        }
+
+        if (srcKind === "cosmos") {
+            const balance = Number(
+                formatToken(
+                    BigInt(cosmos.balanceRaw || "0"),
+                    srcChain.nativeDecimals,
+                ),
+            );
+
+            if (amountValue > balance) {
+                setAmountError(
+                    `Insufficient balance. You have ${balance.toFixed(8)}`,
+                );
+                return;
+            }
+        }
+
+        setAmountError("");
+    };
+
+    const isAmountValid =
+        amount.trim() !== "" && rawAmount > BigInt(0) && !amountError;
+
+    const lockDisabled =
+        busy ||
+        !sourceAccountLoaded ||
+        !destinationAccountLoaded ||
+        !isAmountValid ||
+        (srcKind === "asi" && needsPassword && !password);
+
+    const lockLabel = (() => {
+        if (srcKind === "cardano")
+            return `Lock with ${cardano.walletName || "wallet"}`;
+        if (srcKind === "evm") {
+            if (evm.wrongNetwork) return `Switch to ${srcChain.label}`;
+            if (needsEvmApproval) return "Approve";
+        }
+        return `Lock on ${srcChain.label}`;
+    })();
+
+    const copyTxHash = async (): Promise<void> => {
+        try {
+            await navigator.clipboard.writeText(shownTxHash);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            /* clipboard unavailable */
+        }
     };
 
     if (!selectedAccount) {
@@ -353,7 +640,7 @@ export const Bridge: React.FC = () => {
                     <CardTitle>Bridge</CardTitle>
                 </CardHeader>
                 <BridgeCardContent>
-                    {txHash && !isWaitingForBalance && (
+                    {shownTxHash && (
                         <SuccessMessage>
                             <div
                                 style={{
@@ -365,11 +652,12 @@ export const Bridge: React.FC = () => {
                                 }}
                             >
                                 <div style={{ flex: "1", minWidth: "200px" }}>
-                                    <div>
-                                        Transaction completed successfully!
-                                    </div>
+                                    <div>Lock submitted successfully!</div>
                                     <div className="deploy-id">
-                                        Deploy ID: {txHash}
+                                        {srcKind === "asi"
+                                            ? "Deploy ID"
+                                            : "Tx hash"}
+                                        : {shownTxHash}
                                     </div>
                                 </div>
                                 <Button
@@ -379,18 +667,7 @@ export const Bridge: React.FC = () => {
                                         flexShrink: 0,
                                         whiteSpace: "nowrap",
                                     }}
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(
-                                                txHash,
-                                            );
-                                            setCopied(true);
-                                            setTimeout(
-                                                () => setCopied(false),
-                                                1500,
-                                            );
-                                        } catch {}
-                                    }}
+                                    onClick={copyTxHash}
                                 >
                                     {copied ? "Copied!" : "Copy"}
                                 </Button>
@@ -398,72 +675,14 @@ export const Bridge: React.FC = () => {
                         </SuccessMessage>
                     )}
 
-                    {txHash && isWaitingForBalance && (
+                    {busy && (
                         <LoadingMessage>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "flex-start",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ flex: "1", minWidth: "200px" }}>
-                                    <span className="spinner"></span>
-                                    Transaction sent! Waiting for balance
-                                    update...
-                                </div>
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    style={{
-                                        flexShrink: 0,
-                                        whiteSpace: "nowrap",
-                                    }}
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(
-                                                txHash,
-                                            );
-                                            setCopied(true);
-                                            setTimeout(
-                                                () => setCopied(false),
-                                                1500,
-                                            );
-                                        } catch {}
-                                    }}
-                                >
-                                    {copied ? "Copied!" : "Copy"}
-                                </Button>
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: "12px",
-                                    opacity: 0.8,
-                                    marginTop: "8px",
-                                    wordBreak: "break-all",
-                                }}
-                            >
-                                Deploy ID: {txHash}
-                            </div>
+                            <span className="spinner"></span>
+                            Locking tokens on {srcChain.label}...
                         </LoadingMessage>
                     )}
 
-                    {(error || validationError || passwordError) && (
-                        <ErrorMessage>
-                            {error || validationError || passwordError}
-                        </ErrorMessage>
-                    )}
-
-                    <AccountSelectorWithMarginBottom
-                        fullWidth
-                        labelMode={AccountSelectorLabelMods.FULL}
-                    />
-
-                    <BalanceInfo className="balance-info">
-                        <AccountBalance account={selectedAccount} />
-                    </BalanceInfo>
+                    {shownError && <ErrorMessage>{shownError}</ErrorMessage>}
 
                     <ChainSelectorRow>
                         <ChainField>
@@ -491,12 +710,12 @@ export const Bridge: React.FC = () => {
                         </ChainField>
                     </ChainSelectorRow>
 
-                    {!isAccountUnlocked && (
-                        <InfoMessage>
-                            Account is locked. You'll need to enter your
-                            password to send the transaction.
-                        </InfoMessage>
-                    )}
+                    <h2 style={{ marginBottom: "8px" }}>Source account</h2>
+
+                    <BridgeWalletSelector
+                        chainKind={srcKind}
+                        wallet={sourceWalletSessionContext[srcKind]}
+                    />
 
                     <InputFormGroup>
                         <InputWithButton className="input-with-button">
@@ -519,11 +738,12 @@ export const Bridge: React.FC = () => {
                                 }}
                                 type="number"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                                onChange={(e) =>
+                                    handleAmountChange(e.target.value)
+                                }
                                 placeholder="Enter amount"
                                 step="0.00000001"
                                 min="0"
-                                max={selectedAccount.balance}
                                 copyable
                                 CustomCopyIcon={ContentPasteIcon}
                             />
@@ -549,65 +769,7 @@ export const Bridge: React.FC = () => {
                         >
                             8 decimal places (1 ASI = 1.00000000)
                         </TextSecondaryBlock>
-                    </InputFormGroup>
-
-                    <InputFormGroup>
-                        <label
-                            style={{
-                                display: "block",
-                                marginBottom: "4px",
-                                fontWeight: "500",
-                            }}
-                        >
-                            ETH recipient address (0x...)
-                        </label>
-                        <InputWithButton className="input-with-button">
-                            <div style={{ flex: 1 }}>
-                                <Input
-                                    id="bridge-recipient-input"
-                                    className="bridge-recipient-input text-3"
-                                    type="text"
-                                    value={recipient}
-                                    onChange={(e) =>
-                                        setRecipient(e.target.value)
-                                    }
-                                    placeholder={`Enter address`}
-                                    wrapperStyle={{
-                                        marginBottom: "0",
-                                    }}
-                                    style={{
-                                        width: "100%",
-                                        fontSize: "0.75rem",
-                                        height: "44px",
-                                        border: `2px solid ${
-                                            addressError ? "#ff4d4f" : "#e0e0e0"
-                                        }`,
-                                        borderRadius: "8px",
-                                        background: "transparent",
-                                        color: "inherit",
-                                        outline: "none",
-                                    }}
-                                    copyable
-                                    CustomCopyIcon={ContentPasteIcon}
-                                />
-                            </div>
-                            <ButtonGroup>
-                                <Button
-                                    id="bridge-explore-scan-button"
-                                    variant="icon-button-black"
-                                    style={{
-                                        aspectRatio: "1/1",
-                                        width: "44px",
-                                        alignSelf: "flex-end",
-                                        minWidth: "auto",
-                                        borderWidth: "2px",
-                                    }}
-                                >
-                                    <ExploreIcon />
-                                </Button>
-                            </ButtonGroup>
-                        </InputWithButton>
-                        {addressError && (
+                        {amountError && (
                             <div
                                 style={{
                                     marginTop: "8px",
@@ -615,23 +777,19 @@ export const Bridge: React.FC = () => {
                                     fontSize: "14px",
                                 }}
                             >
-                                {addressError}
-                            </div>
-                        )}
-                        {scanError && (
-                            <div
-                                style={{
-                                    marginTop: "8px",
-                                    color: "#ff4d4f",
-                                    fontSize: "14px",
-                                }}
-                            >
-                                {scanError}
+                                {amountError}
                             </div>
                         )}
                     </InputFormGroup>
 
-                    {needsPassword && (
+                    <h2 style={{ marginBottom: "8px" }}>Destination account</h2>
+
+                    <BridgeWalletSelector
+                        chainKind={dstChain.kind}
+                        wallet={destinationWalletSessionContext[dstChain.kind]}
+                    />
+
+                    {srcKind === "asi" && needsPassword && (
                         <FormGroup>
                             <PasswordInput
                                 id="bridge-password-input"
@@ -653,17 +811,11 @@ export const Bridge: React.FC = () => {
                     <ActionButtons>
                         <LockButton
                             id="bridge-transaction-button"
-                            onClick={() => setShowConfirmation(true)}
-                            loading={isLoading}
-                            disabled={
-                                !recipient ||
-                                !amount ||
-                                (needsPassword && !password) ||
-                                !!validationError ||
-                                !!addressError
-                            }
+                            onClick={handleLockClick}
+                            loading={busy}
+                            disabled={lockDisabled}
                         >
-                            <h3>Lock on ASI Chain</h3>
+                            <h3>{lockLabel}</h3>
                         </LockButton>
                         <ClearAllButton
                             variant="secondary"
@@ -696,12 +848,11 @@ export const Bridge: React.FC = () => {
                     setShowConfirmation(false);
                     setPassword("");
                 }}
-                onConfirm={() => setShowConfirmation(false)}
+                onConfirm={handleAsiLock}
                 amount={amount}
-                recipient={recipient}
+                recipient={destinationWallet.account!.address}
                 senderAddress={selectedAccount?.revAddress || ""}
                 senderName={selectedAccount?.name || ""}
-                estimatedFee={estimatedFee}
                 loading={isLoading}
                 requirePasswordForTransaction={requirePasswordForTransaction}
             />

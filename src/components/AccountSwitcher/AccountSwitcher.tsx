@@ -1,16 +1,14 @@
-import React, {
-    useState,
-    useRef,
-    useEffect,
-    useMemo,
-    CSSProperties,
-} from "react";
+import React, { useState, useRef, useEffect, CSSProperties } from "react";
 import styled, { css } from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "store";
-import { selectAccount, fetchBalance } from "store/walletSlice";
 import { truncateText } from "utils/textUtils";
 import { formatBalanceCompact } from "utils/balanceUtils";
+
+export interface AccountView {
+    id: string;
+    name: string;
+    address: string;
+    balance: string;
+}
 
 const SwitcherContainer = styled.div<{ $fullWidth?: boolean }>`
     position: relative;
@@ -26,6 +24,7 @@ const SwitcherContainer = styled.div<{ $fullWidth?: boolean }>`
 const SwitcherButton = styled.button<{
     $layout?: "horizontal" | "vertical";
     $fullWidth: boolean;
+    $disabled?: boolean;
 }>`
     display: flex;
     align-items: center;
@@ -39,7 +38,11 @@ const SwitcherButton = styled.button<{
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 180px;
-    max-width: 280px;
+    ${({ $fullWidth }) =>
+        !$fullWidth &&
+        css`
+            max-width: 280px;
+        `};
     text-align: left;
     ${({ $layout }) =>
         $layout &&
@@ -71,6 +74,18 @@ const SwitcherButton = styled.button<{
         $fullWidth &&
         css`
             width: 100%;
+        `};
+
+    ${({ $disabled }) =>
+        $disabled &&
+        css`
+            cursor: not-allowed;
+            opacity: 0.6;
+
+            &:hover {
+                background: ${({ theme }) => theme.surface};
+                border-color: ${({ theme }) => theme.border};
+            }
         `};
 `;
 
@@ -256,9 +271,13 @@ const formatAddress = (address: string): string => {
     )}`;
 };
 
-// Remove the old formatBalance function since we're using the utility now
-
 interface IAccountSwitcherProps {
+    accounts: AccountView[];
+    selectedId?: string;
+    onSelect: (accountId: string) => void;
+    isLoading?: boolean;
+    disabled?: boolean;
+    onOpen?: () => void;
     adaptive?: boolean;
     layout?: "horizontal" | "vertical";
     fullWidth?: boolean;
@@ -267,32 +286,25 @@ interface IAccountSwitcherProps {
 }
 
 export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
+    accounts,
+    selectedId,
+    onSelect,
+    isLoading = false,
+    disabled = false,
+    onOpen,
     adaptive = true,
     layout = "horizontal",
     fullWidth = false,
     listDirection = "bottom",
     wrapperStyle,
 }: IAccountSwitcherProps) => {
-    const dispatch = useDispatch();
-    const { accounts, selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
-    );
     const [isOpen, setIsOpen] = useState(false);
-    const [isLoadingBalances, setIsLoadingBalances] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const selectedNetworkId = selectedNetwork?.id;
-    const filteredAccounts = useMemo(
-        () =>
-            selectedNetworkId
-                ? accounts.filter(
-                      (account) => account.networkId === selectedNetworkId,
-                  )
-                : accounts,
-        [accounts, selectedNetworkId],
+    const selectedAccount = accounts.find(
+        (account) => account.id === selectedId,
     );
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
@@ -309,65 +321,18 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
     }, []);
 
     const handleAccountSelect = (accountId: string) => {
-        dispatch(selectAccount(accountId));
+        onSelect(accountId);
         setIsOpen(false);
-        fetchAllBalances(true); // Force refresh when selecting account
-    };
-
-    const fetchAllBalances = async (forceRefresh = false) => {
-        if (
-            !selectedNetwork ||
-            !selectedNetwork.readOnlyUrl ||
-            filteredAccounts.length === 0
-        )
-            return;
-
-        setIsLoadingBalances(true);
-
-        const balancePromises = filteredAccounts.map((account) =>
-            dispatch(
-                fetchBalance({
-                    account,
-                    network: selectedNetwork,
-                    forceRefresh,
-                }) as any,
-            ),
-        );
-
-        try {
-            await Promise.all(balancePromises);
-        } catch (error) {
-            console.error("Error fetching balances:", error);
-        } finally {
-            setIsLoadingBalances(false);
-        }
     };
 
     const handleToggle = () => {
+        if (disabled) return;
+
         const newIsOpen = !isOpen;
-
-        if (newIsOpen && listDirection === "top") {
-            // Проверяем, что дропдаун не выходит за пределы viewport
-            setTimeout(() => {
-                if (containerRef.current) {
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const dropdownHeight = 300; // max-height из стилей
-                    if (rect.top - dropdownHeight < 0) {
-                        // Если не хватает места сверху, можно автоматически переключить на bottom
-                        console.warn(
-                            "Not enough space above, consider using bottom",
-                        );
-                    }
-                }
-            }, 0);
-        }
-
         setIsOpen(newIsOpen);
 
         if (newIsOpen) {
-            setTimeout(() => {
-                fetchAllBalances(true);
-            }, 100);
+            onOpen?.();
         }
     };
 
@@ -379,8 +344,8 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
             setIsOpen(false);
         }
     };
-    // Don't render if no accounts
-    if (filteredAccounts.length === 0) {
+
+    if (accounts.length === 0) {
         return null;
     }
 
@@ -392,23 +357,23 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
         >
             <SwitcherButton
                 $fullWidth={fullWidth}
-                id="header-account-switcher"
+                $disabled={disabled}
                 onClick={handleToggle}
                 onKeyDown={handleKeyDown}
                 $layout={layout}
+                type="button"
             >
                 <AccountInfo $layout={layout} className="account-info">
                     {selectedAccount ? (
                         <>
                             <AccountName
-                                id="header-account-name"
                                 title={selectedAccount.name}
                             >
                                 {truncateText(selectedAccount.name, 20)}
                             </AccountName>
                             <AccountAddress $adaptive={adaptive}>
                                 <div className="text-4">
-                                    {formatAddress(selectedAccount.revAddress)}
+                                    {formatAddress(selectedAccount.address)}
                                 </div>
                             </AccountAddress>
                         </>
@@ -418,10 +383,9 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                     {selectedAccount && (
                         <AccountBalance
                             $adaptive={adaptive}
-                            id="header-account-balance"
                         >
                             <h5>
-                                {isLoadingBalances ? (
+                                {isLoading ? (
                                     <LoadingSpinner />
                                 ) : (
                                     formatBalanceCompact(
@@ -432,17 +396,18 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                         </AccountBalance>
                     )}
                 </AccountInfo>
-                <ChevronIcon $isOpen={isOpen}>▼</ChevronIcon>
+                {!disabled && <ChevronIcon $isOpen={isOpen}>▼</ChevronIcon>}
             </SwitcherButton>
 
             <Dropdown $isOpen={isOpen} $listDirection={listDirection}>
-                {filteredAccounts.length > 0 ? (
-                    filteredAccounts.map((account) => (
+                {accounts.length > 0 ? (
+                    accounts.map((account) => (
                         <DropdownItem
                             key={account.id}
-                            $isSelected={selectedAccount?.id === account.id}
+                            $isSelected={selectedId === account.id}
                             $layout={layout}
                             onClick={() => handleAccountSelect(account.id)}
+                            type="button"
                         >
                             <AccountInfo
                                 $layout={layout}
@@ -458,14 +423,14 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                                     $adaptive={adaptive}
                                     $layout={layout}
                                 >
-                                    {formatAddress(account.revAddress)}
+                                    {formatAddress(account.address)}
                                 </AccountAddress>
                             </AccountInfo>
                             <AccountBalance
                                 $adaptive={adaptive}
                                 $layout={layout}
                             >
-                                {isLoadingBalances ? (
+                                {isLoading ? (
                                     <LoadingSpinner />
                                 ) : (
                                     formatBalanceCompact(account.balance)
