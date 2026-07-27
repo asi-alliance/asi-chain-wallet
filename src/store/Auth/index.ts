@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { SecureStorage } from "services/secureStorage";
-import { SdkWalletService } from "sdk";
 import { RootState } from "store";
 import { clearActiveSession, setActiveSession } from "./helpers";
 import {
@@ -54,15 +53,6 @@ const authSlice = createSlice({
             }
             SecureStorage.updateSettings(action.payload);
         },
-        checkAuthentication: (state) => {
-            const activeSession = SdkWalletService.getActiveSession();
-
-            if (activeSession) {
-                setActiveSession(state, activeSession);
-            } else {
-                clearActiveSession(state);
-            }
-        },
     },
     extraReducers: (builder) => {
         builder
@@ -112,8 +102,7 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateActivity, updateSettings, checkAuthentication } =
-    authSlice.actions;
+export const { updateActivity, updateSettings } = authSlice.actions;
 
 export const selectAuth = (state: RootState): AuthState => state.auth;
 export const selectActiveSignerId = (state: RootState): string | null =>

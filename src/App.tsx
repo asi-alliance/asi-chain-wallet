@@ -9,7 +9,6 @@ import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
 import { store, RootState, AppDispatch } from "store";
-import { checkAuthentication } from "store/Auth/";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
 import { Layout } from "components";
@@ -27,7 +26,7 @@ import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
 //TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
 // import { History } from "pages/History";
-import { useIdleTimer, useDeepLink, useSessionGuard } from "hooks";
+import { useIdleTimer, useDeepLink } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 //TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
 // import TransactionPollingService from "services/transactionPolling";
@@ -67,10 +66,8 @@ const AppContent: React.FC = () => {
 
     useIdleTimer();
     useDeepLink();
-    useSessionGuard();
 
     useEffect(() => {
-        dispatch(checkAuthentication());
         // dispatch(loadNetworksFromStorage());
         dispatch(loadWalletsFromStorage());
     }, [dispatch]);

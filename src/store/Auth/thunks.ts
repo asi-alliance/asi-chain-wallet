@@ -7,11 +7,6 @@ import {
     checkRateLimit,
     formatLockoutMessage,
 } from "services/loginRateLimit";
-import { SecureStorage } from "services/secureStorage";
-import {
-    broadcastSessionLogin,
-    clearSessionBroadcast,
-} from "services/sessionChannel";
 import { RootState } from "store";
 import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
 import { IWalletMeta } from "types/wallet";
@@ -40,8 +35,6 @@ export const createAccountWithPassword = createAsyncThunk<
         password,
     });
 
-    broadcastSessionLogin(SecureStorage.generateSessionToken());
-
     return { wallet, privateKeyHex };
 });
 
@@ -68,8 +61,6 @@ export const importAccountWithPassword = createAsyncThunk<
         privateKeyHex: value,
         password,
     });
-
-    broadcastSessionLogin(SecureStorage.generateSessionToken());
 
     return wallet;
 });
@@ -113,8 +104,6 @@ export const loginWithPassword = createAsyncThunk<
                     signerId,
                     password,
                 );
-
-                broadcastSessionLogin(SecureStorage.generateSessionToken());
 
                 return wallet;
             } catch (err) {
@@ -166,7 +155,6 @@ export const unlockAccount = createAsyncThunk<
 
 export const logout = createAsyncThunk("auth/logout", async () => {
     SdkWalletService.closeSession();
-    clearSessionBroadcast();
 });
 
 // type ImportKeyfilePayload = {
@@ -175,7 +163,7 @@ export const logout = createAsyncThunk("auth/logout", async () => {
 //     networkId?: string;
 // };
 
-//TODO: Restore after the SDK ships keyfile export/import support
+//TODO: Feature for next Web Wallet updates. On updating Web Wallet on SDK this action not use in UI.
 // export const importFromKeyfile = createAsyncThunk(
 //     "auth/importFromKeyfile",
 //     async (
