@@ -13,6 +13,9 @@ const initSdkClient = (): Promise<Client> => {
             flags: {
                 withInsensitiveCacheStorage: true,
             },
+            security: {
+                autoLockMs: 15 * 1000,
+            },
         }).then((client) => {
             setSdkClient(client);
 

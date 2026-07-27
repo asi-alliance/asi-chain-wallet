@@ -41,7 +41,6 @@ export interface WalletStoreState {
     networks: Network[];
     selectedNetwork: Network;
     isLoading: boolean;
-    error: string | null;
 }
 
 export interface IAccountMeta {

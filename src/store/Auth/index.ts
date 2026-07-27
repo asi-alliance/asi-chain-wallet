@@ -22,7 +22,6 @@ export interface AuthState {
     idleTimeout: number;
     lastActivity: number;
     isLoading: boolean;
-    error: string | null;
 }
 
 const initialState: AuthState = {
@@ -34,7 +33,6 @@ const initialState: AuthState = {
     idleTimeout: SecureStorage.getSettings().idleTimeout,
     lastActivity: Date.now(),
     isLoading: false,
-    error: null,
 };
 
 const authSlice = createSlice({
@@ -56,9 +54,6 @@ const authSlice = createSlice({
             }
             SecureStorage.updateSettings(action.payload);
         },
-        clearError: (state) => {
-            state.error = null;
-        },
         checkAuthentication: (state) => {
             const activeSession = SdkWalletService.getActiveSession();
 
@@ -73,68 +68,52 @@ const authSlice = createSlice({
         builder
             .addCase(createAccountWithPassword.pending, (state) => {
                 state.isLoading = true;
-                state.error = null;
             })
             .addCase(createAccountWithPassword.fulfilled, (state, action) => {
                 state.isLoading = false;
                 setActiveSession(state, action.payload.wallet);
             })
-            .addCase(createAccountWithPassword.rejected, (state, action) => {
+            .addCase(createAccountWithPassword.rejected, (state) => {
                 state.isLoading = false;
-                state.error =
-                    action.error.message || "Failed to create account";
             })
             .addCase(importAccountWithPassword.pending, (state) => {
                 state.isLoading = true;
-                state.error = null;
             })
             .addCase(importAccountWithPassword.fulfilled, (state, action) => {
                 state.isLoading = false;
                 setActiveSession(state, action.payload);
             })
-            .addCase(importAccountWithPassword.rejected, (state, action) => {
+            .addCase(importAccountWithPassword.rejected, (state) => {
                 state.isLoading = false;
-                state.error =
-                    action.error.message || "Failed to import account";
             })
             .addCase(loginWithPassword.pending, (state) => {
                 state.isLoading = true;
-                state.error = null;
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 state.isLoading = false;
                 setActiveSession(state, action.payload);
             })
-            .addCase(loginWithPassword.rejected, (state, action) => {
+            .addCase(loginWithPassword.rejected, (state) => {
                 state.isLoading = false;
-                state.error = action.error.message || "Login failed";
             })
             .addCase(unlockAccount.pending, (state) => {
                 state.isLoading = true;
-                state.error = null;
             })
             .addCase(unlockAccount.fulfilled, (state, action) => {
                 state.isLoading = false;
                 setActiveSession(state, action.payload);
             })
-            .addCase(unlockAccount.rejected, (state, action) => {
+            .addCase(unlockAccount.rejected, (state) => {
                 state.isLoading = false;
-                state.error =
-                    action.error.message || "Failed to unlock account";
             })
             .addCase(logout.fulfilled, (state) => {
                 clearActiveSession(state);
-                state.error = null;
             });
     },
 });
 
-export const {
-    updateActivity,
-    updateSettings,
-    clearError,
-    checkAuthentication,
-} = authSlice.actions;
+export const { updateActivity, updateSettings, checkAuthentication } =
+    authSlice.actions;
 
 export const selectAuth = (state: RootState): AuthState => state.auth;
 export const selectActiveSignerId = (state: RootState): string | null =>

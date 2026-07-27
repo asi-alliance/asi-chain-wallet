@@ -248,6 +248,10 @@ export class SdkWalletService {
         return history;
     }
 
+    static isWalletUnlocked(walletId: string): boolean {
+        return getSdkClient()?.isWalletUnlocked(walletId) ?? false;
+    }
+
     static async transfer(
         {
             walletId,
@@ -255,7 +259,7 @@ export class SdkWalletService {
             to,
             amount,
         }: Omit<ITransferRequest, "amount"> & { amount: string },
-        password: string,
+        password?: string,
     ): Promise<string> {
         const client = requireSdkClient();
 

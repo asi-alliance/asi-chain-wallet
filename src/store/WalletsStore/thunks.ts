@@ -68,7 +68,7 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
-    password: string;
+    password?: string;
 }
 
 export const updateAccountName = createAsyncThunk<
@@ -182,11 +182,6 @@ export const sendTransaction = createAsyncThunk<
         { walletId, accountId, to, amount, password }: ITransferPayload,
         { getState, dispatch },
     ) => {
-        //TODO: Updated after auth redesign
-        // if (!SecureStorage.hasSessionToken()) {
-        //     throw new Error("Session expired. Please login again.");
-        // }
-
         if (to.trim().toLowerCase().startsWith("0x")) {
             throw new Error("Sending to Ethereum addresses is not supported");
         }

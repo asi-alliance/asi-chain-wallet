@@ -36,7 +36,7 @@ import {
 } from "services/loginAuditLog";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
-import { IWalletMeta } from "types/wallet";
+import { IAccountMeta, IWalletMeta } from "types/wallet";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -183,7 +183,6 @@ export const Login: React.FC = () => {
     const specificRedirectUrl: string | null = queryParams.get("redirectUrl");
 
     const isLoading = useSelector((state: RootState) => state.auth.isLoading);
-    const error = useSelector((state: RootState) => state.auth.error);
     const wallets = useSelector(selectWallets);
     const loginWallet = useSelector((state: RootState) =>
         loginAccountId ? selectWalletByAccountId(state, loginAccountId) : null,
@@ -191,6 +190,7 @@ export const Login: React.FC = () => {
 
     const [password, setPassword] = useState("");
     const [selectedSignerId, setSelectedSignerId] = useState<string>("");
+    const [loginError, setLoginError] = useState<string>("");
     const [showError, setShowError] = useState(false);
 
     // Rate limit UI state
@@ -306,12 +306,12 @@ export const Login: React.FC = () => {
     }, [walletOptions, selectedSignerId, loginWallet]);
 
     useEffect(() => {
-        if (error) {
+        if (loginError) {
             setShowError(true);
             const timer = setTimeout(() => setShowError(false), 5000);
             return () => clearTimeout(timer);
         }
-    }, [error]);
+    }, [loginError]);
 
     // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -319,31 +319,27 @@ export const Login: React.FC = () => {
         if (!password.trim() || !selectedSignerId || isLockedOut) return;
 
         try {
-            const resultAction = await dispatch(
+            const unlockedWalletMeta: IWalletMeta = await dispatch(
                 loginWithPassword({
                     signerId: selectedSignerId,
                     password,
                 }),
-            );
+            ).unwrap();
 
-            if (loginWithPassword.fulfilled.match(resultAction)) {
-                const unlockedWallet = resultAction.payload;
-                const accountToSelect =
-                    unlockedWallet.accounts.find(
-                        (account) => account.id === loginAccountId,
-                    ) ?? unlockedWallet.accounts[0];
+            setLoginError("");
 
-                if (accountToSelect) {
-                    dispatch(selectAccount(accountToSelect.id));
-                }
+            const accountToSelect =
+                unlockedWalletMeta.accounts.find(
+                    (account: IAccountMeta) => account.id === loginAccountId,
+                ) ?? unlockedWalletMeta.accounts[0];
 
-                navigate(specificRedirectUrl ?? "/");
-            } else {
-                setSecurityWarningDismissed(false);
-                await refreshRateLimitInfo();
-                await refreshActivity();
+            if (accountToSelect) {
+                dispatch(selectAccount(accountToSelect.id));
             }
-        } catch {
+
+            navigate(specificRedirectUrl ?? "/");
+        } catch (error: unknown) {
+            setLoginError((error as Error).message || "Login failed");
             setSecurityWarningDismissed(false);
             await refreshRateLimitInfo();
             await refreshActivity();
@@ -432,8 +428,8 @@ export const Login: React.FC = () => {
                         </SecurityWarningBanner>
                     )}
 
-                    {showError && error && !isLockedOut && (
-                        <ErrorMessage>{error}</ErrorMessage>
+                    {showError && loginError && !isLockedOut && (
+                        <ErrorMessage>{loginError}</ErrorMessage>
                     )}
 
                     {walletOptions.length > 1 && (

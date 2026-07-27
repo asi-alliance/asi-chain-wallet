@@ -101,7 +101,6 @@ const createInitialState = (): WalletStoreState => {
         networks: networks,
         selectedNetwork: defaultNetwork,
         isLoading: false,
-        error: null,
     };
 };
 
@@ -187,9 +186,6 @@ const walletsStoreSlice = createSlice({
         },
         addTransaction: (state, action: PayloadAction<Transaction>) => {
             state.transactions.unshift(action.payload);
-        },
-        clearError: (state) => {
-            state.error = null;
         },
         //TODO: Updated Custom Networks CRUD operations after SDK feature updates
         // updateNetwork: (state, action: PayloadAction<Network>) => {
@@ -331,9 +327,6 @@ const walletsStoreSlice = createSlice({
             .addCase(loadWalletsFromStorage.fulfilled, (state, action) => {
                 state.wallets = action.payload;
             })
-            .addCase(loadWalletsFromStorage.rejected, (state, action) => {
-                state.error = action.error.message || "Failed to load wallets";
-            })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { accountId, removedWalletId, removedSignerId } =
                     action.payload;
@@ -376,13 +369,8 @@ const walletsStoreSlice = createSlice({
                 targetAccount.name = name;
                 state.isLoading = false;
             })
-            .addCase(updateAccountName.rejected, (state, action) => {
+            .addCase(updateAccountName.rejected, (state) => {
                 state.isLoading = false;
-
-                state.error =
-                    (action.payload as string) ??
-                    action.error.message ??
-                    "Failed to update account name";
             })
             .addCase(fetchBalance.pending, (state) => {
                 state.isLoading = true;
@@ -393,11 +381,7 @@ const walletsStoreSlice = createSlice({
                 state.balances[accountId] = balance;
                 state.isLoading = false;
             })
-            .addCase(fetchBalance.rejected, (state, action) => {
-                state.error =
-                    (action.payload as string) ??
-                    action.error.message ??
-                    "Failed to fetch balance";
+            .addCase(fetchBalance.rejected, (state) => {
                 state.isLoading = false;
             })
             .addCase(sendTransaction.pending, (state) => {
@@ -407,9 +391,7 @@ const walletsStoreSlice = createSlice({
                 state.transactions.unshift(action.payload);
                 state.isLoading = false;
             })
-            .addCase(sendTransaction.rejected, (state, action) => {
-                state.error =
-                    action.error.message || "Failed to send transaction";
+            .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
             })
             .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
@@ -424,11 +406,6 @@ const walletsStoreSlice = createSlice({
                     ...newTransactions,
                     ...state.transactions,
                 ];
-            })
-            .addCase(fetchTransactionHistory.rejected, (state, action) => {
-                state.error =
-                    action.error.message ??
-                    "Failed to fetch transaction history";
             })
             .addCase(createAccountWithPassword.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload.wallet);
@@ -495,7 +472,6 @@ export const {
     selectNetwork,
     updateAccountBalance,
     addTransaction,
-    clearError,
     // updateNetwork,
     // addNetwork,
     // removeNetwork,
