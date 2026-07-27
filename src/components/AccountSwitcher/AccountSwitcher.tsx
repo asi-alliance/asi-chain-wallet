@@ -38,7 +38,7 @@ const SwitcherButton = styled.button<{
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 180px;
-    max-width: ${({ $fullWidth }) =>
+    ${({ $fullWidth }) =>
         !$fullWidth &&
         css`
             max-width: 280px;
@@ -358,7 +358,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
             <SwitcherButton
                 $fullWidth={fullWidth}
                 $disabled={disabled}
-                id="header-account-switcher"
                 onClick={handleToggle}
                 onKeyDown={handleKeyDown}
                 $layout={layout}
@@ -368,7 +367,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                     {selectedAccount ? (
                         <>
                             <AccountName
-                                id="header-account-name"
                                 title={selectedAccount.name}
                             >
                                 {truncateText(selectedAccount.name, 20)}
@@ -385,7 +383,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                     {selectedAccount && (
                         <AccountBalance
                             $adaptive={adaptive}
-                            id="header-account-balance"
                         >
                             <h5>
                                 {isLoading ? (

@@ -1,3 +1,4 @@
+import { envStr } from "constants/bridgeChains";
 import { sepolia, baseSepolia } from "viem/chains";
 
 type Addr = `0x${string}`;
@@ -11,20 +12,17 @@ const envAddr = (value: string | undefined): Addr => (value ?? "") as Addr;
 
 const CONTRACTS_BY_CHAIN: Record<number, ContractSet> = {
     [sepolia.id]: {
-        bridge: envAddr(process.env.REACT_APP_SEPOLIA_BRIDGE_ADDRESS),
-        token: envAddr(process.env.REACT_APP_SEPOLIA_TOKEN_ADDRESS),
+        bridge: envAddr(envStr("REACT_APP_SEPOLIA_BRIDGE_ADDRESS")),
+        token: envAddr(envStr("REACT_APP_SEPOLIA_TOKEN_ADDRESS")),
     },
     [baseSepolia.id]: {
-        bridge: envAddr(process.env.REACT_APP_BASE_SEPOLIA_BRIDGE_ADDRESS),
-        token: envAddr(process.env.REACT_APP_BASE_SEPOLIA_TOKEN_ADDRESS),
+        bridge: envAddr(envStr("REACT_APP_BASE_SEPOLIA_BRIDGE_ADDRESS")),
+        token: envAddr(envStr("REACT_APP_BASE_SEPOLIA_TOKEN_ADDRESS")),
     },
 };
 
-export const contractsForChain = (
-    chainId: number | undefined,
-): ContractSet =>
-    CONTRACTS_BY_CHAIN[chainId ?? sepolia.id] ??
-    CONTRACTS_BY_CHAIN[sepolia.id];
+export const contractsForChain = (chainId: number | undefined): ContractSet =>
+    CONTRACTS_BY_CHAIN[chainId ?? sepolia.id] ?? CONTRACTS_BY_CHAIN[sepolia.id];
 
 export const BridgeABI = [
     {

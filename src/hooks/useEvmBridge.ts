@@ -37,6 +37,7 @@ export interface EvmBridgeState {
     approve: (amountRaw: bigint) => void;
     lock: (amountRaw: bigint, recipient: string, destChainId: number) => void;
     refetch: () => void;
+    reset: () => void;
     session: EvmWalletSession;
 }
 
@@ -84,6 +85,7 @@ export const useEvmBridge = (
         data: txHash,
         isPending,
         error,
+        reset,
     } = useWriteContract();
 
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt(
@@ -181,6 +183,7 @@ export const useEvmBridge = (
         approve,
         lock,
         refetch,
+        reset,
         session,
     };
 };

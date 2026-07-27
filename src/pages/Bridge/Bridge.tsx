@@ -1,13 +1,11 @@
 //TODO: Disabled during SDK migration. Restore the Bridge ASI leg once the SDK exposes a signer-based deploy/lock flow.
+
 // import React, { useEffect, useMemo, useState } from "react";
 // import { useDispatch, useSelector } from "react-redux";
 // import { useNavigate } from "react-router-dom";
 // import styled from "styled-components";
 // import { AppDispatch, RootState } from "store";
-// import {
-//     bridgeLock,
-//     savePendingTransaction,
-// } from "store/WalletsStore/walletsStoreSlice";
+// import { bridgeLock, savePendingTransaction } from "store/walletSlice";
 // import {
 //     Card,
 //     CardHeader,
@@ -42,49 +40,49 @@
 //     IWalletSessionContext,
 //     WalletKind,
 // } from "components/BridgeWalletSelector";
-// 
+
 // const BridgeContainer = styled.div`
 //     max-width: 946px;
 //     margin: 0 auto;
 // `;
-// 
+
 // const FormGroup = styled.div`
 //     margin-bottom: 24px;
 // `;
-// 
+
 // const InputFormGroup = styled(FormGroup)`
 //     margin-bottom: 36px;
-// 
+
 //     @media (max-width: 768px) {
 //         margin-bottom: 20px;
 //     }
 // `;
-// 
+
 // const ActionButtons = styled.div`
 //     display: flex;
 //     gap: 16px;
 //     justify-content: center;
 //     align-items: center;
 // `;
-// 
+
 // const LockButton = styled(Button)`
 //     min-width: 220px;
 //     height: 44px;
-// 
+
 //     @media (max-width: 768px) {
 //         min-width: auto;
 //     }
 // `;
-// 
+
 // const ClearAllButton = styled(Button)`
 //     min-width: 170px;
 //     height: 44px;
-// 
+
 //     @media (max-width: 768px) {
 //         min-width: auto;
 //     }
 // `;
-// 
+
 // const ErrorMessage = styled.div`
 //     background: ${({ theme }) => theme.danger};
 //     color: white;
@@ -93,7 +91,7 @@
 //     margin-bottom: 16px;
 //     word-break: break-all;
 // `;
-// 
+
 // const SuccessMessage = styled.div`
 //     background: ${({ theme }) => theme.success};
 //     color: ${({ theme }) => theme.text.inverse};
@@ -102,11 +100,11 @@
 //     margin-bottom: 16px;
 //     word-break: break-all;
 //     box-shadow: ${({ theme }) => theme.shadowLarge};
-// 
+
 //     * {
 //         color: ${({ theme }) => theme.text.inverse} !important;
 //     }
-// 
+
 //     .deploy-id {
 //         font-size: 12px;
 //         margin-top: 8px;
@@ -116,7 +114,7 @@
 //         opacity: 0.8;
 //     }
 // `;
-// 
+
 // const LoadingMessage = styled.div`
 //     background: ${({ theme }) => `${theme.primary}20`};
 //     color: ${({ theme }) => theme.primary};
@@ -124,7 +122,7 @@
 //     border-radius: 8px;
 //     margin-bottom: 16px;
 //     text-align: center;
-// 
+
 //     .spinner {
 //         display: inline-block;
 //         width: 16px;
@@ -136,57 +134,57 @@
 //         margin-right: 8px;
 //         vertical-align: middle;
 //     }
-// 
+
 //     @keyframes spin {
 //         to {
 //             transform: rotate(360deg);
 //         }
 //     }
 // `;
-// 
+
 // const InputWithButton = styled.div`
 //     display: flex;
 //     gap: 8px;
 //     align-items: flex-end;
 // `;
-// 
+
 // const BridgeCardContent = styled(CardContent)`
 //     padding: 0 159px;
-// 
+
 //     @media (max-width: 768px) {
 //         padding: initial;
 //     }
 // `;
-// 
+
 // const ChainSelectorRow = styled.div`
 //     display: flex;
 //     gap: 24px;
 //     align-items: flex-end;
 //     margin-bottom: 36px;
-// 
+
 //     @media (max-width: 768px) {
 //         flex-direction: column;
 //         gap: 16px;
 //     }
 // `;
-// 
+
 // const ChainField = styled.div`
 //     flex: 1;
 //     min-width: 0;
 //     display: flex;
 //     flex-direction: column;
 //     gap: 8px;
-// 
+
 //     @media (max-width: 768px) {
 //         width: 100%;
 //     }
 // `;
-// 
+
 // const ChainFieldLabel = styled.label`
 //     font-weight: 500;
 //     color: ${({ theme }) => theme.text.primary};
 // `;
-// 
+
 // const ChainArrow = styled.span`
 //     flex-shrink: 0;
 //     align-self: flex-end;
@@ -194,96 +192,97 @@
 //     align-items: center;
 //     padding-bottom: 10px;
 //     color: ${({ theme }) => theme.primary};
-// 
+
 //     @media (max-width: 768px) {
 //         align-self: center;
 //         padding-bottom: initial;
 //     }
 // `;
-// 
+
 // export const Bridge: React.FC = () => {
 //     const dispatch = useDispatch<AppDispatch>();
 //     const navigate = useNavigate();
 //     const selectedAccount = useSelector(
-//         (state: RootState) => state.walletsStore.selectedAccount,
+//         (state: RootState) => state.wallet.selectedAccount,
 //     );
 //     const selectedNetwork = useSelector(
-//         (state: RootState) => state.walletsStore.selectedNetwork,
+//         (state: RootState) => state.wallet.selectedNetwork,
 //     );
-//     const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
-// 
+//     const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
+//         (state: RootState) => state.auth,
+//     );
+
 //     const cardano = useCardanoWallet();
-// 
-//     const [recipient, setRecipient] = useState("");
+
 //     const [amount, setAmount] = useState("");
 //     const [amountError, setAmountError] = useState("");
 //     const [password, setPassword] = useState("");
 //     const [showConfirmation, setShowConfirmation] = useState(false);
 //     const [copied, setCopied] = useState(false);
-// 
+
 //     const [srcChainKey, setSrcChainKey] = useState<BridgeChainKey>("asi");
 //     const [dstChainKey, setDstChainKey] = useState<BridgeChainKey>(() =>
 //         defaultDestinationFor("asi"),
 //     );
-// 
+
 //     const [txHash, setTxHash] = useState("");
 //     const [lockError, setLockError] = useState("");
 //     const [isLoading, setIsLoading] = useState(false);
-// 
+
 //     const srcChain = bridgeChainForKey(srcChainKey);
 //     const dstChain = bridgeChainForKey(dstChainKey);
 //     const srcKind = srcChain.kind;
-// 
+
 //     const evm = useEvmBridge(srcChain, false);
 //     const evmDestination = useEvmBridge(dstChain, true);
 //     const cosmos = useCosmosWallet();
-// 
+
 //     const asiSession: IWalletSessionContext["asi"] = {
 //         account: selectedAccount,
 //     };
-// 
+
 //     const sourceWalletSessionContext: IWalletSessionContext = {
 //         asi: asiSession,
 //         cardano: cardano.session,
 //         cosmos: cosmos.session,
 //         evm: evm.session,
 //     };
-// 
+
 //     const destinationWalletSessionContext: IWalletSessionContext = {
 //         asi: asiSession,
 //         cardano: cardano.session,
 //         cosmos: cosmos.session,
 //         evm: evmDestination.session,
 //     };
-// 
+
 //     const sourceWallet = sourceWalletSessionContext[srcKind];
 //     const destinationWallet = destinationWalletSessionContext[dstChain.kind];
-// 
+
 //     const hasWalletAccount = (
 //         wallet: IWalletSessionContext[WalletKind],
 //     ): boolean => {
 //         return Boolean(wallet.account?.address);
 //     };
-// 
+
 //     const sourceAccountLoaded = hasWalletAccount(sourceWallet);
 //     const destinationAccountLoaded = hasWalletAccount(destinationWallet);
-// 
+
 //     const isAccountUnlocked =
 //         selectedAccount &&
 //         unlockedAccounts.some((a) => a.id === selectedAccount.id);
-// 
-//     const needsPassword = !isAccountUnlocked;
-// 
+
+//     const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
+
 //     const rawAmount = amount.trim()
 //         ? parseTokenInput(amount, srcChain.nativeDecimals)
 //         : BigInt(0);
-// 
+
 //     const needsEvmApproval =
 //         srcKind === "evm" &&
 //         evm.allowance !== undefined &&
 //         rawAmount > BigInt(0) &&
 //         evm.allowance < rawAmount;
-// 
+
 //     const busy =
 //         srcKind === "evm" ? evm.isPending || evm.isConfirming : isLoading;
 //     const shownTxHash =
@@ -294,13 +293,14 @@
 //             : txHash;
 //     const shownError =
 //         (srcKind === "evm" ? evm.error?.message : lockError) || "";
-// 
+
 //     useEffect(() => {
 //         if (evm.isSuccess) {
 //             evm.refetch();
+//             setAmount("");
 //         }
 //     }, [evm.isSuccess, evm.refetch]);
-// 
+
 //     const sourceOptions = useMemo<ISelectOption[]>(
 //         () =>
 //             SOURCE_CHAIN_KEYS.map((key) => {
@@ -309,7 +309,7 @@
 //             }),
 //         [],
 //     );
-// 
+
 //     const destinationOptions = useMemo<ISelectOption[]>(
 //         () =>
 //             DESTINATION_CHAIN_KEYS.filter((key) => key !== srcChainKey).map(
@@ -320,7 +320,7 @@
 //             ),
 //         [srcChainKey],
 //     );
-// 
+
 //     const handleSourceChange = (key: string): void => {
 //         const nextKey = key as BridgeChainKey;
 //         setSrcChainKey(nextKey);
@@ -331,8 +331,9 @@
 //         setTxHash("");
 //         setLockError("");
 //         setAmountError("");
+//         evm.reset();
 //     };
-// 
+
 //     const handleDestinationChange = (key: string): void => {
 //         const nextKey = key as BridgeChainKey;
 //         if (nextKey === srcChainKey) {
@@ -342,8 +343,9 @@
 //         setTxHash("");
 //         setLockError("");
 //         setAmountError("");
+//         evm.reset();
 //     };
-// 
+
 //     const maxAmount = (): void => {
 //         if (srcKind === "asi") {
 //             const balance = parseFloat(selectedAccount?.balance || "0");
@@ -373,27 +375,31 @@
 //             );
 //         }
 //     };
-// 
+
 //     const handleClearAll = (): void => {
-//         setRecipient("");
 //         setAmount("");
 //         setPassword("");
 //         setTxHash("");
-// 
+
 //         setLockError("");
 //         setAmountError("");
+//         evm.reset();
 //     };
-// 
+
 //     const handleEvmAction = (): void => {
 //         if (evm.wrongNetwork) {
 //             evm.switchToSource();
 //         } else if (needsEvmApproval) {
 //             evm.approve(rawAmount);
 //         } else {
-//             evm.lock(rawAmount, recipient.trim(), dstChain.routeId);
+//             evm.lock(
+//                 rawAmount,
+//                 destinationWallet.account!.address,
+//                 dstChain.routeId,
+//             );
 //         }
 //     };
-// 
+
 //     const handleCosmosLock = async (): Promise<void> => {
 //         setLockError("");
 //         setTxHash("");
@@ -401,7 +407,7 @@
 //         try {
 //             const result = await cosmos.lock(
 //                 rawAmount,
-//                 recipient.trim(),
+//                 destinationWallet.account!.address,
 //                 dstChain.routeId,
 //             );
 //             setTxHash(result.transactionHash);
@@ -412,7 +418,7 @@
 //             setIsLoading(false);
 //         }
 //     };
-// 
+
 //     const handleAsiLock = async (passwordFromModal?: string): Promise<void> => {
 //         if (!selectedAccount) return;
 //         setShowConfirmation(false);
@@ -423,7 +429,7 @@
 //             const result = await dispatch(
 //                 bridgeLock({
 //                     from: selectedAccount,
-//                     recipient: recipient.trim(),
+//                     recipient: destinationWallet.account!.address,
 //                     amountBaseUnits: parseTokenInput(
 //                         amount,
 //                         srcChain.nativeDecimals,
@@ -435,17 +441,17 @@
 //                 }),
 //             ).unwrap();
 //             setTxHash(result.deployId);
-// 
+
 //             savePendingTransaction({
 //                 deployId: result.deployId,
 //                 from: selectedAccount.revAddress,
-//                 to: recipient.trim(),
+//                 to: destinationWallet.account!.address,
 //                 amount,
 //                 timestamp: new Date().toISOString(),
 //                 accountId: selectedAccount.id,
 //                 type: "send",
 //             });
-// 
+
 //             setAmount("");
 //             setPassword("");
 //         } catch (err: any) {
@@ -454,7 +460,7 @@
 //             setIsLoading(false);
 //         }
 //     };
-// 
+
 //     const handleCardanoLock = async (): Promise<void> => {
 //         if (!cardano.api || !cardano.address) return;
 //         setLockError("");
@@ -465,7 +471,7 @@
 //                 wallet: cardano.api,
 //                 chain: srcChain,
 //                 senderAddress: cardano.address,
-//                 recipient: recipient.trim(),
+//                 recipient: destinationWallet.account!.address,
 //                 amount: parseTokenInput(amount, srcChain.nativeDecimals),
 //                 destChainId: dstChain.routeId,
 //             });
@@ -482,7 +488,7 @@
 //             setIsLoading(false);
 //         }
 //     };
-// 
+
 //     const handleLockClick = (): void => {
 //         if (srcKind === "asi") {
 //             setShowConfirmation(true);
@@ -494,37 +500,37 @@
 //             handleCosmosLock();
 //         }
 //     };
-// 
+
 //     const handleAmountChange = (value: string) => {
 //         setAmount(value);
-// 
+
 //         if (!value.trim()) {
 //             setAmountError("");
 //             return;
 //         }
-// 
+
 //         const amountValue = Number(value);
-// 
+
 //         if (isNaN(amountValue) || amountValue <= 0) {
 //             setAmountError("Valid amount is required");
 //             return;
 //         }
-// 
+
 //         if (srcKind === "asi") {
 //             const balance = Number(selectedAccount?.balance || "0");
-// 
+
 //             if (amountValue > balance) {
 //                 setAmountError(
 //                     `Insufficient balance. You have ${balance.toFixed(8)} ASI`,
 //                 );
 //                 return;
 //             }
-// 
+
 //             const totalRequired = amountValue + getGasFeeAsNumber();
-// 
+
 //             if (totalRequired > balance) {
 //                 const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
-// 
+
 //                 setAmountError(
 //                     `Amount + fee exceeds balance. Max: ${maxSendable.toFixed(
 //                         8,
@@ -533,13 +539,13 @@
 //                 return;
 //             }
 //         }
-// 
+
 //         if (srcKind === "evm") {
 //             if (evm.tokenBalance !== undefined) {
 //                 const balance = Number(
 //                     formatToken(evm.tokenBalance, srcChain.nativeDecimals),
 //                 );
-// 
+
 //                 if (amountValue > balance) {
 //                     setAmountError(
 //                         `Insufficient balance. You have ${balance.toFixed(8)}`,
@@ -548,7 +554,7 @@
 //                 }
 //             }
 //         }
-// 
+
 //         if (srcKind === "cardano") {
 //             const balance = Number(
 //                 formatToken(
@@ -556,7 +562,7 @@
 //                     srcChain.nativeDecimals,
 //                 ),
 //             );
-// 
+
 //             if (amountValue > balance) {
 //                 setAmountError(
 //                     `Insufficient balance. You have ${balance.toFixed(8)}`,
@@ -564,7 +570,7 @@
 //                 return;
 //             }
 //         }
-// 
+
 //         if (srcKind === "cosmos") {
 //             const balance = Number(
 //                 formatToken(
@@ -572,7 +578,7 @@
 //                     srcChain.nativeDecimals,
 //                 ),
 //             );
-// 
+
 //             if (amountValue > balance) {
 //                 setAmountError(
 //                     `Insufficient balance. You have ${balance.toFixed(8)}`,
@@ -580,20 +586,20 @@
 //                 return;
 //             }
 //         }
-// 
+
 //         setAmountError("");
 //     };
-// 
+
 //     const isAmountValid =
 //         amount.trim() !== "" && rawAmount > BigInt(0) && !amountError;
-// 
+
 //     const lockDisabled =
 //         busy ||
 //         !sourceAccountLoaded ||
 //         !destinationAccountLoaded ||
 //         !isAmountValid ||
 //         (srcKind === "asi" && needsPassword && !password);
-// 
+
 //     const lockLabel = (() => {
 //         if (srcKind === "cardano")
 //             return `Lock with ${cardano.walletName || "wallet"}`;
@@ -603,7 +609,7 @@
 //         }
 //         return `Lock on ${srcChain.label}`;
 //     })();
-// 
+
 //     const copyTxHash = async (): Promise<void> => {
 //         try {
 //             await navigator.clipboard.writeText(shownTxHash);
@@ -613,7 +619,7 @@
 //             /* clipboard unavailable */
 //         }
 //     };
-// 
+
 //     if (!selectedAccount) {
 //         return (
 //             <BridgeContainer>
@@ -628,7 +634,7 @@
 //             </BridgeContainer>
 //         );
 //     }
-// 
+
 //     return (
 //         <BridgeContainer>
 //             <Card style={{ paddingBottom: "36px" }}>
@@ -670,16 +676,16 @@
 //                             </div>
 //                         </SuccessMessage>
 //                     )}
-// 
+
 //                     {busy && (
 //                         <LoadingMessage>
 //                             <span className="spinner"></span>
 //                             Locking tokens on {srcChain.label}...
 //                         </LoadingMessage>
 //                     )}
-// 
+
 //                     {shownError && <ErrorMessage>{shownError}</ErrorMessage>}
-// 
+
 //                     <ChainSelectorRow>
 //                         <ChainField>
 //                             <ChainFieldLabel>Source</ChainFieldLabel>
@@ -705,14 +711,14 @@
 //                             />
 //                         </ChainField>
 //                     </ChainSelectorRow>
-// 
+
 //                     <h2 style={{ marginBottom: "8px" }}>Source account</h2>
-// 
+
 //                     <BridgeWalletSelector
 //                         chainKind={srcKind}
 //                         wallet={sourceWalletSessionContext[srcKind]}
 //                     />
-// 
+
 //                     <InputFormGroup>
 //                         <InputWithButton className="input-with-button">
 //                             <Input
@@ -777,21 +783,25 @@
 //                             </div>
 //                         )}
 //                     </InputFormGroup>
-// 
+
 //                     <h2 style={{ marginBottom: "8px" }}>Destination account</h2>
-// 
+
 //                     <BridgeWalletSelector
 //                         chainKind={dstChain.kind}
 //                         wallet={destinationWalletSessionContext[dstChain.kind]}
 //                     />
-// 
+
 //                     {srcKind === "asi" && needsPassword && (
 //                         <FormGroup>
 //                             <PasswordInput
 //                                 id="bridge-password-input"
 //                                 data-testid="bridge-password-input"
 //                                 data-cy="bridge-password-input"
-//                                 label="Account Password"
+//                                 label={
+//                                     requirePasswordForTransaction
+//                                         ? "Transaction Password"
+//                                         : "Account Password"
+//                                 }
 //                                 value={password}
 //                                 onChange={(e) => setPassword(e.target.value)}
 //                                 autoComplete="current-password"
@@ -799,7 +809,7 @@
 //                             />
 //                         </FormGroup>
 //                     )}
-// 
+
 //                     <ActionButtons>
 //                         <LockButton
 //                             id="bridge-transaction-button"
@@ -833,7 +843,7 @@
 //                     </ActionButtons>
 //                 </BridgeCardContent>
 //             </Card>
-// 
+
 //             <TransactionConfirmationModal
 //                 isOpen={showConfirmation}
 //                 onClose={() => {
@@ -842,10 +852,11 @@
 //                 }}
 //                 onConfirm={handleAsiLock}
 //                 amount={amount}
-//                 recipient={recipient}
+//                 recipient={destinationWallet.account!.address}
 //                 senderAddress={selectedAccount?.revAddress || ""}
 //                 senderName={selectedAccount?.name || ""}
 //                 loading={isLoading}
+//                 requirePasswordForTransaction={requirePasswordForTransaction}
 //             />
 //         </BridgeContainer>
 //     );
