@@ -166,7 +166,8 @@ export const fetchTransactionHistory = createAsyncThunk<
             to: tx.to ?? "",
             amount: tx.amount ?? "",
             timestamp: tx.timestamp.toString(),
-            status: tx.status === "confirmed" ? "completed" : tx.status,
+            status: tx.status,
+            type: tx.type,
             gasCost: tx.type === "send" ? generateRandomGasFee() : undefined,
         }));
     },
@@ -232,6 +233,7 @@ export const sendTransaction = createAsyncThunk<
             amount,
             timestamp: new Date().toString(),
             status: "pending",
+            type: "send",
             gasCost: generateRandomGasFee(),
         };
 

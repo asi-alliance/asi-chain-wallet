@@ -17,13 +17,7 @@ import { AccountSelector } from "components/AccountSelector";
 import { getTokenDisplayName } from "constants/token";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks";
-
-type TransactionType = "send" | "receive";
-type TransactionStatus = "pending" | "completed" | "failed";
-
-interface TransactionView extends Transaction {
-    type: TransactionType;
-}
+import { TransactionStatus, TransactionType } from "@asichain/asi-wallet-sdk";
 
 interface TransactionFilter {
     type?: TransactionType;
@@ -279,8 +273,7 @@ const typeOptions = [
     { id: "all", value: "all", label: "All Types" },
     { id: "send", value: "send", label: "Send" },
     { id: "receive", value: "receive", label: "Receive" },
-    //TODO: Restore the deploy option when the SDK includes deploy transactions in history
-    // { id: "deploy", value: "deploy", label: "Deploy" },
+    { id: "deploy", value: "deploy", label: "Deploy" },
 ];
 const statusOptions = [
     { id: "all", value: "all", label: "All Status" },
@@ -289,14 +282,6 @@ const statusOptions = [
     { id: "failed", value: "failed", label: "Failed" },
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
-
-const toTransactionView = (
-    transaction: Transaction,
-    ownAddress: string,
-): TransactionView => ({
-    ...transaction,
-    type: transaction.from === ownAddress ? "send" : "receive",
-});
 
 export const History: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -343,12 +328,10 @@ export const History: React.FC = () => {
         return () => clearInterval(interval);
     }, [loadTransactions]);
 
-    const visibleTransactions = useMemo<TransactionView[]>(() => {
+    const visibleTransactions = useMemo<Transaction[]>(() => {
         if (!selectedAccount) return [];
 
-        let result = transactions.map((tx) =>
-            toTransactionView(tx, selectedAccount.address),
-        );
+        let result = structuredClone(transactions);
 
         if (filter.type) {
             result = result.filter((tx) => tx.type === filter.type);
