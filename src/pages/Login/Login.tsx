@@ -4,15 +4,12 @@ import React, {
     useMemo,
     useCallback,
     useRef,
+    Fragment,
 } from "react";
 import styled from "styled-components";
-import {
-    selectAccount,
-    selectWalletByAccountId,
-    selectWallets,
-} from "store/WalletsStore";
+import { selectWalletByFilter, selectWallets } from "store/WalletsStore";
 import { useSelector, useDispatch } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { loginWithPassword } from "store/Auth/thunks";
 import { RootState, AppDispatch } from "store";
@@ -36,7 +33,8 @@ import {
 } from "services/loginAuditLog";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
-import { IAccountMeta, IWalletMeta } from "types/wallet";
+import { IWalletMeta, WalletActions } from "types/wallet";
+import { CreatePrivateKeyWalletModal } from "components/CreatePrivateKeyWalletModal";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -175,23 +173,30 @@ function formatCountdown(ms: number): string {
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
-    const location = useLocation();
 
-    const queryParams = new URLSearchParams(location.search);
+    const [searchParams] = useSearchParams();
 
-    const loginAccountId: string | null = queryParams.get("id");
-    const specificRedirectUrl: string | null = queryParams.get("redirectUrl");
+    const loginWalletSignerId: string | null = searchParams.get("id");
+    const specificRedirectUrl: string | null = searchParams.get("redirectUrl");
+    const action: string | null = searchParams.get("action");
 
     const isLoading = useSelector((state: RootState) => state.auth.isLoading);
     const wallets = useSelector(selectWallets);
     const loginWallet = useSelector((state: RootState) =>
-        loginAccountId ? selectWalletByAccountId(state, loginAccountId) : null,
+        selectWalletByFilter(
+            state,
+            (walletMeta) => walletMeta.signerId === loginWalletSignerId,
+        ),
     );
 
     const [password, setPassword] = useState("");
     const [selectedSignerId, setSelectedSignerId] = useState<string>("");
     const [loginError, setLoginError] = useState<string>("");
     const [showError, setShowError] = useState(false);
+
+    const [showCreateModal, setShowCreateModal] = useState(
+        action === WalletActions.CREATE_WALLET,
+    );
 
     // Rate limit UI state
     const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
@@ -313,13 +318,21 @@ export const Login: React.FC = () => {
         }
     }, [loginError]);
 
+    useEffect(() => {
+        if (action === WalletActions.CREATE_WALLET) {
+            setShowCreateModal(true);
+
+            return;
+        }
+    }, [action]);
+
     // ── Handlers ────────────────────────────────────────────────────────────
 
     const handleLogin = async () => {
         if (!password.trim() || !selectedSignerId || isLockedOut) return;
 
         try {
-            const unlockedWalletMeta: IWalletMeta = await dispatch(
+            await dispatch(
                 loginWithPassword({
                     signerId: selectedSignerId,
                     password,
@@ -327,15 +340,6 @@ export const Login: React.FC = () => {
             ).unwrap();
 
             setLoginError("");
-
-            const accountToSelect =
-                unlockedWalletMeta.accounts.find(
-                    (account: IAccountMeta) => account.id === loginAccountId,
-                ) ?? unlockedWalletMeta.accounts[0];
-
-            if (accountToSelect) {
-                dispatch(selectAccount(accountToSelect.id));
-            }
 
             navigate(specificRedirectUrl ?? "/");
         } catch (error: unknown) {
@@ -354,11 +358,11 @@ export const Login: React.FC = () => {
 
     const handleCreateAccount = () => {
         navigate(
-            buildUrlWithParams("/accounts", {
+            buildUrlWithParams("/login", {
                 queryParams: [
                     {
                         key: "action",
-                        value: "create-account",
+                        value: WalletActions.CREATE_WALLET,
                     },
                 ],
             }),
@@ -378,139 +382,154 @@ export const Login: React.FC = () => {
     );
 
     return (
-        <LoginContainer>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Unlock Wallet</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLockedOut && (
-                        <LockoutBanner>
-                            {formatLockoutMessage(countdownMs)}
-                            <br />
-                            <CountdownText>
-                                {formatCountdown(countdownMs)}
-                            </CountdownText>
-                        </LockoutBanner>
-                    )}
+        <Fragment>
+            <LoginContainer>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Unlock Wallet</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isLockedOut && (
+                            <LockoutBanner>
+                                {formatLockoutMessage(countdownMs)}
+                                <br />
+                                <CountdownText>
+                                    {formatCountdown(countdownMs)}
+                                </CountdownText>
+                            </LockoutBanner>
+                        )}
 
-                    {showAttemptsWarning && (
-                        <WarningBanner>
-                            {remainingAttempts === 1
-                                ? "Last attempt before temporary lockout."
-                                : `${remainingAttempts} attempts remaining before temporary lockout.`}
-                        </WarningBanner>
-                    )}
+                        {showAttemptsWarning && (
+                            <WarningBanner>
+                                {remainingAttempts === 1
+                                    ? "Last attempt before temporary lockout."
+                                    : `${remainingAttempts} attempts remaining before temporary lockout.`}
+                            </WarningBanner>
+                        )}
 
-                    {showSecurityWarning && (
-                        <SecurityWarningBanner>
-                            <SecurityWarningTitle>
-                                Security notice
-                            </SecurityWarningTitle>
-                            We noticed several failed login attempts on this
-                            wallet. If it wasn&apos;t you, consider changing
-                            your password after logging in.
-                            {activityReport?.accountNameChanged && (
-                                <>
-                                    <br />
-                                    Attempts were made with different account
-                                    names.
-                                </>
-                            )}
-                            <br />
-                            <DismissLink
-                                onClick={() =>
-                                    setSecurityWarningDismissed(true)
-                                }
-                            >
-                                Dismiss
-                            </DismissLink>
-                        </SecurityWarningBanner>
-                    )}
+                        {showSecurityWarning && (
+                            <SecurityWarningBanner>
+                                <SecurityWarningTitle>
+                                    Security notice
+                                </SecurityWarningTitle>
+                                We noticed several failed login attempts on this
+                                wallet. If it wasn&apos;t you, consider changing
+                                your password after logging in.
+                                {activityReport?.accountNameChanged && (
+                                    <>
+                                        <br />
+                                        Attempts were made with different
+                                        account names.
+                                    </>
+                                )}
+                                <br />
+                                <DismissLink
+                                    onClick={() =>
+                                        setSecurityWarningDismissed(true)
+                                    }
+                                >
+                                    Dismiss
+                                </DismissLink>
+                            </SecurityWarningBanner>
+                        )}
 
-                    {showError && loginError && !isLockedOut && (
-                        <ErrorMessage>{loginError}</ErrorMessage>
-                    )}
+                        {showError && loginError && !isLockedOut && (
+                            <ErrorMessage>{loginError}</ErrorMessage>
+                        )}
 
-                    {walletOptions.length > 1 && (
+                        {walletOptions.length > 1 && (
+                            <FormGroup>
+                                <label
+                                    style={{
+                                        display: "block",
+                                        marginBottom: "8px",
+                                        fontSize: "14px",
+                                        fontWeight: 500,
+                                        color: "inherit",
+                                    }}
+                                >
+                                    Select Wallet
+                                </label>
+                                <Select
+                                    id="login-account-selector"
+                                    value={selectedSignerId}
+                                    onChange={(value: string) =>
+                                        setSelectedSignerId(value)
+                                    }
+                                    options={selectWalletOptions}
+                                />
+                                <InfoText>
+                                    Different wallets can have the same
+                                    password. Select the wallet you want to
+                                    unlock.
+                                </InfoText>
+                            </FormGroup>
+                        )}
+
                         <FormGroup>
-                            <label
-                                style={{
-                                    display: "block",
-                                    marginBottom: "8px",
-                                    fontSize: "14px",
-                                    fontWeight: 500,
-                                    color: "inherit",
+                            <PasswordInput
+                                id="login-password-input"
+                                data-testid="login-password-input"
+                                data-cy="login-password-input"
+                                label="Password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                onInput={(e) => {
+                                    const target = e.currentTarget;
+                                    if (target.value !== password) {
+                                        setPassword(target.value);
+                                    }
                                 }}
-                            >
-                                Select Wallet
-                            </label>
-                            <Select
-                                id="login-account-selector"
-                                value={selectedSignerId}
-                                onChange={(value: string) =>
-                                    setSelectedSignerId(value)
+                                onKeyPress={handleKeyPress}
+                                placeholder={
+                                    isLockedOut
+                                        ? "Temporarily locked"
+                                        : "Enter your password"
                                 }
-                                options={selectWalletOptions}
+                                autoFocus={
+                                    walletOptions.length <= 1 && !isLockedOut
+                                }
+                                autoComplete="current-password"
+                                disabled={isLockedOut}
                             />
-                            <InfoText>
-                                Different wallets can have the same password.
-                                Select the wallet you want to unlock.
-                            </InfoText>
                         </FormGroup>
-                    )}
 
-                    <FormGroup>
-                        <PasswordInput
-                            id="login-password-input"
-                            data-testid="login-password-input"
-                            data-cy="login-password-input"
-                            label="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onInput={(e) => {
-                                const target = e.currentTarget;
-                                if (target.value !== password) {
-                                    setPassword(target.value);
+                        <ActionButtons>
+                            <Button
+                                id="login-unlock-button"
+                                onClick={handleLogin}
+                                loading={isLoading}
+                                disabled={
+                                    !password.trim() ||
+                                    !selectedSignerId ||
+                                    isLockedOut
                                 }
-                            }}
-                            onKeyPress={handleKeyPress}
-                            placeholder={
-                                isLockedOut
-                                    ? "Temporarily locked"
-                                    : "Enter your password"
-                            }
-                            autoFocus={
-                                walletOptions.length <= 1 && !isLockedOut
-                            }
-                            autoComplete="current-password"
-                            disabled={isLockedOut}
-                        />
-                    </FormGroup>
+                            >
+                                {isLockedOut ? "Locked" : "Unlock"}
+                            </Button>
 
-                    <ActionButtons>
-                        <Button
-                            id="login-unlock-button"
-                            onClick={handleLogin}
-                            loading={isLoading}
-                            disabled={
-                                !password.trim() ||
-                                !selectedSignerId ||
-                                isLockedOut
-                            }
-                        >
-                            {isLockedOut ? "Locked" : "Unlock"}
-                        </Button>
+                            <LinkButton
+                                variant="ghost"
+                                onClick={handleCreateAccount}
+                            >
+                                Create New Wallet
+                            </LinkButton>
+                        </ActionButtons>
+                    </CardContent>
+                </Card>
+            </LoginContainer>
+            <CreatePrivateKeyWalletModal
+                isOpen={showCreateModal}
+                onClose={() => {
+                    setShowCreateModal(false);
+                    navigate("/login");
+                }}
+                onSuccess={() => {
+                    console.info("Wallet created successfully");
 
-                        <LinkButton
-                            variant="ghost"
-                            onClick={handleCreateAccount}
-                        >
-                            Create New Account
-                        </LinkButton>
-                    </ActionButtons>
-                </CardContent>
-            </Card>
-        </LoginContainer>
+                    navigate("/dashboard");
+                }}
+            />
+        </Fragment>
     );
 };

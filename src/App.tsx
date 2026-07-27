@@ -26,7 +26,7 @@ import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
 //TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
 // import { History } from "pages/History";
-import { useIdleTimer, useDeepLink } from "hooks";
+import { useIdleTimer } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 //TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
 // import TransactionPollingService from "services/transactionPolling";
@@ -65,7 +65,6 @@ const AppContent: React.FC = () => {
     const theme = darkMode ? darkTheme : lightTheme;
 
     useIdleTimer();
-    useDeepLink();
 
     useEffect(() => {
         // dispatch(loadNetworksFromStorage());

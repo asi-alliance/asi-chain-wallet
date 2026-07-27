@@ -438,6 +438,14 @@ export const selectWalletByAccountId = (state: RootState, accountId: string) =>
             (accountMeta: IAccountMeta) => accountMeta.id === accountId,
         ),
     ) ?? null;
+export const selectWalletByFilter = (
+    state: RootState,
+    filter: (
+        walletMeta: IWalletMeta,
+        index: number,
+        array: IWalletMeta[],
+    ) => boolean,
+) => state.walletsStore.wallets.find(filter) ?? null;
 export const selectWallets = (state: RootState) => state.walletsStore.wallets;
 export const selectActiveWallet = createSelector(
     [selectWallets, (state: RootState) => state.auth.activeSignerId],

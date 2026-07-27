@@ -11,7 +11,7 @@ import { AccountCard } from "components/AccountCard";
 import { IAccountMeta } from "types/wallet";
 import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
 import { useSearchParams } from "react-router-dom";
-import { CreateAccountModal } from "components/CreateAccountModal";
+import { CreatePrivateKeyWalletModal } from "components/CreatePrivateKeyWalletModal";
 import { ImportAccountModal } from "components/ImportAccountModal";
 import { useScreen } from "hooks/";
 
@@ -214,7 +214,7 @@ export const Accounts: React.FC = () => {
                     </Card>
                 )}
             </AccountsContainer>
-            <CreateAccountModal
+            <CreatePrivateKeyWalletModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {

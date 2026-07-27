@@ -8,7 +8,7 @@ import {
     Input,
     Button,
 } from "components";
-import { CreateAccountForm } from "components/CreateAccountForm";
+import { CreatePrivateKeyWalletForm } from "components/CreatePrivateKeyWalletForm";
 import { ImportAccountForm } from "components/ImportAccountForm";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks/";
@@ -172,7 +172,7 @@ export const FirstAccountCreatingWidget: React.FC<
                 <CardContent>
                     <FormContainer>
                         {activeMode === "create" ? (
-                            <CreateAccountForm
+                            <CreatePrivateKeyWalletForm
                                 onSuccess={handleCreateSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 hideCancelButton

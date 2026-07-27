@@ -57,3 +57,7 @@ export interface IWalletMeta {
     type: WalletTypes;
     accounts: IAccountMeta[];
 }
+
+export enum WalletActions {
+    CREATE_WALLET = "create-wallet",
+}
