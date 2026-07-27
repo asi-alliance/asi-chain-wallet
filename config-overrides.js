@@ -129,6 +129,9 @@ module.exports = function override(config, env) {
   config.resolve.alias = {
     ...config.resolve.alias,
     'process/browser': require.resolve('process/browser'),
+    // ASI Wallet SDK statically imports node-persist for its Node storage backend,
+    // but in the browser it uses IndexedDB (BrowserStorage). Stub node-persist out.
+    'node-persist': false,
   };
   
   config.plugins = [

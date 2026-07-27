@@ -24,6 +24,7 @@
     "test:lt:web:homePage": "npx wdio wdio.web.conf.js --suite homePageTests"
   },
   "dependencies": {
+    "@asichain/asi-wallet-sdk": "file:../asi-chain-wallet-sdk",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
