@@ -1,31 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
-import { useSelector } from "react-redux";
 import { Input, Button } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
-import { PrivateKeyDisplay } from "components/PrivateKeyDisplay";
-import { createAccountWithPassword } from "store/Auth/thunks";
-import { selectHasWallets } from "store/WalletsStore";
-import { RootState } from "store";
+import { deriveHdAccount } from "store/Auth/thunks";
 import { useAppDispatch } from "store/hooks";
 import { useScreen, useValidAccountUpdating } from "hooks";
-
-const WarningMessage = styled.div`
-    background: ${({ theme }) => `${theme.warning}20`};
-    border: 1px solid ${({ theme }) => `${theme.warning}40`};
-    color: ${({ theme }) => theme.warning};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .icon {
-        font-size: 16px;
-    }
-`;
 
 const ActionButtons = styled.div`
     display: flex;
@@ -53,45 +32,30 @@ const FormContainer = styled.div`
     width: 100%;
 `;
 
-interface CreateAccountFormProps {
+interface DeriveAccountFormProps {
     onSuccess?: (accountName: string) => void;
     onCancel?: () => void;
     hideCancelButton?: boolean;
-    customAccountName?: string;
-    firstAccount?: boolean;
 }
 
-type Step = "form" | "password" | "privateKey";
+type Step = "form" | "password";
 
-export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
+export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
     onSuccess,
     onCancel,
     hideCancelButton = false,
-    customAccountName,
-    firstAccount = false,
 }) => {
     const dispatch = useAppDispatch();
-
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
-    const isAuthenticated = useSelector(
-        (state: RootState) => state.auth.isAuthenticated,
-    );
-    const hasWallets = useSelector(selectHasWallets);
 
     const { isLaptop } = useScreen();
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
-        useValidAccountUpdating(undefined, { firstAccount });
-
-    const selectedNetworkId = selectedNetwork?.id;
+        useValidAccountUpdating();
 
     const [step, setStep] = useState<Step>("form");
-    const [accountName, setAccountName] = useState(customAccountName ?? "");
+    const [accountName, setAccountName] = useState("");
     const [accountNameError, setAccountNameError] = useState("");
     const [pendingAccountName, setPendingAccountName] = useState("");
-    const [pendingPrivateKey, setPendingPrivateKey] = useState("");
     const [loading, setLoading] = useState(false);
 
     const updateAccountName = (newName: string): void => {
@@ -99,31 +63,8 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
         updateAccountField("name", newName);
     };
 
-    useEffect(() => {
-        if (!customAccountName) {
-            return;
-        }
-
-        if (step !== "form") {
-            return;
-        }
-
-        setStep("password");
-    }, [customAccountName, step]);
-
-    useEffect(() => {
-        if (!customAccountName) {
-            return;
-        }
-
-        updateAccountName(customAccountName);
-        setPendingAccountName(customAccountName);
-    }, [customAccountName]);
-
     const handleFormSubmit = () => {
-        const currentName: string = customAccountName ?? accountName;
-
-        const trimmedName = currentName.trim();
+        const trimmedName = accountName.trim();
 
         if (!trimmedName) {
             setAccountNameError("Account name is required");
@@ -143,24 +84,21 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
     const handlePasswordSet = async (password: string) => {
         setLoading(true);
 
-        const resultAction = await dispatch(
-            createAccountWithPassword({
-                name: pendingAccountName,
-                password,
-                networkId: selectedNetworkId,
-            }),
-        );
+        try {
+            await dispatch(
+                deriveHdAccount({ name: pendingAccountName, password }),
+            ).unwrap();
 
-        setLoading(false);
-
-        if (createAccountWithPassword.fulfilled.match(resultAction)) {
-            setPendingPrivateKey(resultAction.payload.privateKeyHex);
-            setStep("privateKey");
+            onSuccess?.(pendingAccountName);
+            handleCancel();
+        } catch (error) {
+            setAccountNameError(
+                (error as Error)?.message || "Failed to create account",
+            );
+            setStep("form");
+        } finally {
+            setLoading(false);
         }
-    };
-
-    const handlePrivateKeyAcknowledged = () => {
-        onSuccess?.(pendingAccountName);
     };
 
     const handleCancel = () => {
@@ -168,53 +106,21 @@ export const CreateAccountForm: React.FC<CreateAccountFormProps> = ({
         updateAccountName("");
         setAccountNameError("");
         setPendingAccountName("");
-        setPendingPrivateKey("");
         onCancel?.();
     };
 
-    const handleBackToPassword = () => {
-        setStep("password");
-        setPendingPrivateKey("");
-    };
-
-    // Step: Password Setup
-    if (step === "password" || (!!customAccountName && step === "form")) {
+    if (step === "password") {
         return (
             <PasswordSetup
-                title="Set Password for New Account"
+                title="Enter password to add account"
                 onPasswordSet={handlePasswordSet}
-                onCancel={handleCancel}
+                onCancel={() => setStep("form")}
             />
         );
     }
 
-    // Step: Private Key Display
-    if (step === "privateKey") {
-        return (
-            <PrivateKeyDisplay
-                privateKey={pendingPrivateKey}
-                accountName={pendingAccountName}
-                onContinue={handlePrivateKeyAcknowledged}
-                onBack={handleBackToPassword}
-                showBackButton={true}
-            />
-        );
-    }
-
-    // Step: Form
     return (
         <FormContainer>
-            {hasWallets && !isAuthenticated && (
-                <WarningMessage>
-                    <span className="icon">⚠️</span>
-                    <span>
-                        You have existing accounts. Creating a new account will
-                        not automatically log you in. You'll need to unlock your
-                        existing accounts with your password.
-                    </span>
-                </WarningMessage>
-            )}
-
             <Input
                 id="create-account-name-input"
                 label="Account Name"

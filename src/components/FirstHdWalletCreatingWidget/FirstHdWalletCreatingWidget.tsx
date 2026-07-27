@@ -8,8 +8,8 @@ import {
     Input,
     Button,
 } from "components";
-import { CreatePrivateKeyWalletForm } from "components/CreatePrivateKeyWalletForm";
-import { ImportAccountForm } from "components/ImportAccountForm";
+import { CreateHdWalletForm } from "components/CreateHdWalletForm";
+import { ImportHdWalletForm } from "components/ImportHdWalletForm";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks/";
 
@@ -23,7 +23,7 @@ const FormContainer = styled.div`
     padding: 0;
 `;
 
-interface FirstAccountCreatingWidgetProps {
+interface FirstHdWalletCreatingWidgetProps {
     onSuccess?: () => void;
 }
 
@@ -42,8 +42,8 @@ const ActionsToolbar = styled.div`
     }
 `;
 
-export const FirstAccountCreatingWidget: React.FC<
-    FirstAccountCreatingWidgetProps
+export const FirstHdWalletCreatingWidget: React.FC<
+    FirstHdWalletCreatingWidgetProps
 > = ({ onSuccess }) => {
     const { isLaptop } = useScreen();
 
@@ -172,14 +172,14 @@ export const FirstAccountCreatingWidget: React.FC<
                 <CardContent>
                     <FormContainer>
                         {activeMode === "create" ? (
-                            <CreatePrivateKeyWalletForm
+                            <CreateHdWalletForm
                                 onSuccess={handleCreateSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 hideCancelButton
                                 customAccountName={accountName}
                             />
                         ) : (
-                            <ImportAccountForm
+                            <ImportHdWalletForm
                                 onSuccess={handleImportSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 customAccountName={accountName}

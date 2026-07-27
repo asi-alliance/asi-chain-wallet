@@ -12,57 +12,54 @@ import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
 import { IWalletMeta } from "types/wallet";
 import { classifyLoginError, handleLoginOutcome } from "./helpers";
 
-type CreateAccountPayload = {
+type CreateHdWalletPayload = {
     name: string;
+    mnemonic: string;
     password: string;
-    networkId?: string;
 };
 
-export interface ICreateAccountResponse {
-    wallet: IWalletMeta;
-    privateKeyHex: string;
-}
-
-export const createAccountWithPassword = createAsyncThunk<
-    ICreateAccountResponse,
-    CreateAccountPayload
->("auth/createAccountWithPassword", async ({ name, password }) => {
-    const privateKeyHex = SdkWalletService.generatePrivateKeyHex();
-
-    const wallet = await SdkWalletService.createPrivateKeyWallet({
-        name,
-        privateKeyHex,
-        password,
-    });
-
-    return { wallet, privateKeyHex };
+export const createHdWallet = createAsyncThunk<
+    IWalletMeta,
+    CreateHdWalletPayload
+>("auth/createHdWallet", async ({ name, mnemonic, password }) => {
+    return SdkWalletService.createHdWallet({ name, mnemonic, password });
 });
 
-type ImportAccountPayload = {
+type ImportHdWalletPayload = {
     name: string;
-    value: string;
-    type: "private" | "public" | "eth" | "rev";
+    mnemonic: string;
     password: string;
-    networkId?: string;
 };
 
-export const importAccountWithPassword = createAsyncThunk<
+export const importHdWallet = createAsyncThunk<
     IWalletMeta,
-    ImportAccountPayload
->("auth/importAccountWithPassword", async ({ name, value, type, password }) => {
-    if (type !== "private") {
-        throw new Error(
-            "Only private key import is supported. Watch-only import was removed with the SDK migration.",
-        );
+    ImportHdWalletPayload
+>("auth/importHdWallet", async ({ name, mnemonic, password }) => {
+    return SdkWalletService.createHdWallet({ name, mnemonic, password });
+});
+
+export const deriveHdAccount = createAsyncThunk<
+    { wallet: IWalletMeta; accountId: string },
+    { name: string; password: string },
+    { state: RootState }
+>("auth/deriveHdAccount", async ({ name, password }, { getState }) => {
+    const { wallets } = getState().walletsStore;
+    const { activeSignerId } = getState().auth;
+
+    const activeWallet = wallets.find(
+        (walletMeta) =>
+            walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
+    );
+
+    if (!activeWallet?.id) {
+        throw new Error("No active HD wallet to derive an account from");
     }
 
-    const wallet = await SdkWalletService.createPrivateKeyWallet({
+    return SdkWalletService.deriveAccount({
+        walletId: activeWallet.id,
         name,
-        privateKeyHex: value,
         password,
     });
-
-    return wallet;
 });
 
 const LOCK_WAIT_THRESHOLD_MS = 500;

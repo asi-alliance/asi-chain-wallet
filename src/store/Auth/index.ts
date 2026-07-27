@@ -3,8 +3,9 @@ import { SecureStorage } from "services/secureStorage";
 import { RootState } from "store";
 import { clearActiveSession, setActiveSession } from "./helpers";
 import {
-    createAccountWithPassword,
-    importAccountWithPassword,
+    createHdWallet,
+    deriveHdAccount,
+    importHdWallet,
     loginWithPassword,
     logout,
     unlockAccount,
@@ -56,24 +57,34 @@ const authSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(createAccountWithPassword.pending, (state) => {
+            .addCase(createHdWallet.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(createAccountWithPassword.fulfilled, (state, action) => {
-                state.isLoading = false;
-                setActiveSession(state, action.payload.wallet);
-            })
-            .addCase(createAccountWithPassword.rejected, (state) => {
-                state.isLoading = false;
-            })
-            .addCase(importAccountWithPassword.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(importAccountWithPassword.fulfilled, (state, action) => {
+            .addCase(createHdWallet.fulfilled, (state, action) => {
                 state.isLoading = false;
                 setActiveSession(state, action.payload);
             })
-            .addCase(importAccountWithPassword.rejected, (state) => {
+            .addCase(createHdWallet.rejected, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(importHdWallet.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(importHdWallet.fulfilled, (state, action) => {
+                state.isLoading = false;
+                setActiveSession(state, action.payload);
+            })
+            .addCase(importHdWallet.rejected, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(deriveHdAccount.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(deriveHdAccount.fulfilled, (state, action) => {
+                state.isLoading = false;
+                setActiveSession(state, action.payload.wallet);
+            })
+            .addCase(deriveHdAccount.rejected, (state) => {
                 state.isLoading = false;
             })
             .addCase(loginWithPassword.pending, (state) => {

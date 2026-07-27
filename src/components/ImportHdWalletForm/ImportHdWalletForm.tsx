@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useScreen, useValidAccountUpdating } from "hooks/";
-import { importAccountWithPassword } from "store/Auth/thunks";
+import { importHdWallet } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
-import { useSelector } from "react-redux";
-import { selectAccounts } from "store/WalletsStore";
+import { MnemonicInput } from "components/MnemonicInput";
+import { WordCountToggle, WordCount } from "components/WordCountToggle";
 import { Input, Button } from "components";
-import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { importPrivateKey } from "utils/crypto";
+import { SdkWalletService } from "sdk";
 
 const FormGroup = styled.div`
     margin-bottom: 16px;
@@ -38,10 +37,10 @@ const AdaptiveButton = styled(Button)`
 
 interface PendingImport {
     name: string;
-    value: string;
+    mnemonic: string;
 }
 
-interface ImportAccountFormProps {
+interface ImportHdWalletFormProps {
     onSuccess?: () => void;
     onCancel?: () => void;
     hideCancelButton?: boolean;
@@ -51,7 +50,10 @@ interface ImportAccountFormProps {
 
 type Step = "form" | "password";
 
-export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
+const createEmptyWords = (count: number): string[] =>
+    Array.from({ length: count }, () => "");
+
+export const ImportHdWalletForm: React.FC<ImportHdWalletFormProps> = ({
     onSuccess,
     onCancel,
     hideCancelButton = false,
@@ -59,27 +61,26 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
     firstAccount = false,
 }) => {
     const dispatch = useAppDispatch();
-
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
-    const accounts = useSelector(selectAccounts);
     const { isLaptop } = useScreen();
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
         useValidAccountUpdating(undefined, { firstAccount });
 
-    const selectedNetworkId = selectedNetwork?.id;
-
     const [step, setStep] = useState<Step>("form");
-    const [importName, setImportName] = useState("");
-    const [importValue, setImportValue] = useState("");
+    const [importName, setImportName] = useState(customAccountName ?? "");
+    const [wordCount, setWordCount] = useState<WordCount>(12);
+    const [words, setWords] = useState<string[]>(() => createEmptyWords(12));
     const [importNameError, setImportNameError] = useState("");
-    const [importValueError, setImportValueError] = useState("");
+    const [mnemonicError, setMnemonicError] = useState("");
     const [pendingImport, setPendingImport] = useState<PendingImport | null>(
         null,
     );
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        setWords(createEmptyWords(wordCount));
+        setMnemonicError("");
+    }, [wordCount]);
 
     const updateImportName = (newName: string): void => {
         setImportName(newName);
@@ -94,29 +95,26 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         updateImportName(customAccountName);
     }, [customAccountName]);
 
-    const checkAccountExistsByValue = (value: string): boolean => {
-        try {
-            const { revAddress } = importPrivateKey(value);
+    const handleWordsChange = (nextWords: string[]) => {
+        setWords(nextWords);
 
-            return accounts.some((account) => account.address === revAddress);
-        } catch (error) {
-            return false;
+        if (mnemonicError) {
+            setMnemonicError("");
         }
     };
 
     const handleCancel = () => {
         setStep("form");
         updateImportName("");
-        setImportValue("");
+        setWords(createEmptyWords(wordCount));
         setImportNameError("");
-        setImportValueError("");
+        setMnemonicError("");
         setPendingImport(null);
         onCancel?.();
     };
 
     const handleImportAccount = () => {
         const trimmedName = importName.trim();
-        const trimmedValue = importValue.trim();
 
         if (!trimmedName) {
             setImportNameError("Account name is required");
@@ -128,23 +126,22 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             return;
         }
 
-        if (!trimmedValue) {
-            setImportValueError("Import value is required");
+        if (words.some((word) => !word.trim())) {
+            setMnemonicError("Please fill in all recovery phrase words");
             return;
         }
 
-        if (checkAccountExistsByValue(trimmedValue)) {
-            setImportValueError("Account with this address already exists");
+        const mnemonic = words.map((word) => word.trim()).join(" ");
+
+        if (!SdkWalletService.isMnemonicValid(mnemonic)) {
+            setMnemonicError("Invalid recovery phrase");
             return;
         }
 
         setImportNameError("");
-        setImportValueError("");
+        setMnemonicError("");
 
-        setPendingImport({
-            name: trimmedName,
-            value: trimmedValue,
-        });
+        setPendingImport({ name: trimmedName, mnemonic });
         setStep("password");
     };
 
@@ -153,33 +150,31 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
 
         setLoading(true);
 
-        const resultAction = await dispatch(
-            importAccountWithPassword({
-                ...pendingImport,
-                type: "private",
-                password,
-                networkId: selectedNetworkId,
-            }),
-        );
+        try {
+            await dispatch(
+                importHdWallet({
+                    name: pendingImport.name,
+                    mnemonic: pendingImport.mnemonic,
+                    password,
+                }),
+            ).unwrap();
 
-        setLoading(false);
-
-        if (importAccountWithPassword.fulfilled.match(resultAction)) {
             onSuccess?.();
             handleCancel();
-        } else if (importAccountWithPassword.rejected.match(resultAction)) {
-            const errorMessage =
-                resultAction.error?.message || "Failed to import account";
-            setImportValueError(errorMessage);
+        } catch (error) {
+            setMnemonicError(
+                (error as Error)?.message || "Failed to import wallet",
+            );
             setStep("form");
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Step: Password Setup
     if (step === "password") {
         return (
             <PasswordSetup
-                title="Set Password for Imported Account"
+                title="Set Password for Imported Wallet"
                 onPasswordSet={handlePasswordSet}
                 onCancel={() => {
                     setStep("form");
@@ -189,7 +184,6 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
         );
     }
 
-    // Step: Form
     return (
         <>
             <FormGroup>
@@ -212,18 +206,17 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
             </FormGroup>
 
             <FormGroup>
-                <Input
-                    id="import-account-value-input"
-                    label="Private Key"
-                    value={importValue}
-                    onChange={(e) => {
-                        setImportValue(e.target.value);
-                        if (importValueError) {
-                            setImportValueError("");
-                        }
-                    }}
-                    placeholder="Enter private key (64 hex characters)"
-                    error={importValueError}
+                <WordCountToggle
+                    value={wordCount}
+                    onChange={setWordCount}
+                    disabled={loading}
+                    label="Recovery phrase"
+                />
+                <MnemonicInput
+                    words={words}
+                    wordCount={wordCount}
+                    onWordsChange={handleWordsChange}
+                    error={mnemonicError}
                     disabled={loading}
                 />
             </FormGroup>
@@ -235,9 +228,9 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                     onClick={handleImportAccount}
                     disabled={
                         !importName.trim() ||
-                        !importValue.trim() ||
                         loading ||
-                        !isNameUpdateValid
+                        !isNameUpdateValid ||
+                        words.some((word) => !word.trim())
                     }
                     fullWidth={isLaptop}
                     loading={loading}
@@ -249,7 +242,7 @@ export const ImportAccountForm: React.FC<ImportAccountFormProps> = ({
                         }),
                     }}
                 >
-                    <h3>Import Account</h3>
+                    <h3>Import Wallet</h3>
                     <svg
                         width="24"
                         height="24"

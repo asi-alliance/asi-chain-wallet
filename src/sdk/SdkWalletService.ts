@@ -9,6 +9,8 @@ import {
     IInsensitiveCacheRecord,
     ITransferRequest,
     IWalletMetadata,
+    Mnemonic,
+    MnemonicStrength,
     NetworkName,
     Transaction,
     Wallet,
@@ -18,34 +20,6 @@ import { IAccountMeta, IWalletMeta } from "types/wallet";
 import { IPagination } from "types/transactions";
 
 export class SdkWalletService {
-    private static readonly PRIVATE_KEY_BYTES = 32;
-
-    private static bytesToHex(bytes: Uint8Array): string {
-        return Array.from(bytes, (byte) =>
-            byte.toString(16).padStart(2, "0"),
-        ).join("");
-    }
-
-    private static hexToBytes(hex: string): Uint8Array {
-        const clean = hex.trim().replace(/^0x/i, "");
-
-        if (
-            clean.length !== SdkWalletService.PRIVATE_KEY_BYTES * 2 ||
-            /[^0-9a-fA-F]/.test(clean)
-        ) {
-            throw new Error(
-                "Invalid private key: expected 64 hexadecimal characters",
-            );
-        }
-
-        const bytes = new Uint8Array(SdkWalletService.PRIVATE_KEY_BYTES);
-        for (let i = 0; i < SdkWalletService.PRIVATE_KEY_BYTES; i++) {
-            bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-        }
-
-        return bytes;
-    }
-
     private static mapAccount(account: Account): IAccountMeta {
         return {
             id: account.getId(),
@@ -66,30 +40,59 @@ export class SdkWalletService {
         };
     }
 
-    static generatePrivateKeyHex(): string {
-        return SdkWalletService.bytesToHex(
-            requireSdkClient().generatePrivateKey(),
-        );
+    static generateMnemonic(
+        strength: MnemonicStrength = MnemonicStrength.TWELVE_WORDS,
+    ): string {
+        return requireSdkClient().generateMnemonic(strength);
     }
 
-    static async createPrivateKeyWallet({
+    static isMnemonicValid(mnemonic: string): boolean {
+        return Mnemonic.isMnemonicValid(mnemonic);
+    }
+
+    static async createHdWallet({
         name,
-        privateKeyHex,
+        mnemonic,
         password,
     }: {
         name: string;
-        privateKeyHex: string;
+        mnemonic: string;
         password: string;
     }): Promise<IWalletMeta> {
-        const wallet = await requireSdkClient().createPrivateKeyWallet(
-            {
-                privateKey: SdkWalletService.hexToBytes(privateKeyHex),
-                accountName: name,
-            },
+        const wallet = await requireSdkClient().createHDWallet(
+            { mnemonic, accountName: name },
             password,
         );
 
         return SdkWalletService.mapWallet(wallet);
+    }
+
+    static async deriveAccount({
+        walletId,
+        name,
+        password,
+    }: {
+        walletId: string;
+        name: string;
+        password: string;
+    }): Promise<{ wallet: IWalletMeta; accountId: string }> {
+        const client: Client = requireSdkClient();
+
+        const { accountId } = await client.deriveAccount(
+            walletId,
+            name,
+            password,
+        );
+
+        const wallet: Wallet | null = client.getWalletManager().get(walletId);
+
+        if (!wallet) {
+            throw new Error(
+                "SdkWalletService.deriveAccount: wallet not found after derive",
+            );
+        }
+
+        return { wallet: SdkWalletService.mapWallet(wallet), accountId };
     }
 
     static async openSession(

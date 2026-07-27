@@ -27,8 +27,9 @@ import {
 } from "./helpers";
 import { Transaction } from "types/transactions";
 import {
-    createAccountWithPassword,
-    importAccountWithPassword,
+    createHdWallet,
+    deriveHdAccount,
+    importHdWallet,
     loginWithPassword,
     logout,
     unlockAccount,
@@ -407,11 +408,15 @@ const walletsStoreSlice = createSlice({
                     ...state.transactions,
                 ];
             })
-            .addCase(createAccountWithPassword.fulfilled, (state, action) => {
-                applyActiveWalletSession(state, action.payload.wallet);
-            })
-            .addCase(importAccountWithPassword.fulfilled, (state, action) => {
+            .addCase(createHdWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
+            })
+            .addCase(importHdWallet.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload);
+            })
+            .addCase(deriveHdAccount.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload.wallet);
+                state.selectedAccountId = action.payload.accountId;
             })
             .addCase(unlockAccount.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);

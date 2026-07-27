@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { Card, CardHeader, CardTitle, CardContent } from "components";
-import { CreateAccountForm } from "components/CreateAccountForm";
+import { ImportHdWalletForm } from "components/ImportHdWalletForm";
 
 const Overlay = styled.div`
     position: fixed;
@@ -60,15 +60,17 @@ const StyledCardContent = styled(CardContent)`
     border: none;
 `;
 
-interface CreateAccountModalProps {
+interface ImportHdWalletModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onCancel: () => void;
     onSuccess?: () => void;
 }
 
-export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
+export const ImportHdWalletModal: React.FC<ImportHdWalletModalProps> = ({
     isOpen,
     onClose,
+    onCancel,
     onSuccess,
 }) => {
     if (!isOpen) return null;
@@ -79,17 +81,17 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     };
 
     return (
-        <Overlay onClick={onClose}>
+        <Overlay onClick={onCancel}>
             <ModalContainer onClick={(e) => e.stopPropagation()}>
                 <ModalContent>
                     <StyledCard>
                         <StyledCardHeader>
-                            <CardTitle>Create Account</CardTitle>
+                            <CardTitle>Import Wallet</CardTitle>
                         </StyledCardHeader>
                         <StyledCardContent>
-                            <CreateAccountForm
+                            <ImportHdWalletForm
                                 onSuccess={handleSuccess}
-                                onCancel={onClose}
+                                onCancel={onCancel}
                             />
                         </StyledCardContent>
                     </StyledCard>

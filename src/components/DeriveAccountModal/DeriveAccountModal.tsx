@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { Card, CardHeader, CardTitle, CardContent } from "components";
-import { CreatePrivateKeyWalletForm } from "components/CreatePrivateKeyWalletForm";
+import { DeriveAccountForm } from "components/DeriveAccountForm";
 
 const Overlay = styled.div`
     position: fixed;
@@ -60,15 +60,17 @@ const StyledCardContent = styled(CardContent)`
     border: none;
 `;
 
-interface CreatePrivateKeyWalletModalProps {
+interface DeriveAccountModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
 }
 
-export const CreatePrivateKeyWalletModal: React.FC<
-    CreatePrivateKeyWalletModalProps
-> = ({ isOpen, onClose, onSuccess }) => {
+export const DeriveAccountModal: React.FC<DeriveAccountModalProps> = ({
+    isOpen,
+    onClose,
+    onSuccess,
+}) => {
     if (!isOpen) return null;
 
     const handleSuccess = () => {
@@ -82,10 +84,10 @@ export const CreatePrivateKeyWalletModal: React.FC<
                 <ModalContent>
                     <StyledCard>
                         <StyledCardHeader>
-                            <CardTitle>Create Wallet</CardTitle>
+                            <CardTitle>Create Account</CardTitle>
                         </StyledCardHeader>
                         <StyledCardContent>
-                            <CreatePrivateKeyWalletForm
+                            <DeriveAccountForm
                                 onSuccess={handleSuccess}
                                 onCancel={onClose}
                             />

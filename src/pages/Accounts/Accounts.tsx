@@ -9,11 +9,10 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
 import { IAccountMeta } from "types/wallet";
-import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
 import { useSearchParams } from "react-router-dom";
-import { CreatePrivateKeyWalletModal } from "components/CreatePrivateKeyWalletModal";
-import { ImportAccountModal } from "components/ImportAccountModal";
+import { DeriveAccountModal } from "components/DeriveAccountModal";
 import { useScreen } from "hooks/";
+import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
 
 const AccountsContainer = styled.div``;
 
@@ -83,7 +82,6 @@ export const Accounts: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
-    const [showImportModal, setShowImportModal] = useState(false);
 
     const accountIds = useMemo(
         () => accounts.map((account: IAccountMeta) => account.id).join(","),
@@ -124,7 +122,7 @@ export const Accounts: React.FC = () => {
     return (
         <Fragment>
             <AccountsContainer>
-                {accounts.length === 0 && <FirstAccountCreatingWidget />}
+                {accounts.length === 0 && <FirstHdWalletCreatingWidget />}
                 {accounts.length > 0 && (
                     <Card style={{ marginBottom: "32px" }}>
                         <CardHeader>
@@ -174,59 +172,16 @@ export const Accounts: React.FC = () => {
                                         />
                                     </svg>
                                 </InlineButton>
-                                <InlineButton
-                                    id="import-account-button"
-                                    variant="secondary"
-                                    onClick={() => setShowImportModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Import Account</h3>
-                                    <svg
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <g clipPath="url(#clip0_3_1930)">
-                                            <path
-                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                                fill="currentcolor"
-                                            />
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_3_1930">
-                                                <rect
-                                                    width="24"
-                                                    height="24"
-                                                    fill="currentcolor"
-                                                />
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </InlineButton>
                             </AccountsActionsFooter>
                         </CardContent>
                     </Card>
                 )}
             </AccountsContainer>
-            <CreatePrivateKeyWalletModal
+            <DeriveAccountModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
                     console.info("Account created successfully");
-                }}
-            />
-
-            <ImportAccountModal
-                isOpen={showImportModal}
-                onClose={() => setShowImportModal(false)}
-                onSuccess={() => {
-                    console.info("Account imported successfully");
                 }}
             />
         </Fragment>

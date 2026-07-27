@@ -10,7 +10,6 @@ import styled from "styled-components";
 import { selectWalletByFilter, selectWallets } from "store/WalletsStore";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { buildUrlWithParams } from "utils/navigationUtils";
 import { loginWithPassword } from "store/Auth/thunks";
 import { RootState, AppDispatch } from "store";
 import {
@@ -34,7 +33,9 @@ import {
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
 import { IWalletMeta, WalletActions } from "types/wallet";
-import { CreatePrivateKeyWalletModal } from "components/CreatePrivateKeyWalletModal";
+import { CreateHdWalletModal } from "components/CreateHdWalletModal";
+import { ImportHdWalletModal } from "components/ImportHdWalletModal";
+import { useScreen } from "hooks/";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -127,33 +128,28 @@ const ActionButtons = styled.div`
     }
 `;
 
-const LinkButton = styled(Button)`
-    margin-top: 16px;
-    text-align: center;
-    border-color: transparent;
+const WalletActionsFooter = styled.div`
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        padding: 0 3rem;
+    }
 `;
 
-// const AccountSelector = styled.select`
-//     padding: 12px 16px;
-//     border: 2px solid ${({ theme }) => theme.border};
-//     border-radius: 8px;
-//     background: ${({ theme }) => theme.surface};
-//     color: ${({ theme }) => theme.text.primary};
-//     font-size: 16px;
-//     margin-bottom: 16px;
-//     width: 100%;
-//     cursor: pointer;
+const InlineButton = styled(Button)`
+    height: 44px;
+    min-width: 242px;
 
-//     &:focus {
-//         outline: none;
-//         border-color: ${({ theme }) => theme.primary};
-//     }
-
-//     &:disabled {
-//         opacity: 0.5;
-//         cursor: not-allowed;
-//     }
-// `;
+    @media (max-width: 768px) {
+        min-width: auto;
+        width: 100%;
+    }
+`;
 
 const InfoText = styled.p`
     font-size: 12px;
@@ -173,6 +169,8 @@ function formatCountdown(ms: number): string {
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
+
+    const { isLaptop } = useScreen();
 
     const [searchParams] = useSearchParams();
 
@@ -197,6 +195,7 @@ export const Login: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(
         action === WalletActions.CREATE_WALLET,
     );
+    const [showImportModal, setShowImportModal] = useState(false);
 
     // Rate limit UI state
     const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
@@ -356,19 +355,6 @@ export const Login: React.FC = () => {
         }
     };
 
-    const handleCreateAccount = () => {
-        navigate(
-            buildUrlWithParams("/login", {
-                queryParams: [
-                    {
-                        key: "action",
-                        value: WalletActions.CREATE_WALLET,
-                    },
-                ],
-            }),
-        );
-    };
-
     // if (!hasWallets) {
     //     return <Navigate to={"/accounts"} />;
     // }
@@ -507,27 +493,89 @@ export const Login: React.FC = () => {
                             >
                                 {isLockedOut ? "Locked" : "Unlock"}
                             </Button>
-
-                            <LinkButton
-                                variant="ghost"
-                                onClick={handleCreateAccount}
-                            >
-                                Create New Wallet
-                            </LinkButton>
                         </ActionButtons>
+
+                        <WalletActionsFooter>
+                            <InlineButton
+                                id="create-wallet-button"
+                                onClick={() => setShowCreateModal(true)}
+                                fullWidth={isLaptop}
+                                variant="secondary"
+                                style={{
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                <h3>Create Wallet</h3>
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 14 14"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                        fill="currentcolor"
+                                    />
+                                </svg>
+                            </InlineButton>
+                            <InlineButton
+                                id="import-wallet-button"
+                                variant="secondary"
+                                onClick={() => setShowImportModal(true)}
+                                fullWidth={isLaptop}
+                                style={{
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                <h3>Import Wallet</h3>
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <g clipPath="url(#clip0_3_1930)">
+                                        <path
+                                            d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                            fill="currentcolor"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_3_1930">
+                                            <rect
+                                                width="24"
+                                                height="24"
+                                                fill="currentcolor"
+                                            />
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </InlineButton>
+                        </WalletActionsFooter>
                     </CardContent>
                 </Card>
             </LoginContainer>
-            <CreatePrivateKeyWalletModal
+            <CreateHdWalletModal
                 isOpen={showCreateModal}
-                onClose={() => {
+                onCancel={() => {
                     setShowCreateModal(false);
                     navigate("/login");
                 }}
+                onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
-                    console.info("Wallet created successfully");
-
-                    navigate("/dashboard");
+                    navigate("/");
+                }}
+            />
+            <ImportHdWalletModal
+                isOpen={showImportModal}
+                onCancel={() => setShowImportModal(false)}
+                onClose={() => setShowImportModal(false)}
+                onSuccess={() => {
+                    navigate("/");
                 }}
             />
         </Fragment>
