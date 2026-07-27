@@ -24,8 +24,7 @@ import { Accounts } from "pages/Accounts";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
-//TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
-// import { History } from "pages/History";
+import { History } from "pages/History";
 import { useIdleTimer } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 //TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
@@ -89,7 +88,6 @@ const AppContent: React.FC = () => {
             <Routes>
                 {/* Public route for login */}
                 <Route path="/login" element={<Login />} />
-
                 {/* Accounts page can be accessed without auth for initial setup */}
                 <Route
                     path="/accounts"
@@ -101,7 +99,6 @@ const AppContent: React.FC = () => {
                         </ExistingAccountGuard>
                     }
                 />
-
                 {/* Protected routes */}
                 <Route
                     path="/"
@@ -113,7 +110,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/send"
                     element={
@@ -124,7 +120,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 {/* TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
                 <Route
                     path="/bridge"
@@ -137,7 +132,6 @@ const AppContent: React.FC = () => {
                     }
                 />
                 */}
-
                 <Route
                     path="/receive"
                     element={
@@ -148,8 +142,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
-                {/* TODO: Restore History/Transactions once the single active wallet session lands and slice accounts carry publicKey from SDK Account entities
                 <Route
                     path="/history"
                     element={
@@ -160,8 +152,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                */}
-
                 {/* TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
                 <Route
                     path="/deploy"
@@ -185,7 +175,6 @@ const AppContent: React.FC = () => {
                     }
                 />
                 */}
-
                 <Route
                     path="/settings"
                     element={
@@ -196,7 +185,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/keys"
                     element={
@@ -207,7 +195,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="*"
                     element={

@@ -3,8 +3,10 @@ import {
     Address,
     ApiServiceRegistry,
     Client,
+    encodeBase16,
     IDeployWatchCallbacks,
     IDeployWatchHandle,
+    IInsensitiveCacheRecord,
     ITransferRequest,
     IWalletMetadata,
     NetworkName,
@@ -50,6 +52,7 @@ export class SdkWalletService {
             name: account.getName(),
             index: account.getIndex(),
             address: account.getAddress(),
+            publicKey: encodeBase16(account.getPublicKey()),
         };
     }
 
@@ -120,10 +123,13 @@ export class SdkWalletService {
             client.getInsensitiveAccountsData(),
         ]);
 
-        const addressByAccountId = new Map<string, string>();
+        const insensitiveDataByAccountId = new Map<
+            string,
+            IInsensitiveCacheRecord
+        >();
 
-        insensitiveRecords.forEach((record) => {
-            addressByAccountId.set(record.id, record.address);
+        insensitiveRecords.forEach((record: IInsensitiveCacheRecord) => {
+            insensitiveDataByAccountId.set(record.id, record);
         });
 
         const unlockedBySignerId = new Map<string, Wallet>();
@@ -144,14 +150,15 @@ export class SdkWalletService {
                 const accounts: IAccountMeta[] = [];
 
                 for (const publicAccountMetadata of publicWalletMeta.accounts) {
-                    const currentAddress: Address | undefined =
-                        addressByAccountId.get(publicAccountMetadata.id) as
-                            | Address
-                            | undefined;
+                    const currentInsensitiveData:
+                        | IInsensitiveCacheRecord
+                        | undefined = insensitiveDataByAccountId.get(
+                        publicAccountMetadata.id,
+                    ) as IInsensitiveCacheRecord | undefined;
 
-                    if (!currentAddress) {
+                    if (!currentInsensitiveData) {
                         throw new Error(
-                            "SdkWalletService.loadWallets: Insensitive Cache Storage not has address for some account",
+                            "SdkWalletService.loadWallets: Insensitive Cache Storage not has record for some account",
                         );
                     }
 
@@ -159,7 +166,8 @@ export class SdkWalletService {
                         id: publicAccountMetadata.id,
                         name: publicAccountMetadata.name,
                         index: publicAccountMetadata.index,
-                        address: currentAddress,
+                        address: currentInsensitiveData.address as Address,
+                        publicKey: currentInsensitiveData.publicKey,
                     });
                 }
 

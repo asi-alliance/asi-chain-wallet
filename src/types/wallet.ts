@@ -48,6 +48,7 @@ export interface IAccountMeta {
     name: string;
     index: number | null;
     address: Address;
+    publicKey: string;
 }
 
 export interface IWalletMeta {
