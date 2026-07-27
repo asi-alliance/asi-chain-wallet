@@ -8,7 +8,7 @@ import {
     selectAccounts,
     selectAccountById,
     selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";

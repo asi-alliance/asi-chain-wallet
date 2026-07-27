@@ -8,13 +8,13 @@ import React, {
 import styled from "styled-components";
 import {
     selectAccount,
-    selectAccountById,
+    selectWalletByAccountId,
     selectWallets,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { useSelector, useDispatch } from "react-redux";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { loginWithPassword } from "store/authSlice";
+import { loginWithPassword } from "store/Auth/thunks";
 import { RootState, AppDispatch } from "store";
 import {
     Card,
@@ -34,6 +34,9 @@ import {
     analyzeRecentActivity,
     SuspiciousActivityReport,
 } from "services/loginAuditLog";
+import { Select } from "components/Select";
+import { ISelectOption } from "components/Select/Select";
+import { IWalletMeta } from "types/wallet";
 
 const LoginContainer = styled.div`
     max-width: 705px;
@@ -132,32 +135,31 @@ const LinkButton = styled(Button)`
     border-color: transparent;
 `;
 
-const AccountSelector = styled.select`
-    padding: 12px 16px;
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 16px;
-    margin-bottom: 16px;
-    width: 100%;
-    cursor: pointer;
+// const AccountSelector = styled.select`
+//     padding: 12px 16px;
+//     border: 2px solid ${({ theme }) => theme.border};
+//     border-radius: 8px;
+//     background: ${({ theme }) => theme.surface};
+//     color: ${({ theme }) => theme.text.primary};
+//     font-size: 16px;
+//     margin-bottom: 16px;
+//     width: 100%;
+//     cursor: pointer;
 
-    &:focus {
-        outline: none;
-        border-color: ${({ theme }) => theme.primary};
-    }
+//     &:focus {
+//         outline: none;
+//         border-color: ${({ theme }) => theme.primary};
+//     }
 
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
+//     &:disabled {
+//         opacity: 0.5;
+//         cursor: not-allowed;
+//     }
+// `;
 
 const InfoText = styled.p`
     font-size: 12px;
     color: ${({ theme }) => theme.text.secondary};
-    margin-top: -8px;
     margin-bottom: 16px;
 `;
 
@@ -183,14 +185,12 @@ export const Login: React.FC = () => {
     const isLoading = useSelector((state: RootState) => state.auth.isLoading);
     const error = useSelector((state: RootState) => state.auth.error);
     const wallets = useSelector(selectWallets);
-    const loginAccount = useSelector((state: RootState) =>
-        loginAccountId ? selectAccountById(state, loginAccountId) : null,
+    const loginWallet = useSelector((state: RootState) =>
+        loginAccountId ? selectWalletByAccountId(state, loginAccountId) : null,
     );
 
-    // const hasWallets = wallets.length > 0;
-
     const [password, setPassword] = useState("");
-    const [selectedAccountName, setSelectedAccountName] = useState<string>("");
+    const [selectedSignerId, setSelectedSignerId] = useState<string>("");
     const [showError, setShowError] = useState(false);
 
     // Rate limit UI state
@@ -217,20 +217,19 @@ export const Login: React.FC = () => {
         rateLimitInfo.failedAttempts >= ATTEMPTS_WARNING_THRESHOLD &&
         remainingAttempts > 0;
 
-    const availableAccountNames = useMemo(() => {
-        return Array.from(
-            new Set(
-                wallets.flatMap((wallet) =>
-                    wallet.accounts.map((account) => account.name),
-                ),
-            ),
-        );
-    }, [wallets]);
+    const walletOptions = useMemo(
+        () =>
+            wallets.map((wallet: IWalletMeta, index: number) => ({
+                signerId: wallet.signerId,
+                label: `Wallet ${index + 1}`,
+            })),
+        [wallets],
+    );
 
     // ── Rate limit polling ──────────────────────────────────────────────────
 
     const refreshRateLimitInfo = useCallback(async () => {
-        const contextKey = buildContextKey(selectedAccountName || undefined);
+        const contextKey = buildContextKey(selectedSignerId || undefined);
         const info = await getRateLimitInfo(contextKey);
         setRateLimitInfo(info);
 
@@ -239,7 +238,7 @@ export const Login: React.FC = () => {
         } else {
             setCountdownMs(0);
         }
-    }, [selectedAccountName]);
+    }, [selectedSignerId]);
 
     // Analyze audit log for security warnings (3+ consecutive failures, account switching)
     const refreshActivity = useCallback(async () => {
@@ -292,19 +291,19 @@ export const Login: React.FC = () => {
     // ── Existing effects ────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (selectedAccountName) {
+        if (selectedSignerId) {
             return;
         }
 
-        if (loginAccount) {
-            setSelectedAccountName(loginAccount.name);
+        if (loginWallet) {
+            setSelectedSignerId(loginWallet.signerId);
             return;
         }
 
-        if (availableAccountNames.length > 0) {
-            setSelectedAccountName(availableAccountNames[0]);
+        if (walletOptions.length > 0) {
+            setSelectedSignerId(walletOptions[0].signerId);
         }
-    }, [availableAccountNames, selectedAccountName, loginAccount]);
+    }, [walletOptions, selectedSignerId, loginWallet]);
 
     useEffect(() => {
         if (error) {
@@ -317,25 +316,22 @@ export const Login: React.FC = () => {
     // ── Handlers ────────────────────────────────────────────────────────────
 
     const handleLogin = async () => {
-        if (!password.trim() || isLockedOut) return;
+        if (!password.trim() || !selectedSignerId || isLockedOut) return;
 
         try {
             const resultAction = await dispatch(
                 loginWithPassword({
+                    signerId: selectedSignerId,
                     password,
-                    accountName: selectedAccountName || undefined,
                 }),
             );
 
             if (loginWithPassword.fulfilled.match(resultAction)) {
-                const unlockedAccounts = resultAction.payload.flatMap(
-                    (wallet) => wallet.accounts,
-                );
-                const accountToSelect = selectedAccountName
-                    ? unlockedAccounts.find(
-                          (account) => account.name === selectedAccountName,
-                      )
-                    : unlockedAccounts[0];
+                const unlockedWallet = resultAction.payload;
+                const accountToSelect =
+                    unlockedWallet.accounts.find(
+                        (account) => account.id === loginAccountId,
+                    ) ?? unlockedWallet.accounts[0];
 
                 if (accountToSelect) {
                     dispatch(selectAccount(accountToSelect.id));
@@ -376,6 +372,14 @@ export const Login: React.FC = () => {
     // if (!hasWallets) {
     //     return <Navigate to={"/accounts"} />;
     // }
+
+    const selectWalletOptions: ISelectOption[] = walletOptions.map(
+        (option) => ({
+            id: option.signerId,
+            value: option.signerId,
+            label: option.label,
+        }),
+    );
 
     return (
         <LoginContainer>
@@ -432,7 +436,7 @@ export const Login: React.FC = () => {
                         <ErrorMessage>{error}</ErrorMessage>
                     )}
 
-                    {availableAccountNames.length > 1 && (
+                    {walletOptions.length > 1 && (
                         <FormGroup>
                             <label
                                 style={{
@@ -445,19 +449,14 @@ export const Login: React.FC = () => {
                             >
                                 Select Wallet
                             </label>
-                            <AccountSelector
+                            <Select
                                 id="login-account-selector"
-                                value={selectedAccountName}
-                                onChange={(e) =>
-                                    setSelectedAccountName(e.target.value)
+                                value={selectedSignerId}
+                                onChange={(value: string) =>
+                                    setSelectedSignerId(value)
                                 }
-                            >
-                                {availableAccountNames.map((name) => (
-                                    <option key={name} value={name}>
-                                        {name}
-                                    </option>
-                                ))}
-                            </AccountSelector>
+                                options={selectWalletOptions}
+                            />
                             <InfoText>
                                 Different wallets can have the same password.
                                 Select the wallet you want to unlock.
@@ -486,8 +485,7 @@ export const Login: React.FC = () => {
                                     : "Enter your password"
                             }
                             autoFocus={
-                                availableAccountNames.length <= 1 &&
-                                !isLockedOut
+                                walletOptions.length <= 1 && !isLockedOut
                             }
                             autoComplete="current-password"
                             disabled={isLockedOut}
@@ -499,7 +497,11 @@ export const Login: React.FC = () => {
                             id="login-unlock-button"
                             onClick={handleLogin}
                             loading={isLoading}
-                            disabled={!password.trim() || isLockedOut}
+                            disabled={
+                                !password.trim() ||
+                                !selectedSignerId ||
+                                isLockedOut
+                            }
                         >
                             {isLockedOut ? "Locked" : "Unlock"}
                         </Button>

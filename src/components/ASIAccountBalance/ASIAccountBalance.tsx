@@ -2,7 +2,7 @@ import { CSSProperties, ReactElement } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { selectBalanceByAccountId } from "store/WalletsStore/walletsStoreSlice";
+import { selectBalanceByAccountId } from "store/WalletsStore";
 import { fetchBalance } from "store/WalletsStore/thunks";
 import { AccountBalance } from "components/AccountBalance";
 import { IAccountMeta } from "types/wallet";

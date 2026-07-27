@@ -241,7 +241,7 @@ export const TransactionConfirmationModal: React.FC<
                                 }
                             }}
                             placeholder="Enter password"
-                            style={{ marginBottom: "16px" }}
+                            wrapperStyle={{ marginBottom: "16px" }}
                             autoComplete="current-password"
                             autoFocus={needsPassword}
                         />

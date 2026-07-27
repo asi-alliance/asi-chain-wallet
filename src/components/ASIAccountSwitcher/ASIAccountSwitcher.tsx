@@ -6,7 +6,7 @@ import {
     selectAccount,
     selectAccounts,
     selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { fetchBalance } from "store/WalletsStore/thunks";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
 

@@ -6,7 +6,7 @@ import {
     selectAccount,
     selectAccounts,
     selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import styled from "styled-components";
 import { IAccountMeta } from "types/wallet";
 

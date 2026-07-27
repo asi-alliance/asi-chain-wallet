@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
+import { selectAccounts } from "store/WalletsStore";
 import { PrivateKeyDisplay, PasswordModal } from "components";
 //TODO: Restore custom networks once the SDK supports custom network configuration
 // import { CustomNetworkConfig } from "./CustomNetworkConfig";

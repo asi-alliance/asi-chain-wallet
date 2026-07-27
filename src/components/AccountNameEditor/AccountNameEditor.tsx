@@ -5,7 +5,7 @@ import {
     selectAccountById,
     selectSelectedAccountId,
     selectWalletByAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { updateAccountName } from "store/WalletsStore/thunks";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";

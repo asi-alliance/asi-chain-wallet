@@ -5,8 +5,8 @@ import { useSelector } from "react-redux";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
-import { logout } from "store/authSlice";
-import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
+import { logout } from "store/Auth/thunks";
+import { selectHasWallets } from "store/WalletsStore";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { SunIcon, MoonIcon, MenuIcon, LogoutIcon } from "components/Icons";
 

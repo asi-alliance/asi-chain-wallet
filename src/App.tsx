@@ -9,7 +9,7 @@ import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
 import { store, RootState, AppDispatch } from "store";
-import { checkAuthentication } from "store/authSlice";
+import { checkAuthentication } from "store/Auth/";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
 import { Layout } from "components";
@@ -35,7 +35,7 @@ import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
-import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
+import { selectHasWallets } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
 
 import "@rainbow-me/rainbowkit/styles.css";

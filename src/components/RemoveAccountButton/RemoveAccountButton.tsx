@@ -1,8 +1,8 @@
 import styled from "styled-components";
-import { selectWallets } from "store/WalletsStore/walletsStoreSlice";
+import { selectWallets } from "store/WalletsStore";
 import { removeWallet } from "store/WalletsStore/thunks";
 import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
-import { logout } from "store/authSlice";
+import { logout } from "store/Auth/thunks";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import { DeleteIcon } from "components/Icons";

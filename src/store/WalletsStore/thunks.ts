@@ -1,7 +1,4 @@
-import {
-    IAccountDefaultUpdateFieldsPayload,
-    updateTransactionStatus,
-} from "./walletsStoreSlice";
+import { IAccountDefaultUpdateFieldsPayload, updateTransactionStatus } from ".";
 import { Account, IAccountMeta, Network } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { generateRandomGasFee } from "constants/gas";

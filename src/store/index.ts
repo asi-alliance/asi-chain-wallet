@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
-import walletReducer from "./WalletsStore/walletsStoreSlice";
+import walletReducer from "./WalletsStore";
 import themeReducer from "./themeSlice";
-import authReducer from "./authSlice";
+import authReducer from "./Auth/";
 import hardwareWalletReducer from "./hardwareWalletSlice";
 import multisigReducer from "./multisigSlice";
 

@@ -10,7 +10,7 @@ import {
     selectAccount,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";

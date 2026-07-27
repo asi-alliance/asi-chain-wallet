@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
+import { selectAccounts } from "store/WalletsStore";
 import { fetchBalance } from "store/WalletsStore/thunks";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";

@@ -1,12 +1,10 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
-    Account,
     Network,
     WalletStoreState,
     IWalletMeta,
     IAccountMeta,
 } from "types/wallet";
-import { SecureStorage } from "services/secureStorage";
 import { RootState } from "store";
 import { SdkWalletService } from "sdk";
 import { NetworkName } from "@asichain/asi-wallet-sdk";
@@ -18,8 +16,15 @@ import {
     sendTransaction,
     updateAccountName,
 } from "./thunks";
-import { addWalletToWalletsStore, getAccountFromWalletsMeta } from "./helpers";
-import { parseNetworksFromEnv } from "./networksEnv";
+import {
+    applyActiveWalletSession,
+    getAccountFromWalletsMeta,
+    getInitialNetworks,
+    getWalletAndAccountFromWalletsMeta,
+    NETWORKS_STORAGE_KEY,
+    persistSelectedAccountId,
+    SELECTED_NETWORK_KEY,
+} from "./helpers";
 import { Transaction } from "types/transactions";
 import {
     createAccountWithPassword,
@@ -27,141 +32,7 @@ import {
     loginWithPassword,
     logout,
     unlockAccount,
-} from "store/authSlice";
-
-const defaultNetworks: Network[] = parseNetworksFromEnv();
-
-const isPredefinedNetwork = (networkId: string): boolean => {
-    return defaultNetworks.some((n) => n.id === networkId);
-};
-
-const NETWORKS_STORAGE_KEY = "asi_wallet_networks";
-const getAccountNetworksKey = (accountId?: string | null) =>
-    accountId ? `${NETWORKS_STORAGE_KEY}_${accountId}` : NETWORKS_STORAGE_KEY;
-const SELECTED_NETWORK_KEY = "asi_wallet_selected_network";
-
-type AccountNetworkUpdate = { id: string; networkId: string };
-
-// Accepts both Account (unlocked, from session) and SecureAccount (from storage)
-type SanitizableAccount = Omit<Account, "privateKey"> & {
-    privateKey?: string;
-    encryptedPrivateKey?: string;
-};
-
-const sanitizeAccounts = (
-    accounts: SanitizableAccount[],
-    networkId?: string,
-) => {
-    const updates: AccountNetworkUpdate[] = [];
-
-    const sanitized = accounts.map((acc) => {
-        const sanitizedAccount: Account = {
-            id: acc.id,
-            name: acc.name,
-            address: acc.address,
-            revAddress: acc.revAddress,
-            ethAddress: acc.ethAddress,
-            publicKey: acc.publicKey,
-            balance: acc.balance,
-            isMetamask: acc.isMetamask,
-            networkId: acc.networkId,
-            createdAt: acc.createdAt,
-            privateKey: undefined,
-        };
-
-        if (networkId && !sanitizedAccount.networkId) {
-            sanitizedAccount.networkId = networkId;
-            updates.push({ id: sanitizedAccount.id, networkId });
-        }
-
-        return sanitizedAccount;
-    });
-
-    return { sanitized, updates };
-};
-
-const persistAccountNetworkUpdates = (updates: AccountNetworkUpdate[]) => {
-    if (!updates.length) {
-        return;
-    }
-    SecureStorage.updateAccountsNetworkBulk(updates);
-};
-
-const filterAccountsForNetwork = (
-    accounts: Account[],
-    networkId?: string,
-): Account[] => {
-    if (!networkId) {
-        return accounts;
-    }
-
-    return accounts.filter((account) => account.networkId === networkId);
-};
-
-const persistSelectedAccountId = (accountId: string | null) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
-    }
-
-    if (accountId) {
-        localStorage.setItem("selectedAccountId", accountId);
-    } else {
-        localStorage.removeItem("selectedAccountId");
-    }
-};
-
-const loadNetworks = (accountId?: string | null): Network[] => {
-    const result: Network[] = [...defaultNetworks];
-    const envNetworkIds = new Set(defaultNetworks.map((n) => n.id));
-
-    if (typeof window !== "undefined" && window.localStorage) {
-        try {
-            const stored =
-                localStorage.getItem(getAccountNetworksKey(accountId)) ||
-                localStorage.getItem(NETWORKS_STORAGE_KEY);
-            if (stored) {
-                const storedNetworks = JSON.parse(stored) as Network[];
-
-                storedNetworks.forEach((n) => {
-                    if (
-                        n.id?.startsWith("custom") &&
-                        !envNetworkIds.has(n.id)
-                    ) {
-                        result.push(n);
-                    }
-                });
-            }
-        } catch (error) {
-            console.error("Failed to load networks from localStorage:", error);
-        }
-    }
-
-    return result;
-};
-
-const saveNetworks = (networks: Network[], accountId?: string | null) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
-    }
-
-    try {
-        const customNetworks = networks.filter((n) =>
-            n.id?.startsWith("custom"),
-        );
-        const key = getAccountNetworksKey(accountId);
-        if (customNetworks.length > 0) {
-            localStorage.setItem(key, JSON.stringify(customNetworks));
-        } else {
-            localStorage.removeItem(key);
-        }
-    } catch (error) {
-        console.error("Failed to save networks to localStorage:", error);
-    }
-};
-
-const getInitialNetworks = () => {
-    return defaultNetworks;
-};
+} from "store/Auth/thunks";
 
 const initialNetworks = getInitialNetworks();
 
@@ -236,14 +107,6 @@ const createInitialState = (): WalletStoreState => {
 
 const initialState: WalletStoreState = createInitialState();
 
-// const FINALIZED_TX_STATUSES = new Set([
-//     "confirmed",
-//     "completed",
-//     "error",
-//     "errored",
-//     "failed",
-// ]);
-
 export interface IAccountDefaultUpdateFieldsPayload {
     walletId: string;
     accountId: string;
@@ -259,10 +122,12 @@ const walletsStoreSlice = createSlice({
     initialState,
     reducers: {
         selectAccount: (state, action: PayloadAction<string>) => {
-            const targetAccount: IAccountMeta | null =
-                getAccountFromWalletsMeta(state.wallets, action.payload);
+            const walletAndAccount = getWalletAndAccountFromWalletsMeta(
+                state.wallets,
+                action.payload,
+            );
 
-            if (!targetAccount) {
+            if (!walletAndAccount) {
                 console.error(
                     "walletsStoreSlice.selectAccount: Incorrect account id",
                 );
@@ -270,9 +135,17 @@ const walletsStoreSlice = createSlice({
                 return;
             }
 
-            state.selectedAccountId = targetAccount.id;
+            if (!walletAndAccount.wallet.isUnlocked) {
+                console.error(
+                    "walletsStoreSlice.selectAccount: Account belongs to a locked wallet",
+                );
 
-            persistSelectedAccountId(action.payload);
+                return;
+            }
+
+            state.selectedAccountId = walletAndAccount.account.id;
+
+            persistSelectedAccountId(walletAndAccount.account.id);
         },
         selectNetwork: (state, action: PayloadAction<string>) => {
             const network = state.networks.find((n) => n.id === action.payload);
@@ -558,20 +431,16 @@ const walletsStoreSlice = createSlice({
                     "Failed to fetch transaction history";
             })
             .addCase(createAccountWithPassword.fulfilled, (state, action) => {
-                addWalletToWalletsStore(state.wallets, action.payload.wallet);
+                applyActiveWalletSession(state, action.payload.wallet);
             })
             .addCase(importAccountWithPassword.fulfilled, (state, action) => {
-                addWalletToWalletsStore(state.wallets, action.payload);
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(unlockAccount.fulfilled, (state, action) => {
-                addWalletToWalletsStore(state.wallets, action.payload);
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
-                state.selectedAccountId = action.payload[0].id!;
-
-                action.payload.forEach((unlockedWallet) => {
-                    addWalletToWalletsStore(state.wallets, unlockedWallet);
-                });
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(logout.fulfilled, (state) => {
                 state.wallets = state.wallets.map((walletMeta) => ({
@@ -579,6 +448,7 @@ const walletsStoreSlice = createSlice({
                     id: undefined,
                     isUnlocked: false,
                 }));
+                state.selectedAccountId = null;
             });
     },
 });
@@ -592,10 +462,17 @@ export const selectWalletByAccountId = (state: RootState, accountId: string) =>
         ),
     ) ?? null;
 export const selectWallets = (state: RootState) => state.walletsStore.wallets;
+export const selectActiveWallet = createSelector(
+    [selectWallets, (state: RootState) => state.auth.activeSignerId],
+    (wallets: IWalletMeta[], activeSignerId: string | null) =>
+        wallets.find(
+            (walletMeta: IWalletMeta) =>
+                walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
+        ) ?? null,
+);
 export const selectAccounts = createSelector(
-    [selectWallets],
-    (wallets: IWalletMeta[]) =>
-        wallets.flatMap((walletMeta: IWalletMeta) => walletMeta.accounts),
+    [selectActiveWallet],
+    (activeWallet: IWalletMeta | null) => activeWallet?.accounts ?? [],
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
@@ -614,7 +491,6 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
     );
 
 export const {
-    // syncAccounts,
     selectAccount,
     selectNetwork,
     updateAccountBalance,

@@ -8,7 +8,7 @@ import {
     selectAccounts,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import {
     fetchBalance,
     //TODO: Restore fetchTransactionHistory usage once the single active wallet session lands and every account in the slice comes from an SDK Account entity carrying its publicKey.

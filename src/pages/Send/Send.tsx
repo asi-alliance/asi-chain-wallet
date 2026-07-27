@@ -12,7 +12,7 @@ import {
     selectSelectedAccountId,
     selectWalletByAccountId,
     updateAccountBalance,
-} from "store/WalletsStore/walletsStoreSlice";
+} from "store/WalletsStore";
 import { fetchBalance, sendTransaction } from "store/WalletsStore/thunks";
 import {
     Card,
@@ -37,7 +37,7 @@ import {
     QRIcon,
     VectorIcon,
 } from "components/Icons";
-import { unlockAccount } from "store/authSlice";
+import { unlockAccount } from "store/Auth/thunks";
 
 const SendContainer = styled.div`
     max-width: 600px;

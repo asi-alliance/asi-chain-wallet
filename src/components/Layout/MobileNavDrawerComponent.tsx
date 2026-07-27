@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { logout } from "store/authSlice";
+import { logout } from "store/Auth/thunks";
 import { CloseIcon } from "components/Icons";
 import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";

@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { PropsWithChildren } from "react";
 import { RootState } from "store";
-import { selectHasWallets } from "store/WalletsStore/walletsStoreSlice";
+import { selectHasWallets } from "store/WalletsStore";
 
 export const ExistingAccountGuard = ({
     children,

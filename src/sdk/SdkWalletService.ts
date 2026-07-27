@@ -89,27 +89,25 @@ export class SdkWalletService {
         return SdkWalletService.mapWallet(wallet);
     }
 
-    static async unlockWalletBySigner(
-        signerId: string,
-        password: string,
-    ): Promise<IWalletMeta> {
-        const wallet: Wallet = await requireSdkClient().unlockWallet(
-            signerId,
-            password,
-        );
-
-        return SdkWalletService.mapWallet(wallet);
-    }
-
-    static async unlockWallet(
+    static async openSession(
         signerId: string,
         password: string,
     ): Promise<IWalletMeta> {
         const client: Client = requireSdkClient();
 
+        client.getWalletManager().clear();
+
         const wallet: Wallet = await client.unlockWallet(signerId, password);
 
         return SdkWalletService.mapWallet(wallet);
+    }
+
+    static getActiveSession(): IWalletMeta | null {
+        return SdkWalletService.getUnlockedWallets()[0] ?? null;
+    }
+
+    static closeSession(): void {
+        SdkWalletService.lockAll();
     }
 
     static async loadWallets(): Promise<IWalletMeta[]> {

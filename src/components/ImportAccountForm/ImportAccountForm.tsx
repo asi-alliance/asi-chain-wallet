@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useScreen, useValidAccountUpdating } from "hooks/";
-import { importAccountWithPassword } from "store/authSlice";
+import { importAccountWithPassword } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
 import { useSelector } from "react-redux";
-import { selectAccounts } from "store/WalletsStore/walletsStoreSlice";
+import { selectAccounts } from "store/WalletsStore";
 import { Input, Button } from "components";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";

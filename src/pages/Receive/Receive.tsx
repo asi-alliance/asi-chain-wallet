@@ -4,10 +4,7 @@ import { useNavigate } from "react-router-dom";
 import styled, { DefaultTheme } from "styled-components";
 import { QRCodeCanvas } from "qrcode.react";
 import { RootState } from "store";
-import {
-    selectAccountById,
-    selectSelectedAccountId,
-} from "store/WalletsStore/walletsStoreSlice";
+import { selectAccountById, selectSelectedAccountId } from "store/WalletsStore";
 import {
     Card,
     CardHeader,
