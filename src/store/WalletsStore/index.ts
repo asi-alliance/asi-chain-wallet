@@ -103,6 +103,7 @@ const createInitialState = (): WalletStoreState => {
         networks: networks,
         selectedNetwork: defaultNetwork,
         isLoading: false,
+        isInitialLoadComplete: false,
     };
 };
 
@@ -328,6 +329,10 @@ const walletsStoreSlice = createSlice({
         builder
             .addCase(loadWalletsFromStorage.fulfilled, (state, action) => {
                 state.wallets = action.payload;
+                state.isInitialLoadComplete = true;
+            })
+            .addCase(loadWalletsFromStorage.rejected, (state) => {
+                state.isInitialLoadComplete = true;
             })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { accountId, removedWalletId, removedSignerId } =
@@ -479,6 +484,8 @@ export const selectUnlockedWallets = createSelector(
 );
 export const selectHasWallets = (state: RootState) =>
     state.walletsStore.wallets.length > 0;
+export const selectWalletsInitialLoadComplete = (state: RootState) =>
+    state.walletsStore.isInitialLoadComplete;
 export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
     state.walletsStore.wallets.some(
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),

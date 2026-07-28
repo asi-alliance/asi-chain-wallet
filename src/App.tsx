@@ -11,7 +11,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { store, RootState, AppDispatch } from "store";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
-import { Layout } from "components";
+import { Layout, Loader } from "components";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
 //TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
@@ -33,7 +33,10 @@ import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
-import { selectHasWallets } from "store/WalletsStore";
+import {
+    selectHasWallets,
+    selectWalletsInitialLoadComplete,
+} from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -61,6 +64,9 @@ const AppContent: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const isInitialLoadComplete = useSelector(
+        selectWalletsInitialLoadComplete,
+    );
     const theme = darkMode ? darkTheme : lightTheme;
 
     useIdleTimer();
@@ -92,6 +98,15 @@ const AppContent: React.FC = () => {
     //         TransactionPollingService.stop();
     //     };
     // }, [isAuthenticated]);
+
+    if (!isInitialLoadComplete) {
+        return (
+            <ThemeProvider theme={theme}>
+                <GlobalStyles theme={theme} />
+                <Loader />
+            </ThemeProvider>
+        );
+    }
 
     return (
         <ThemeProvider theme={theme}>

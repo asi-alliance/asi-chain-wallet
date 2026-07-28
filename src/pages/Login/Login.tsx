@@ -7,9 +7,13 @@ import React, {
     Fragment,
 } from "react";
 import styled from "styled-components";
-import { selectWalletByFilter, selectWallets } from "store/WalletsStore";
+import {
+    selectHasWallets,
+    selectWalletByFilter,
+    selectWallets,
+} from "store/WalletsStore";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { loginWithPassword } from "store/Auth/thunks";
 import { RootState, AppDispatch } from "store";
 import {
@@ -195,6 +199,7 @@ export const Login: React.FC = () => {
 
     const isLoading = useSelector((state: RootState) => state.auth.isLoading);
     const wallets = useSelector(selectWallets);
+    const hasWallets = useSelector(selectHasWallets);
     const loginWallet = useSelector((state: RootState) =>
         selectWalletByFilter(
             state,
@@ -391,9 +396,9 @@ export const Login: React.FC = () => {
         }
     };
 
-    // if (!hasWallets) {
-    //     return <Navigate to={"/accounts"} />;
-    // }
+    if (!hasWallets) {
+        return <Navigate to={"/accounts"} replace />;
+    }
 
     const selectWalletOptions: ISelectOption[] = walletOptions.map(
         (option) => ({

@@ -15,3 +15,4 @@ export { ASIAccountBalance } from './ASIAccountBalance';
 export { AIHint } from './AIHint';
 export { Switch } from './Switch';
 export { PrivateKeyDisplay } from './PrivateKeyDisplay';
+export { Loader } from './Loader';
