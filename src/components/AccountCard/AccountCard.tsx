@@ -10,11 +10,13 @@ import {
     selectAccount,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
+    selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";
 import { IAccountMeta } from "types/wallet";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { ReactElement } from "react";
 import { RootState } from "store";
 
@@ -48,7 +50,7 @@ const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
     }
 `;
 
-const AccountHeader = styled.div<{ $fullMode: boolean }>`
+const AccountHeader = styled.div<{ $fullMode: boolean; $isActions: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -62,8 +64,12 @@ const AccountHeader = styled.div<{ $fullMode: boolean }>`
         flex: 1;
         min-width: 0;
     }
+        `}
 
-    & > :last-child {
+    ${({ $isActions }) =>
+        $isActions &&
+        `
+        & > :last-child {
         flex-shrink: 0;
         flex-grow: 0;
     }
@@ -131,6 +137,11 @@ export const AccountCard = ({
     const isUnlocked = useSelector((state: RootState) =>
         selectIsAccountUnlocked(state, account.id),
     );
+    const ownerWallet = useSelector((state: RootState) =>
+        selectWalletByAccountId(state, account.id),
+    );
+
+    const canRemoveAccount = ownerWallet?.type !== WalletTypes.PRIVATE_KEY;
 
     const handleSelectAccount = (accountId: string) => {
         dispatch(selectAccount(accountId));
@@ -162,13 +173,18 @@ export const AccountCard = ({
             className={className}
             onClick={() => handleSelectAccount(account.id)}
         >
-            <AccountHeader $fullMode={fullMode}>
+            <AccountHeader
+                $fullMode={fullMode}
+                $isActions={fullMode && canRemoveAccount}
+            >
                 <AccountNameEditor
                     disabled={!isUnlocked}
                     accountId={account.id}
                 />
 
-                {fullMode && <RemoveAccountButton accountId={account.id} />}
+                {fullMode && canRemoveAccount && (
+                    <RemoveAccountButton accountId={account.id} />
+                )}
             </AccountHeader>
 
             <ASIAccountBalance account={account} isSelected={isSelected} />

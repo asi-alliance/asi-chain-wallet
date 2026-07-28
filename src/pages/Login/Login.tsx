@@ -601,7 +601,7 @@ export const Login: React.FC = () => {
                             </WalletActionsFooter>
                             <InlineButton
                                 id="import-private-key-button"
-                                variant="icon-button-ghost"
+                                variant="full-ghost"
                                 onClick={() => setShowImportPkModal(true)}
                                 fullWidth={isLaptop}
                                 style={{

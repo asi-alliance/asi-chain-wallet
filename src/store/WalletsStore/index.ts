@@ -12,6 +12,7 @@ import {
     fetchBalance,
     fetchTransactionHistory,
     loadWalletsFromStorage,
+    removeAccount,
     removeWallet,
     sendTransaction,
     updateAccountName,
@@ -335,8 +336,7 @@ const walletsStoreSlice = createSlice({
                 state.isInitialLoadComplete = true;
             })
             .addCase(removeWallet.fulfilled, (state, action) => {
-                const { accountId, removedWalletId, removedSignerId } =
-                    action.payload;
+                const { removedWalletId, removedSignerId } = action.payload;
 
                 state.wallets = state.wallets.filter((walletMeta) => {
                     if (walletMeta.isUnlocked) {
@@ -346,15 +346,34 @@ const walletsStoreSlice = createSlice({
                     return walletMeta.signerId !== removedSignerId;
                 });
 
-                if (state.selectedAccountId === accountId) {
-                    state.selectedAccountId = null;
-                }
-
                 if (!state.wallets.length) {
+                    state.selectedAccountId = null;
+
                     return;
                 }
 
                 state.selectedAccountId = state.wallets[0].accounts[0].id;
+            })
+            .addCase(removeAccount.fulfilled, (state, action) => {
+                const { walletId, accountId } = action.payload;
+
+                const wallet = state.wallets.find(
+                    (walletMeta) => walletMeta.id === walletId,
+                );
+
+                if (!wallet) {
+                    throw new Error(
+                        "walletsStoreSlice.removeAccount: Incorrect wallet id",
+                    );
+                }
+
+                wallet.accounts = wallet.accounts.filter(
+                    (accountMeta) => accountMeta.id !== accountId,
+                );
+
+                if (state.selectedAccountId === accountId) {
+                    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
+                }
             })
             .addCase(updateAccountName.pending, (state) => {
                 state.isLoading = true;

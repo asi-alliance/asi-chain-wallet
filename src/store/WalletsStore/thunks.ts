@@ -26,20 +26,30 @@ export interface IAccountRemovePayload {
 
 export const removeWallet = createAsyncThunk(
     "walletsStore/removeWallet",
+    async ({ walletId }: { walletId: string }, { rejectWithValue }) => {
+        try {
+            const removedWallet = await SdkWalletService.removeWallet(walletId);
+
+            return {
+                removedWalletId: removedWallet.getId(),
+                removedSignerId: removedWallet.getSigner().getId(),
+            };
+        } catch (error) {
+            return rejectWithValue(error);
+        }
+    },
+);
+
+export const removeAccount = createAsyncThunk(
+    "walletsStore/removeAccount",
     async (
         { walletId, accountId }: IAccountRemovePayload,
         { rejectWithValue },
     ) => {
         try {
             await SdkWalletService.removeAccount(walletId, accountId);
-            const removedWallet = await SdkWalletService.removeWallet(walletId);
 
-            return {
-                walletId,
-                accountId,
-                removedWalletId: removedWallet.getId(),
-                removedSignerId: removedWallet.getSigner().getId(),
-            };
+            return { walletId, accountId };
         } catch (error) {
             return rejectWithValue(error);
         }

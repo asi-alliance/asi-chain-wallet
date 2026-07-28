@@ -5,9 +5,11 @@ import { useSelector } from "react-redux";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import { logout } from "store/Auth/thunks";
-import { CloseIcon } from "components/Icons";
+import { CloseIcon, DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
+import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { useDeleteActiveWallet } from "hooks";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;
@@ -104,13 +106,17 @@ const DelimiterLine = styled.div`
     margin: 16px auto;
 `;
 
-const LogoutButton = styled(Button)`
+const DangerButton = styled(Button)`
     border-color: ${({ theme }) => theme.danger};
     color: ${({ theme }) => theme.danger};
 
     &:hover:not(:disabled) {
         background: ${({ theme }) => theme.danger}1F;
     }
+`;
+
+const LogoutButton = styled(DangerButton)`
+    margin-bottom: 12px;
 `;
 
 const IconButton = styled.button`
@@ -173,6 +179,8 @@ export const MobileNavDrawerComponent: React.FC<
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
+
+    const deleteWallet = useDeleteActiveWallet();
 
     const handleNavigation = (path: string) => {
         navigate(path);
@@ -257,8 +265,24 @@ export const MobileNavDrawerComponent: React.FC<
                             </svg>
                         </LogoutButton>
                     )}
+                    {isAuthenticated && (
+                        <DangerButton
+                            fullWidth
+                            variant="secondary"
+                            onClick={deleteWallet.open}
+                        >
+                            Delete Wallet
+                            <DeleteIcon size={20} />
+                        </DangerButton>
+                    )}
                 </MobileNavFooter>
             </MobileNavDrawerStyled>
+            <DeleteWalletModal
+                isOpen={deleteWallet.isOpen}
+                isDeleting={deleteWallet.isDeleting}
+                onConfirm={deleteWallet.confirm}
+                onCancel={deleteWallet.close}
+            />
         </>
     );
 };

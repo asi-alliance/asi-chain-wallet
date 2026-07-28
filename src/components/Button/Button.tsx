@@ -8,6 +8,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
         | "secondary"
         | "danger"
         | "ghost"
+        | "full-ghost"
         | "icon-button"
         | "icon-button-ghost"
         | "icon-button-secondary"
@@ -126,6 +127,7 @@ const ButtonBase = styled.button.withConfig(
                 return css`
                     background: ${theme.danger};
                     color: white;
+                    border: 0.5px solid ${theme.border};
                     font-weight: 600;
 
                     &:hover:not(:disabled) {
@@ -142,6 +144,30 @@ const ButtonBase = styled.button.withConfig(
                     background: transparent;
                     color: ${theme.primary};
                     border: 0.5px solid ${theme.border};
+                    box-shadow: none;
+                    padding: 7px;
+                    min-width: auto;
+                    min-height: auto;
+
+                    &:hover:not(:disabled) {
+                        ${withFadeHover &&
+                        css`
+                            transform: translateY(-1px);
+                        `}
+                    }
+
+                    ${withFadeHover &&
+                    css`
+                        &:active:not(:disabled) {
+                            transform: translateY(0);
+                        }
+                    `}
+                `;
+            case "full-ghost":
+                return css`
+                    background: transparent;
+                    color: ${theme.primary};
+                    border: none;
                     box-shadow: none;
                     padding: 7px;
                     min-width: auto;

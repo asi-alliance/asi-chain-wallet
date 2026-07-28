@@ -1,8 +1,7 @@
 import styled from "styled-components";
 import { selectWallets } from "store/WalletsStore";
-import { removeWallet } from "store/WalletsStore/thunks";
+import { removeAccount } from "store/WalletsStore/thunks";
 import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
-import { logout } from "store/Auth/thunks";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import { DeleteIcon } from "components/Icons";
@@ -45,15 +44,11 @@ export const RemoveAccountButton = ({
         }
 
         dispatch(
-            removeWallet({
+            removeAccount({
                 walletId: walletAndAccountPath.wallet.id,
                 accountId,
             }),
         );
-
-        if (wallets.length === 1) {
-            dispatch(logout());
-        }
     };
 
     return (

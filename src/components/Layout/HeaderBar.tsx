@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Fragment } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -8,7 +8,15 @@ import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/Auth/thunks";
 import { selectHasWallets } from "store/WalletsStore";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
-import { SunIcon, MoonIcon, MenuIcon, LogoutIcon } from "components/Icons";
+import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { useDeleteActiveWallet } from "hooks";
+import {
+    SunIcon,
+    MoonIcon,
+    MenuIcon,
+    LogoutIcon,
+    DeleteIcon,
+} from "components/Icons";
 
 const HeaderStyled = styled.header`
     background: ${({ theme }) => theme.card};
@@ -144,6 +152,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
         (state: RootState) => state.auth.isAuthenticated,
     );
 
+    const deleteWallet = useDeleteActiveWallet();
+
     const handleThemeToggle = () => {
         dispatch(toggleTheme());
     };
@@ -154,46 +164,69 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
     };
 
     return (
-        <HeaderStyled>
-            <HeaderTop>
-                <LeftSection>
-                    <LogoContainer onClick={() => navigate("/")}>
-                        <LogoImage isDarkMode={darkMode} />
-                        <LogoText>ASI:Chain Wallet</LogoText>
-                    </LogoContainer>
-                </LeftSection>
+        <Fragment>
+            <HeaderStyled>
+                <HeaderTop>
+                    <LeftSection>
+                        <LogoContainer onClick={() => navigate("/")}>
+                            <LogoImage isDarkMode={darkMode} />
+                            <LogoText>ASI:Chain Wallet</LogoText>
+                        </LogoContainer>
+                    </LeftSection>
 
-                <HeaderActions>
-                    {isAuthenticated && hasWallets && <ASIAccountSwitcher />}
-                    <IconButton
-                        onClick={handleThemeToggle}
-                        title={
-                            darkMode
-                                ? "Switch to Light Mode"
-                                : "Switch to Dark Mode"
-                        }
-                    >
-                        {darkMode ? (
-                            <SunIcon size={20} />
-                        ) : (
-                            <MoonIcon size={20} />
+                    <HeaderActions>
+                        {isAuthenticated && hasWallets && (
+                            <ASIAccountSwitcher />
                         )}
-                    </IconButton>
+                        <IconButton
+                            onClick={handleThemeToggle}
+                            title={
+                                darkMode
+                                    ? "Switch to Light Mode"
+                                    : "Switch to Dark Mode"
+                            }
+                        >
+                            {darkMode ? (
+                                <SunIcon size={20} />
+                            ) : (
+                                <MoonIcon size={20} />
+                            )}
+                        </IconButton>
 
-                    {isAuthenticated && (
-                        <DesktopButton onClick={handleLogout} title={"Logout"}>
-                            <LogoutIcon size={20} />
-                        </DesktopButton>
-                    )}
+                        {isAuthenticated && (
+                            <DesktopButton
+                                onClick={handleLogout}
+                                title={"Logout"}
+                            >
+                                <LogoutIcon size={20} />
+                            </DesktopButton>
+                        )}
 
-                    <AsideMenuToggle
-                        id="sidebar-menu-button"
-                        onClick={onMobileMenuToggle}
-                    >
-                        <MenuIcon size={20} />
-                    </AsideMenuToggle>
-                </HeaderActions>
-            </HeaderTop>
-        </HeaderStyled>
+                        {isAuthenticated && hasWallets && (
+                            <DesktopButton
+                                id="delete-wallet-button"
+                                onClick={deleteWallet.open}
+                                title={"Delete Wallet"}
+                            >
+                                <DeleteIcon size={20} />
+                            </DesktopButton>
+                        )}
+
+                        <AsideMenuToggle
+                            id="sidebar-menu-button"
+                            onClick={onMobileMenuToggle}
+                        >
+                            <MenuIcon size={20} />
+                        </AsideMenuToggle>
+                    </HeaderActions>
+                </HeaderTop>
+            </HeaderStyled>
+            <DeleteWalletModal
+                isOpen={deleteWallet.isOpen}
+                isDeleting={deleteWallet.isDeleting}
+                onConfirm={deleteWallet.confirm}
+                onCancel={deleteWallet.close}
+            />
+        </Fragment>
     );
 };

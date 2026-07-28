@@ -12,6 +12,8 @@ import { CreateHdWalletForm } from "components/CreateHdWalletForm";
 import { ImportHdWalletForm } from "components/ImportHdWalletForm";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks/";
+import { ImportPkWalletModal } from "components/ImportPkWalletModal";
+import { ImportPkWalletForm } from "components/ImportPkWalletForm";
 
 const WidgetContainer = styled.div`
     width: 100%;
@@ -27,9 +29,23 @@ interface FirstHdWalletCreatingWidgetProps {
     onSuccess?: () => void;
 }
 
-type FormMode = "create" | "import";
+type FormMode = "create" | "import" | "import_private_key";
 
 const ActionsToolbar = styled.div`
+    display: flex;
+    flex-direction: column;
+    padding: 0 5rem;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+
+    @media (max-width: 768px) {
+        display: block;
+        padding: 0 2rem;
+    }
+`;
+
+const WalletActions = styled.div`
     display: flex;
     padding: 0 5rem;
     justify-content: center;
@@ -89,37 +105,77 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                 maxLength={30}
                             />
                             <ActionsToolbar>
-                                <Button
-                                    id="create-account-button"
-                                    onClick={() => setActiveMode("create")}
-                                    disabled={!accountName.trim()}
-                                    fullWidth={true}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                        ...(isLaptop && {
-                                            marginBottom: "16px",
-                                        }),
-                                    }}
-                                >
-                                    <h3>Create Account</h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
+                                <WalletActions>
+                                    <Button
+                                        id="create-account-button"
+                                        onClick={() => setActiveMode("create")}
+                                        disabled={!accountName.trim()}
+                                        fullWidth={true}
+                                        style={{
+                                            flexWrap: "nowrap",
+                                            whiteSpace: "nowrap",
+                                            ...(isLaptop && {
+                                                marginBottom: "16px",
+                                            }),
+                                        }}
                                     >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </Button>
+                                        <h3>Create Wallet</h3>
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 14 14"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path
+                                                d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                                fill="currentcolor"
+                                            />
+                                        </svg>
+                                    </Button>
+                                    <Button
+                                        id="import-account-button"
+                                        variant="secondary"
+                                        onClick={() => setActiveMode("import")}
+                                        disabled={!accountName.trim()}
+                                        fullWidth={true}
+                                        style={{
+                                            flexWrap: "nowrap",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        <h3>Import Wallet</h3>
+                                        <svg
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <g clipPath="url(#clip0_3_1930)">
+                                                <path
+                                                    d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                    fill="currentcolor"
+                                                />
+                                            </g>
+                                            <defs>
+                                                <clipPath id="clip0_3_1930">
+                                                    <rect
+                                                        width="24"
+                                                        height="24"
+                                                        fill="currentcolor"
+                                                    />
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                    </Button>
+                                </WalletActions>
                                 <Button
                                     id="import-account-button"
-                                    variant="secondary"
-                                    onClick={() => setActiveMode("import")}
+                                    variant="full-ghost"
+                                    onClick={() =>
+                                        setActiveMode("import_private_key")
+                                    }
                                     disabled={!accountName.trim()}
                                     fullWidth={true}
                                     style={{
@@ -127,7 +183,7 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                         whiteSpace: "nowrap",
                                     }}
                                 >
-                                    <h3>Import Account</h3>
+                                    <h3>Import Account by private key</h3>
                                     <svg
                                         width="24"
                                         height="24"
@@ -165,21 +221,31 @@ export const FirstHdWalletCreatingWidget: React.FC<
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        {activeMode === "create" && "Create account"}
-                        {activeMode === "import" && "Import account"}
+                        {activeMode === "create" && "Create wallet"}
+                        {activeMode === "import" && "Import wallet"}
+                        {activeMode === "import_private_key" &&
+                            "Import account by private key"}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <FormContainer>
-                        {activeMode === "create" ? (
+                        {activeMode === "create" && (
                             <CreateHdWalletForm
                                 onSuccess={handleCreateSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 hideCancelButton
                                 customAccountName={accountName}
                             />
-                        ) : (
+                        )}
+                        {activeMode === "import" && (
                             <ImportHdWalletForm
+                                onSuccess={handleImportSuccess}
+                                onCancel={() => setActiveMode(null)}
+                                customAccountName={accountName}
+                            />
+                        )}
+                        {activeMode === "import_private_key" && (
+                            <ImportPkWalletForm
                                 onSuccess={handleImportSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 customAccountName={accountName}
