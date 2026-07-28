@@ -421,17 +421,7 @@ const walletsStoreSlice = createSlice({
                 state.isLoading = false;
             })
             .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
-                const existingIds = new Set(
-                    state.transactions.map((tx) => tx.id),
-                );
-                const newTransactions = action.payload.filter(
-                    (tx) => !existingIds.has(tx.id),
-                );
-
-                state.transactions = [
-                    ...newTransactions,
-                    ...state.transactions,
-                ];
+                state.transactions = [...action.payload];
             })
             .addCase(createHdWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);

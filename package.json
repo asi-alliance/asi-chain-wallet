@@ -47,7 +47,6 @@
     "@walletconnect/utils": "^2.17.3",
     "@walletconnect/web3wallet": "^1.15.5",
     "ajv": "^8.17.1",
-    "asi-chain-wallet-sdk": "../asi-chain-wallet-sdk/dist",
     "axios": "^0.27.2",
     "blake2b": "^2.1.4",
     "blakejs": "^1.2.1",

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Client } from "@asichain/asi-wallet-sdk";
+import { useDisposableAsync } from "hooks/useDisposableAsync";
 import { setSdkClient } from "./client";
 import { DEFAULT_NETWORK, NETWORKS_CONFIG } from "./networksConfig";
 
@@ -18,7 +19,6 @@ const initSdkClient = (): Promise<Client> => {
             },
         }).then((client) => {
             setSdkClient(client);
-
             return client;
         });
     }
@@ -26,24 +26,37 @@ const initSdkClient = (): Promise<Client> => {
     return clientPromise;
 };
 
-export const SdkClientProvider: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
+export const SdkClientProvider: React.FC<{
+    children: React.ReactNode;
+}> = ({ children }) => {
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        initSdkClient()
-            .then(() => setIsReady(true))
-            .catch((initError: unknown) => {
-                console.error("Failed to initialize SDK client:", initError);
-                setError(
-                    initError instanceof Error
-                        ? initError.message
-                        : "Failed to initialize wallet SDK",
-                );
-            });
-    }, []);
+    const clientRef = useRef<Client | null>(null);
+
+    useDisposableAsync(initSdkClient, {
+        onResolve: (client) => {
+            clientRef.current = client;
+            setIsReady(true);
+        },
+        onDispose: (client) => {
+            client.close();
+            clientPromise = null;
+        },
+        onUnmount: () => {
+            clientRef.current?.close();
+            clientPromise = null;
+        },
+        onError: (initError) => {
+            console.error("Failed to initialize SDK client:", initError);
+
+            setError(
+                initError instanceof Error
+                    ? initError.message
+                    : "Failed to initialize wallet SDK",
+            );
+        },
+    });
 
     if (error) {
         return <div>{error}</div>;

@@ -293,7 +293,7 @@ export const History: React.FC = () => {
         (state: RootState) => state.walletsStore.transactions,
     );
 
-    const { isLaptop } = useScreen();
+    const { isTablet } = useScreen();
 
     const [filter, setFilter] = useState<TransactionFilter>({});
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -400,7 +400,7 @@ export const History: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                     <FilterSection>
-                        <AccountSelector fullWidth={isLaptop} />
+                        <AccountSelector fullWidth={isTablet} />
 
                         <FilterGroup>
                             <FilterLabel>
