@@ -6,6 +6,7 @@ import {
     createHdWallet,
     deriveHdAccount,
     importHdWallet,
+    importPrivateKeyWallet,
     loginWithPassword,
     logout,
     unlockAccount,
@@ -75,6 +76,16 @@ const authSlice = createSlice({
                 setActiveSession(state, action.payload);
             })
             .addCase(importHdWallet.rejected, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(importPrivateKeyWallet.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
+                state.isLoading = false;
+                setActiveSession(state, action.payload);
+            })
+            .addCase(importPrivateKeyWallet.rejected, (state) => {
                 state.isLoading = false;
             })
             .addCase(deriveHdAccount.pending, (state) => {

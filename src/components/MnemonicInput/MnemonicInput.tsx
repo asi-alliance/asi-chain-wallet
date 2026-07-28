@@ -74,7 +74,10 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
         onWordsChange(next);
     };
 
-    const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const handlePaste = (
+        _index: number,
+        event: ClipboardEvent<HTMLInputElement>,
+    ) => {
         const text = event.clipboardData.getData("text");
         const parts = text.split(/\s+/).map(sanitizeWord).filter(Boolean);
 

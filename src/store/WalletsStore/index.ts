@@ -30,6 +30,7 @@ import {
     createHdWallet,
     deriveHdAccount,
     importHdWallet,
+    importPrivateKeyWallet,
     loginWithPassword,
     logout,
     unlockAccount,
@@ -412,6 +413,9 @@ const walletsStoreSlice = createSlice({
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(importHdWallet.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload);
+            })
+            .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {

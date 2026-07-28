@@ -38,6 +38,26 @@ export const importHdWallet = createAsyncThunk<
     return SdkWalletService.createHdWallet({ name, mnemonic, password });
 });
 
+type ImportPrivateKeyWalletPayload = {
+    name: string;
+    privateKeyHex: string;
+    password: string;
+};
+
+export const importPrivateKeyWallet = createAsyncThunk<
+    IWalletMeta,
+    ImportPrivateKeyWalletPayload
+>(
+    "auth/importPrivateKeyWallet",
+    async ({ name, privateKeyHex, password }) => {
+        return SdkWalletService.createPrivateKeyWallet({
+            name,
+            privateKeyHex,
+            password,
+        });
+    },
+);
+
 export const deriveHdAccount = createAsyncThunk<
     { wallet: IWalletMeta; accountId: string },
     { name: string; password: string },

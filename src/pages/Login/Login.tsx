@@ -32,9 +32,11 @@ import {
 } from "services/loginAuditLog";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { IWalletMeta, WalletActions } from "types/wallet";
 import { CreateHdWalletModal } from "components/CreateHdWalletModal";
 import { ImportHdWalletModal } from "components/ImportHdWalletModal";
+import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { useScreen } from "hooks/";
 
 const LoginContainer = styled.div`
@@ -128,12 +130,19 @@ const ActionButtons = styled.div`
     }
 `;
 
+const ActionsFooter = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+`;
+
 const WalletActionsFooter = styled.div`
     width: 100%;
     display: flex;
     justify-content: center;
     gap: 16px;
     margin-top: 24px;
+    margin-bottom: 16px;
 
     @media (max-width: 768px) {
         flex-direction: column;
@@ -158,6 +167,12 @@ const InfoText = styled.p`
 `;
 
 const ATTEMPTS_WARNING_THRESHOLD = 3;
+
+type LoginWalletOption = {
+    signerId: string;
+    label: string;
+    additionalLabel?: string;
+};
 
 function formatCountdown(ms: number): string {
     const totalSeconds = Math.ceil(ms / 1_000);
@@ -196,6 +211,7 @@ export const Login: React.FC = () => {
         action === WalletActions.CREATE_WALLET,
     );
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showImportPkModal, setShowImportPkModal] = useState(false);
 
     // Rate limit UI state
     const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
@@ -221,14 +237,26 @@ export const Login: React.FC = () => {
         rateLimitInfo.failedAttempts >= ATTEMPTS_WARNING_THRESHOLD &&
         remainingAttempts > 0;
 
-    const walletOptions = useMemo(
-        () =>
-            wallets.map((wallet: IWalletMeta, index: number) => ({
+    const walletOptions = useMemo<LoginWalletOption[]>(() => {
+        const hdWallets = wallets.filter(
+            (wallet: IWalletMeta) => wallet.type !== WalletTypes.PRIVATE_KEY,
+        );
+        const pkWallets = wallets.filter(
+            (wallet: IWalletMeta) => wallet.type === WalletTypes.PRIVATE_KEY,
+        );
+
+        return [
+            ...hdWallets.map((wallet: IWalletMeta, index: number) => ({
                 signerId: wallet.signerId,
                 label: `Wallet ${index + 1}`,
             })),
-        [wallets],
-    );
+            ...pkWallets.map((wallet: IWalletMeta, index: number) => ({
+                signerId: wallet.signerId,
+                label: `Private Key Account ${index + 1}`,
+                additionalLabel: "imported",
+            })),
+        ];
+    }, [wallets]);
 
     // ── Rate limit polling ──────────────────────────────────────────────────
 
@@ -310,6 +338,14 @@ export const Login: React.FC = () => {
     }, [walletOptions, selectedSignerId, loginWallet]);
 
     useEffect(() => {
+        if (!!selectedSignerId || !wallets.length) {
+            return;
+        }
+
+        setSelectedSignerId(wallets[0].signerId);
+    }, [wallets]);
+
+    useEffect(() => {
         if (loginError) {
             setShowError(true);
             const timer = setTimeout(() => setShowError(false), 5000);
@@ -364,6 +400,7 @@ export const Login: React.FC = () => {
             id: option.signerId,
             value: option.signerId,
             label: option.label,
+            additionalLabel: option.additionalLabel,
         }),
     );
 
@@ -495,42 +532,79 @@ export const Login: React.FC = () => {
                             </Button>
                         </ActionButtons>
 
-                        <WalletActionsFooter>
-                            <InlineButton
-                                id="create-wallet-button"
-                                onClick={() => setShowCreateModal(true)}
-                                fullWidth={isLaptop}
-                                variant="secondary"
-                                style={{
-                                    flexWrap: "nowrap",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                <h3>Create Wallet</h3>
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 14 14"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
+                        <ActionsFooter>
+                            <WalletActionsFooter>
+                                <InlineButton
+                                    id="create-wallet-button"
+                                    onClick={() => setShowCreateModal(true)}
+                                    fullWidth={isLaptop}
+                                    variant="secondary"
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
-                                    <path
-                                        d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                        fill="currentcolor"
-                                    />
-                                </svg>
-                            </InlineButton>
+                                    <h3>Create Wallet</h3>
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 14 14"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                            fill="currentcolor"
+                                        />
+                                    </svg>
+                                </InlineButton>
+                                <InlineButton
+                                    id="import-wallet-button"
+                                    variant="secondary"
+                                    onClick={() => setShowImportModal(true)}
+                                    fullWidth={isLaptop}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    <h3>Import Wallet</h3>
+                                    <svg
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <g clipPath="url(#clip0_3_1930)">
+                                            <path
+                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                fill="currentcolor"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_3_1930">
+                                                <rect
+                                                    width="24"
+                                                    height="24"
+                                                    fill="currentcolor"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </InlineButton>
+                            </WalletActionsFooter>
                             <InlineButton
-                                id="import-wallet-button"
-                                variant="secondary"
-                                onClick={() => setShowImportModal(true)}
+                                id="import-private-key-button"
+                                variant="icon-button-ghost"
+                                onClick={() => setShowImportPkModal(true)}
                                 fullWidth={isLaptop}
                                 style={{
                                     flexWrap: "nowrap",
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                <h3>Import Wallet</h3>
+                                <h3>Import Private Key</h3>
                                 <svg
                                     width="24"
                                     height="24"
@@ -555,7 +629,7 @@ export const Login: React.FC = () => {
                                     </defs>
                                 </svg>
                             </InlineButton>
-                        </WalletActionsFooter>
+                        </ActionsFooter>
                     </CardContent>
                 </Card>
             </LoginContainer>
@@ -574,6 +648,14 @@ export const Login: React.FC = () => {
                 isOpen={showImportModal}
                 onCancel={() => setShowImportModal(false)}
                 onClose={() => setShowImportModal(false)}
+                onSuccess={() => {
+                    navigate("/");
+                }}
+            />
+            <ImportPkWalletModal
+                isOpen={showImportPkModal}
+                onCancel={() => setShowImportPkModal(false)}
+                onClose={() => setShowImportPkModal(false)}
                 onSuccess={() => {
                     navigate("/");
                 }}

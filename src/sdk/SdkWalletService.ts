@@ -3,6 +3,7 @@ import {
     Address,
     ApiServiceRegistry,
     Client,
+    decodeBase16,
     encodeBase16,
     IDeployWatchCallbacks,
     IDeployWatchHandle,
@@ -12,6 +13,7 @@ import {
     Mnemonic,
     MnemonicStrength,
     NetworkName,
+    PRIVATE_KEY_LENGTH,
     Transaction,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
@@ -50,6 +52,18 @@ export class SdkWalletService {
         return Mnemonic.isMnemonicValid(mnemonic);
     }
 
+    private static normalizePrivateKeyHex(hex: string): string {
+        return hex.trim().replace(/^0x/i, "");
+    }
+
+    static isPrivateKeyHexValid(hex: string): boolean {
+        const clean = SdkWalletService.normalizePrivateKeyHex(hex);
+
+        return (
+            clean.length === PRIVATE_KEY_LENGTH * 2 && !/[^0-9a-fA-F]/.test(clean)
+        );
+    }
+
     static async createHdWallet({
         name,
         mnemonic,
@@ -61,6 +75,31 @@ export class SdkWalletService {
     }): Promise<IWalletMeta> {
         const wallet = await requireSdkClient().createHDWallet(
             { mnemonic, accountName: name },
+            password,
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static async createPrivateKeyWallet({
+        name,
+        privateKeyHex,
+        password,
+    }: {
+        name: string;
+        privateKeyHex: string;
+        password: string;
+    }): Promise<IWalletMeta> {
+        const clean = SdkWalletService.normalizePrivateKeyHex(privateKeyHex);
+
+        if (!SdkWalletService.isPrivateKeyHexValid(clean)) {
+            throw new Error(
+                "Invalid private key: expected 64 hexadecimal characters",
+            );
+        }
+
+        const wallet = await requireSdkClient().createPrivateKeyWallet(
+            { privateKey: decodeBase16(clean), accountName: name },
             password,
         );
 

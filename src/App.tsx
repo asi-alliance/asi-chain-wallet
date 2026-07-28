@@ -65,9 +65,20 @@ const AppContent: React.FC = () => {
 
     useIdleTimer();
 
+    const loadWallets = async (): Promise<void> => {
+        try {
+            await dispatch(loadWalletsFromStorage()).unwrap();
+        } catch (error: unknown) {
+            console.error(
+                "LOAD WALLETS FROM STORAGE ERROR: ",
+                (error as Error).message,
+            );
+        }
+    };
+
     useEffect(() => {
         // dispatch(loadNetworksFromStorage());
-        dispatch(loadWalletsFromStorage());
+        loadWallets();
     }, [dispatch]);
 
     //TODO: Removed legacy RChain polling. Deploy status is now tracked via the SDK DeployStatusPoller in the sendTransaction thunk.
