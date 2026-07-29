@@ -1,50 +1,10 @@
 import React, { useState, useEffect, CSSProperties } from "react";
 import styled from "styled-components";
 import { Input, Button } from "components";
+import { ModalWindow } from "components/ModalWindow";
 import { Network } from "types/wallet";
 import { FileIcon } from "components/Icons";
 import { useScreen } from "hooks";
-
-const Overlay = styled.div`
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-`;
-
-const ModalContainer = styled.div`
-    background: ${({ theme }) => theme.card};
-    border-radius: 12px;
-    max-width: 800px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: ${({ theme }) => theme.surface};
-        border-radius: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: ${({ theme }) => theme.border};
-        border-radius: 4px;
-    }
-`;
-
-const ModalContent = styled.div`
-    padding: 24px;
-`;
 
 const Title = styled.h1`
     color: ${({ theme }) => theme.text.primary};
@@ -247,7 +207,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
         onClose();
     };
 
-    if (!isOpen || !network) return null;
+    if (!network) return null;
 
     const saveCustomNetworkButtonStyle: CSSProperties = !isLaptop
         ? {
@@ -257,172 +217,150 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
         : { flex: "1" };
 
     return (
-        <Overlay onClick={handleClose}>
-            <ModalContainer onClick={(e) => e.stopPropagation()}>
-                <ModalContent>
-                    <Title>Edit Custom Network</Title>
-                    <ConfigSection>
-                        <Label>Network Name</Label>
-                        <AutoWidthInput
-                            id="edit-network-name-input"
-                            className="network-name-input text-2"
-                            value={networkName}
-                            onChange={(e) => setNetworkName(e.target.value)}
-                            placeholder="Custom Network"
+        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="800px">
+            <Title>Edit Custom Network</Title>
+            <ConfigSection>
+                <Label>Network Name</Label>
+                <AutoWidthInput
+                    id="edit-network-name-input"
+                    className="network-name-input text-2"
+                    value={networkName}
+                    onChange={(e) => setNetworkName(e.target.value)}
+                    placeholder="Custom Network"
+                />
+            </ConfigSection>
+
+            <ConfigSection>
+                <ConfigTitle>Validator Node</ConfigTitle>
+                <FormRow>
+                    <FormGroup>
+                        <Label>IP/Domain:</Label>
+                        <InlineInput
+                            id="edit-validator-host-input"
+                            className="text-2"
+                            value={validatorHost}
+                            onChange={(e) => setValidatorHost(e.target.value)}
+                            placeholder="localhost"
                         />
-                    </ConfigSection>
+                    </FormGroup>
+                    <FormGroup>
+                        <Label>gRPC Port:</Label>
+                        <InlineInput
+                            id="edit-validator-grpc-port-input"
+                            className="text-2"
+                            value={validatorGrpcPort}
+                            onChange={(e) =>
+                                setValidatorGrpcPort(e.target.value)
+                            }
+                            placeholder="40401"
+                        />
+                    </FormGroup>
+                    <FormGroup>
+                        <Label>HTTP Port:</Label>
+                        <InlineInput
+                            id="edit-validator-http-port-input"
+                            className="text-2"
+                            value={validatorHttpPort}
+                            onChange={(e) =>
+                                setValidatorHttpPort(e.target.value)
+                            }
+                            placeholder="40403"
+                        />
+                    </FormGroup>
+                </FormRow>
 
-                    <ConfigSection>
-                        <ConfigTitle>Validator Node</ConfigTitle>
-                        <FormRow>
-                            <FormGroup>
-                                <Label>IP/Domain:</Label>
-                                <InlineInput
-                                    id="edit-validator-host-input"
-                                    className="text-2"
-                                    value={validatorHost}
-                                    onChange={(e) =>
-                                        setValidatorHost(e.target.value)
-                                    }
-                                    placeholder="localhost"
-                                />
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>gRPC Port:</Label>
-                                <InlineInput
-                                    id="edit-validator-grpc-port-input"
-                                    className="text-2"
-                                    value={validatorGrpcPort}
-                                    onChange={(e) =>
-                                        setValidatorGrpcPort(e.target.value)
-                                    }
-                                    placeholder="40401"
-                                />
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>HTTP Port:</Label>
-                                <InlineInput
-                                    id="edit-validator-http-port-input"
-                                    className="text-2"
-                                    value={validatorHttpPort}
-                                    onChange={(e) =>
-                                        setValidatorHttpPort(e.target.value)
-                                    }
-                                    placeholder="40403"
-                                />
-                            </FormGroup>
-                        </FormRow>
+                <DirectLinks>
+                    <LinkTitle>Direct links:</LinkTitle>
+                    <Link
+                        className="text-2"
+                        onClick={() =>
+                            window.open(`${validatorHttpUrl}/status`, "_blank")
+                        }
+                    >
+                        gRPC: {validatorGrpcUrl}
+                    </Link>
+                    <LastLink
+                        className="text-2"
+                        onClick={() => window.open(validatorHttpUrl, "_blank")}
+                    >
+                        HTTP: {validatorHttpUrl}
+                    </LastLink>
+                </DirectLinks>
+            </ConfigSection>
 
-                        <DirectLinks>
-                            <LinkTitle>Direct links:</LinkTitle>
-                            <Link
-                                className="text-2"
-                                onClick={() =>
-                                    window.open(
-                                        `${validatorHttpUrl}/status`,
-                                        "_blank",
-                                    )
-                                }
-                            >
-                                gRPC: {validatorGrpcUrl}
-                            </Link>
-                            <LastLink
-                                className="text-2"
-                                onClick={() =>
-                                    window.open(validatorHttpUrl, "_blank")
-                                }
-                            >
-                                HTTP: {validatorHttpUrl}
-                            </LastLink>
-                        </DirectLinks>
-                    </ConfigSection>
+            <ConfigSection>
+                <ConfigTitle>Read-only Node</ConfigTitle>
+                <FormRow>
+                    <FormGroup>
+                        <Label>IP/Domain:</Label>
+                        <InlineInput
+                            id="edit-readonly-host-input"
+                            className="text-2"
+                            value={readOnlyHost}
+                            onChange={(e) => setReadOnlyHost(e.target.value)}
+                            placeholder="localhost"
+                        />
+                    </FormGroup>
+                    <FormGroup>
+                        <Label>gRPC Port:</Label>
+                        <InlineInput
+                            id="edit-readonly-grpc-port-input"
+                            className="text-2"
+                            value={readOnlyGrpcPort}
+                            onChange={(e) => setReadOnlyGrpcPort(e.target.value)}
+                            placeholder="40451"
+                        />
+                    </FormGroup>
+                    <FormGroup>
+                        <Label>HTTP Port:</Label>
+                        <InlineInput
+                            id="edit-readonly-http-port-input"
+                            className="text-2"
+                            value={readOnlyHttpPort}
+                            onChange={(e) => setReadOnlyHttpPort(e.target.value)}
+                            placeholder="40453"
+                        />
+                    </FormGroup>
+                </FormRow>
 
-                    <ConfigSection>
-                        <ConfigTitle>Read-only Node</ConfigTitle>
-                        <FormRow>
-                            <FormGroup>
-                                <Label>IP/Domain:</Label>
-                                <InlineInput
-                                    id="edit-readonly-host-input"
-                                    className="text-2"
-                                    value={readOnlyHost}
-                                    onChange={(e) =>
-                                        setReadOnlyHost(e.target.value)
-                                    }
-                                    placeholder="localhost"
-                                />
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>gRPC Port:</Label>
-                                <InlineInput
-                                    id="edit-readonly-grpc-port-input"
-                                    className="text-2"
-                                    value={readOnlyGrpcPort}
-                                    onChange={(e) =>
-                                        setReadOnlyGrpcPort(e.target.value)
-                                    }
-                                    placeholder="40451"
-                                />
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>HTTP Port:</Label>
-                                <InlineInput
-                                    id="edit-readonly-http-port-input"
-                                    className="text-2"
-                                    value={readOnlyHttpPort}
-                                    onChange={(e) =>
-                                        setReadOnlyHttpPort(e.target.value)
-                                    }
-                                    placeholder="40453"
-                                />
-                            </FormGroup>
-                        </FormRow>
+                <DirectLinks>
+                    <LinkTitle>Direct links:</LinkTitle>
+                    <Link
+                        className="text-2"
+                        onClick={() =>
+                            window.open(`${readOnlyHttpUrl}/status`, "_blank")
+                        }
+                    >
+                        gRPC: {readOnlyGrpcUrl}
+                    </Link>
+                    <Link
+                        className="text-2"
+                        onClick={() => window.open(readOnlyHttpUrl, "_blank")}
+                    >
+                        HTTP: {readOnlyHttpUrl}
+                    </Link>
+                </DirectLinks>
+            </ConfigSection>
 
-                        <DirectLinks>
-                            <LinkTitle>Direct links:</LinkTitle>
-                            <Link
-                                className="text-2"
-                                onClick={() =>
-                                    window.open(
-                                        `${readOnlyHttpUrl}/status`,
-                                        "_blank",
-                                    )
-                                }
-                            >
-                                gRPC: {readOnlyGrpcUrl}
-                            </Link>
-                            <Link
-                                className="text-2"
-                                onClick={() =>
-                                    window.open(readOnlyHttpUrl, "_blank")
-                                }
-                            >
-                                HTTP: {readOnlyHttpUrl}
-                            </Link>
-                        </DirectLinks>
-                    </ConfigSection>
-
-                    <CustomNetworkActionsButtons>
-                        <InlineButton
-                            variant="primary"
-                            onClick={handleSave}
-                            loading={loading}
-                            style={saveCustomNetworkButtonStyle}
-                        >
-                            Save Custom Network
-                            <FileIcon />
-                        </InlineButton>
-                        <InlineButton
-                            variant="secondary"
-                            onClick={handleClose}
-                            disabled={loading}
-                            style={{ flex: "1" }}
-                        >
-                            Cancel
-                        </InlineButton>
-                    </CustomNetworkActionsButtons>
-                </ModalContent>
-            </ModalContainer>
-        </Overlay>
+            <CustomNetworkActionsButtons>
+                <InlineButton
+                    variant="primary"
+                    onClick={handleSave}
+                    loading={loading}
+                    style={saveCustomNetworkButtonStyle}
+                >
+                    Save Custom Network
+                    <FileIcon />
+                </InlineButton>
+                <InlineButton
+                    variant="secondary"
+                    onClick={handleClose}
+                    disabled={loading}
+                    style={{ flex: "1" }}
+                >
+                    Cancel
+                </InlineButton>
+            </CustomNetworkActionsButtons>
+        </ModalWindow>
     );
 };

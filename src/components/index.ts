@@ -4,6 +4,7 @@ export { Input, TextArea } from './Input';
 export { PasswordInput } from './PasswordInput';
 export { Layout } from './Layout';
 export { PasswordSetup } from './PasswordSetup';
+export { ModalWindow } from './ModalWindow';
 export { PasswordModal } from './PasswordModal';
 export { TransactionConfirmationModal } from './ConfirmationModal';
 export { DeploymentConfirmationModal } from './DeployConfirmationModal';
