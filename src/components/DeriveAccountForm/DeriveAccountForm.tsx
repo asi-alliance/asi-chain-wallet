@@ -56,6 +56,7 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
     const [accountName, setAccountName] = useState("");
     const [accountNameError, setAccountNameError] = useState("");
     const [pendingAccountName, setPendingAccountName] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const updateAccountName = (newName: string): void => {
@@ -83,6 +84,7 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
 
     const handlePasswordSet = async (password: string) => {
         setLoading(true);
+        setPasswordError("");
 
         try {
             await dispatch(
@@ -92,10 +94,10 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
             onSuccess?.(pendingAccountName);
             handleCancel();
         } catch (error) {
-            setAccountNameError(
-                (error as Error)?.message || "Failed to create account",
+            setPasswordError(
+                (error as Error)?.message ||
+                    "Incorrect wallet password. Please try again.",
             );
-            setStep("form");
         } finally {
             setLoading(false);
         }
@@ -105,6 +107,7 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
         setStep("form");
         updateAccountName("");
         setAccountNameError("");
+        setPasswordError("");
         setPendingAccountName("");
         onCancel?.();
     };
@@ -112,9 +115,17 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
     if (step === "password") {
         return (
             <PasswordSetup
+                mode="unlock"
                 title="Enter password to add account"
+                description="Enter the password of your current wallet — a new account is derived from it, no new password is created."
+                submitLabel="Add Account"
+                error={passwordError}
+                loading={loading}
                 onPasswordSet={handlePasswordSet}
-                onCancel={() => setStep("form")}
+                onCancel={() => {
+                    setPasswordError("");
+                    setStep("form");
+                }}
             />
         );
     }
