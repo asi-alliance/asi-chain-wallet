@@ -153,14 +153,14 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
             setNetworkName(network.name);
 
             // Parse validator URL
-            if (network.url) {
+            if (network.validatorUrl) {
                 try {
-                    const validatorUrl = new URL(network.url);
+                    const validatorUrl = new URL(network.validatorUrl);
                     setValidatorHost(validatorUrl.hostname || "localhost");
                     setValidatorHttpPort(validatorUrl.port || "40403");
                 } catch {
                     // If URL parsing fails, try to extract from string
-                    const parts = network.url.split(":");
+                    const parts = network.validatorUrl.split(":");
                     if (parts.length >= 2) {
                         setValidatorHost(parts[1].replace("//", ""));
                         setValidatorHttpPort(parts[2] || "40403");
@@ -168,14 +168,14 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                 }
             }
 
-            // Parse readOnly URL
-            if (network.readOnlyUrl) {
+            // Parse observer URL
+            if (network.observerUrl) {
                 try {
-                    const readOnlyUrl = new URL(network.readOnlyUrl);
-                    setReadOnlyHost(readOnlyUrl.hostname || "localhost");
-                    setReadOnlyHttpPort(readOnlyUrl.port || "40453");
+                    const observerUrl = new URL(network.observerUrl);
+                    setReadOnlyHost(observerUrl.hostname || "localhost");
+                    setReadOnlyHttpPort(observerUrl.port || "40453");
                 } catch {
-                    const parts = network.readOnlyUrl.split(":");
+                    const parts = network.observerUrl.split(":");
                     if (parts.length >= 2) {
                         setReadOnlyHost(parts[1].replace("//", ""));
                         setReadOnlyHttpPort(parts[2] || "40453");
@@ -196,8 +196,8 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
         const updatedNetwork: Network = {
             ...network,
             name: networkName,
-            url: `http://${validatorHost}:${validatorHttpPort}`,
-            readOnlyUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
+            validatorUrl: `http://${validatorHost}:${validatorHttpPort}`,
+            observerUrl: `http://${readOnlyHost}:${readOnlyHttpPort}`,
         };
 
         onSave(updatedNetwork);

@@ -1,21 +1,36 @@
 import React, { useRef, useState } from "react";
-import { Client } from "@asichain/asi-wallet-sdk";
+import { Client, INetworkRecord } from "@asichain/asi-wallet-sdk";
 import { useDisposableAsync } from "hooks/useDisposableAsync";
+import {
+    getInitialNetwork,
+    getNetworksEnvError,
+    NETWORKS_CONFIG,
+} from "constants/networks";
 import { setSdkClient } from "./client";
-import { DEFAULT_NETWORK, NETWORKS_CONFIG } from "./networksConfig";
 
 let clientPromise: Promise<Client> | null = null;
 
 const initSdkClient = (): Promise<Client> => {
+    const networksEnvError = getNetworksEnvError();
+
+    if (networksEnvError) {
+        return Promise.reject(new Error(networksEnvError));
+    }
+
     if (!clientPromise) {
         clientPromise = Client.create({
             networksConfig: NETWORKS_CONFIG,
-            defaultNetwork: DEFAULT_NETWORK,
+            defaultNetwork: getInitialNetwork().id,
             flags: {
                 withInsensitiveCacheStorage: true,
             },
             security: {
                 autoLockMs: 15 * 1000,
+            },
+            eventDispatcher: {
+                onNetworkChanged: (network: INetworkRecord) => {
+                    console.info("SDK network changed:", network.id);
+                },
             },
         }).then((client) => {
             setSdkClient(client);

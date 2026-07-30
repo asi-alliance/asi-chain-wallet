@@ -26,11 +26,9 @@ export interface Deploy {
 export interface Network {
     id: string;
     name: string;
-    url: string;
-    readOnlyUrl?: string;
-    adminUrl?: string;
-    graphqlUrl?: string;
-    shardId?: string;
+    validatorUrl: string;
+    observerUrl: string;
+    indexerUrl: string;
 }
 
 export interface WalletStoreState {
