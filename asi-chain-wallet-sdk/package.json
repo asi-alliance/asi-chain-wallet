@@ -1,0 +1,65 @@
+{
+    "version": "0.1.2",
+    "name": "@asichain/asi-wallet-sdk",
+    "description": "ASI Wallet SDK",
+    "license": "Apache-2.0",
+    "type": "module",
+    "main": "dist/index.esm.js",
+    "types": "dist/index.d.ts",
+    "sideEffects": false,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/asi-alliance/asi-chain-wallet-sdk"
+    },
+    "files": [
+        "dist/index.cjs",
+        "dist/index.esm.js",
+        "dist/index.cjs.map",
+        "dist/index.esm.js.map",
+        "dist/index.d.ts",
+        "README.md"
+    ],
+    "scripts": {
+        "dev": "tsc -p tsconfig.build.json && rollup -c -w",
+        "build": "tsc -p tsconfig.build.json && rollup -c",
+        "test:security": "node scripts/security/run-security-tests.mjs",
+        "test:unit": "node scripts/security/run-unit-tests.mjs",
+        "check:secret-logs": "node scripts/security/check-secret-logs.mjs",
+        "security:gate": "npm run build && npm run test:security && npm run check:secret-logs && npm audit --omit=dev"
+    },
+    "devDependencies": {
+        "@rollup/plugin-alias": "^5.0.0",
+        "@rollup/plugin-commonjs": "^25.0.0",
+        "@rollup/plugin-node-resolve": "^15.0.1",
+        "@rollup/plugin-terser": "^0.1.0",
+        "@rollup/plugin-typescript": "^11.1.0",
+        "@types/node": "^25.4.0",
+        "@types/node-persist": "^3.1.8",
+        "dotenv": "^17.4.2",
+        "fake-indexeddb": "^6.2.5",
+        "rollup": "^3.27.0",
+        "rollup-plugin-dts": "^6.3.0",
+        "tslib": "^2.8.1",
+        "tsx": "^4.20.6",
+        "typescript": "^5.9.3"
+    },
+    "dependencies": {
+        "@noble/hashes": "^1.6.0",
+        "@noble/secp256k1": "^1.7.0",
+        "axios": "^1.13.2",
+        "bip32": "^4.0.0",
+        "bip39": "^3.1.0",
+        "blakejs": "^1.2.1",
+        "bs58": "^6.0.0",
+        "buffer": "^6.0.3",
+        "js-sha3": "^0.9.3",
+        "node-persist": "^4.0.4"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.esm.js",
+            "require": "./dist/index.cjs"
+        }
+    }
+}
