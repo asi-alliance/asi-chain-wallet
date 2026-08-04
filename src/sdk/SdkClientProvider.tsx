@@ -1,6 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Client, INetworkRecord } from "@asichain/asi-wallet-sdk";
-import { useDisposableAsync } from "hooks/useDisposableAsync";
 import {
     getInitialNetwork,
     getNetworksEnvError,
@@ -47,31 +46,35 @@ export const SdkClientProvider: React.FC<{
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const clientRef = useRef<Client | null>(null);
+    useEffect(() => {
+        let cancelled = false;
 
-    useDisposableAsync(initSdkClient, {
-        onResolve: (client) => {
-            clientRef.current = client;
-            setIsReady(true);
-        },
-        onDispose: (client) => {
-            client.close();
-            clientPromise = null;
-        },
-        onUnmount: () => {
-            clientRef.current?.close();
-            clientPromise = null;
-        },
-        onError: (initError) => {
-            console.error("Failed to initialize SDK client:", initError);
+        initSdkClient()
+            .then(() => {
+                if (cancelled) {
+                    return;
+                }
 
-            setError(
-                initError instanceof Error
-                    ? initError.message
-                    : "Failed to initialize wallet SDK",
-            );
-        },
-    });
+                setIsReady(true);
+            })
+            .catch((initError: unknown) => {
+                console.error("Failed to initialize SDK client:", initError);
+
+                if (cancelled) {
+                    return;
+                }
+
+                setError(
+                    initError instanceof Error
+                        ? initError.message
+                        : "Failed to initialize wallet SDK",
+                );
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     if (error) {
         return <div>{error}</div>;
