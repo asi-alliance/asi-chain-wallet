@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Network } from "types/wallet";
 
 const DesktopNavStyled = styled.nav`
     height: 41px;
@@ -180,7 +181,7 @@ interface DesktopNavComponentProps {
     networkStatus: "connected" | "disconnected" | "checking";
     lastRefresh: Date;
     selectedNetwork: any;
-    networks: any[];
+    networks: Network[];
     onNetworkChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
@@ -232,7 +233,10 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                         <option
                             key={network.id}
                             value={network.id}
-                            disabled={!network.url || network.url.trim() === ""}
+                            disabled={
+                                !network.validatorUrl ||
+                                network.validatorUrl.trim() === ""
+                            }
                         >
                             {network.name}
                         </option>

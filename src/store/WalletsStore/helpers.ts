@@ -6,18 +6,12 @@ import {
     Network,
     WalletStoreState,
 } from "types/wallet";
-import { parseNetworksFromEnv } from "./networksEnv";
+import { NETWORKS } from "constants/networks";
 
 export interface IWalletAndAccountPathFromMeta {
     wallet: IWalletMeta;
     account: IAccountMeta;
 }
-
-export const defaultNetworks: Network[] = parseNetworksFromEnv();
-
-export const getInitialNetworks = () => {
-    return defaultNetworks;
-};
 
 export const getAccountFromWalletsMeta = (
     walletsMeta: IWalletMeta[],
@@ -100,13 +94,12 @@ export const applyActiveWalletSession = (
 };
 
 export const isPredefinedNetwork = (networkId: string): boolean => {
-    return defaultNetworks.some((n) => n.id === networkId);
+    return NETWORKS.some((network: Network) => network.id === networkId);
 };
 
 export const NETWORKS_STORAGE_KEY = "asi_wallet_networks";
 export const getAccountNetworksKey = (accountId?: string | null) =>
     accountId ? `${NETWORKS_STORAGE_KEY}_${accountId}` : NETWORKS_STORAGE_KEY;
-export const SELECTED_NETWORK_KEY = "asi_wallet_selected_network";
 
 type AccountNetworkUpdate = { id: string; networkId: string };
 
@@ -181,8 +174,10 @@ export const persistSelectedAccountId = (accountId: string | null) => {
 };
 
 export const loadNetworks = (accountId?: string | null): Network[] => {
-    const result: Network[] = [...defaultNetworks];
-    const envNetworkIds = new Set(defaultNetworks.map((n) => n.id));
+    const result: Network[] = [...NETWORKS];
+    const envNetworkIds = new Set(
+        NETWORKS.map((network: Network) => network.id),
+    );
 
     if (typeof window !== "undefined" && window.localStorage) {
         try {

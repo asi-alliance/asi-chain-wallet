@@ -64,9 +64,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         const checkNetwork = async () => {
             if (!selectedNetwork) return;
 
-            const networkUrl =
-                selectedNetwork.readOnlyUrl || selectedNetwork.url;
-            if (!networkUrl || !networkUrl.trim()) {
+            const networkUrl = selectedNetwork.observerUrl;
+            if (!networkUrl) {
                 setNetworkStatus("disconnected");
                 return;
             }

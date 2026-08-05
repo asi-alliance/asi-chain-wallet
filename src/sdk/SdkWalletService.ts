@@ -60,7 +60,8 @@ export class SdkWalletService {
         const clean = SdkWalletService.normalizePrivateKeyHex(hex);
 
         return (
-            clean.length === PRIVATE_KEY_LENGTH * 2 && !/[^0-9a-fA-F]/.test(clean)
+            clean.length === PRIVATE_KEY_LENGTH * 2 &&
+            !/[^0-9a-fA-F]/.test(clean)
         );
     }
 
@@ -259,8 +260,8 @@ export class SdkWalletService {
         return requireSdkClient().renameAccount(walletId, accountId, name);
     }
 
-    static setNetwork(network: NetworkName): void {
-        return requireSdkClient().setNetwork(network);
+    static setNetwork(networkId: string): void {
+        return requireSdkClient().setNetwork(networkId);
     }
 
     static async getBalance(address: string): Promise<string> {

@@ -1,13 +1,12 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import {
-    Network,
-    WalletStoreState,
-    IWalletMeta,
-    IAccountMeta,
-} from "types/wallet";
+import { WalletStoreState, IWalletMeta, IAccountMeta } from "types/wallet";
 import { RootState } from "store";
 import { SdkWalletService } from "sdk";
-import { NetworkName } from "@asichain/asi-wallet-sdk";
+import {
+    getInitialNetwork,
+    NETWORKS,
+    persistSelectedNetworkId,
+} from "constants/networks";
 import {
     fetchBalance,
     fetchTransactionHistory,
@@ -20,11 +19,8 @@ import {
 import {
     applyActiveWalletSession,
     getAccountFromWalletsMeta,
-    getInitialNetworks,
     getWalletAndAccountFromWalletsMeta,
-    NETWORKS_STORAGE_KEY,
     persistSelectedAccountId,
-    SELECTED_NETWORK_KEY,
 } from "./helpers";
 import { Transaction } from "types/transactions";
 import {
@@ -37,78 +33,16 @@ import {
     unlockAccount,
 } from "store/Auth/thunks";
 
-const initialNetworks = getInitialNetworks();
-
-const createInitialState = (): WalletStoreState => {
-    const networks = initialNetworks;
-
-    let defaultNetwork: Network | undefined;
-
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            const selectedNetworkId =
-                localStorage.getItem(SELECTED_NETWORK_KEY);
-            if (selectedNetworkId) {
-                defaultNetwork = networks.find(
-                    (n) =>
-                        n.id === selectedNetworkId &&
-                        n.url &&
-                        n.url.trim() !== "",
-                );
-            }
-        }
-    } catch (error) {
-        console.error(
-            "Failed to load selected network from localStorage:",
-            error,
-        );
-    }
-
-    if (!defaultNetwork) {
-        defaultNetwork = networks.find((n) => n.url && n.url.trim() !== "");
-    }
-
-    if (!defaultNetwork) {
-        try {
-            if (typeof window !== "undefined" && window.localStorage) {
-                const stored = localStorage.getItem(NETWORKS_STORAGE_KEY);
-                if (stored) {
-                    const storedNetworks = JSON.parse(stored) as Network[];
-                    defaultNetwork = storedNetworks.find(
-                        (n) => n.url && n.url.trim() !== "",
-                    );
-                }
-            }
-        } catch (error) {
-            console.error(
-                "Failed to load default network from localStorage:",
-                error,
-            );
-        }
-    }
-
-    if (!defaultNetwork) {
-        defaultNetwork = {
-            id: "default",
-            name: "Default Network",
-            url: "",
-            shardId: "root",
-        };
-    }
-
-    return {
-        wallets: [],
-        balances: {},
-        selectedAccountId: null,
-        transactions: [],
-        networks: networks,
-        selectedNetwork: defaultNetwork,
-        isLoading: false,
-        isInitialLoadComplete: false,
-    };
+const initialState: WalletStoreState = {
+    wallets: [],
+    balances: {},
+    selectedAccountId: null,
+    transactions: [],
+    networks: [...NETWORKS],
+    selectedNetwork: getInitialNetwork(),
+    isLoading: false,
+    isInitialLoadComplete: false,
 };
-
-const initialState: WalletStoreState = createInitialState();
 
 export interface IAccountDefaultUpdateFieldsPayload {
     walletId: string;
@@ -151,23 +85,19 @@ const walletsStoreSlice = createSlice({
             persistSelectedAccountId(walletAndAccount.account.id);
         },
         selectNetwork: (state, action: PayloadAction<string>) => {
-            const network = state.networks.find((n) => n.id === action.payload);
+            const network = state.networks.find(
+                (networkMeta) => networkMeta.id === action.payload,
+            );
 
-            if (!network || !network.url || network.url.trim() === "") {
+            if (!network || state.selectedNetwork.id === network.id) {
                 return;
             }
 
-            if (state.selectedNetwork?.id === network.id) {
-                return;
-            }
-
-            SdkWalletService.setNetwork(network.name as NetworkName);
+            SdkWalletService.setNetwork(network.id);
 
             state.selectedNetwork = network;
 
-            if (typeof window !== "undefined" && window.localStorage) {
-                localStorage.setItem(SELECTED_NETWORK_KEY, network.id);
-            }
+            persistSelectedNetworkId(network.id);
         },
         updateAccountBalance: (
             state,

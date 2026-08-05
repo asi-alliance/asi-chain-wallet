@@ -295,19 +295,18 @@ export const bridgeLock = createAsyncThunk(
             );
         }
 
-        const validatorUrl = network.url?.trim();
-        if (!validatorUrl) {
+        if (!network.validatorUrl) {
             throw new Error(
                 `Network "${network.name}" has no validator URL configured`,
             );
         }
 
         const rchain = new RChainService(
-            validatorUrl,
-            network.readOnlyUrl,
-            network.adminUrl,
-            network.shardId,
-            network.graphqlUrl,
+            network.validatorUrl,
+            network.observerUrl,
+            undefined,
+            undefined,
+            network.indexerUrl,
         );
 
         const deployId = await rchain.bridgeLock(
