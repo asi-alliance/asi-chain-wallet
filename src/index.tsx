@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { SecureStorage } from "services/secureStorage";
+import { store } from "store";
 
 const root = ReactDOM.createRoot(
     document.getElementById("root") as HTMLElement,
@@ -45,4 +46,24 @@ if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
                 console.error("ServiceWorker registration failed:", err);
             });
     });
+} else if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+            registrations.forEach((registration) => {
+                registration.unregister();
+            });
+        })
+        .catch((err) => {
+            console.error("ServiceWorker unregister failed:", err);
+        });
+
+    if ("caches" in window) {
+        caches
+            .keys()
+            .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+            .catch((err) => {
+                console.error("Cache cleanup failed:", err);
+            });
+    }
 }

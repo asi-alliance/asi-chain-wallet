@@ -3,16 +3,17 @@ import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { selectAccounts } from "store/WalletsStore";
+import { selectAccounts, selectActiveWallet } from "store/WalletsStore";
 import { fetchBalance } from "store/WalletsStore/thunks";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
-import { IAccountMeta } from "types/wallet";
+import { IAccountMeta, IWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
 import { DeriveAccountModal } from "components/DeriveAccountModal";
 import { useScreen } from "hooks/";
 import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 
 const AccountsContainer = styled.div``;
 
@@ -70,6 +71,7 @@ export const Accounts: React.FC = () => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
+    const activeWallet: IWalletMeta | null = useSelector(selectActiveWallet);
     const isLoading = useSelector(
         (state: RootState) => state.walletsStore.isLoading,
     );
@@ -148,31 +150,37 @@ export const Accounts: React.FC = () => {
                                     />
                                 ))}
                             </AccountsGrid>
-                            <AccountsActionsFooter>
-                                <InlineButton
-                                    id="create-account-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Account </h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                            </AccountsActionsFooter>
+                            {!!activeWallet &&
+                                activeWallet.type !==
+                                    WalletTypes.PRIVATE_KEY && (
+                                    <AccountsActionsFooter>
+                                        <InlineButton
+                                            id="create-account-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Account </h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                                    fill="currentcolor"
+                                                />
+                                            </svg>
+                                        </InlineButton>
+                                    </AccountsActionsFooter>
+                                )}
                         </CardContent>
                     </Card>
                 )}

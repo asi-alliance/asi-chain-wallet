@@ -408,6 +408,7 @@ export const selectActiveWallet = createSelector(
                 walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
         ) ?? null,
 );
+
 export const selectAccounts = createSelector(
     [selectActiveWallet],
     (activeWallet: IWalletMeta | null) => activeWallet?.accounts ?? [],
