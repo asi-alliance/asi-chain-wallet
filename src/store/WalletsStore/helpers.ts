@@ -6,12 +6,39 @@ import {
     Network,
     WalletStoreState,
 } from "types/wallet";
+import { Transaction } from "types/transactions";
+import { TransactionStatus } from "@asichain/asi-wallet-sdk";
 import { NETWORKS } from "constants/networks";
 
 export interface IWalletAndAccountPathFromMeta {
     wallet: IWalletMeta;
     account: IAccountMeta;
 }
+
+export interface ITransactionStatusUpdate {
+    deployId: string;
+    status: TransactionStatus;
+    error?: string;
+}
+
+export const updateTransactionStatus = (
+    transactions: Transaction[],
+    { deployId, status, error }: ITransactionStatusUpdate,
+): void => {
+    const targetTransaction: Transaction | undefined = transactions.find(
+        (transaction: Transaction) => transaction.deployId === deployId,
+    );
+
+    if (!targetTransaction) {
+        return;
+    }
+
+    targetTransaction.status = status;
+
+    if (error) {
+        targetTransaction.error = error;
+    }
+};
 
 export const getAccountFromWalletsMeta = (
     walletsMeta: IWalletMeta[],

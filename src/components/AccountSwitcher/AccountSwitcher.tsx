@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect, CSSProperties } from "react";
 import styled, { css } from "styled-components";
 import { truncateText } from "utils/textUtils";
-import { formatBalanceCompact } from "utils/balanceUtils";
+import { AccountBalanceValue } from "components/AccountBalanceValue";
 
 export interface AccountView {
     id: string;
     name: string;
     address: string;
-    balance: string;
 }
 
 const SwitcherContainer = styled.div<{ $fullWidth?: boolean }>`
@@ -168,21 +167,6 @@ const AccountBalance = styled.span<{
         `}
 `;
 
-const LoadingSpinner = styled.div`
-    width: 12px;
-    height: 12px;
-    border: 1px solid ${({ theme }) => theme.primary};
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-`;
-
 const ChevronIcon = styled.span<{ $isOpen: boolean }>`
     font-size: 12px;
     transition: transform 0.2s ease;
@@ -275,7 +259,6 @@ interface IAccountSwitcherProps {
     accounts: AccountView[];
     selectedId?: string;
     onSelect: (accountId: string) => void;
-    isLoading?: boolean;
     disabled?: boolean;
     onOpen?: () => void;
     adaptive?: boolean;
@@ -289,7 +272,6 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
     accounts,
     selectedId,
     onSelect,
-    isLoading = false,
     disabled = false,
     onOpen,
     adaptive = true,
@@ -385,13 +367,9 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                             $adaptive={adaptive}
                         >
                             <h5>
-                                {isLoading ? (
-                                    <LoadingSpinner />
-                                ) : (
-                                    formatBalanceCompact(
-                                        selectedAccount.balance,
-                                    )
-                                )}
+                                <AccountBalanceValue
+                                    accountId={selectedAccount.id}
+                                />
                             </h5>
                         </AccountBalance>
                     )}
@@ -430,11 +408,7 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                                 $adaptive={adaptive}
                                 $layout={layout}
                             >
-                                {isLoading ? (
-                                    <LoadingSpinner />
-                                ) : (
-                                    formatBalanceCompact(account.balance)
-                                )}
+                                <AccountBalanceValue accountId={account.id} />
                             </AccountBalance>
                         </DropdownItem>
                     ))

@@ -8,8 +8,6 @@ import {
     persistSelectedNetworkId,
 } from "constants/networks";
 import {
-    fetchBalance,
-    fetchTransactionHistory,
     loadWalletsFromStorage,
     removeAccount,
     removeWallet,
@@ -22,7 +20,7 @@ import {
     getWalletAndAccountFromWalletsMeta,
     persistSelectedAccountId,
 } from "./helpers";
-import { Transaction } from "types/transactions";
+import { walletsApi } from "./api";
 import {
     createHdWallet,
     deriveHdAccount,
@@ -35,9 +33,7 @@ import {
 
 const initialState: WalletStoreState = {
     wallets: [],
-    balances: {},
     selectedAccountId: null,
-    transactions: [],
     networks: [...NETWORKS],
     selectedNetwork: getInitialNetwork(),
     isLoading: false,
@@ -47,11 +43,6 @@ const initialState: WalletStoreState = {
 export interface IAccountDefaultUpdateFieldsPayload {
     walletId: string;
     accountId: string;
-}
-
-export interface IAccountUpdateBalancePayload {
-    accountId: string;
-    balance: string;
 }
 
 const walletsStoreSlice = createSlice({
@@ -98,28 +89,6 @@ const walletsStoreSlice = createSlice({
             state.selectedNetwork = network;
 
             persistSelectedNetworkId(network.id);
-        },
-        updateAccountBalance: (
-            state,
-            action: PayloadAction<IAccountUpdateBalancePayload>,
-        ) => {
-            const { accountId, balance } = action.payload;
-
-            const targetAccount: IAccountMeta | null =
-                getAccountFromWalletsMeta(state.wallets, accountId);
-
-            if (!targetAccount) {
-                console.error(
-                    "walletsStoreSlice.updateAccountBalance: Incorrect account id",
-                );
-
-                return;
-            }
-
-            state.balances[targetAccount.id] = balance;
-        },
-        addTransaction: (state, action: PayloadAction<Transaction>) => {
-            state.transactions.unshift(action.payload);
         },
         //TODO: Updated Custom Networks CRUD operations after SDK feature updates
         // updateNetwork: (state, action: PayloadAction<Network>) => {
@@ -237,24 +206,6 @@ const walletsStoreSlice = createSlice({
         //         }
         //     }
         // },
-        updateTransactionStatus: (
-            state,
-            action: PayloadAction<{
-                deployId: string;
-                status: "pending" | "completed" | "failed";
-                error?: string;
-            }>,
-        ) => {
-            const transaction = state.transactions.find(
-                (tx) => tx.deployId === action.payload.deployId,
-            );
-            if (transaction) {
-                transaction.status = action.payload.status;
-                if (action.payload.error) {
-                    transaction.error = action.payload.error;
-                }
-            }
-        },
     },
     extraReducers: (builder) => {
         builder
@@ -328,30 +279,14 @@ const walletsStoreSlice = createSlice({
             .addCase(updateAccountName.rejected, (state) => {
                 state.isLoading = false;
             })
-            .addCase(fetchBalance.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(fetchBalance.fulfilled, (state, action) => {
-                const { accountId, balance } = action.payload;
-
-                state.balances[accountId] = balance;
-                state.isLoading = false;
-            })
-            .addCase(fetchBalance.rejected, (state) => {
-                state.isLoading = false;
-            })
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(sendTransaction.fulfilled, (state, action) => {
-                state.transactions.unshift(action.payload);
+            .addCase(sendTransaction.fulfilled, (state) => {
                 state.isLoading = false;
             })
             .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
-            })
-            .addCase(fetchTransactionHistory.fulfilled, (state, action) => {
-                state.transactions = [...action.payload];
             })
             .addCase(createHdWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
@@ -415,8 +350,19 @@ export const selectAccounts = createSelector(
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
-export const selectBalanceByAccountId = (state: RootState, accountId: string) =>
-    state.walletsStore.balances[accountId] ?? "0";
+export const selectSelectedNetworkId = (state: RootState) =>
+    state.walletsStore.selectedNetwork.id;
+export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => {
+    const networkId = selectSelectedNetworkId(state);
+
+    return selectAccounts(state).some(
+        (accountMeta: IAccountMeta) =>
+            walletsApi.endpoints.getBalance.select({
+                accountId: accountMeta.id,
+                networkId,
+            })(state).isLoading,
+    );
+};
 
 export const selectUnlockedWallets = createSelector(
     [selectWallets],
@@ -434,13 +380,10 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
 export const {
     selectAccount,
     selectNetwork,
-    updateAccountBalance,
-    addTransaction,
     // updateNetwork,
     // addNetwork,
     // removeNetwork,
     // loadNetworksFromStorage,
-    updateTransactionStatus,
 } = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

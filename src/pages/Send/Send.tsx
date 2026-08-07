@@ -8,12 +8,13 @@ import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
     selectAccountById,
-    selectBalanceByAccountId,
     selectSelectedAccountId,
+    selectSelectedNetworkId,
     selectWalletByAccountId,
-    updateAccountBalance,
 } from "store/WalletsStore";
-import { fetchBalance, sendTransaction } from "store/WalletsStore/thunks";
+import { walletsApi, useGetBalanceQuery } from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
+import { sendTransaction } from "store/WalletsStore/thunks";
 import {
     Card,
     CardHeader,
@@ -39,6 +40,8 @@ import {
     QRIcon,
     VectorIcon,
 } from "components/Icons";
+
+const BALANCE_POLLING_INTERVAL_MS = 30000;
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -227,10 +230,10 @@ export const Send: React.FC = () => {
             ? selectWalletByAccountId(state, selectedAccountId)
             : null,
     );
-    const balance = useSelector((state: RootState) =>
-        selectedAccountId
-            ? selectBalanceByAccountId(state, selectedAccountId)
-            : "0",
+    const networkId = useSelector(selectSelectedNetworkId);
+    const { data: balance = "0", refetch: refetchBalance } = useGetBalanceQuery(
+        selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
+        { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
     );
     const isLoading = useSelector(
         (state: RootState) => state.walletsStore.isLoading,
@@ -321,23 +324,6 @@ export const Send: React.FC = () => {
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const qrScannerRef = useRef<QrScanner | null>(null);
-
-    // Fetch balance on mount and when selected account changes
-    useEffect(() => {
-        if (selectedAccount) {
-            dispatch(fetchBalance({ accountId: selectedAccount.id }));
-        }
-    }, [selectedAccount, dispatch]);
-
-    useEffect(() => {
-        if (!selectedAccount) return;
-
-        const interval = setInterval(() => {
-            dispatch(fetchBalance({ accountId: selectedAccount.id }));
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [selectedAccount, dispatch]);
 
     // Initialize QR scanner when modal opens
     useEffect(() => {
@@ -579,21 +565,9 @@ export const Send: React.FC = () => {
             pollCount++;
 
             try {
-                const balanceResult = await dispatch(
-                    fetchBalance({ accountId: selectedAccount.id }),
-                );
+                const { data: newBalance, isError } = await refetchBalance();
 
-                if (fetchBalance.fulfilled.match(balanceResult)) {
-                    const newBalance = balanceResult.payload.balance;
-
-                    if (
-                        newBalance !== initialBalance ||
-                        pollCount >= maxPolls
-                    ) {
-                        clearInterval(pollInterval);
-                        setIsWaitingForBalance(false);
-                    }
-                } else if (fetchBalance.rejected.match(balanceResult)) {
+                if (isError) {
                     const sentAmount = parseFloat(amount);
                     const fee = getGasFeeAsNumber();
                     const expectedNewBalance =
@@ -601,10 +575,14 @@ export const Send: React.FC = () => {
 
                     if (expectedNewBalance >= 0) {
                         dispatch(
-                            updateAccountBalance({
-                                accountId: selectedAccount.id,
-                                balance: expectedNewBalance.toString(),
-                            }),
+                            walletsApi.util.upsertQueryData(
+                                "getBalance",
+                                {
+                                    accountId: selectedAccount.id,
+                                    networkId,
+                                },
+                                expectedNewBalance.toString(),
+                            ),
                         );
                     }
 
@@ -612,6 +590,13 @@ export const Send: React.FC = () => {
                         clearInterval(pollInterval);
                         setIsWaitingForBalance(false);
                     }
+
+                    return;
+                }
+
+                if (newBalance !== initialBalance || pollCount >= maxPolls) {
+                    clearInterval(pollInterval);
+                    setIsWaitingForBalance(false);
                 }
             } catch (error) {
                 console.error("[Send] Error during balance polling:", error);

@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useMemo, Fragment } from "react";
+import React, { useState, Fragment } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { selectAccounts, selectActiveWallet } from "store/WalletsStore";
-import { fetchBalance } from "store/WalletsStore/thunks";
+import {
+    selectAccounts,
+    selectActiveWallet,
+    selectIsAnyAccountBalanceFetching,
+} from "store/WalletsStore";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
@@ -68,13 +71,8 @@ const InlineButton = styled(Button)`
 export const Accounts: React.FC = () => {
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
     const activeWallet: IWalletMeta | null = useSelector(selectActiveWallet);
-    const isLoading = useSelector(
-        (state: RootState) => state.walletsStore.isLoading,
-    );
+    const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
 
     const { isLaptop } = useScreen();
 
@@ -85,40 +83,15 @@ export const Accounts: React.FC = () => {
         actionParam === "create-account",
     );
 
-    const accountIds = useMemo(
-        () => accounts.map((account: IAccountMeta) => account.id).join(","),
-        [accounts],
-    );
-
-    useEffect(() => {
-        if (accounts.length > 0) {
-            const timeoutId = setTimeout(() => {
-                accounts.forEach((account: IAccountMeta) => {
-                    dispatch(fetchBalance({ accountId: account.id }));
-                });
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, accountIds]);
-
-    useEffect(() => {
-        if (accounts.length > 0) {
-            const interval = setInterval(() => {
-                accounts.forEach((account: IAccountMeta) => {
-                    dispatch(fetchBalance({ accountId: account.id }));
-                });
-            }, 30000);
-            return () => clearInterval(interval);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, accountIds]);
-
     const handleRefreshBalances = () => {
-        accounts.forEach((account: IAccountMeta) => {
-            dispatch(fetchBalance({ accountId: account.id }));
-        });
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account: IAccountMeta) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
+            ),
+        );
     };
 
     return (

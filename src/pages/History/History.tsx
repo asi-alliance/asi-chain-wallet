@@ -1,13 +1,14 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import styled, { css } from "styled-components";
 import { RootState } from "store";
-import { useAppDispatch } from "store/hooks";
 import {
     selectAccountById,
     selectSelectedAccountId,
+    selectSelectedNetworkId,
 } from "store/WalletsStore/";
-import { fetchTransactionHistory } from "store/WalletsStore/thunks";
+import { useGetTransactionHistoryQuery } from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { Transaction } from "types/transactions";
 import { ContentPasteIcon, DownloadIcon } from "components/Icons";
@@ -283,20 +284,28 @@ const statusOptions = [
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
+const HISTORY_POLLING_INTERVAL_MS = 30000;
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+
 export const History: React.FC = () => {
-    const dispatch = useAppDispatch();
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const transactions = useSelector(
-        (state: RootState) => state.walletsStore.transactions,
+    const networkId = useSelector(selectSelectedNetworkId);
+
+    const {
+        data: transactions = EMPTY_TRANSACTIONS,
+        isFetching,
+        fulfilledTimeStamp,
+    } = useGetTransactionHistoryQuery(
+        selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
+        { pollingInterval: HISTORY_POLLING_INTERVAL_MS },
     );
 
     const { isTablet } = useScreen();
 
     const [filter, setFilter] = useState<TransactionFilter>({});
-    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const handleCopy = useCallback(async (text: string) => {
         try {
@@ -304,34 +313,8 @@ export const History: React.FC = () => {
         } catch {}
     }, []);
 
-    const loadTransactions = useCallback(() => {
-        if (!selectedAccount) return;
-
-        dispatch(
-            fetchTransactionHistory({
-                address: selectedAccount.address,
-                publicKey: selectedAccount.publicKey,
-            }),
-        );
-    }, [dispatch, selectedAccount]);
-
-    useEffect(() => {
-        loadTransactions();
-    }, [loadTransactions]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            loadTransactions();
-            setLastRefresh(new Date());
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [loadTransactions]);
-
     const visibleTransactions = useMemo<Transaction[]>(() => {
-        if (!selectedAccount) return [];
-
-        let result = structuredClone(transactions);
+        let result = transactions;
 
         if (filter.type) {
             result = result.filter((tx) => tx.type === filter.type);
@@ -394,7 +377,12 @@ export const History: React.FC = () => {
                             Auto-refresh: every 30s
                         </RefreshTextLine>
                         <RefreshTextLine>
-                            Last: {lastRefresh.toLocaleTimeString()}
+                            Last:{" "}
+                            {fulfilledTimeStamp
+                                ? new Date(
+                                      fulfilledTimeStamp,
+                                  ).toLocaleTimeString()
+                                : "—"}
                         </RefreshTextLine>
                     </RefreshText>
                 </CardHeader>
@@ -648,7 +636,19 @@ export const History: React.FC = () => {
                         </div>
                     ) : (
                         <EmptyState>
-                            {selectedAccount ? (
+                            {!selectedAccount && (
+                                <p>
+                                    Please select an account to view transaction
+                                    history.
+                                </p>
+                            )}
+                            {selectedAccount && isFetching && (
+                                <p>
+                                    Loading transaction history for{" "}
+                                    {selectedAccount.name}…
+                                </p>
+                            )}
+                            {selectedAccount && !isFetching && (
                                 <>
                                     <p>
                                         No transactions found for{" "}
@@ -660,11 +660,6 @@ export const History: React.FC = () => {
                                         contracts.
                                     </p>
                                 </>
-                            ) : (
-                                <p>
-                                    Please select an account to view transaction
-                                    history.
-                                </p>
                             )}
                         </EmptyState>
                     )}

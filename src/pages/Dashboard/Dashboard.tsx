@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { useAppDispatch } from "store/hooks";
 import {
     selectAccountById,
     selectAccounts,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
+    selectSelectedNetworkId,
 } from "store/WalletsStore";
 import {
-    fetchBalance,
-    fetchTransactionHistory,
-} from "store/WalletsStore/thunks";
+    useGetBalanceQuery,
+    useGetTransactionHistoryQuery,
+} from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
 import { AccountCard } from "components/AccountCard";
@@ -65,14 +66,16 @@ const CustomAccountCard = styled(AccountCard)`
     }
 `;
 
+const ACCOUNT_DATA_POLLING_INTERVAL_MS = 30000;
+
 export const Dashboard: React.FC = () => {
-    const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
     const accounts = useSelector(selectAccounts);
+    const networkId = useSelector(selectSelectedNetworkId);
     const isAccountUnlocked = useSelector((state: RootState) =>
         selectedAccountId
             ? selectIsAccountUnlocked(state, selectedAccountId)
@@ -81,33 +84,17 @@ export const Dashboard: React.FC = () => {
 
     const { isLaptop } = useScreen();
 
-    useEffect(() => {
-        if (selectedAccount && isAccountUnlocked) {
-            dispatch(fetchBalance({ accountId: selectedAccount.id }));
-            dispatch(
-                fetchTransactionHistory({
-                    address: selectedAccount.address,
-                    publicKey: selectedAccount.publicKey,
-                }),
-            );
-        }
-    }, [dispatch, selectedAccount, isAccountUnlocked]);
+    const accountDataArgs =
+        selectedAccountId && isAccountUnlocked
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken;
 
-    useEffect(() => {
-        if (selectedAccount && isAccountUnlocked) {
-            const interval = setInterval(() => {
-                dispatch(fetchBalance({ accountId: selectedAccount.id }));
-                dispatch(
-                    fetchTransactionHistory({
-                        address: selectedAccount.address,
-                        publicKey: selectedAccount.publicKey,
-                    }),
-                );
-            }, 30000);
-
-            return () => clearInterval(interval);
-        }
-    }, [dispatch, selectedAccount, isAccountUnlocked]);
+    useGetBalanceQuery(accountDataArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
+    useGetTransactionHistoryQuery(accountDataArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
 
     const accountIdForActions = useMemo(
         () => selectedAccount?.id ?? accounts[0]?.id,

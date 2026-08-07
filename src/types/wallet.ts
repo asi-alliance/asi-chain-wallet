@@ -1,5 +1,4 @@
 import { Address, WalletTypes } from "@asichain/asi-wallet-sdk";
-import { Transaction } from "./transactions";
 
 export interface Account {
     id: string;
@@ -33,9 +32,7 @@ export interface Network {
 
 export interface WalletStoreState {
     wallets: IWalletMeta[];
-    balances: Record<string, string>;
     selectedAccountId: string | null;
-    transactions: Transaction[];
     networks: Network[];
     selectedNetwork: Network;
     isLoading: boolean;
