@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { SecureStorage } from 'services/secureStorage';
+import { store } from 'store';
+import { checkAuthentication } from 'store/authSlice';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -18,9 +20,14 @@ const renderApp = () => {
   );
 };
 
+const startApp = () => {
+  store.dispatch(checkAuthentication());
+  renderApp();
+};
+
 SecureStorage.init()
-  .then(() => { renderApp(); })
-  .catch((err) => { console.error('[index] SecureStorage.init failed:', err); renderApp(); });
+  .then(() => { startApp(); })
+  .catch((err) => { console.error('[index] SecureStorage.init failed:', err); startApp(); });
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
@@ -37,4 +44,16 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
         console.error('ServiceWorker registration failed:', err);
       });
   });
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then(registrations => {
+      registrations.forEach(registration => { registration.unregister(); });
+    })
+    .catch(err => { console.error('ServiceWorker unregister failed:', err); });
+
+  if ('caches' in window) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+      .catch(err => { console.error('Cache cleanup failed:', err); });
+  }
 }
