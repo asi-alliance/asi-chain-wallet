@@ -62,7 +62,7 @@ const AppContent: React.FC = () => {
     const theme = darkMode ? darkTheme : lightTheme;
 
     useIdleTimer();
-    useDeepLink();
+    // useDeepLink();
     useSessionGuard();
 
     useEffect(() => {
