@@ -15,13 +15,13 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";
-import { IAccountMeta } from "types/wallet";
+import { IUnlockedAccountMeta } from "types/wallet";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { ReactElement } from "react";
 import { RootState } from "store";
 
 interface IAccountCardProps {
-    account: IAccountMeta;
+    account: IUnlockedAccountMeta;
     fullMode?: boolean;
     className?: string;
 }

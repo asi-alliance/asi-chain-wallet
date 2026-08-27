@@ -1,5 +1,10 @@
 import { IAccountDefaultUpdateFieldsPayload } from ".";
-import { Account, IAccountMeta, Network } from "types/wallet";
+import {
+    Account,
+    IAccountMeta,
+    IUnlockedAccountMeta,
+    Network,
+} from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { generateRandomGasFee } from "constants/gas";
 import { createAsyncThunk } from "@reduxjs/toolkit";
@@ -9,7 +14,11 @@ import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
 import { walletsApi, IAccountQueryArgs, WalletsApiTags } from "./api";
-import { getAccountFromWalletsMeta, updateTransactionStatus } from "./helpers";
+import {
+    getAccountFromWalletsMeta,
+    getUnlockedAccountFromWalletsMeta,
+    updateTransactionStatus,
+} from "./helpers";
 import { MaybeDrafted } from "@reduxjs/toolkit/dist/query/core/buildThunks";
 
 export const loadWalletsFromStorage = createAsyncThunk(
@@ -132,10 +141,11 @@ export const sendTransaction = createAsyncThunk<
             throw new Error("Sending to Ethereum addresses is not supported");
         }
 
-        const fromAccount: IAccountMeta | null = getAccountFromWalletsMeta(
-            getState().walletsStore.wallets,
-            accountId,
-        );
+        const fromAccount: IUnlockedAccountMeta | null =
+            getUnlockedAccountFromWalletsMeta(
+                getState().walletsStore.wallets,
+                accountId,
+            );
 
         if (!fromAccount) {
             throw new Error(

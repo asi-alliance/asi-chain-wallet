@@ -44,17 +44,31 @@ export interface IAccountMeta {
     id: string;
     name: string;
     index: number | null;
+}
+
+export interface IUnlockedAccountMeta extends IAccountMeta {
     address: Address;
     publicKey: string;
 }
 
-export interface IWalletMeta {
-    id?: string;
+interface IWalletMetaBase {
     signerId: string;
-    isUnlocked: boolean;
     type: WalletTypes;
+}
+
+export interface ILockedWalletMeta extends IWalletMetaBase {
+    id?: undefined;
+    isUnlocked: false;
     accounts: IAccountMeta[];
 }
+
+export interface IUnlockedWalletMeta extends IWalletMetaBase {
+    id: string;
+    isUnlocked: true;
+    accounts: IUnlockedAccountMeta[];
+}
+
+export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
 
 export enum WalletActions {
     CREATE_WALLET = "create-wallet",

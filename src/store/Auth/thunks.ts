@@ -9,7 +9,7 @@ import {
 } from "services/loginRateLimit";
 import { RootState } from "store";
 import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
-import { IWalletMeta } from "types/wallet";
+import { IUnlockedWalletMeta } from "types/wallet";
 import { classifyLoginError, handleLoginOutcome } from "./helpers";
 
 type CreateHdWalletPayload = {
@@ -19,7 +19,7 @@ type CreateHdWalletPayload = {
 };
 
 export const createHdWallet = createAsyncThunk<
-    IWalletMeta,
+    IUnlockedWalletMeta,
     CreateHdWalletPayload
 >("auth/createHdWallet", async ({ name, mnemonic, password }) => {
     return SdkWalletService.createHdWallet({ name, mnemonic, password });
@@ -32,7 +32,7 @@ type ImportHdWalletPayload = {
 };
 
 export const importHdWallet = createAsyncThunk<
-    IWalletMeta,
+    IUnlockedWalletMeta,
     ImportHdWalletPayload
 >("auth/importHdWallet", async ({ name, mnemonic, password }) => {
     return SdkWalletService.createHdWallet({ name, mnemonic, password });
@@ -45,7 +45,7 @@ type ImportPrivateKeyWalletPayload = {
 };
 
 export const importPrivateKeyWallet = createAsyncThunk<
-    IWalletMeta,
+    IUnlockedWalletMeta,
     ImportPrivateKeyWalletPayload
 >(
     "auth/importPrivateKeyWallet",
@@ -59,7 +59,7 @@ export const importPrivateKeyWallet = createAsyncThunk<
 );
 
 export const deriveHdAccount = createAsyncThunk<
-    { wallet: IWalletMeta; accountId: string },
+    { wallet: IUnlockedWalletMeta; accountId: string },
     { name: string; password: string },
     { state: RootState }
 >("auth/deriveHdAccount", async ({ name, password }, { getState }) => {
@@ -85,7 +85,7 @@ export const deriveHdAccount = createAsyncThunk<
 const LOCK_WAIT_THRESHOLD_MS = 500;
 
 export const loginWithPassword = createAsyncThunk<
-    IWalletMeta,
+    IUnlockedWalletMeta,
     { signerId: string; password: string }
 >("auth/loginWithPassword", async ({ signerId, password }) => {
     const loginType = LoginType.ByName;
@@ -151,7 +151,7 @@ export const loginWithPassword = createAsyncThunk<
 });
 
 export const unlockAccount = createAsyncThunk<
-    IWalletMeta,
+    IUnlockedWalletMeta,
     { accountId: string; password: string },
     { state: RootState }
 >("auth/unlockAccount", async ({ accountId, password }, { getState }) => {

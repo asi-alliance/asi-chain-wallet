@@ -1,4 +1,4 @@
-import { IWalletMeta } from "types/wallet";
+import { IUnlockedWalletMeta } from "types/wallet";
 import { AuthState } from ".";
 import {
     detectSuspiciousFlags,
@@ -12,7 +12,7 @@ import { recordFailedAttempt, resetRateLimit } from "services/loginRateLimit";
 
 export const setActiveSession = (
     state: AuthState,
-    wallet: IWalletMeta,
+    wallet: IUnlockedWalletMeta,
 ): void => {
     const now = Date.now();
 

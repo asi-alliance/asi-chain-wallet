@@ -1,5 +1,10 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { WalletStoreState, IWalletMeta, IAccountMeta } from "types/wallet";
+import {
+    WalletStoreState,
+    IWalletMeta,
+    IAccountMeta,
+    IUnlockedWalletMeta,
+} from "types/wallet";
 import { RootState } from "store";
 import { SdkWalletService } from "sdk";
 import {
@@ -17,8 +22,10 @@ import {
 import {
     applyActiveWalletSession,
     getAccountFromWalletsMeta,
+    getUnlockedAccountFromWalletsMeta,
     getWalletAndAccountFromWalletsMeta,
     persistSelectedAccountId,
+    toLockedWalletMeta,
 } from "./helpers";
 import { walletsApi } from "./api";
 import {
@@ -308,18 +315,14 @@ const walletsStoreSlice = createSlice({
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(logout.fulfilled, (state) => {
-                state.wallets = state.wallets.map((walletMeta) => ({
-                    ...walletMeta,
-                    id: undefined,
-                    isUnlocked: false,
-                }));
+                state.wallets = state.wallets.map(toLockedWalletMeta);
                 state.selectedAccountId = null;
             });
     },
 });
 
 export const selectAccountById = (state: RootState, accountId: string) =>
-    getAccountFromWalletsMeta(state.walletsStore.wallets, accountId);
+    getUnlockedAccountFromWalletsMeta(state.walletsStore.wallets, accountId);
 export const selectWalletByAccountId = (state: RootState, accountId: string) =>
     state.walletsStore.wallets.find((walletMeta: IWalletMeta) =>
         walletMeta.accounts.some(
@@ -337,16 +340,19 @@ export const selectWalletByFilter = (
 export const selectWallets = (state: RootState) => state.walletsStore.wallets;
 export const selectActiveWallet = createSelector(
     [selectWallets, (state: RootState) => state.auth.activeSignerId],
-    (wallets: IWalletMeta[], activeSignerId: string | null) =>
+    (
+        wallets: IWalletMeta[],
+        activeSignerId: string | null,
+    ): IUnlockedWalletMeta | null =>
         wallets.find(
-            (walletMeta: IWalletMeta) =>
+            (walletMeta: IWalletMeta): walletMeta is IUnlockedWalletMeta =>
                 walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
         ) ?? null,
 );
 
 export const selectAccounts = createSelector(
     [selectActiveWallet],
-    (activeWallet: IWalletMeta | null) => activeWallet?.accounts ?? [],
+    (activeWallet: IUnlockedWalletMeta | null) => activeWallet?.accounts ?? [],
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
@@ -366,7 +372,11 @@ export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => 
 
 export const selectUnlockedWallets = createSelector(
     [selectWallets],
-    (wallets: IWalletMeta[]) => wallets.filter((w) => w.isUnlocked),
+    (wallets: IWalletMeta[]): IUnlockedWalletMeta[] =>
+        wallets.filter(
+            (walletMeta: IWalletMeta): walletMeta is IUnlockedWalletMeta =>
+                walletMeta.isUnlocked,
+        ),
 );
 export const selectHasWallets = (state: RootState) =>
     state.walletsStore.wallets.length > 0;

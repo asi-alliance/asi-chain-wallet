@@ -5,7 +5,6 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
-    IInsensitiveCacheRecord,
     IReservedOperationResult,
     ITransferRequest,
     IWalletMetadata,
@@ -16,11 +15,15 @@ import {
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
-import { IAccountMeta, IWalletMeta } from "types/wallet";
+import {
+    IUnlockedAccountMeta,
+    IUnlockedWalletMeta,
+    IWalletMeta,
+} from "types/wallet";
 import { IPagination } from "types/transactions";
 
 export class SdkWalletService {
-    private static mapAccount(account: Account): IAccountMeta {
+    private static mapAccount(account: Account): IUnlockedAccountMeta {
         return {
             id: account.getId(),
             name: account.getName(),
@@ -30,7 +33,7 @@ export class SdkWalletService {
         };
     }
 
-    private static mapWallet(wallet: Wallet): IWalletMeta {
+    private static mapWallet(wallet: Wallet): IUnlockedWalletMeta {
         return {
             id: wallet.getId(),
             signerId: wallet.getSigner().getId(),
@@ -71,7 +74,7 @@ export class SdkWalletService {
         name: string;
         mnemonic: string;
         password: string;
-    }): Promise<IWalletMeta> {
+    }): Promise<IUnlockedWalletMeta> {
         const wallet = await requireSdkClient().createHDWallet(
             { mnemonic, accountName: name },
             password,
@@ -88,7 +91,7 @@ export class SdkWalletService {
         name: string;
         privateKeyHex: string;
         password: string;
-    }): Promise<IWalletMeta> {
+    }): Promise<IUnlockedWalletMeta> {
         const clean = SdkWalletService.normalizePrivateKeyHex(privateKeyHex);
 
         if (!SdkWalletService.isPrivateKeyHexValid(clean)) {
@@ -113,7 +116,7 @@ export class SdkWalletService {
         walletId: string;
         name: string;
         password: string;
-    }): Promise<{ wallet: IWalletMeta; accountId: string }> {
+    }): Promise<{ wallet: IUnlockedWalletMeta; accountId: string }> {
         const client: Client = requireSdkClient();
 
         const { accountId } = await client.deriveAccount(
@@ -136,7 +139,7 @@ export class SdkWalletService {
     static async openSession(
         signerId: string,
         password: string,
-    ): Promise<IWalletMeta> {
+    ): Promise<IUnlockedWalletMeta> {
         const client: Client = requireSdkClient();
 
         client.closeAllWallets();
@@ -146,7 +149,7 @@ export class SdkWalletService {
         return SdkWalletService.mapWallet(wallet);
     }
 
-    static getActiveSession(): IWalletMeta | null {
+    static getActiveSession(): IUnlockedWalletMeta | null {
         return SdkWalletService.getUnlockedWallets()[0] ?? null;
     }
 
@@ -159,19 +162,8 @@ export class SdkWalletService {
 
         const walletManager = client.getWalletManager();
 
-        const [publicWalletsMetadata, insensitiveRecords] = await Promise.all([
-            walletManager.getPublicWalletsMetadata(),
-            client.getInsensitiveAccountsData(),
-        ]);
-
-        const insensitiveDataByAccountId = new Map<
-            string,
-            IInsensitiveCacheRecord
-        >();
-
-        insensitiveRecords.forEach((record: IInsensitiveCacheRecord) => {
-            insensitiveDataByAccountId.set(record.id, record);
-        });
+        const publicWalletsMetadata: IWalletMetadata[] =
+            await walletManager.getPublicWalletsMetadata();
 
         const unlockedBySignerId = new Map<string, Wallet>();
 
@@ -180,7 +172,7 @@ export class SdkWalletService {
         });
 
         return publicWalletsMetadata.map(
-            (publicWalletMeta: IWalletMetadata) => {
+            (publicWalletMeta: IWalletMetadata): IWalletMeta => {
                 const unlockedWallet: Wallet | undefined =
                     unlockedBySignerId.get(publicWalletMeta.signerId);
 
@@ -188,41 +180,17 @@ export class SdkWalletService {
                     return SdkWalletService.mapWallet(unlockedWallet);
                 }
 
-                const accounts: IAccountMeta[] = [];
-
-                for (const publicAccountMetadata of publicWalletMeta.accounts) {
-                    const currentInsensitiveData:
-                        | IInsensitiveCacheRecord
-                        | undefined = insensitiveDataByAccountId.get(
-                        publicAccountMetadata.id,
-                    ) as IInsensitiveCacheRecord | undefined;
-
-                    if (!currentInsensitiveData) {
-                        throw new Error(
-                            "SdkWalletService.loadWallets: Insensitive Cache Storage not has record for some account",
-                        );
-                    }
-
-                    accounts.push({
-                        id: publicAccountMetadata.id,
-                        name: publicAccountMetadata.name,
-                        index: publicAccountMetadata.index,
-                        address: currentInsensitiveData.address as Address,
-                        publicKey: currentInsensitiveData.publicKey,
-                    });
-                }
-
                 return {
                     signerId: publicWalletMeta.signerId,
                     type: publicWalletMeta.type,
                     isUnlocked: false,
-                    accounts,
+                    accounts: publicWalletMeta.accounts,
                 };
             },
         );
     }
 
-    static getUnlockedWallets(): IWalletMeta[] {
+    static getUnlockedWallets(): IUnlockedWalletMeta[] {
         const client: Client | null = getSdkClient();
 
         if (!client) {

@@ -20,9 +20,6 @@ const initSdkClient = (): Promise<Client> => {
         clientPromise = Client.create({
             networksConfig: NETWORKS_CONFIG,
             defaultNetwork: getInitialNetwork().id,
-            flags: {
-                withInsensitiveCacheStorage: true,
-            },
             security: {
                 autoLockMs: 15 * 1000,
             },

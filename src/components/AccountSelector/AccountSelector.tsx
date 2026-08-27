@@ -8,7 +8,7 @@ import {
     selectSelectedAccountId,
 } from "store/WalletsStore";
 import styled from "styled-components";
-import { IAccountMeta } from "types/wallet";
+import { IUnlockedAccountMeta } from "types/wallet";
 
 const FilterGroup = styled.div`
     display: flex;
@@ -50,7 +50,7 @@ export const AccountSelector = ({
 
     const accountOptions = useMemo(
         () =>
-            accounts.map((account: IAccountMeta) => {
+            accounts.map((account: IUnlockedAccountMeta) => {
                 const baseOption: ISelectOption = {
                     id: account.id,
                     value: account.id,

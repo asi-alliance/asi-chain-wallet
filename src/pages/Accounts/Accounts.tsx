@@ -11,7 +11,7 @@ import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
-import { IAccountMeta, IWalletMeta } from "types/wallet";
+import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
 import { DeriveAccountModal } from "components/DeriveAccountModal";
 import { useScreen } from "hooks/";
@@ -71,7 +71,8 @@ const InlineButton = styled(Button)`
 export const Accounts: React.FC = () => {
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
-    const activeWallet: IWalletMeta | null = useSelector(selectActiveWallet);
+    const activeWallet: IUnlockedWalletMeta | null =
+        useSelector(selectActiveWallet);
     const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
 
     const { isLaptop } = useScreen();
@@ -86,7 +87,7 @@ export const Accounts: React.FC = () => {
     const handleRefreshBalances = () => {
         dispatch(
             walletsApi.util.invalidateTags(
-                accounts.map((account: IAccountMeta) => ({
+                accounts.map((account: IUnlockedAccountMeta) => ({
                     type: WalletsApiTags.BALANCE,
                     id: account.id,
                 })),
@@ -116,7 +117,7 @@ export const Accounts: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                             <AccountsGrid className="accounts-grid">
-                                {accounts.map((account: IAccountMeta) => (
+                                {accounts.map((account: IUnlockedAccountMeta) => (
                                     <AccountCard
                                         key={account.id}
                                         account={account}

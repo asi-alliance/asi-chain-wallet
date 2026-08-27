@@ -4,8 +4,8 @@ import { Transaction } from "types/transactions";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
 import {
-    getWalletAndAccountFromWalletsMeta,
-    IWalletAndAccountPathFromMeta,
+    getUnlockedWalletAndAccountFromWalletsMeta,
+    IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
 
 const HISTORY_LIMIT = 50;
@@ -32,8 +32,11 @@ export const walletsApi = createApi({
             queryFn: async ({ accountId }, { getState }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
-                const walletAndAccount: IWalletAndAccountPathFromMeta | null =
-                    getWalletAndAccountFromWalletsMeta(wallets, accountId);
+                const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
+                    getUnlockedWalletAndAccountFromWalletsMeta(
+                        wallets,
+                        accountId,
+                    );
 
                 if (!walletAndAccount) {
                     return {
@@ -41,18 +44,13 @@ export const walletsApi = createApi({
                     };
                 }
 
-                const { wallet, account } = walletAndAccount;
+                const { wallet } = walletAndAccount;
 
                 try {
-                    const balance =
-                        wallet.isUnlocked && wallet.id
-                            ? await SdkWalletService.getAvailableBalance(
-                                  wallet.id,
-                                  accountId,
-                              )
-                            : await SdkWalletService.getBalance(
-                                  account.address,
-                              );
+                    const balance = await SdkWalletService.getAvailableBalance(
+                        wallet.id,
+                        accountId,
+                    );
 
                     return { data: balance };
                 } catch (error: unknown) {
@@ -69,8 +67,11 @@ export const walletsApi = createApi({
             queryFn: async ({ accountId }, { getState }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
-                const walletAndAccount: IWalletAndAccountPathFromMeta | null =
-                    getWalletAndAccountFromWalletsMeta(wallets, accountId);
+                const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
+                    getUnlockedWalletAndAccountFromWalletsMeta(
+                        wallets,
+                        accountId,
+                    );
 
                 if (!walletAndAccount) {
                     return {

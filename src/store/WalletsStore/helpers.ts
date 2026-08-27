@@ -2,6 +2,9 @@ import { SecureStorage } from "services/secureStorage";
 import {
     Account,
     IAccountMeta,
+    ILockedWalletMeta,
+    IUnlockedAccountMeta,
+    IUnlockedWalletMeta,
     IWalletMeta,
     Network,
     WalletStoreState,
@@ -13,6 +16,11 @@ import { NETWORKS } from "constants/networks";
 export interface IWalletAndAccountPathFromMeta {
     wallet: IWalletMeta;
     account: IAccountMeta;
+}
+
+export interface IUnlockedWalletAndAccountPathFromMeta {
+    wallet: IUnlockedWalletMeta;
+    account: IUnlockedAccountMeta;
 }
 
 export interface ITransactionStatusUpdate {
@@ -80,6 +88,38 @@ export const getWalletAndAccountFromWalletsMeta = (
     return null;
 };
 
+export const getUnlockedWalletAndAccountFromWalletsMeta = (
+    walletsMeta: IWalletMeta[],
+    accountId: string,
+): IUnlockedWalletAndAccountPathFromMeta | null => {
+    for (const walletMeta of walletsMeta) {
+        if (!walletMeta.isUnlocked) {
+            continue;
+        }
+
+        const targetAccount: IUnlockedAccountMeta | undefined =
+            walletMeta.accounts.find(
+                (accountMeta: IUnlockedAccountMeta) =>
+                    accountMeta.id === accountId,
+            );
+
+        if (!targetAccount) {
+            continue;
+        }
+
+        return { wallet: walletMeta, account: targetAccount };
+    }
+
+    return null;
+};
+
+export const getUnlockedAccountFromWalletsMeta = (
+    walletsMeta: IWalletMeta[],
+    accountId: string,
+): IUnlockedAccountMeta | null =>
+    getUnlockedWalletAndAccountFromWalletsMeta(walletsMeta, accountId)
+        ?.account ?? null;
+
 export const addWalletToWalletsStore = (
     wallets: IWalletMeta[],
     wallet: IWalletMeta,
@@ -97,23 +137,37 @@ export const addWalletToWalletsStore = (
     wallets[index] = wallet;
 };
 
+export const toLockedWalletMeta = ({
+    signerId,
+    type,
+    accounts,
+}: IWalletMeta): ILockedWalletMeta => ({
+    signerId,
+    type,
+    isUnlocked: false,
+    accounts: accounts.map(({ id, name, index }: IAccountMeta) => ({
+        id,
+        name,
+        index,
+    })),
+});
+
 export const lockOtherWallets = (
     wallets: IWalletMeta[],
     activeSignerId: string,
 ): void => {
-    for (const walletMeta of wallets) {
+    wallets.forEach((walletMeta: IWalletMeta, index: number) => {
         if (walletMeta.signerId === activeSignerId) {
-            continue;
+            return;
         }
 
-        walletMeta.id = undefined;
-        walletMeta.isUnlocked = false;
-    }
+        wallets[index] = toLockedWalletMeta(walletMeta);
+    });
 };
 
 export const applyActiveWalletSession = (
     state: WalletStoreState,
-    wallet: IWalletMeta,
+    wallet: IUnlockedWalletMeta,
 ): void => {
     addWalletToWalletsStore(state.wallets, wallet);
     lockOtherWallets(state.wallets, wallet.signerId);
