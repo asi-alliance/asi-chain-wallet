@@ -15,7 +15,6 @@ import { SdkWalletService } from "sdk";
 import { RootState } from "store";
 import { walletsApi, IAccountQueryArgs, WalletsApiTags } from "./api";
 import {
-    getAccountFromWalletsMeta,
     getUnlockedAccountFromWalletsMeta,
     updateTransactionStatus,
 } from "./helpers";
@@ -104,7 +103,7 @@ export const updateAccountName = createAsyncThunk<
             const { walletId, accountId, name } = payload;
 
             const targetAccount: IAccountMeta | null =
-                getAccountFromWalletsMeta(
+                getUnlockedAccountFromWalletsMeta(
                     getState().walletsStore.wallets,
                     accountId,
                 );

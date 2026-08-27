@@ -21,9 +21,8 @@ import {
 } from "./thunks";
 import {
     applyActiveWalletSession,
-    getAccountFromWalletsMeta,
     getUnlockedAccountFromWalletsMeta,
-    getWalletAndAccountFromWalletsMeta,
+    getUnlockedWalletAndAccountFromWalletsMeta,
     persistSelectedAccountId,
     toLockedWalletMeta,
 } from "./helpers";
@@ -35,7 +34,6 @@ import {
     importPrivateKeyWallet,
     loginWithPassword,
     logout,
-    unlockAccount,
 } from "store/Auth/thunks";
 
 const initialState: WalletStoreState = {
@@ -57,22 +55,15 @@ const walletsStoreSlice = createSlice({
     initialState,
     reducers: {
         selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount = getWalletAndAccountFromWalletsMeta(
-                state.wallets,
-                action.payload,
-            );
+            const walletAndAccount =
+                getUnlockedWalletAndAccountFromWalletsMeta(
+                    state.wallets,
+                    action.payload,
+                );
 
             if (!walletAndAccount) {
                 console.error(
-                    "walletsStoreSlice.selectAccount: Incorrect account id",
-                );
-
-                return;
-            }
-
-            if (!walletAndAccount.wallet.isUnlocked) {
-                console.error(
-                    "walletsStoreSlice.selectAccount: Account belongs to a locked wallet",
+                    "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
                 );
 
                 return;
@@ -270,7 +261,7 @@ const walletsStoreSlice = createSlice({
                 const { accountId, name } = action.payload;
 
                 const targetAccount: IAccountMeta | null =
-                    getAccountFromWalletsMeta(state.wallets, accountId);
+                    getUnlockedAccountFromWalletsMeta(state.wallets, accountId);
 
                 if (!targetAccount) {
                     console.error(
@@ -307,9 +298,6 @@ const walletsStoreSlice = createSlice({
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload.wallet);
                 state.selectedAccountId = action.payload.accountId;
-            })
-            .addCase(unlockAccount.fulfilled, (state, action) => {
-                applyActiveWalletSession(state, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);

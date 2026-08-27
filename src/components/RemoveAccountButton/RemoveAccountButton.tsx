@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import { selectWallets } from "store/WalletsStore";
 import { removeAccount } from "store/WalletsStore/thunks";
-import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
+import { getUnlockedWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import { DeleteIcon } from "components/Icons";
@@ -30,12 +30,12 @@ export const RemoveAccountButton = ({
             return;
         }
 
-        const walletAndAccountPath = getWalletAndAccountFromWalletsMeta(
+        const walletAndAccountPath = getUnlockedWalletAndAccountFromWalletsMeta(
             wallets,
             accountId,
         );
 
-        if (!walletAndAccountPath?.wallet.id) {
+        if (!walletAndAccountPath) {
             console.error(
                 "RemoveAccountButton: wallet is locked or not found, cannot remove",
             );

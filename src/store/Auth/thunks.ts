@@ -8,7 +8,6 @@ import {
     formatLockoutMessage,
 } from "services/loginRateLimit";
 import { RootState } from "store";
-import { getWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
 import { IUnlockedWalletMeta } from "types/wallet";
 import { classifyLoginError, handleLoginOutcome } from "./helpers";
 
@@ -117,7 +116,7 @@ export const loginWithPassword = createAsyncThunk<
             }
 
             try {
-                const wallet = await SdkWalletService.openSession(
+                const wallet = await SdkWalletService.openWallet(
                     signerId,
                     password,
                 );
@@ -148,26 +147,6 @@ export const loginWithPassword = createAsyncThunk<
             loginType,
         );
     }
-});
-
-export const unlockAccount = createAsyncThunk<
-    IUnlockedWalletMeta,
-    { accountId: string; password: string },
-    { state: RootState }
->("auth/unlockAccount", async ({ accountId, password }, { getState }) => {
-    const walletAndAccountPath = getWalletAndAccountFromWalletsMeta(
-        getState().walletsStore.wallets,
-        accountId,
-    );
-
-    if (!walletAndAccountPath) {
-        throw new Error("Account not found");
-    }
-
-    return SdkWalletService.openSession(
-        walletAndAccountPath.wallet.signerId,
-        password,
-    );
 });
 
 export const logout = createAsyncThunk("auth/logout", async () => {

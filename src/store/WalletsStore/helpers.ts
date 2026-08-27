@@ -13,11 +13,6 @@ import { Transaction } from "types/transactions";
 import { TransactionStatus } from "@asichain/asi-wallet-sdk";
 import { NETWORKS } from "constants/networks";
 
-export interface IWalletAndAccountPathFromMeta {
-    wallet: IWalletMeta;
-    account: IAccountMeta;
-}
-
 export interface IUnlockedWalletAndAccountPathFromMeta {
     wallet: IUnlockedWalletMeta;
     account: IUnlockedAccountMeta;
@@ -46,46 +41,6 @@ export const updateTransactionStatus = (
     if (error) {
         targetTransaction.error = error;
     }
-};
-
-export const getAccountFromWalletsMeta = (
-    walletsMeta: IWalletMeta[],
-    accountId: string,
-): IAccountMeta | null => {
-    for (const walletMeta of walletsMeta) {
-        const targetAccount: IAccountMeta | undefined =
-            walletMeta.accounts.find(
-                (accountMeta: IAccountMeta) => accountMeta.id === accountId,
-            );
-
-        if (!targetAccount) {
-            continue;
-        }
-
-        return targetAccount;
-    }
-
-    return null;
-};
-
-export const getWalletAndAccountFromWalletsMeta = (
-    walletsMeta: IWalletMeta[],
-    accountId: string,
-): IWalletAndAccountPathFromMeta | null => {
-    for (const walletMeta of walletsMeta) {
-        const targetAccount: IAccountMeta | undefined =
-            walletMeta.accounts.find(
-                (accountMeta: IAccountMeta) => accountMeta.id === accountId,
-            );
-
-        if (!targetAccount) {
-            continue;
-        }
-
-        return { wallet: walletMeta, account: targetAccount };
-    }
-
-    return null;
 };
 
 export const getUnlockedWalletAndAccountFromWalletsMeta = (

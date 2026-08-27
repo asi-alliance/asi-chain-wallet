@@ -9,7 +9,6 @@ import {
     importPrivateKeyWallet,
     loginWithPassword,
     logout,
-    unlockAccount,
 } from "./thunks";
 
 export type SessionStatus = "locked" | "unlocked";
@@ -106,16 +105,6 @@ const authSlice = createSlice({
                 setActiveSession(state, action.payload);
             })
             .addCase(loginWithPassword.rejected, (state) => {
-                state.isLoading = false;
-            })
-            .addCase(unlockAccount.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(unlockAccount.fulfilled, (state, action) => {
-                state.isLoading = false;
-                setActiveSession(state, action.payload);
-            })
-            .addCase(unlockAccount.rejected, (state) => {
                 state.isLoading = false;
             })
             .addCase(logout.fulfilled, (state) => {

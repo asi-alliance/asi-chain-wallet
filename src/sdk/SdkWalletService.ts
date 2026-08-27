@@ -136,7 +136,7 @@ export class SdkWalletService {
         return { wallet: SdkWalletService.mapWallet(wallet), accountId };
     }
 
-    static async openSession(
+    static async openWallet(
         signerId: string,
         password: string,
     ): Promise<IUnlockedWalletMeta> {
