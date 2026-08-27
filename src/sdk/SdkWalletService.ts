@@ -5,14 +5,12 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
-    IDeployWatchCallbacks,
-    IDeployWatchHandle,
     IInsensitiveCacheRecord,
+    IReservedOperationResult,
     ITransferRequest,
     IWalletMetadata,
     Mnemonic,
     MnemonicStrength,
-    NetworkName,
     PRIVATE_KEY_LENGTH,
     Transaction,
     Wallet,
@@ -141,9 +139,9 @@ export class SdkWalletService {
     ): Promise<IWalletMeta> {
         const client: Client = requireSdkClient();
 
-        client.getWalletManager().clear();
+        client.closeAllWallets();
 
-        const wallet: Wallet = await client.unlockWallet(signerId, password);
+        const wallet: Wallet = await client.openWallet(signerId, password);
 
         return SdkWalletService.mapWallet(wallet);
     }
@@ -238,7 +236,7 @@ export class SdkWalletService {
     }
 
     static lockAll(): void {
-        getSdkClient()?.getWalletManager().clear();
+        requireSdkClient().closeAllWallets();
     }
 
     static removeWallet(walletId: string): Promise<Wallet> {
@@ -311,22 +309,12 @@ export class SdkWalletService {
             amount,
         }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
-    ): Promise<string> {
+    ): Promise<IReservedOperationResult> {
         const client = requireSdkClient();
 
         return client.transfer(
             { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
             password,
-        );
-    }
-
-    static watchDeploy(
-        deployId: string,
-        callbacks: IDeployWatchCallbacks,
-    ): IDeployWatchHandle {
-        return ApiServiceRegistry.getInstance().poller.watch(
-            deployId,
-            callbacks,
         );
     }
 

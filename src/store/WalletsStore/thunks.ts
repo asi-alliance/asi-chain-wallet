@@ -143,7 +143,7 @@ export const sendTransaction = createAsyncThunk<
             );
         }
 
-        const deployId: string = await SdkWalletService.transfer(
+        const { deployId, subscribe } = await SdkWalletService.transfer(
             {
                 walletId,
                 accountId,
@@ -158,7 +158,7 @@ export const sendTransaction = createAsyncThunk<
             networkId: getState().walletsStore.selectedNetwork.id,
         };
 
-        SdkWalletService.watchDeploy(deployId, {
+        subscribe({
             onConfirmed: () => {
                 dispatch(
                     walletsApi.util.invalidateTags([

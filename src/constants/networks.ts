@@ -1,7 +1,16 @@
-import { INetworkConfig, TNetworksConfig } from "@asichain/asi-wallet-sdk";
+import {
+    DEFAULT_NODE_API_PROFILE,
+    INetworkEndpoints,
+    isNodeApiProfile,
+    NodeApiProfile,
+    TNetworksConfig,
+} from "@asichain/asi-wallet-sdk";
 import { Network } from "types/wallet";
 
-type TNetworkEnvEntry = Partial<INetworkConfig> & { name?: string };
+type TNetworkEnvEntry = Partial<Record<keyof INetworkEndpoints, string>> & {
+    name?: string;
+    nodeApiProfile?: string;
+};
 
 export interface INetworksEnvIssue {
     level: "error" | "warning";
@@ -24,6 +33,7 @@ export const UNCONFIGURED_NETWORK: Network = {
     validatorUrl: "",
     observerUrl: "",
     indexerUrl: "",
+    nodeApiProfile: DEFAULT_NODE_API_PROFILE,
 };
 
 const validateUrl = (url: string): string | null => {
@@ -48,7 +58,7 @@ const validateUrl = (url: string): string | null => {
 
 const readNetworkUrl = (
     entry: TNetworkEnvEntry,
-    field: keyof INetworkConfig,
+    field: keyof INetworkEndpoints,
     networkId: string,
     issues: INetworksEnvIssue[],
 ): string => {
@@ -71,6 +81,36 @@ const readNetworkUrl = (
     }
 
     return url;
+};
+
+const readNodeApiProfile = (
+    entry: TNetworkEnvEntry,
+    networkId: string,
+    issues: INetworksEnvIssue[],
+): NodeApiProfile => {
+    const profile = entry.nodeApiProfile?.trim() ?? "";
+
+    if (!profile) {
+        issues.push({
+            level: "warning",
+            networkId,
+            message: `nodeApiProfile is missing: falling back to "${DEFAULT_NODE_API_PROFILE}"`,
+        });
+
+        return DEFAULT_NODE_API_PROFILE;
+    }
+
+    if (!isNodeApiProfile(profile)) {
+        issues.push({
+            level: "warning",
+            networkId,
+            message: `nodeApiProfile is not supported and was ignored: "${profile}", falling back to "${DEFAULT_NODE_API_PROFILE}"`,
+        });
+
+        return DEFAULT_NODE_API_PROFILE;
+    }
+
+    return profile;
 };
 
 const parseNetworksEnv = (): INetworksEnvParseResult => {
@@ -167,6 +207,7 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
             validatorUrl,
             observerUrl,
             indexerUrl,
+            nodeApiProfile: readNodeApiProfile(entry, networkId, issues),
         });
     });
 
@@ -195,6 +236,7 @@ const buildNetworksConfig = (): TNetworksConfig => {
             ValidatorURL: network.validatorUrl,
             ReadOnlyURL: network.observerUrl,
             IndexerURL: network.indexerUrl,
+            nodeApiProfile: network.nodeApiProfile,
         };
     });
 

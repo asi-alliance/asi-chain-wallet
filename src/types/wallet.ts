@@ -1,4 +1,4 @@
-import { Address, WalletTypes } from "@asichain/asi-wallet-sdk";
+import { Address, NodeApiProfile, WalletTypes } from "@asichain/asi-wallet-sdk";
 
 export interface Account {
     id: string;
@@ -28,6 +28,7 @@ export interface Network {
     validatorUrl: string;
     observerUrl: string;
     indexerUrl: string;
+    nodeApiProfile: NodeApiProfile;
 }
 
 export interface WalletStoreState {
