@@ -1,5 +1,8 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import { THistorySource } from "@asichain/asi-wallet-sdk";
+import {
+    ITransactionsHistoryOptions,
+    THistorySource,
+} from "@asichain/asi-wallet-sdk";
 import { generateRandomGasFee } from "constants/gas";
 import { Transaction } from "types/transactions";
 import { SdkWalletService } from "sdk";
@@ -98,14 +101,19 @@ export const walletsApi = createApi({
                 const { wallet } = walletAndAccount;
 
                 try {
+                    const historyOptions: ITransactionsHistoryOptions = {
+                        pagination: { limit: HISTORY_LIMIT },
+                    };
+
+                    if (!!HISTORY_SOURCES[source]) {
+                        historyOptions.sources = HISTORY_SOURCES[source];
+                    }
+
                     const history =
                         await SdkWalletService.getTransactionsHistory(
                             wallet.id,
                             accountId,
-                            {
-                                sources: HISTORY_SOURCES[source],
-                                pagination: { limit: HISTORY_LIMIT },
-                            },
+                            historyOptions,
                         );
 
                     return {
