@@ -627,6 +627,8 @@ export const History: React.FC = () => {
                                 <ExportButton
                                     variant="secondary"
                                     onClick={handleExportCSV}
+                                    disabled
+                                    title="Transaction export is temporarily unavailable"
                                 >
                                     <h3>Export CSV</h3>
                                     <DownloadIcon size={24} />
@@ -634,6 +636,8 @@ export const History: React.FC = () => {
                                 <ExportButton
                                     variant="secondary"
                                     onClick={handleExportJSON}
+                                    disabled
+                                    title="Transaction export is temporarily unavailable"
                                 >
                                     <h3>Export JSON</h3>
                                     <DownloadIcon size={24} />
