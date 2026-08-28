@@ -153,57 +153,21 @@ export const logout = createAsyncThunk("auth/logout", async () => {
     SdkWalletService.closeSession();
 });
 
-// type ImportKeyfilePayload = {
-//     keyfileContent: string;
-//     name: string;
-//     networkId?: string;
-// };
+export interface IImportKeyfileWalletPayload {
+    keyfile: string;
+    password: string;
+    accountIndexes?: number[];
+}
 
-//TODO: Feature for next Web Wallet updates. On updating Web Wallet on SDK this action not use in UI.
-// export const importFromKeyfile = createAsyncThunk(
-//     "auth/importFromKeyfile",
-//     async (
-//         { keyfileContent, name, networkId }: ImportKeyfilePayload,
-//         { getState },
-//     ) => {
-//         const state = getState() as { wallet: { selectedNetwork?: Network } };
-//         const selectedNetworkId =
-//             networkId || state.wallet?.selectedNetwork?.id;
-
-//         let userId = SecureStorage.getCurrentUserId();
-//         if (!userId) {
-//             throw new Error("Please login first before importing a keyfile");
-//         }
-
-//         const secureAccount = await SecureStorage.importFromKeyfile(
-//             keyfileContent,
-//             name,
-//             selectedNetworkId,
-//             userId,
-//         );
-//         return secureAccount;
-//     },
-// );
-
-//TODO: Restore after the SDK ships keyfile export/import support
-// export const exportAccountKeyfile = createAsyncThunk(
-//     "auth/exportAccountKeyfile",
-//     async ({ accountId }: { accountId: string }) => {
-//         const keyfile = SecureStorage.exportAccount(accountId);
-//         if (!keyfile) {
-//             throw new Error("Account not found");
-//         }
-
-//         const blob = new Blob([keyfile], { type: "application/json" });
-//         const url = URL.createObjectURL(blob);
-//         const a = document.createElement("a");
-//         a.href = url;
-//         a.download = `asi-wallet-${accountId}-${Date.now()}.json`;
-//         document.body.appendChild(a);
-//         a.click();
-//         document.body.removeChild(a);
-//         URL.revokeObjectURL(url);
-
-//         return { accountId, success: true };
-//     },
-// );
+export const importKeyfileWallet = createAsyncThunk<
+    IUnlockedWalletMeta,
+    IImportKeyfileWalletPayload
+>(
+    "auth/importKeyfileWallet",
+    ({ keyfile, password, accountIndexes }: IImportKeyfileWalletPayload) =>
+        SdkWalletService.importWalletKeyfile(
+            keyfile,
+            password,
+            accountIndexes ? { accountIndexes } : undefined,
+        ),
+);

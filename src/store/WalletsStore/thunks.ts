@@ -3,6 +3,7 @@ import {
     Account,
     IAccountMeta,
     IUnlockedAccountMeta,
+    IWalletMeta,
     Network,
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
@@ -17,6 +18,28 @@ import { getUnlockedAccountFromWalletsMeta } from "./helpers";
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
     () => SdkWalletService.loadWallets(),
+);
+
+export interface IImportKeyfileAccountsPayload {
+    keyfile: string;
+    password: string;
+    accountIndexes?: number[];
+}
+
+export const importKeyfileAccounts = createAsyncThunk<
+    IWalletMeta,
+    IImportKeyfileAccountsPayload
+>(
+    "wallets-store/importKeyfileAccounts",
+    async ({ keyfile, password, accountIndexes }) => {
+        const { signerId } = await SdkWalletService.importKeyfileAccounts(
+            keyfile,
+            password,
+            accountIndexes ? { accountIndexes } : undefined,
+        );
+
+        return SdkWalletService.getWalletMetaBySignerId(signerId);
+    },
 );
 
 export interface IAccountRemovePayload {

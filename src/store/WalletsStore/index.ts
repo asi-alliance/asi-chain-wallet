@@ -13,6 +13,7 @@ import {
     persistSelectedNetworkId,
 } from "constants/networks";
 import {
+    importKeyfileAccounts,
     loadWalletsFromStorage,
     removeAccount,
     removeWallet,
@@ -20,6 +21,7 @@ import {
     updateAccountName,
 } from "./thunks";
 import {
+    addWalletToWalletsStore,
     applyActiveWalletSession,
     getUnlockedAccountFromWalletsMeta,
     getUnlockedWalletAndAccountFromWalletsMeta,
@@ -31,6 +33,7 @@ import {
     createHdWallet,
     deriveHdAccount,
     importHdWallet,
+    importKeyfileWallet,
     importPrivateKeyWallet,
     loginWithPassword,
     logout,
@@ -214,6 +217,9 @@ const walletsStoreSlice = createSlice({
             .addCase(loadWalletsFromStorage.rejected, (state) => {
                 state.isInitialLoadComplete = true;
             })
+            .addCase(importKeyfileAccounts.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
+            })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { removedWalletId, removedSignerId } = action.payload;
 
@@ -293,6 +299,9 @@ const walletsStoreSlice = createSlice({
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload);
+            })
+            .addCase(importKeyfileWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
