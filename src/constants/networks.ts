@@ -34,6 +34,7 @@ export const UNCONFIGURED_NETWORK: Network = {
     observerUrl: "",
     indexerUrl: "",
     nodeApiProfile: DEFAULT_NODE_API_PROFILE,
+    isDefault: true,
 };
 
 const validateUrl = (url: string): string | null => {
@@ -208,6 +209,7 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
             observerUrl,
             indexerUrl,
             nodeApiProfile: readNodeApiProfile(entry, networkId, issues),
+            isDefault: true,
         });
     });
 

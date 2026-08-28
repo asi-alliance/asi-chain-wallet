@@ -6,6 +6,10 @@ import {
     NETWORKS_CONFIG,
 } from "constants/networks";
 import { setSdkClient } from "./client";
+import { SdkWalletService } from "./SdkWalletService";
+import { TCustomNetwork } from "types/wallet";
+import { useDispatch } from "react-redux";
+import { addNetworks } from "store/WalletsStore";
 
 let clientPromise: Promise<Client> | null = null;
 
@@ -40,6 +44,8 @@ const initSdkClient = (): Promise<Client> => {
 export const SdkClientProvider: React.FC<{
     children: React.ReactNode;
 }> = ({ children }) => {
+    const dispatch = useDispatch();
+
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +57,11 @@ export const SdkClientProvider: React.FC<{
                 if (cancelled) {
                     return;
                 }
+
+                const storageCustomNetworks: TCustomNetwork[] =
+                    SdkWalletService.getCustomNetworks();
+
+                dispatch(addNetworks(storageCustomNetworks));
 
                 setIsReady(true);
             })

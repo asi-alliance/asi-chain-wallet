@@ -1,4 +1,9 @@
-import { Address, NodeApiProfile, WalletTypes } from "@asichain/asi-wallet-sdk";
+import {
+    Address,
+    INetworkRecord,
+    NodeApiProfile,
+    WalletTypes,
+} from "@asichain/asi-wallet-sdk";
 
 export interface Account {
     id: string;
@@ -29,7 +34,16 @@ export interface Network {
     observerUrl: string;
     indexerUrl: string;
     nodeApiProfile: NodeApiProfile;
+    isDefault: boolean;
 }
+
+export type TCustomNetworkRecord = Omit<INetworkRecord, "isDefault"> & {
+    isDefault: false;
+};
+
+export type TCustomNetwork = Omit<Network, "isDefault"> & {
+    isDefault: false;
+};
 
 export interface WalletStoreState {
     wallets: IWalletMeta[];

@@ -4,6 +4,8 @@ import {
     IWalletMeta,
     IAccountMeta,
     IUnlockedWalletMeta,
+    Network,
+    TCustomNetwork,
 } from "types/wallet";
 import { RootState } from "store";
 import { SdkWalletService } from "sdk";
@@ -13,11 +15,16 @@ import {
     persistSelectedNetworkId,
 } from "constants/networks";
 import {
+    addCustomNetwork,
+    ICustomNetworkDefaultGetFieldsPayload,
+    IUpdateNetworkPayload,
     loadWalletsFromStorage,
     removeAccount,
+    removeCustomNetwork,
     removeWallet,
     sendTransaction,
     updateAccountName,
+    updateCustomNetwork,
 } from "./thunks";
 import {
     applyActiveWalletSession,
@@ -55,11 +62,10 @@ const walletsStoreSlice = createSlice({
     initialState,
     reducers: {
         selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount =
-                getUnlockedWalletAndAccountFromWalletsMeta(
-                    state.wallets,
-                    action.payload,
-                );
+            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
+                state.wallets,
+                action.payload,
+            );
 
             if (!walletAndAccount) {
                 console.error(
@@ -88,122 +94,9 @@ const walletsStoreSlice = createSlice({
 
             persistSelectedNetworkId(network.id);
         },
-        //TODO: Updated Custom Networks CRUD operations after SDK feature updates
-        // updateNetwork: (state, action: PayloadAction<Network>) => {
-        //     const networkToUpdate = action.payload;
-
-        //     if (isPredefinedNetwork(networkToUpdate.id)) {
-        //         console.warn(
-        //             `Cannot update predefined network "${networkToUpdate.id}". Only custom networks can be edited.`,
-        //         );
-        //         return;
-        //     }
-
-        //     if (!networkToUpdate.id?.startsWith("custom")) {
-        //         console.warn(
-        //             `Network updates are only allowed for custom networks (custom-*). Attempted to update: "${networkToUpdate.id}"`,
-        //         );
-        //         return;
-        //     }
-        //     const index = state.networks.findIndex(
-        //         (n) => n.id === action.payload.id,
-        //     );
-        //     if (index !== -1) {
-        //         state.networks[index] = action.payload;
-        //         if (state.selectedNetwork.id === action.payload.id) {
-        //             state.selectedNetwork = action.payload;
-        //         }
-        //     } else {
-        //         state.networks.push(action.payload);
-        //     }
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        // },
-        // addNetwork: (state, action: PayloadAction<Network>) => {
-        //     const networkToAdd = action.payload;
-
-        //     if (isPredefinedNetwork(networkToAdd.id)) {
-        //         console.warn(
-        //             `Cannot add predefined network "${networkToAdd.id}" as custom network.`,
-        //         );
-        //         return;
-        //     }
-        //     const timestamp = Date.now();
-        //     const newNetwork = {
-        //         ...action.payload,
-        //         id: action.payload.id?.startsWith("custom")
-        //             ? action.payload.id
-        //             : `custom-${timestamp}`,
-        //     };
-        //     state.networks.push(newNetwork);
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        // },
-        // removeNetwork: (state, action: PayloadAction<string>) => {
-        //     const id = action.payload;
-        //     if (!id?.startsWith("custom")) {
-        //         console.warn(
-        //             `Only custom networks can be removed. Attempted: "${id}"`,
-        //         );
-        //         return;
-        //     }
-        //     state.networks = state.networks.filter((n) => n.id !== id);
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        //     if (state.selectedNetwork?.id === id) {
-        //         const firstAvailable =
-        //             state.networks.find((n) => n.url && n.url.trim() !== "") ||
-        //             state.networks[0];
-        //         if (firstAvailable) {
-        //             state.selectedNetwork = firstAvailable;
-        //             if (typeof window !== "undefined" && window.localStorage) {
-        //                 localStorage.setItem(
-        //                     SELECTED_NETWORK_KEY,
-        //                     firstAvailable.id,
-        //                 );
-        //             }
-        //         }
-        //     }
-        // },
-        // loadNetworksFromStorage: (state) => {
-        //     const loadedNetworks = loadNetworks(state.selectedAccount?.id);
-        //     state.networks = loadedNetworks;
-
-        //     try {
-        //         if (typeof window !== "undefined" && window.localStorage) {
-        //             const selectedNetworkId =
-        //                 localStorage.getItem(SELECTED_NETWORK_KEY);
-        //             if (selectedNetworkId) {
-        //                 const selectedNetwork = loadedNetworks.find(
-        //                     (n) =>
-        //                         n.id === selectedNetworkId &&
-        //                         n.url &&
-        //                         n.url.trim() !== "",
-        //                 );
-        //                 if (selectedNetwork) {
-        //                     state.selectedNetwork = selectedNetwork;
-        //                     return;
-        //                 }
-        //             }
-        //         }
-        //     } catch (error) {
-        //         console.error("Failed to restore selected network:", error);
-        //     }
-
-        //     const currentSelected = loadedNetworks.find(
-        //         (n) =>
-        //             n.id === state.selectedNetwork.id &&
-        //             n.url &&
-        //             n.url.trim() !== "",
-        //     );
-        //     if (currentSelected) {
-        //         state.selectedNetwork = currentSelected;
-        //     } else {
-        //         const firstAvailable = loadedNetworks.find(
-        //             (n) => n.url && n.url.trim() !== "",
-        //         );
-        //         if (firstAvailable) {
-        //             state.selectedNetwork = firstAvailable;
-        //         }
-        //     }
-        // },
+        addNetworks: (state, action: PayloadAction<Network[]>) => {
+            state.networks.push(...action.payload);
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -277,6 +170,83 @@ const walletsStoreSlice = createSlice({
             .addCase(updateAccountName.rejected, (state) => {
                 state.isLoading = false;
             })
+            .addCase(
+                addCustomNetwork.fulfilled,
+                (state, action: PayloadAction<TCustomNetwork>) => {
+                    state.networks.push(action.payload);
+
+                    state.isLoading = false;
+                },
+            )
+            .addCase(addCustomNetwork.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(addCustomNetwork.rejected, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(
+                updateCustomNetwork.fulfilled,
+                (state, action: PayloadAction<IUpdateNetworkPayload>) => {
+                    const { id, update } = action.payload;
+
+                    const targetNetworkIndex = state.networks.findIndex(
+                        (network: Network) => network.id === id,
+                    );
+
+                    if (targetNetworkIndex === -1) {
+                        console.error(
+                            "walletsStoreSlice.updateCustomNetwork: Incorrect network id",
+                        );
+
+                        return;
+                    }
+
+                    state.networks[targetNetworkIndex] = {
+                        ...state.networks[targetNetworkIndex],
+                        ...update,
+                    };
+
+                    if (state.selectedNetwork.id === id) {
+                        state.selectedNetwork = {
+                            ...state.selectedNetwork,
+                            ...update,
+                        };
+                    }
+
+                    state.isLoading = false;
+                },
+            )
+            .addCase(updateCustomNetwork.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(updateCustomNetwork.rejected, (state) => {
+                state.isLoading = false;
+            })
+            .addCase(
+                removeCustomNetwork.fulfilled,
+                (
+                    state,
+                    action: PayloadAction<ICustomNetworkDefaultGetFieldsPayload>,
+                ) => {
+                    const { id } = action.payload;
+
+                    state.networks = state.networks.filter(
+                        (network: Network) => network.id !== id,
+                    );
+
+                    if (state.selectedNetwork.id === id) {
+                        state.selectedNetwork = state.networks[0]!;
+                    }
+
+                    state.isLoading = false;
+                },
+            )
+            .addCase(removeCustomNetwork.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(removeCustomNetwork.rejected, (state) => {
+                state.isLoading = false;
+            })
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
@@ -346,7 +316,9 @@ export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
-export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => {
+export const selectIsAnyAccountBalanceFetching = (
+    state: RootState,
+): boolean => {
     const networkId = selectSelectedNetworkId(state);
 
     return selectAccounts(state).some(
@@ -375,13 +347,7 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
 
-export const {
-    selectAccount,
-    selectNetwork,
-    // updateNetwork,
-    // addNetwork,
-    // removeNetwork,
-    // loadNetworksFromStorage,
-} = walletsStoreSlice.actions;
+export const { selectAccount, selectNetwork, addNetworks } =
+    walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

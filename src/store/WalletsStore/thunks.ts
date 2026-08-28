@@ -4,10 +4,17 @@ import {
     IAccountMeta,
     IUnlockedAccountMeta,
     Network,
+    TCustomNetwork,
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { Address } from "@asichain/asi-wallet-sdk";
+import {
+    Address,
+    INetworkConfig,
+    INetworkUpdate,
+    NetworkId,
+    NetworkName,
+} from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
@@ -22,6 +29,44 @@ export const loadWalletsFromStorage = createAsyncThunk(
 export interface IAccountRemovePayload {
     walletId: string;
     accountId: string;
+}
+
+export interface IAccountUpdateNamePayload extends IAccountDefaultUpdateFieldsPayload {
+    name: string;
+}
+
+export interface IAccountUpdateNameResponse {
+    account: IAccountMeta;
+    name: string;
+}
+
+export interface IAccountDefaultGetFieldsPayload {
+    accountId: string;
+}
+
+export interface IAccountGetBalanceResponse extends IAccountDefaultGetFieldsPayload {
+    balance: string;
+}
+
+export interface ITransferPayload {
+    walletId: string;
+    accountId: string;
+    to: Address;
+    amount: string;
+    password?: string;
+}
+
+export interface IAddNetworkPayload {
+    name: NetworkName;
+    config: INetworkConfig;
+}
+
+export interface ICustomNetworkDefaultGetFieldsPayload {
+    id: NetworkId;
+}
+
+export interface IUpdateNetworkPayload extends ICustomNetworkDefaultGetFieldsPayload {
+    update: INetworkUpdate;
 }
 
 export const removeWallet = createAsyncThunk(
@@ -55,31 +100,6 @@ export const removeAccount = createAsyncThunk(
         }
     },
 );
-
-export interface IAccountUpdateNamePayload extends IAccountDefaultUpdateFieldsPayload {
-    name: string;
-}
-
-export interface IAccountUpdateNameResponse {
-    account: IAccountMeta;
-    name: string;
-}
-
-export interface IAccountDefaultGetFieldsPayload {
-    accountId: string;
-}
-
-export interface IAccountGetBalanceResponse extends IAccountDefaultGetFieldsPayload {
-    balance: string;
-}
-
-export interface ITransferPayload {
-    walletId: string;
-    accountId: string;
-    to: Address;
-    amount: string;
-    password?: string;
-}
 
 export const updateAccountName = createAsyncThunk<
     Omit<IAccountUpdateNamePayload, "walletId">,
@@ -115,6 +135,63 @@ export const updateAccountName = createAsyncThunk<
                 name,
             };
         } catch (error: unknown) {
+            return rejectWithValue(error);
+        }
+    },
+);
+
+export const addCustomNetwork = createAsyncThunk<
+    TCustomNetwork,
+    IAddNetworkPayload
+>(
+    "walletsStore/addCustomNetwork",
+    async ({ name, config }: IAddNetworkPayload, { rejectWithValue }) => {
+        try {
+            const addedNetwork: TCustomNetwork =
+                await SdkWalletService.addCustomNetwork(name, config);
+
+            return addedNetwork;
+        } catch (error) {
+            return rejectWithValue(error);
+        }
+    },
+);
+
+export const updateCustomNetwork = createAsyncThunk<
+    IUpdateNetworkPayload,
+    IUpdateNetworkPayload
+>(
+    "walletsStore/updateCustomNetwork",
+    async ({ id, update }: IUpdateNetworkPayload, { rejectWithValue }) => {
+        try {
+            await SdkWalletService.updateCustomNetwork(id, update);
+
+            return {
+                id,
+                update,
+            };
+        } catch (error) {
+            return rejectWithValue(error);
+        }
+    },
+);
+
+export const removeCustomNetwork = createAsyncThunk<
+    ICustomNetworkDefaultGetFieldsPayload,
+    ICustomNetworkDefaultGetFieldsPayload
+>(
+    "walletsStore/removeCustomNetwork",
+    async (
+        { id }: ICustomNetworkDefaultGetFieldsPayload,
+        { rejectWithValue },
+    ) => {
+        try {
+            await SdkWalletService.removeCustomNetwork(id);
+
+            return {
+                id,
+            };
+        } catch (error) {
             return rejectWithValue(error);
         }
     },
