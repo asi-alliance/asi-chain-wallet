@@ -7,7 +7,10 @@ import {
     selectSelectedAccountId,
     selectSelectedNetworkId,
 } from "store/WalletsStore/";
-import { useGetTransactionHistoryQuery } from "store/WalletsStore/api";
+import {
+    THistorySourceFilter,
+    useGetTransactionHistoryQuery,
+} from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { Transaction } from "types/transactions";
@@ -22,7 +25,7 @@ import { TransactionStatus, TransactionType } from "@asichain/asi-wallet-sdk";
 
 interface TransactionFilter {
     type?: TransactionType;
-    status?: TransactionStatus;
+    source?: THistorySourceFilter;
     startDate?: string;
     endDate?: string;
 }
@@ -279,8 +282,7 @@ const typeOptions = [
 const statusOptions = [
     { id: "all", value: "all", label: "All Status" },
     { id: "pending", value: "pending", label: "Pending" },
-    { id: "completed", value: "completed", label: "Completed" },
-    { id: "failed", value: "failed", label: "Failed" },
+    { id: "executed", value: "executed", label: "Executed" },
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
@@ -294,18 +296,24 @@ export const History: React.FC = () => {
     );
     const networkId = useSelector(selectSelectedNetworkId);
 
+    const [filter, setFilter] = useState<TransactionFilter>({});
+
     const {
         data: transactions = EMPTY_TRANSACTIONS,
         isFetching,
         fulfilledTimeStamp,
     } = useGetTransactionHistoryQuery(
-        selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
+        selectedAccountId
+            ? {
+                  accountId: selectedAccountId,
+                  networkId,
+                  source: filter.source ?? "all",
+              }
+            : skipToken,
         { pollingInterval: HISTORY_POLLING_INTERVAL_MS },
     );
 
     const { isTablet } = useScreen();
-
-    const [filter, setFilter] = useState<TransactionFilter>({});
 
     const handleCopy = useCallback(async (text: string) => {
         try {
@@ -318,9 +326,6 @@ export const History: React.FC = () => {
 
         if (filter.type) {
             result = result.filter((tx) => tx.type === filter.type);
-        }
-        if (filter.status) {
-            result = result.filter((tx) => tx.status === filter.status);
         }
         if (filter.startDate) {
             const startDate = new Date(filter.startDate);
@@ -361,7 +366,7 @@ export const History: React.FC = () => {
     const hasActiveFilters = () => {
         return !!(
             filter.type ||
-            filter.status ||
+            filter.source ||
             filter.startDate ||
             filter.endDate
         );
@@ -412,6 +417,7 @@ export const History: React.FC = () => {
                                 onChange={(value) =>
                                     handleFilterChange("type", value)
                                 }
+                                disabled
                                 options={typeOptions}
                             />
                         </FilterGroup>
@@ -422,9 +428,9 @@ export const History: React.FC = () => {
                             </FilterLabel>
                             <AdaptiveSelect
                                 id="history-filter-status-select"
-                                value={filter.status || "all"}
+                                value={filter.source || "all"}
                                 onChange={(value) =>
-                                    handleFilterChange("status", value)
+                                    handleFilterChange("source", value)
                                 }
                                 options={statusOptions}
                             />

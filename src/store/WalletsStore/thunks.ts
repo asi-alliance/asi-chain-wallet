@@ -6,19 +6,13 @@ import {
     Network,
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
-import { generateRandomGasFee } from "constants/gas";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Address } from "@asichain/asi-wallet-sdk";
-import { Transaction } from "types/transactions";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
-import { walletsApi, IAccountQueryArgs, WalletsApiTags } from "./api";
-import {
-    getUnlockedAccountFromWalletsMeta,
-    updateTransactionStatus,
-} from "./helpers";
-import { MaybeDrafted } from "@reduxjs/toolkit/dist/query/core/buildThunks";
+import { walletsApi, WalletsApiTags } from "./api";
+import { getUnlockedAccountFromWalletsMeta } from "./helpers";
 
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
@@ -127,7 +121,7 @@ export const updateAccountName = createAsyncThunk<
 );
 
 export const sendTransaction = createAsyncThunk<
-    Transaction,
+    { deployId: string },
     ITransferPayload,
     { state: RootState }
 >(
@@ -162,66 +156,27 @@ export const sendTransaction = createAsyncThunk<
             password,
         );
 
-        const historyArgs: IAccountQueryArgs = {
-            accountId,
-            networkId: getState().walletsStore.selectedNetwork.id,
+        const invalidateAccountData = (): void => {
+            dispatch(
+                walletsApi.util.invalidateTags([
+                    { type: WalletsApiTags.BALANCE, id: accountId },
+                    { type: WalletsApiTags.HISTORY, id: accountId },
+                ]),
+            );
         };
 
         subscribe({
-            onConfirmed: () => {
-                dispatch(
-                    walletsApi.util.invalidateTags([
-                        { type: WalletsApiTags.BALANCE, id: accountId },
-                        { type: WalletsApiTags.HISTORY, id: accountId },
-                    ]),
-                );
-            },
-            onError: (error: Error) => {
-                dispatch(
-                    walletsApi.util.updateQueryData(
-                        "getTransactionHistory",
-                        historyArgs,
-                        (transactionsDraft: MaybeDrafted<Transaction[]>) => {
-                            updateTransactionStatus(transactionsDraft, {
-                                deployId,
-                                status: "failed",
-                                error: error.message,
-                            });
-                        },
-                    ),
-                );
-
-                dispatch(
-                    walletsApi.util.invalidateTags([
-                        { type: WalletsApiTags.BALANCE, id: accountId },
-                    ]),
-                );
-            },
+            onConfirmed: invalidateAccountData,
+            onError: invalidateAccountData,
         });
 
-        const transaction: Transaction = {
-            id: deployId,
-            deployId,
-            from: fromAccount.address,
-            to,
-            amount,
-            timestamp: new Date().toString(),
-            status: "pending",
-            type: "send",
-            gasCost: generateRandomGasFee(),
-        };
-
         dispatch(
-            walletsApi.util.updateQueryData(
-                "getTransactionHistory",
-                historyArgs,
-                (transactionsDraft: MaybeDrafted<Transaction[]>) => {
-                    transactionsDraft.unshift(transaction);
-                },
-            ),
+            walletsApi.util.invalidateTags([
+                { type: WalletsApiTags.HISTORY, id: accountId },
+            ]),
         );
 
-        return transaction;
+        return { deployId };
     },
 );
 

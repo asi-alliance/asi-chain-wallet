@@ -1,11 +1,11 @@
 import {
     Account,
     Address,
-    ApiServiceRegistry,
     Client,
     decodeBase16,
     encodeBase16,
     IReservedOperationResult,
+    ITransactionsHistoryOptions,
     ITransferRequest,
     IWalletMetadata,
     Mnemonic,
@@ -20,7 +20,6 @@ import {
     IUnlockedWalletMeta,
     IWalletMeta,
 } from "types/wallet";
-import { IPagination } from "types/transactions";
 
 export class SdkWalletService {
     private static mapAccount(account: Account): IUnlockedAccountMeta {
@@ -250,19 +249,16 @@ export class SdkWalletService {
         return client.toDisplayAmount(atomicBalance);
     }
 
-    static async getTransactionsHistory(
-        address: string,
-        publicKey: string,
-        pagination: IPagination,
+    static getTransactionsHistory(
+        walletId: string,
+        accountId: string,
+        options?: ITransactionsHistoryOptions,
     ): Promise<Transaction[]> {
-        const history: Transaction[] =
-            await ApiServiceRegistry.getInstance().accountData.getTransactionHistory(
-                address,
-                publicKey,
-                pagination,
-            );
-
-        return history;
+        return requireSdkClient().getTransactionsHistory(
+            walletId,
+            accountId,
+            options,
+        );
     }
 
     static isWalletUnlocked(walletId: string): boolean {

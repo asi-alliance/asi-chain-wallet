@@ -1,4 +1,5 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
+import { THistorySource } from "@asichain/asi-wallet-sdk";
 import { generateRandomGasFee } from "constants/gas";
 import { Transaction } from "types/transactions";
 import { SdkWalletService } from "sdk";
@@ -15,9 +16,24 @@ export enum WalletsApiTags {
     HISTORY = "History",
 }
 
+export type THistorySourceFilter = "all" | THistorySource;
+
+const HISTORY_SOURCES: Record<
+    THistorySourceFilter,
+    THistorySource[] | undefined
+> = {
+    all: undefined,
+    pending: ["pending"],
+    executed: ["executed"],
+};
+
 export interface IAccountQueryArgs {
     accountId: string;
     networkId: string;
+}
+
+export interface IHistoryQueryArgs extends IAccountQueryArgs {
+    source: THistorySourceFilter;
 }
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
@@ -63,8 +79,8 @@ export const walletsApi = createApi({
                 { type: WalletsApiTags.BALANCE, id: accountId },
             ],
         }),
-        getTransactionHistory: build.query<Transaction[], IAccountQueryArgs>({
-            queryFn: async ({ accountId }, { getState }) => {
+        getTransactionHistory: build.query<Transaction[], IHistoryQueryArgs>({
+            queryFn: async ({ accountId, source }, { getState }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -79,14 +95,17 @@ export const walletsApi = createApi({
                     };
                 }
 
-                const { account } = walletAndAccount;
+                const { wallet } = walletAndAccount;
 
                 try {
                     const history =
                         await SdkWalletService.getTransactionsHistory(
-                            account.address,
-                            account.publicKey,
-                            { limit: HISTORY_LIMIT },
+                            wallet.id,
+                            accountId,
+                            {
+                                sources: HISTORY_SOURCES[source],
+                                pagination: { limit: HISTORY_LIMIT },
+                            },
                         );
 
                     return {
@@ -100,9 +119,10 @@ export const walletsApi = createApi({
                             status: tx.status,
                             type: tx.type,
                             gasCost:
-                                tx.type === "send"
+                                tx.gasCost ??
+                                (tx.type === "send"
                                     ? generateRandomGasFee()
-                                    : undefined,
+                                    : undefined),
                         })),
                     };
                 } catch (error: unknown) {

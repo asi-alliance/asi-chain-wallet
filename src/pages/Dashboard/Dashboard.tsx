@@ -10,6 +10,7 @@ import {
     selectSelectedNetworkId,
 } from "store/WalletsStore";
 import {
+    THistorySourceFilter,
     useGetBalanceQuery,
     useGetTransactionHistoryQuery,
 } from "store/WalletsStore/api";
@@ -86,7 +87,11 @@ export const Dashboard: React.FC = () => {
 
     const accountDataArgs =
         selectedAccountId && isAccountUnlocked
-            ? { accountId: selectedAccountId, networkId }
+            ? {
+                  accountId: selectedAccountId,
+                  networkId,
+                  source: "all" as THistorySourceFilter,
+              }
             : skipToken;
 
     useGetBalanceQuery(accountDataArgs, {
