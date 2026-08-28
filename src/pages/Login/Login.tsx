@@ -41,6 +41,7 @@ import { IWalletMeta, WalletActions } from "types/wallet";
 import { CreateHdWalletModal } from "components/CreateHdWalletModal";
 import { ImportHdWalletModal } from "components/ImportHdWalletModal";
 import { ImportPkWalletModal } from "components/ImportPkWalletModal";
+import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
 import { useScreen } from "hooks/";
 
 const LoginContainer = styled.div`
@@ -217,6 +218,7 @@ export const Login: React.FC = () => {
     );
     const [showImportModal, setShowImportModal] = useState(false);
     const [showImportPkModal, setShowImportPkModal] = useState(false);
+    const [showImportKeyfileModal, setShowImportKeyfileModal] = useState(false);
 
     // Rate limit UI state
     const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
@@ -634,6 +636,41 @@ export const Login: React.FC = () => {
                                     </defs>
                                 </svg>
                             </InlineButton>
+                            <InlineButton
+                                id="import-keyfile-wallet-button"
+                                variant="full-ghost"
+                                onClick={() => setShowImportKeyfileModal(true)}
+                                fullWidth={isLaptop}
+                                style={{
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                <h3>Import from Keyfile</h3>
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <g clipPath="url(#clip0_3_1930)">
+                                        <path
+                                            d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                            fill="currentcolor"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_3_1930">
+                                            <rect
+                                                width="24"
+                                                height="24"
+                                                fill="currentcolor"
+                                            />
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </InlineButton>
                         </ActionsFooter>
                     </CardContent>
                 </Card>
@@ -661,6 +698,14 @@ export const Login: React.FC = () => {
                 isOpen={showImportPkModal}
                 onCancel={() => setShowImportPkModal(false)}
                 onClose={() => setShowImportPkModal(false)}
+                onSuccess={() => {
+                    navigate("/");
+                }}
+            />
+            <ImportKeyfileWalletModal
+                isOpen={showImportKeyfileModal}
+                onCancel={() => setShowImportKeyfileModal(false)}
+                onClose={() => setShowImportKeyfileModal(false)}
                 onSuccess={() => {
                     navigate("/");
                 }}

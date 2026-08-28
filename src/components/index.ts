@@ -1,6 +1,8 @@
 export { Button } from './Button';
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Input, TextArea } from './Input';
+export { FileSelector } from './FileSelector';
+export { Checkbox } from './Checkbox';
 export { PasswordInput } from './PasswordInput';
 export { Layout } from './Layout';
 export { PasswordSetup } from './PasswordSetup';

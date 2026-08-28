@@ -14,6 +14,7 @@ import { AccountCard } from "components/AccountCard";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
 import { DeriveAccountModal } from "components/DeriveAccountModal";
+import { ExportWalletKeyfileModal } from "components/ExportWalletKeyfileModal";
 import { useScreen } from "hooks/";
 import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
@@ -83,6 +84,7 @@ export const Accounts: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const handleRefreshBalances = () => {
         dispatch(
@@ -124,10 +126,10 @@ export const Accounts: React.FC = () => {
                                     />
                                 ))}
                             </AccountsGrid>
-                            {!!activeWallet &&
-                                activeWallet.type !==
-                                    WalletTypes.PRIVATE_KEY && (
-                                    <AccountsActionsFooter>
+                            {!!activeWallet && (
+                                <AccountsActionsFooter>
+                                    {activeWallet.type !==
+                                        WalletTypes.PRIVATE_KEY && (
                                         <InlineButton
                                             id="create-account-button"
                                             onClick={() =>
@@ -153,8 +155,21 @@ export const Accounts: React.FC = () => {
                                                 />
                                             </svg>
                                         </InlineButton>
-                                    </AccountsActionsFooter>
-                                )}
+                                    )}
+                                    <InlineButton
+                                        id="export-wallet-keyfile-button"
+                                        variant="secondary"
+                                        onClick={() => setShowExportModal(true)}
+                                        fullWidth={isLaptop}
+                                        style={{
+                                            flexWrap: "nowrap",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        <h3>Export Keyfile</h3>
+                                    </InlineButton>
+                                </AccountsActionsFooter>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -166,6 +181,13 @@ export const Accounts: React.FC = () => {
                     console.info("Account created successfully");
                 }}
             />
+            {!!activeWallet && (
+                <ExportWalletKeyfileModal
+                    isOpen={showExportModal}
+                    walletId={activeWallet.id}
+                    onClose={() => setShowExportModal(false)}
+                />
+            )}
         </Fragment>
     );
 };

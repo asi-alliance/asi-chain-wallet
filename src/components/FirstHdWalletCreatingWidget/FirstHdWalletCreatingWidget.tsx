@@ -12,8 +12,8 @@ import { CreateHdWalletForm } from "components/CreateHdWalletForm";
 import { ImportHdWalletForm } from "components/ImportHdWalletForm";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks/";
-import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportPkWalletForm } from "components/ImportPkWalletForm";
+import { ImportKeyfileWalletForm } from "components/ImportKeyfileWalletForm";
 
 const WidgetContainer = styled.div`
     width: 100%;
@@ -29,7 +29,7 @@ interface FirstHdWalletCreatingWidgetProps {
     onSuccess?: () => void;
 }
 
-type FormMode = "create" | "import" | "import_private_key";
+type FormMode = "create" | "import" | "import_private_key" | "import_keyfile";
 
 const ActionsToolbar = styled.div`
     display: flex;
@@ -208,6 +208,43 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                         </defs>
                                     </svg>
                                 </Button>
+                                <Button
+                                    id="import-keyfile-wallet-button"
+                                    variant="full-ghost"
+                                    onClick={() =>
+                                        setActiveMode("import_keyfile")
+                                    }
+                                    fullWidth={true}
+                                    style={{
+                                        flexWrap: "nowrap",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    <h3>Import Wallet from keyfile</h3>
+                                    <svg
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <g clipPath="url(#clip0_3_1930)">
+                                            <path
+                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                fill="currentcolor"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_3_1930">
+                                                <rect
+                                                    width="24"
+                                                    height="24"
+                                                    fill="currentcolor"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </Button>
                             </ActionsToolbar>
                         </FormContainer>
                     </CardContent>
@@ -225,6 +262,8 @@ export const FirstHdWalletCreatingWidget: React.FC<
                         {activeMode === "import" && "Import wallet"}
                         {activeMode === "import_private_key" &&
                             "Import account by private key"}
+                        {activeMode === "import_keyfile" &&
+                            "Import wallet from keyfile"}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -249,6 +288,12 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                 onSuccess={handleImportSuccess}
                                 onCancel={() => setActiveMode(null)}
                                 customAccountName={accountName}
+                            />
+                        )}
+                        {activeMode === "import_keyfile" && (
+                            <ImportKeyfileWalletForm
+                                onSuccess={handleImportSuccess}
+                                onCancel={() => setActiveMode(null)}
                             />
                         )}
                     </FormContainer>
