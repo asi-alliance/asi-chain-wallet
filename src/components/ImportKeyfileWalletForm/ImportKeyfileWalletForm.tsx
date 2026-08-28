@@ -156,14 +156,20 @@ const hasImportableAccounts = (preview: IKeyfileImportPreview): boolean =>
             account.status === KeyfileImportAccountStatus.NEW,
     );
 
+export interface IKeyfileAccountsImportOutcome {
+    signerId: string;
+    importedAccountsCount: number;
+}
+
 interface ImportKeyfileWalletFormProps {
-    onSuccess?: () => void;
+    onWalletImported?: () => void;
+    onAccountsImported?: (outcome: IKeyfileAccountsImportOutcome) => void;
     onCancel?: () => void;
 }
 
 export const ImportKeyfileWalletForm: React.FC<
     ImportKeyfileWalletFormProps
-> = ({ onSuccess, onCancel }) => {
+> = ({ onWalletImported, onAccountsImported, onCancel }) => {
     const dispatch = useAppDispatch();
     const { isLaptop } = useScreen();
 
@@ -294,7 +300,12 @@ export const ImportKeyfileWalletForm: React.FC<
                     }),
                 ).unwrap();
 
-                onSuccess?.();
+                onAccountsImported?.({
+                    signerId: preview.existingSignerId,
+                    importedAccountsCount: isHdWallet
+                        ? selectedIndexes.length
+                        : 1,
+                });
 
                 return;
             }
@@ -307,7 +318,7 @@ export const ImportKeyfileWalletForm: React.FC<
                 }),
             ).unwrap();
 
-            onSuccess?.();
+            onWalletImported?.();
         } catch (importError: unknown) {
             setError(
                 (importError as Error)?.message ?? "Failed to import keyfile.",

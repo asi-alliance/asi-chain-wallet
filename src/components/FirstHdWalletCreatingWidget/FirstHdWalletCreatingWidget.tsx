@@ -292,7 +292,8 @@ export const FirstHdWalletCreatingWidget: React.FC<
                         )}
                         {activeMode === "import_keyfile" && (
                             <ImportKeyfileWalletForm
-                                onSuccess={handleImportSuccess}
+                                onWalletImported={handleImportSuccess}
+                                onAccountsImported={handleImportSuccess}
                                 onCancel={() => setActiveMode(null)}
                             />
                         )}
