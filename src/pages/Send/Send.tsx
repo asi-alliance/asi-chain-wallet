@@ -7,8 +7,7 @@ import { Address, CustomErrorCode } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
-    selectAccountById,
-    selectSelectedAccountId,
+    selectSelectedAccount,
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -221,18 +220,17 @@ const AccountSelectorWithMarginBottom = styled(AccountSelector)`
 export const Send: React.FC = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
+    const selectedAccount = useSelector(selectSelectedAccount);
     const selectedWallet = useSelector((state: RootState) =>
-        selectedAccountId
-            ? selectWalletByAccountId(state, selectedAccountId)
+        selectedAccount
+            ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
     const { data: balance = "0", refetch: refetchBalance } = useGetBalanceQuery(
-        selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
+        selectedAccount
+            ? { accountId: selectedAccount.id, networkId }
+            : skipToken,
         { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
     );
     const isLoading = useSelector(

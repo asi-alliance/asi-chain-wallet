@@ -6,8 +6,7 @@ import { RootState } from "store";
 import {
     selectNetwork,
     selectAccounts,
-    selectAccountById,
-    selectSelectedAccountId,
+    selectSelectedAccount,
 } from "store/WalletsStore";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
@@ -45,10 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
+    const selectedAccount = useSelector(selectSelectedAccount);
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );

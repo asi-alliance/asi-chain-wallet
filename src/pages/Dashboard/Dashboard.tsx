@@ -3,10 +3,9 @@ import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
 import {
-    selectAccountById,
     selectAccounts,
     selectIsAccountUnlocked,
-    selectSelectedAccountId,
+    selectSelectedAccount,
     selectSelectedNetworkId,
 } from "store/WalletsStore";
 import {
@@ -71,24 +70,21 @@ const ACCOUNT_DATA_POLLING_INTERVAL_MS = 30000;
 
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
+    const selectedAccount = useSelector(selectSelectedAccount);
     const accounts = useSelector(selectAccounts);
     const networkId = useSelector(selectSelectedNetworkId);
     const isAccountUnlocked = useSelector((state: RootState) =>
-        selectedAccountId
-            ? selectIsAccountUnlocked(state, selectedAccountId)
+        selectedAccount
+            ? selectIsAccountUnlocked(state, selectedAccount.id)
             : false,
     );
 
     const { isLaptop } = useScreen();
 
     const accountDataArgs =
-        selectedAccountId && isAccountUnlocked
+        selectedAccount?.id && isAccountUnlocked
             ? {
-                  accountId: selectedAccountId,
+                  accountId: selectedAccount.id,
                   networkId,
                   source: "all" as THistorySourceFilter,
               }

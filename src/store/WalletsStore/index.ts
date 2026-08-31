@@ -55,11 +55,10 @@ const walletsStoreSlice = createSlice({
     initialState,
     reducers: {
         selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount =
-                getUnlockedWalletAndAccountFromWalletsMeta(
-                    state.wallets,
-                    action.payload,
-                );
+            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
+                state.wallets,
+                action.payload,
+            );
 
             if (!walletAndAccount) {
                 console.error(
@@ -344,9 +343,16 @@ export const selectAccounts = createSelector(
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
+export const selectSelectedAccount = (state: RootState) => {
+    return state.walletsStore.selectedAccountId
+        ? selectAccountById(state, state.walletsStore.selectedAccountId)
+        : null;
+};
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
-export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => {
+export const selectIsAnyAccountBalanceFetching = (
+    state: RootState,
+): boolean => {
     const networkId = selectSelectedNetworkId(state);
 
     return selectAccounts(state).some(
