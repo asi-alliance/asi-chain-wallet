@@ -5,10 +5,7 @@ import { Network } from "types/wallet";
 import { DeleteIcon, EditIcon } from "components/Icons";
 import { useDispatch } from "react-redux";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
-import {
-    removeCustomNetwork,
-    updateCustomNetwork,
-} from "store/WalletsStore/thunks";
+import { removeCustomNetwork } from "store/WalletsStore/thunks";
 import { AppDispatch } from "store";
 
 const NetworkItem = styled.div`
@@ -172,30 +169,9 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
         }
     };
 
-    const handleEdit = async (updatedNetwork: Network): Promise<void> => {
-        if (isLoading) {
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            await dispatch(
-                updateCustomNetwork({
-                    id: updatedNetwork.id,
-                    update: {
-                        ...updatedNetwork,
-                    },
-                }),
-            ).unwrap();
-
-            onEdit?.(updatedNetwork);
-            setIsEditing(false);
-        } catch (error) {
-            console.error("Failed to update custom network:", error);
-        } finally {
-            setIsLoading(false);
-        }
+    const handleEdit = (updatedNetwork: Network) => {
+        onEdit?.(updatedNetwork);
+        setIsEditing(false);
     };
 
     return (
@@ -258,14 +234,12 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
             <EditCustomNetworkModal
                 isOpen={isEditing}
                 network={network}
-                isActive={true}
-                loading={isLoading}
                 onClose={() => {
                     if (!isLoading) {
                         setIsEditing(false);
                     }
                 }}
-                onSave={handleEdit}
+                onEdit={handleEdit}
             />
         </Fragment>
     );

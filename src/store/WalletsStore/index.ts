@@ -201,16 +201,29 @@ const walletsStoreSlice = createSlice({
                         return;
                     }
 
-                    state.networks[targetNetworkIndex] = {
-                        ...state.networks[targetNetworkIndex],
-                        ...update,
+                    const currentNetwork = state.networks[targetNetworkIndex];
+
+                    const updatedNetwork: Network = {
+                        ...currentNetwork,
+                        name: update.name ?? currentNetwork.name,
+                        validatorUrl:
+                            update.config?.ValidatorURL ??
+                            currentNetwork.validatorUrl,
+                        observerUrl:
+                            update.config?.ReadOnlyURL ??
+                            currentNetwork.observerUrl,
+                        indexerUrl:
+                            update.config?.IndexerURL ??
+                            currentNetwork.indexerUrl,
+                        nodeApiProfile:
+                            update.config?.nodeApiProfile ??
+                            currentNetwork.nodeApiProfile,
                     };
 
-                    if (state.selectedNetwork.id === id) {
-                        state.selectedNetwork = {
-                            ...state.selectedNetwork,
-                            ...update,
-                        };
+                    state.networks[targetNetworkIndex] = updatedNetwork;
+
+                    if (state.selectedNetwork?.id === id) {
+                        state.selectedNetwork = updatedNetwork;
                     }
 
                     state.isLoading = false;
