@@ -137,34 +137,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         selectedNetwork?.id,
     ]);
 
-    const cacheNetworkByAddress = (networkId: string) => {
-        if (!isAuthenticated || !selectedAccount?.address) {
-            return;
-        }
-
-        const networkByAddressMapRaw = localStorage.getItem(
-            "NETWORKS_BY_ADDRESS",
-        );
-
-        const networkByAddressMap = !!networkByAddressMapRaw
-            ? JSON.parse(networkByAddressMapRaw)
-            : {};
-
-        networkByAddressMap[selectedAccount?.address] = networkId;
-
-        localStorage.setItem(
-            "NETWORKS_BY_ADDRESS",
-            JSON.stringify(networkByAddressMap),
-        );
-    };
-
-    const handleNetworkChange = (
-        event: React.ChangeEvent<HTMLSelectElement>,
-    ) => {
-        dispatch(selectNetwork(event.target.value));
-        cacheNetworkByAddress(event.target.value);
-    };
-
     const navItems = useNavItems(accounts);
 
     return (
@@ -175,9 +147,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 navItems={navItems}
                 networkStatus={networkStatus}
                 lastRefresh={lastRefresh}
-                selectedNetwork={selectedNetwork}
-                networks={networks}
-                onNetworkChange={handleNetworkChange}
             />
 
             <MobileNavDrawerComponent

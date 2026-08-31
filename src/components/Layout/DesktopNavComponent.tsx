@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Network } from "types/wallet";
+import { NetworkSelector } from "components/NetworkSelector";
 
 const DesktopNavStyled = styled.nav`
     height: 41px;
@@ -60,9 +60,6 @@ const NavLink = styled.button<{ $active: boolean }>`
 
 const ExternalNavLink = styled(NavLink)`
     color: ${({ theme }) => theme.text.primary};
-    display: flex;
-    align-items: center;
-    gap: 5px;
 `;
 
 const Delimiter = styled.div`
@@ -80,22 +77,7 @@ const RightSection = styled.div`
     }
 `;
 
-const NetworkSelector = styled.select`
-    padding: 6px;
-    border: none;
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
-    max-width: 100px;
-    margin-right: 16px;
-
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const NetworkStatusBar = styled.div<{ $connected: boolean }>`
+const NetworkStatusBar = styled.div`
     display: flex;
     align-items: center;
     gap: 8px;
@@ -111,6 +93,7 @@ const NetworkInfo = styled.div`
 
 const LastUpdated = styled.span`
     font-size: 14px;
+    text-wrap: nowrap;
 `;
 
 const StatusDot = styled.div<{ $connected: boolean }>`
@@ -118,6 +101,7 @@ const StatusDot = styled.div<{ $connected: boolean }>`
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
+
     background: ${({ $connected, theme }) =>
         $connected ? theme.success : theme.danger};
 `;
@@ -163,12 +147,19 @@ const formatRelativeTime = (date: Date) => {
     if (seconds < 60) return "just now";
     if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+
     return `${Math.floor(seconds / 86400)} days ago`;
 };
 
 const externalLinksSet = [
-    { path: `${process.env.REACT_APP_EXPLORER_URL}`, label: "Explorer" },
-    { path: `${process.env.REACT_APP_FAUCET_URL}`, label: "Faucet" },
+    {
+        path: `${process.env.REACT_APP_EXPLORER_URL}`,
+        label: "Explorer",
+    },
+    {
+        path: `${process.env.REACT_APP_FAUCET_URL}`,
+        label: "Faucet",
+    },
 ];
 
 interface NavItem {
@@ -180,18 +171,12 @@ interface DesktopNavComponentProps {
     navItems: NavItem[];
     networkStatus: "connected" | "disconnected" | "checking";
     lastRefresh: Date;
-    selectedNetwork: any;
-    networks: Network[];
-    onNetworkChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
 export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
     navItems,
     networkStatus,
     lastRefresh,
-    selectedNetwork,
-    networks,
-    onNetworkChange,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -209,7 +194,9 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                         {item.label}
                     </NavLink>
                 ))}
+
                 <DelimiterIcon />
+
                 {externalLinksSet.map((item) => (
                     <ExternalNavLink
                         $active={false}
@@ -222,44 +209,32 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                     </ExternalNavLink>
                 ))}
             </NavLinks>
+
             <RightSection>
                 <StatusDot $connected={networkStatus === "connected"} />
                 <NetworkSelector
-                    id="mobile-header-network-selector"
-                    value={selectedNetwork.id}
-                    onChange={onNetworkChange}
-                >
-                    {networks.map((network) => (
-                        <option
-                            key={network.id}
-                            value={network.id}
-                            disabled={
-                                !network.validatorUrl ||
-                                network.validatorUrl.trim() === ""
-                            }
-                        >
-                            {network.name}
-                        </option>
-                    ))}
-                </NetworkSelector>
-                <NetworkStatusBar
-                    id="dashboard-network-status-bar"
-                    $connected={networkStatus === "connected"}
-                >
-                    <NetworkInfo id="dashboard-network-info">
+                    id="desktop-network-selector"
+                    style={{
+                        width: "200px",
+                        minWidth: "200px",
+                    }}
+                />
+                <NetworkStatusBar>
+                    <NetworkInfo>
                         <DelimiterIcon />
-                        <span id="dashboard-network-status">
+
+                        <span>
                             {networkStatus === "checking"
                                 ? "Checking..."
                                 : networkStatus === "connected"
                                   ? "Connected"
                                   : "Disconnected"}
                         </span>
+
                         <DelimiterIcon />
-                        <LastUpdated id="dashboard-last-updated">
-                            <span>
-                                Updated {formatRelativeTime(lastRefresh)}
-                            </span>
+
+                        <LastUpdated>
+                            Updated {formatRelativeTime(lastRefresh)}
                         </LastUpdated>
                     </NetworkInfo>
                 </NetworkStatusBar>
