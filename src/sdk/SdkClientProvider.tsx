@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from "react";
-import { Client, INetworkRecord } from "@asichain/asi-wallet-sdk";
-import {
-    getInitialNetwork,
-    getNetworksEnvError,
-    NETWORKS_CONFIG,
-} from "constants/networks";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { setSdkClient } from "./client";
 import { SdkWalletService } from "./SdkWalletService";
 import { TCustomNetwork } from "types/wallet";
 import { useDispatch } from "react-redux";
 import { addNetworks } from "store/WalletsStore";
+import {
+    Client,
+    ClientEvent,
+    INetworkRecord,
+    NetworkId,
+    TUnsubscribe,
+} from "@asichain/asi-wallet-sdk";
+import {
+    getInitialNetwork,
+    getNetworksEnvError,
+    NETWORKS_CONFIG,
+} from "constants/networks";
 
 let clientPromise: Promise<Client> | null = null;
 
@@ -34,6 +40,7 @@ const initSdkClient = (): Promise<Client> => {
             },
         }).then((client) => {
             setSdkClient(client);
+
             return client;
         });
     }
@@ -41,19 +48,33 @@ const initSdkClient = (): Promise<Client> => {
     return clientPromise;
 };
 
+interface ISdkClientContextValue {
+    client: Client | null;
+    isReady: boolean;
+    isNetworkBusy: boolean;
+}
+
+type TSdkClientReturnedValue = ISdkClientContextValue & {
+    client: Client;
+};
+
+const SdkClientContext = createContext<ISdkClientContextValue | null>(null);
+
 export const SdkClientProvider: React.FC<{
     children: React.ReactNode;
 }> = ({ children }) => {
     const dispatch = useDispatch();
 
+    const [client, setClient] = useState<Client | null>(null);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isNetworkBusy, setIsNetworkBusy] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
 
         initSdkClient()
-            .then(() => {
+            .then((client) => {
                 if (cancelled) {
                     return;
                 }
@@ -63,6 +84,7 @@ export const SdkClientProvider: React.FC<{
 
                 dispatch(addNetworks(storageCustomNetworks));
 
+                setClient(client);
                 setIsReady(true);
             })
             .catch((initError: unknown) => {
@@ -82,15 +104,60 @@ export const SdkClientProvider: React.FC<{
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [dispatch]);
 
-    if (error) {
-        return <div>{error}</div>;
-    }
+    useEffect(() => {
+        if (!client) {
+            return;
+        }
+
+        const eventBus = client.getEventBus();
+
+        const unsubscribes: TUnsubscribe[] = [
+            eventBus.on(
+                ClientEvent.NETWORK_BUSY_CHANGED,
+                (_networkId: NetworkId, busy: boolean) => {
+                    setIsNetworkBusy(busy);
+                },
+            ),
+        ];
+
+        return () => {
+            for (const unsubscribe of unsubscribes) {
+                unsubscribe();
+            }
+        };
+    }, [client]);
 
     if (!isReady) {
         return null;
     }
 
-    return <>{children}</>;
+    if (error) {
+        return <div>{error}</div>;
+    }
+
+    return (
+        <SdkClientContext.Provider
+            value={{
+                client,
+                isReady,
+                isNetworkBusy,
+            }}
+        >
+            {children}
+        </SdkClientContext.Provider>
+    );
+};
+
+export const useSdkClient = (): TSdkClientReturnedValue => {
+    const context: ISdkClientContextValue | null = useContext(SdkClientContext);
+
+    if (!context || !context.client) {
+        throw new Error(
+            "useSdkClient must be used inside SdkClientProvider and after client initialization",
+        );
+    }
+
+    return context as TSdkClientReturnedValue;
 };
