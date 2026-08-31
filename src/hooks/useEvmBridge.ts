@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import {
     useAccount,
@@ -20,6 +20,8 @@ import { EvmWalletSession } from "types/bridgeWalletSession";
 const EVM_APPROVE_GAS = BigInt(100000);
 const EVM_LOCK_GAS = BigInt(500000);
 
+export type EvmWriteAction = "approve" | "lock" | null;
+
 export interface EvmBridgeState {
     address?: `0x${string}`;
     isConnected: boolean;
@@ -31,13 +33,15 @@ export interface EvmBridgeState {
     isPending: boolean;
     isConfirming: boolean;
     isSuccess: boolean;
+    lastAction: EvmWriteAction;
     error: Error | null;
     openConnect: () => void;
     switchToSource: () => void;
     approve: (amountRaw: bigint) => void;
     lock: (amountRaw: bigint, recipient: string, destChainId: number) => void;
-    refetch: () => void;
+    refetch: () => Promise<void>;
     reset: () => void;
+    resetIfCurrent: (expectedTxHash: `0x${string}` | undefined) => void;
     session: EvmWalletSession;
 }
 
@@ -51,6 +55,7 @@ export const useEvmBridge = (
     const { openConnectModal } = useConnectModal();
     const { switchChain } = useSwitchChain();
     const contracts = contractsForChain(evmId);
+    const [lastAction, setLastAction] = useState<EvmWriteAction>(null);
 
     const enabledReads = !!address && !!evmId;
 
@@ -85,8 +90,11 @@ export const useEvmBridge = (
         data: txHash,
         isPending,
         error,
-        reset,
+        reset: writeReset,
     } = useWriteContract();
+
+    const txHashRef = useRef(txHash);
+    txHashRef.current = txHash;
 
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt(
         { hash: txHash },
@@ -99,6 +107,7 @@ export const useEvmBridge = (
     };
 
     const approve = (amountRaw: bigint): void => {
+        setLastAction("approve");
         writeContract({
             address: contracts.token,
             abi: TokenABI,
@@ -114,6 +123,7 @@ export const useEvmBridge = (
         recipient: string,
         destChainId: number,
     ): void => {
+        setLastAction("lock");
         writeContract({
             address: contracts.bridge,
             abi: BridgeABI,
@@ -124,10 +134,25 @@ export const useEvmBridge = (
         });
     };
 
-    const refetch = useCallback((): void => {
-        refetchBalance();
-        refetchAllowance();
+    const refetch = useCallback(async (): Promise<void> => {
+        await Promise.all([refetchBalance(), refetchAllowance()]);
     }, [refetchBalance, refetchAllowance]);
+
+    const reset = useCallback((): void => {
+        setLastAction(null);
+        writeReset();
+    }, [writeReset]);
+
+    const resetIfCurrent = useCallback(
+        (expectedTxHash: `0x${string}` | undefined): void => {
+            if (!expectedTxHash || txHashRef.current !== expectedTxHash) {
+                return;
+            }
+            setLastAction(null);
+            writeReset();
+        },
+        [writeReset],
+    );
 
     const openConnect = (): void => {
         openConnectModal?.();
@@ -177,6 +202,7 @@ export const useEvmBridge = (
         isPending,
         isConfirming,
         isSuccess,
+        lastAction,
         error,
         openConnect,
         switchToSource,
@@ -184,6 +210,7 @@ export const useEvmBridge = (
         lock,
         refetch,
         reset,
+        resetIfCurrent,
         session,
     };
 };

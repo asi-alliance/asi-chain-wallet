@@ -13,7 +13,7 @@ import { buildUrlWithParams } from "utils/navigationUtils";
 import { SecureStorage } from "services/secureStorage";
 import { loginWithPassword } from "store/authSlice";
 import { RootState, AppDispatch } from "store";
-import { Account } from "types/wallet";
+import { Account, AccountActions } from "types/wallet";
 import {
     Card,
     CardHeader,
@@ -366,7 +366,7 @@ export const Login: React.FC = () => {
                 queryParams: [
                     {
                         key: "action",
-                        value: "create-account",
+                        value: AccountActions.CREATE,
                     },
                 ],
             }),
