@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { PasswordInput, Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
@@ -50,6 +50,15 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     const [password, setPassword] = useState("");
     const [localError, setLocalError] = useState("");
 
+    useEffect(() => {
+        if (isOpen) {
+            return;
+        }
+
+        setPassword("");
+        setLocalError("");
+    }, [isOpen]);
+
     const handleConfirm = () => {
         if (!password.trim()) {
             setLocalError("Password is required");
@@ -74,8 +83,6 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
             return;
         }
 
-        setPassword("");
-        setLocalError("");
         onClose();
     };
 
