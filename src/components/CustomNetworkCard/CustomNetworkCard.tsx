@@ -4,9 +4,12 @@ import { Button } from "components";
 import { Network } from "types/wallet";
 import { DeleteIcon, EditIcon } from "components/Icons";
 import { useDispatch } from "react-redux";
+import { DeleteCustomNetworkModal } from "components/DeleteCustomNetworkModal";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
 import { removeCustomNetwork } from "store/WalletsStore/thunks";
 import { AppDispatch } from "store";
+import { useIsNetworkBusy } from "sdk";
+import { getErrorMessage } from "utils/helpers";
 
 const NetworkItem = styled.div`
     border: 1px solid #eee;
@@ -63,7 +66,7 @@ const NetworkNameLabel = styled.span`
     }
 `;
 
-const NetworkId = styled.span`
+const NetworkBadge = styled.span`
     color: #999;
     font-weight: 400;
 
@@ -133,26 +136,23 @@ const CustomNetworkActionsButtons = styled.div`
 
 interface CustomNetworkCardProps {
     network: Network;
-    onEdit?: (network: Network) => void;
-    onDelete?: (id: string) => void;
 }
 
 export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
     network,
-    onEdit,
-    onDelete,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
 
+    const isNetworkBusy = useIsNetworkBusy(network.id);
+
     const [isEditing, setIsEditing] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const handleDelete = async (): Promise<void> => {
-        if (isLoading) {
-            return;
-        }
-
-        setIsLoading(true);
+        setIsDeleting(true);
+        setDeleteError(null);
 
         try {
             await dispatch(
@@ -161,17 +161,19 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                 }),
             ).unwrap();
 
-            onDelete?.(network.id);
+            setIsConfirmingDelete(false);
         } catch (error) {
-            console.error("Failed to remove custom network:", error);
+            setDeleteError(
+                getErrorMessage(error, "Failed to remove custom network"),
+            );
         } finally {
-            setIsLoading(false);
+            setIsDeleting(false);
         }
     };
 
-    const handleEdit = (updatedNetwork: Network) => {
-        onEdit?.(updatedNetwork);
-        setIsEditing(false);
+    const openDeleteConfirmation = (): void => {
+        setDeleteError(null);
+        setIsConfirmingDelete(true);
     };
 
     return (
@@ -183,7 +185,7 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                             {network.name}
                         </NetworkNameLabel>
 
-                        <NetworkId>({network.id})</NetworkId>
+                        {isNetworkBusy && <NetworkBadge>(busy)</NetworkBadge>}
                     </NetworkName>
 
                     <CustomNetworkActionsButtons>
@@ -191,20 +193,22 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                             title="Edit network"
                             size="small"
                             variant="icon-button"
-                            onClick={() =>
-                                setIsEditing((previousValue) => !previousValue)
-                            }
-                            disabled={isLoading}
+                            onClick={() => setIsEditing(true)}
+                            disabled={isDeleting || isNetworkBusy}
                         >
                             <EditIcon />
                         </Button>
 
                         <Button
-                            title="Delete network"
+                            title={
+                                isNetworkBusy
+                                    ? "Network is busy with a running operation"
+                                    : "Delete network"
+                            }
                             size="small"
                             variant="icon-button"
-                            onClick={handleDelete}
-                            disabled={isLoading}
+                            onClick={openDeleteConfirmation}
+                            disabled={isDeleting || isNetworkBusy}
                             dangerHover
                         >
                             <DeleteIcon />
@@ -234,12 +238,20 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
             <EditCustomNetworkModal
                 isOpen={isEditing}
                 network={network}
-                onClose={() => {
-                    if (!isLoading) {
-                        setIsEditing(false);
+                onClose={() => setIsEditing(false)}
+            />
+
+            <DeleteCustomNetworkModal
+                isOpen={isConfirmingDelete}
+                networkName={network.name}
+                isDeleting={isDeleting}
+                error={deleteError}
+                onConfirm={handleDelete}
+                onCancel={() => {
+                    if (!isDeleting) {
+                        setIsConfirmingDelete(false);
                     }
                 }}
-                onEdit={handleEdit}
             />
         </Fragment>
     );

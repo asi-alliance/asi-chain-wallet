@@ -8,20 +8,17 @@ import {
     TCustomNetwork,
 } from "types/wallet";
 import { RootState } from "store";
-import { SdkWalletService } from "sdk";
-import {
-    getInitialNetwork,
-    NETWORKS,
-    persistSelectedNetworkId,
-} from "constants/networks";
+import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
     addCustomNetwork,
-    ICustomNetworkDefaultGetFieldsPayload,
-    IUpdateNetworkPayload,
+    IInitializeNetworksResponse,
+    initializeNetworks,
+    IRemoveNetworkResponse,
     loadWalletsFromStorage,
     removeAccount,
     removeCustomNetwork,
     removeWallet,
+    selectNetwork,
     sendTransaction,
     updateAccountName,
     updateCustomNetwork,
@@ -78,24 +75,6 @@ const walletsStoreSlice = createSlice({
             state.selectedAccountId = walletAndAccount.account.id;
 
             persistSelectedAccountId(walletAndAccount.account.id);
-        },
-        selectNetwork: (state, action: PayloadAction<string>) => {
-            const network = state.networks.find(
-                (networkMeta) => networkMeta.id === action.payload,
-            );
-
-            if (!network || state.selectedNetwork.id === network.id) {
-                return;
-            }
-
-            SdkWalletService.setNetwork(network.id);
-
-            state.selectedNetwork = network;
-
-            persistSelectedNetworkId(network.id);
-        },
-        addNetworks: (state, action: PayloadAction<Network[]>) => {
-            state.networks.push(...action.payload);
         },
     },
     extraReducers: (builder) => {
@@ -171,26 +150,41 @@ const walletsStoreSlice = createSlice({
                 state.isLoading = false;
             })
             .addCase(
+                initializeNetworks.fulfilled,
+                (state, action: PayloadAction<IInitializeNetworksResponse>) => {
+                    const { customNetworks, selectedNetwork } = action.payload;
+
+                    state.networks = [
+                        ...state.networks.filter(
+                            (network: Network) => network.isDefault,
+                        ),
+                        ...customNetworks,
+                    ];
+
+                    if (selectedNetwork) {
+                        state.selectedNetwork = selectedNetwork;
+                    }
+                },
+            )
+            .addCase(
+                selectNetwork.fulfilled,
+                (state, action: PayloadAction<Network>) => {
+                    state.selectedNetwork = action.payload;
+                },
+            )
+            .addCase(
                 addCustomNetwork.fulfilled,
                 (state, action: PayloadAction<TCustomNetwork>) => {
                     state.networks.push(action.payload);
-
-                    state.isLoading = false;
                 },
             )
-            .addCase(addCustomNetwork.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(addCustomNetwork.rejected, (state) => {
-                state.isLoading = false;
-            })
             .addCase(
                 updateCustomNetwork.fulfilled,
-                (state, action: PayloadAction<IUpdateNetworkPayload>) => {
-                    const { id, update } = action.payload;
+                (state, action: PayloadAction<TCustomNetwork>) => {
+                    const updatedNetwork = action.payload;
 
                     const targetNetworkIndex = state.networks.findIndex(
-                        (network: Network) => network.id === id,
+                        (network: Network) => network.id === updatedNetwork.id,
                     );
 
                     if (targetNetworkIndex === -1) {
@@ -201,65 +195,41 @@ const walletsStoreSlice = createSlice({
                         return;
                     }
 
-                    const currentNetwork = state.networks[targetNetworkIndex];
-
-                    const updatedNetwork: Network = {
-                        ...currentNetwork,
-                        name: update.name ?? currentNetwork.name,
-                        validatorUrl:
-                            update.config?.ValidatorURL ??
-                            currentNetwork.validatorUrl,
-                        observerUrl:
-                            update.config?.ReadOnlyURL ??
-                            currentNetwork.observerUrl,
-                        indexerUrl:
-                            update.config?.IndexerURL ??
-                            currentNetwork.indexerUrl,
-                        nodeApiProfile:
-                            update.config?.nodeApiProfile ??
-                            currentNetwork.nodeApiProfile,
-                    };
-
                     state.networks[targetNetworkIndex] = updatedNetwork;
 
-                    if (state.selectedNetwork?.id === id) {
+                    if (state.selectedNetwork.id === updatedNetwork.id) {
                         state.selectedNetwork = updatedNetwork;
                     }
-
-                    state.isLoading = false;
                 },
             )
-            .addCase(updateCustomNetwork.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(updateCustomNetwork.rejected, (state) => {
-                state.isLoading = false;
-            })
             .addCase(
                 removeCustomNetwork.fulfilled,
-                (
-                    state,
-                    action: PayloadAction<ICustomNetworkDefaultGetFieldsPayload>,
-                ) => {
-                    const { id } = action.payload;
+                (state, action: PayloadAction<IRemoveNetworkResponse>) => {
+                    const { id, selectedNetworkId } = action.payload;
 
                     state.networks = state.networks.filter(
                         (network: Network) => network.id !== id,
                     );
 
-                    if (state.selectedNetwork.id === id) {
-                        state.selectedNetwork = state.networks[0]!;
+                    if (state.selectedNetwork.id !== id) {
+                        return;
                     }
 
-                    state.isLoading = false;
+                    const currentNetwork = state.networks.find(
+                        (network: Network) => network.id === selectedNetworkId,
+                    );
+
+                    if (!currentNetwork) {
+                        console.error(
+                            "walletsStoreSlice.removeCustomNetwork: SDK switched to an unknown network",
+                        );
+
+                        return;
+                    }
+
+                    state.selectedNetwork = currentNetwork;
                 },
             )
-            .addCase(removeCustomNetwork.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(removeCustomNetwork.rejected, (state) => {
-                state.isLoading = false;
-            })
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
@@ -327,8 +297,17 @@ export const selectAccounts = createSelector(
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
+export const selectNetworks = (state: RootState) =>
+    state.walletsStore.networks;
+export const selectSelectedNetwork = (state: RootState) =>
+    state.walletsStore.selectedNetwork;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
+export const selectCustomNetworks = createSelector(
+    [selectNetworks],
+    (networks: Network[]): Network[] =>
+        networks.filter((network: Network) => !network.isDefault),
+);
 export const selectIsAnyAccountBalanceFetching = (
     state: RootState,
 ): boolean => {
@@ -360,7 +339,6 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
 
-export const { selectAccount, selectNetwork, addNetworks } =
-    walletsStoreSlice.actions;
+export const { selectAccount } = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

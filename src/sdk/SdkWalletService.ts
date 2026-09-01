@@ -234,6 +234,16 @@ export class SdkWalletService {
             .map(SdkWalletService.mapNetwork);
     }
 
+    static getActiveNetwork(): Network {
+        return SdkWalletService.mapNetwork(
+            requireSdkClient().getCurrentNetwork(),
+        );
+    }
+
+    static getActiveNetworkId(): NetworkId {
+        return requireSdkClient().getCurrentNetworkId();
+    }
+
     static async addCustomNetwork(
         name: NetworkName,
         config: INetworkConfig,
@@ -246,15 +256,23 @@ export class SdkWalletService {
         return SdkWalletService.mapNetwork(addedNetworkRecord);
     }
 
-    static updateCustomNetwork(
+    static async updateCustomNetwork(
         id: NetworkId,
         update: INetworkUpdate,
-    ): Promise<void> {
-        return requireSdkClient().updateNetwork(id, update);
+    ): Promise<TCustomNetwork> {
+        const client = requireSdkClient();
+
+        await client.updateNetwork(id, update);
+
+        return SdkWalletService.mapNetwork(
+            client.getNetwork(id) as TCustomNetworkRecord,
+        );
     }
 
-    static removeCustomNetwork(id: NetworkId): Promise<void> {
-        return requireSdkClient().removeNetwork(id);
+    static async removeCustomNetwork(id: NetworkId): Promise<void> {
+        const client = requireSdkClient();
+
+        await client.removeNetwork(id);
     }
 
     static lockAll(): void {

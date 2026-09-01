@@ -1,9 +1,14 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import { setSdkClient } from "./client";
-import { SdkWalletService } from "./SdkWalletService";
-import { TCustomNetwork } from "types/wallet";
 import { useDispatch } from "react-redux";
-import { addNetworks } from "store/WalletsStore";
+import { AppDispatch } from "store";
+import { initializeNetworks } from "store/WalletsStore/thunks";
 import {
     Client,
     ClientEvent,
@@ -51,7 +56,7 @@ const initSdkClient = (): Promise<Client> => {
 interface ISdkClientContextValue {
     client: Client | null;
     isReady: boolean;
-    isNetworkBusy: boolean;
+    busyNetworkIds: NetworkId[];
 }
 
 type TSdkClientReturnedValue = ISdkClientContextValue & {
@@ -63,12 +68,12 @@ const SdkClientContext = createContext<ISdkClientContextValue | null>(null);
 export const SdkClientProvider: React.FC<{
     children: React.ReactNode;
 }> = ({ children }) => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
 
     const [client, setClient] = useState<Client | null>(null);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isNetworkBusy, setIsNetworkBusy] = useState(false);
+    const [busyNetworkIds, setBusyNetworkIds] = useState<NetworkId[]>([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -79,10 +84,7 @@ export const SdkClientProvider: React.FC<{
                     return;
                 }
 
-                const storageCustomNetworks: TCustomNetwork[] =
-                    SdkWalletService.getCustomNetworks();
-
-                dispatch(addNetworks(storageCustomNetworks));
+                dispatch(initializeNetworks());
 
                 setClient(client);
                 setIsReady(true);
@@ -116,8 +118,24 @@ export const SdkClientProvider: React.FC<{
         const unsubscribes: TUnsubscribe[] = [
             eventBus.on(
                 ClientEvent.NETWORK_BUSY_CHANGED,
-                (_networkId: NetworkId, busy: boolean) => {
-                    setIsNetworkBusy(busy);
+                (networkId: NetworkId, busy: boolean) => {
+                    setBusyNetworkIds((previousBusyNetworkIds: NetworkId[]) => {
+                        const isAlreadyBusy =
+                            previousBusyNetworkIds.includes(networkId);
+
+                        if (busy) {
+                            return isAlreadyBusy
+                                ? previousBusyNetworkIds
+                                : [...previousBusyNetworkIds, networkId];
+                        }
+
+                        return isAlreadyBusy
+                            ? previousBusyNetworkIds.filter(
+                                  (busyNetworkId: NetworkId) =>
+                                      busyNetworkId !== networkId,
+                              )
+                            : previousBusyNetworkIds;
+                    });
                 },
             ),
         ];
@@ -129,22 +147,25 @@ export const SdkClientProvider: React.FC<{
         };
     }, [client]);
 
-    if (!isReady) {
-        return null;
-    }
+    const contextValue: ISdkClientContextValue = useMemo(
+        () => ({
+            client,
+            isReady,
+            busyNetworkIds,
+        }),
+        [client, isReady, busyNetworkIds],
+    );
 
     if (error) {
         return <div>{error}</div>;
     }
 
+    if (!isReady) {
+        return null;
+    }
+
     return (
-        <SdkClientContext.Provider
-            value={{
-                client,
-                isReady,
-                isNetworkBusy,
-            }}
-        >
+        <SdkClientContext.Provider value={contextValue}>
             {children}
         </SdkClientContext.Provider>
     );
@@ -160,4 +181,10 @@ export const useSdkClient = (): TSdkClientReturnedValue => {
     }
 
     return context as TSdkClientReturnedValue;
+};
+
+export const useIsNetworkBusy = (networkId: NetworkId): boolean => {
+    const { busyNetworkIds } = useSdkClient();
+
+    return busyNetworkIds.includes(networkId);
 };

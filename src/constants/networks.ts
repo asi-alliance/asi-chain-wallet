@@ -259,7 +259,7 @@ export const getNetworksEnvError = (): string | null => {
     return errors.map((issue: INetworksEnvIssue) => issue.message).join("; ");
 };
 
-const readSelectedNetworkId = (): string | null => {
+export const readSelectedNetworkId = (): string | null => {
     try {
         return localStorage.getItem(SELECTED_NETWORK_KEY);
     } catch (error) {

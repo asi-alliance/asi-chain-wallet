@@ -213,7 +213,7 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
             <RightSection>
                 <StatusDot $connected={networkStatus === "connected"} />
                 <NetworkSelector
-                    id="desktop-network-selector"
+                    id="header-network-selector"
                     style={{
                         width: "200px",
                         minWidth: "200px",

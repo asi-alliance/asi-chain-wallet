@@ -1,18 +1,11 @@
-import {
-    AdaptiveSelect,
-    ISelectOption,
-    ISelectProps,
-} from "components/Select/Select";
-import React, { useCallback } from "react";
+import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSdkClient } from "sdk/SdkClientProvider";
-
-import { AppDispatch, RootState } from "store";
-import {
-    selectNetwork,
-    selectSelectedAccountId,
-    selectAccountById,
-} from "store/WalletsStore";
+import { AdaptiveSelect, ISelectOption, ISelectProps } from "components/Select";
+import { useIsNetworkBusy } from "sdk";
+import { AppDispatch } from "store";
+import { selectNetworks, selectSelectedNetwork } from "store/WalletsStore";
+import { selectNetwork } from "store/WalletsStore/thunks";
+import { Network } from "types/wallet";
 
 type NetworkSelectorProps = Omit<
     ISelectProps,
@@ -25,74 +18,28 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
 }) => {
     const dispatch = useDispatch<AppDispatch>();
 
-    const networks = useSelector(
-        (state: RootState) => state.walletsStore.networks,
-    );
+    const networks = useSelector(selectNetworks);
+    const selectedNetwork = useSelector(selectSelectedNetwork);
 
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
+    const isNetworkBusy = useIsNetworkBusy(selectedNetwork.id);
 
-    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const handleNetworkChange = (networkId: string): void => {
+        dispatch(selectNetwork({ id: networkId }))
+            .unwrap()
+            .catch((error: string) => {
+                console.error("Failed to select network:", error);
+            });
+    };
 
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
-
-    const isAuthenticated = useSelector(
-        (state: RootState) => state.auth.isAuthenticated,
-    );
-
-    const { isNetworkBusy } = useSdkClient();
-
-    const cacheNetworkByAddress = useCallback(
-        (networkId: string): void => {
-            if (!isAuthenticated || !selectedAccount?.address) {
-                return;
-            }
-
-            const raw = localStorage.getItem("NETWORKS_BY_ADDRESS");
-
-            const networkByAddressMap: Record<string, string> = raw
-                ? JSON.parse(raw)
-                : {};
-
-            networkByAddressMap[selectedAccount.address] = networkId;
-
-            localStorage.setItem(
-                "NETWORKS_BY_ADDRESS",
-                JSON.stringify(networkByAddressMap),
-            );
-        },
-        [isAuthenticated, selectedAccount?.address],
-    );
-
-    const handleNetworkChange = useCallback(
-        (networkId: string): void => {
-            if (isNetworkBusy) {
-                return;
-            }
-
-            dispatch(selectNetwork(networkId));
-            cacheNetworkByAddress(networkId);
-        },
-        [dispatch, isNetworkBusy, cacheNetworkByAddress],
-    );
-
-    const options: ISelectOption[] = networks.map((network) => ({
+    const options: ISelectOption[] = networks.map((network: Network) => ({
         id: network.id,
         value: network.id,
         label: network.name,
     }));
 
-    if (!selectedNetwork) {
-        return null;
-    }
-
     return (
         <AdaptiveSelect
             {...props}
-            id="header-network-selector"
             value={selectedNetwork.id}
             onChange={handleNetworkChange}
             disabled={disabled || isNetworkBusy}

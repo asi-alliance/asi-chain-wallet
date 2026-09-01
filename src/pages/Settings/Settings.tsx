@@ -1,90 +1,21 @@
 import styled from "styled-components";
 import { type ReactElement, useState } from "react";
-import { INetworkConfig, NodeApiProfile } from "@asichain/asi-wallet-sdk";
 import { useDispatch, useSelector } from "react-redux";
 import { CustomNetworkCard } from "components/CustomNetworkCard";
-import { AppDispatch, RootState } from "store";
+import { AppDispatch } from "store";
+import { selectCustomNetworks, selectNetworks } from "store/WalletsStore";
 import { addCustomNetwork } from "store/WalletsStore/thunks";
-import { AdaptiveSelect, ISelectOption } from "components/Select/Select";
+import { Network } from "types/wallet";
+import { getErrorMessage } from "utils/helpers";
 import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardContent,
-    Button,
-    Input,
-} from "components";
-
-const ConfigSection = styled.div`
-    margin-bottom: 36px;
-`;
-
-const ConfigTitle = styled.h2`
-    margin-bottom: 16px;
-    color: ${({ theme }) => theme.text.primary};
-`;
-
-const FormRow = styled.div`
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-`;
-
-const FormGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-`;
-
-const Label = styled.label`
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 8px;
-`;
-
-const DirectLinks = styled.div`
-    padding: 16px 23px;
-    background: ${({ theme }) => theme.surface};
-    border-radius: 8px;
-    border: 1px solid ${({ theme }) => theme.border};
-    max-width: 100%;
-    box-sizing: border-box;
-
-    @media (max-width: 768px) {
-        padding: 14px 16px;
-    }
-
-    @media (max-width: 400px) {
-        padding: 12px;
-    }
-`;
-
-const LinkTitle = styled.div`
-    color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 10px;
-    line-height: 100%;
-`;
-
-const Link = styled.div`
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 10px;
-    cursor: pointer;
-    line-height: 1.4;
-
-    overflow-wrap: anywhere;
-    word-break: break-word;
-
-    &:hover {
-        text-decoration: underline;
-    }
-
-    @media (max-width: 400px) {
-        font-size: 14px;
-    }
-`;
-
-const LastLink = styled(Link)`
-    margin-bottom: 0;
-`;
+    createEmptyNetworkFormValues,
+    INetworkFormValues,
+    NetworkFormError,
+    NetworkFormFields,
+    normalizeNetworkFormValues,
+    validateNetworkFormValues,
+} from "components/NetworkForm";
+import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 
 const InfoBox = styled.div`
     background: ${({ theme }) => theme.info}20;
@@ -101,12 +32,6 @@ const InfoBox = styled.div`
     @media (max-width: 400px) {
         padding: 12px;
     }
-`;
-
-const InlineInput = styled(Input)`
-    height: 44px;
-    max-width: 100%;
-    box-sizing: border-box;
 `;
 
 const ActionButtons = styled.div`
@@ -134,105 +59,56 @@ const EmptyState = styled.div`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
-const DEFAULT_NETWORK_NAME = "Custom Network";
-
-const nodeApiProfileOptions: ISelectOption[] = [
-    {
-        id: "rust",
-        value: "rust",
-        label: "Rust",
-    },
-    {
-        id: "scala",
-        value: "scala",
-        label: "Scala",
-    },
-];
-
 export const Settings = (): ReactElement => {
     const dispatch = useDispatch<AppDispatch>();
 
-    const { networks } = useSelector((state: RootState) => state.walletsStore);
+    const networks = useSelector(selectNetworks);
+    const customNetworks = useSelector(selectCustomNetworks);
 
-    const [name, setName] = useState(DEFAULT_NETWORK_NAME);
-    const [config, setConfig] = useState<INetworkConfig>({
-        ValidatorURL: "",
-        ReadOnlyURL: "",
-        IndexerURL: "",
-        nodeApiProfile: NodeApiProfile.RUST,
-    });
-
+    const [values, setValues] = useState<INetworkFormValues>(
+        createEmptyNetworkFormValues(),
+    );
+    const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 
-    const customNetworks = networks.filter((network) => !network.isDefault);
-
-    const updateConfig = (field: keyof INetworkConfig, value: string): void => {
-        setConfig((previous) => ({
-            ...previous,
-            [field]: value,
-        }));
-    };
-
     const resetForm = (): void => {
-        setName(DEFAULT_NETWORK_NAME);
-        setConfig({
-            ValidatorURL: "",
-            ReadOnlyURL: "",
-            IndexerURL: "",
-            nodeApiProfile: NodeApiProfile.RUST,
-        });
+        setValues(createEmptyNetworkFormValues());
+        setError(null);
     };
 
     const handleCreate = async (): Promise<void> => {
-        if (isCreating) {
+        const validationError = validateNetworkFormValues(
+            values,
+            networks.map((network: Network) => network.name),
+        );
+
+        if (validationError) {
+            setError(validationError);
+
             return;
         }
 
-        if (!name.trim()) {
-            alert("Network name is required");
-            return;
-        }
+        setError(null);
+        setIsCreating(true);
+
+        const { name, config } = normalizeNetworkFormValues(values);
 
         try {
-            setIsCreating(true);
-
             await dispatch(
                 addCustomNetwork({
-                    name: name.trim(),
-                    config: {
-                        ValidatorURL: config.ValidatorURL?.trim() ?? "",
-                        ReadOnlyURL: config.ReadOnlyURL?.trim() ?? "",
-                        IndexerURL: config.IndexerURL?.trim() ?? "",
-                        nodeApiProfile:
-                            config.nodeApiProfile ?? NodeApiProfile.RUST,
-                    },
+                    name,
+                    config,
                 }),
             ).unwrap();
 
             resetForm();
-        } catch (error) {
-            console.error("Failed to create custom network:", error);
-
-            alert(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to create custom network",
+        } catch (createError) {
+            setError(
+                getErrorMessage(createError, "Failed to create custom network"),
             );
         } finally {
             setIsCreating(false);
         }
-    };
-
-    const handleReset = (): void => {
-        resetForm();
-    };
-
-    const openLink = (url?: string): void => {
-        if (!url) {
-            return;
-        }
-
-        window.open(url, "_blank", "noopener,noreferrer");
     };
 
     return (
@@ -250,166 +126,32 @@ export const Settings = (): ReactElement => {
                         </p>
                     </InfoBox>
 
-                    <ConfigSection>
-                        <Label>
-                            <h4>Network Name</h4>
-                        </Label>
+                    <NetworkFormFields
+                        idPrefix="network"
+                        values={values}
+                        onChange={setValues}
+                        disabled={isCreating}
+                    />
 
-                        <InlineInput
-                            id="network-name-input"
-                            className="network-name-input text-2"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            placeholder={DEFAULT_NETWORK_NAME}
-                            disabled={isCreating}
-                        />
-                    </ConfigSection>
-
-                    <ConfigSection>
-                        <ConfigTitle>Network Endpoints</ConfigTitle>
-
-                        <FormRow>
-                            <FormGroup>
-                                <Label>
-                                    <h4>Validator URL:</h4>
-                                </Label>
-
-                                <InlineInput
-                                    id="network-validator-url-input"
-                                    className="network-validator-url-input text-2"
-                                    value={config.ValidatorURL || ""}
-                                    onChange={(event) =>
-                                        updateConfig(
-                                            "ValidatorURL",
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="http://localhost:40403"
-                                    disabled={isCreating}
-                                />
-                            </FormGroup>
-
-                            <FormGroup>
-                                <Label>
-                                    <h4>Read-only URL:</h4>
-                                </Label>
-
-                                <InlineInput
-                                    id="network-readonly-url-input"
-                                    className="network-readonly-url-input text-2"
-                                    value={config.ReadOnlyURL || ""}
-                                    onChange={(event) =>
-                                        updateConfig(
-                                            "ReadOnlyURL",
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="http://localhost:40453"
-                                    disabled={isCreating}
-                                />
-                            </FormGroup>
-
-                            <FormGroup>
-                                <Label>
-                                    <h4>Indexer URL:</h4>
-                                </Label>
-
-                                <InlineInput
-                                    id="network-indexer-url-input"
-                                    className="network-indexer-url-input text-2"
-                                    value={config.IndexerURL || ""}
-                                    onChange={(event) =>
-                                        updateConfig(
-                                            "IndexerURL",
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="http://localhost:3000"
-                                    disabled={isCreating}
-                                />
-                            </FormGroup>
-
-                            <FormGroup>
-                                <Label>
-                                    <h4>Node API:</h4>
-                                </Label>
-
-                                <AdaptiveSelect
-                                    id="network-node-api-select"
-                                    value={config.nodeApiProfile || "rust"}
-                                    onChange={(value) =>
-                                        updateConfig("nodeApiProfile", value)
-                                    }
-                                    options={nodeApiProfileOptions}
-                                />
-                            </FormGroup>
-                        </FormRow>
-                    </ConfigSection>
-
-                    <ConfigSection>
-                        <ConfigTitle>Direct Links</ConfigTitle>
-
-                        <DirectLinks>
-                            <LinkTitle>Available endpoints:</LinkTitle>
-
-                            {config.ValidatorURL && (
-                                <Link
-                                    className="text-2"
-                                    onClick={() =>
-                                        openLink(config.ValidatorURL)
-                                    }
-                                >
-                                    Validator: {config.ValidatorURL}
-                                </Link>
-                            )}
-
-                            {config.ReadOnlyURL && (
-                                <Link
-                                    className="text-2"
-                                    onClick={() => openLink(config.ReadOnlyURL)}
-                                >
-                                    Read-only: {config.ReadOnlyURL}
-                                </Link>
-                            )}
-
-                            {config.IndexerURL && (
-                                <LastLink
-                                    className="text-2"
-                                    onClick={() => openLink(config.IndexerURL)}
-                                >
-                                    Indexer: {config.IndexerURL}
-                                </LastLink>
-                            )}
-
-                            {!config.ValidatorURL &&
-                                !config.ReadOnlyURL &&
-                                !config.IndexerURL && (
-                                    <span className="text-2">
-                                        No endpoints configured.
-                                    </span>
-                                )}
-                        </DirectLinks>
-                    </ConfigSection>
+                    {error && <NetworkFormError>{error}</NetworkFormError>}
 
                     <ActionButtons>
                         <InlineButton
+                            id="add-network-button"
                             variant="primary"
                             onClick={handleCreate}
-                            disabled={isCreating}
+                            loading={isCreating}
                         >
-                            <h3>
-                                {isCreating
-                                    ? "Creating..."
-                                    : "Add Custom Network"}
-                            </h3>
+                            <h3>Add Custom Network</h3>
                         </InlineButton>
 
                         <InlineButton
+                            id="reset-network-form-button"
                             variant="secondary"
-                            onClick={handleReset}
+                            onClick={resetForm}
                             disabled={isCreating}
                         >
-                            <h3>Restore to default</h3>
+                            <h3>Clear form</h3>
                         </InlineButton>
                     </ActionButtons>
                 </CardContent>
@@ -428,16 +170,10 @@ export const Settings = (): ReactElement => {
                             </span>
                         </EmptyState>
                     )}
-                    {!!customNetworks.length &&
-                        customNetworks.map((network) => (
-                            <CustomNetworkCard
-                                key={network.id}
-                                network={network}
-                                onEdit={(network) => {
-                                    console.info("Edit network:", network);
-                                }}
-                            />
-                        ))}
+
+                    {customNetworks.map((network: Network) => (
+                        <CustomNetworkCard key={network.id} network={network} />
+                    ))}
                 </CardContent>
             </Card>
         </>

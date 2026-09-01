@@ -18,6 +18,11 @@ import {
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
+import {
+    persistSelectedNetworkId,
+    readSelectedNetworkId,
+} from "constants/networks";
+import { getErrorMessage } from "utils/helpers";
 import { walletsApi, WalletsApiTags } from "./api";
 import { getUnlockedAccountFromWalletsMeta } from "./helpers";
 
@@ -67,6 +72,15 @@ export interface ICustomNetworkDefaultGetFieldsPayload {
 
 export interface IUpdateNetworkPayload extends ICustomNetworkDefaultGetFieldsPayload {
     update: INetworkUpdate;
+}
+
+export interface IRemoveNetworkResponse extends ICustomNetworkDefaultGetFieldsPayload {
+    selectedNetworkId: NetworkId;
+}
+
+export interface IInitializeNetworksResponse {
+    customNetworks: TCustomNetwork[];
+    selectedNetwork: TCustomNetwork | null;
 }
 
 export const removeWallet = createAsyncThunk(
@@ -140,45 +154,120 @@ export const updateAccountName = createAsyncThunk<
     },
 );
 
+export const initializeNetworks = createAsyncThunk<IInitializeNetworksResponse>(
+    "walletsStore/initializeNetworks",
+    () => {
+        const customNetworks: TCustomNetwork[] =
+            SdkWalletService.getCustomNetworks();
+
+        const persistedNetworkId = readSelectedNetworkId();
+
+        const persistedCustomNetwork =
+            customNetworks.find(
+                (network: TCustomNetwork) => network.id === persistedNetworkId,
+            ) ?? null;
+
+        if (!persistedCustomNetwork) {
+            return {
+                customNetworks,
+                selectedNetwork: null,
+            };
+        }
+
+        try {
+            SdkWalletService.setNetwork(persistedCustomNetwork.id);
+        } catch (error) {
+            console.error("Failed to restore selected network:", error);
+
+            return {
+                customNetworks,
+                selectedNetwork: null,
+            };
+        }
+
+        return {
+            customNetworks,
+            selectedNetwork: persistedCustomNetwork,
+        };
+    },
+);
+
+export const selectNetwork = createAsyncThunk<
+    Network,
+    ICustomNetworkDefaultGetFieldsPayload,
+    { state: RootState; rejectValue: string }
+>(
+    "walletsStore/selectNetwork",
+    (
+        { id }: ICustomNetworkDefaultGetFieldsPayload,
+        { getState, rejectWithValue },
+    ) => {
+        const { networks, selectedNetwork } = getState().walletsStore;
+
+        const network = networks.find(
+            (networkMeta: Network) => networkMeta.id === id,
+        );
+
+        if (!network) {
+            return rejectWithValue(`Unknown network "${id}"`);
+        }
+
+        if (selectedNetwork.id === network.id) {
+            return network;
+        }
+
+        try {
+            SdkWalletService.setNetwork(network.id);
+        } catch (error) {
+            return rejectWithValue(
+                getErrorMessage(error, `Failed to switch to "${network.name}"`),
+            );
+        }
+
+        persistSelectedNetworkId(network.id);
+
+        return network;
+    },
+);
+
 export const addCustomNetwork = createAsyncThunk<
     TCustomNetwork,
-    IAddNetworkPayload
+    IAddNetworkPayload,
+    { rejectValue: string }
 >(
     "walletsStore/addCustomNetwork",
     async ({ name, config }: IAddNetworkPayload, { rejectWithValue }) => {
         try {
-            const addedNetwork: TCustomNetwork =
-                await SdkWalletService.addCustomNetwork(name, config);
-
-            return addedNetwork;
+            return await SdkWalletService.addCustomNetwork(name, config);
         } catch (error) {
-            return rejectWithValue(error);
+            return rejectWithValue(
+                getErrorMessage(error, "Failed to create custom network"),
+            );
         }
     },
 );
 
 export const updateCustomNetwork = createAsyncThunk<
+    TCustomNetwork,
     IUpdateNetworkPayload,
-    IUpdateNetworkPayload
+    { rejectValue: string }
 >(
     "walletsStore/updateCustomNetwork",
     async ({ id, update }: IUpdateNetworkPayload, { rejectWithValue }) => {
         try {
-            await SdkWalletService.updateCustomNetwork(id, update);
-
-            return {
-                id,
-                update,
-            };
+            return await SdkWalletService.updateCustomNetwork(id, update);
         } catch (error) {
-            return rejectWithValue(error);
+            return rejectWithValue(
+                getErrorMessage(error, "Failed to update custom network"),
+            );
         }
     },
 );
 
 export const removeCustomNetwork = createAsyncThunk<
+    IRemoveNetworkResponse,
     ICustomNetworkDefaultGetFieldsPayload,
-    ICustomNetworkDefaultGetFieldsPayload
+    { rejectValue: string }
 >(
     "walletsStore/removeCustomNetwork",
     async (
@@ -188,11 +277,19 @@ export const removeCustomNetwork = createAsyncThunk<
         try {
             await SdkWalletService.removeCustomNetwork(id);
 
+            const selectedNetworkId: NetworkId =
+                SdkWalletService.getActiveNetworkId();
+
+            persistSelectedNetworkId(selectedNetworkId);
+
             return {
                 id,
+                selectedNetworkId,
             };
         } catch (error) {
-            return rejectWithValue(error);
+            return rejectWithValue(
+                getErrorMessage(error, "Failed to remove custom network"),
+            );
         }
     },
 );
