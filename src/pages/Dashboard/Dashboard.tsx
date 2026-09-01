@@ -10,7 +10,8 @@ import {
     selectSelectedNetworkId,
 } from "store/WalletsStore";
 import {
-    THistorySourceFilter,
+    IAccountQueryArgs,
+    IHistoryQueryArgs,
     useGetBalanceQuery,
     useGetTransactionHistoryQuery,
 } from "store/WalletsStore/api";
@@ -85,19 +86,24 @@ export const Dashboard: React.FC = () => {
 
     const { isLaptop } = useScreen();
 
-    const accountDataArgs =
+    const balanceArgs: IAccountQueryArgs | typeof skipToken =
+        selectedAccountId && isAccountUnlocked
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken;
+
+    const historyArgs: IHistoryQueryArgs | typeof skipToken =
         selectedAccountId && isAccountUnlocked
             ? {
                   accountId: selectedAccountId,
                   networkId,
-                  source: "all" as THistorySourceFilter,
+                  source: "all",
               }
             : skipToken;
 
-    useGetBalanceQuery(accountDataArgs, {
+    useGetBalanceQuery(balanceArgs, {
         pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
     });
-    useGetTransactionHistoryQuery(accountDataArgs, {
+    useGetTransactionHistoryQuery(historyArgs, {
         pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
     });
 
