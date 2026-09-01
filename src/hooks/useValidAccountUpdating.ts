@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { selectAccounts } from "store/walletSlice";
-import { Account } from "types/wallet";
+import { selectAccounts } from "store/WalletsStore";
+import { IAccountMeta } from "types/wallet";
 
 interface IUseValidAccountUpdatingResponse {
     isNameUpdateValid: boolean;
     nameErrorMessage: string | undefined;
-    updateAccountField: <TKey extends keyof Account>(
+    updateAccountField: <TKey extends keyof IAccountMeta>(
         key: TKey,
-        value: Account[TKey],
+        value: IAccountMeta[TKey],
     ) => void;
     reset: () => void;
 }
@@ -22,18 +22,18 @@ enum AccountFieldsEditingErrorMessages {
 }
 
 export const useValidAccountUpdating = (
-    targetAccount?: Partial<Account>,
+    targetAccount?: Partial<IAccountMeta> | null,
     config?: IValidAccountUpdatingConfig,
 ): IUseValidAccountUpdatingResponse => {
-    const existingAccountNames: Account[] = useSelector(selectAccounts);
+    const existingAccounts: IAccountMeta[] = useSelector(selectAccounts);
 
     const [currentAccountData, setCurrentAccountData] = useState<
-        Partial<Account>
+        Partial<IAccountMeta>
     >(targetAccount ?? {});
 
-    const updateAccountField = <TKey extends keyof Account>(
+    const updateAccountField = <TKey extends keyof IAccountMeta>(
         key: TKey,
-        value: Account[TKey],
+        value: IAccountMeta[TKey],
     ) => {
         setCurrentAccountData((previousValue) => ({
             ...previousValue,
@@ -45,13 +45,13 @@ export const useValidAccountUpdating = (
         setCurrentAccountData(targetAccount ?? {});
     };
 
-    const otherExistingAccounts: Account[] = existingAccountNames.filter(
-        (account: Account) => account.id !== currentAccountData?.id,
+    const otherExistingAccounts: IAccountMeta[] = existingAccounts.filter(
+        (account: IAccountMeta) => account.id !== currentAccountData?.id,
     );
 
     const isNameDuplicate: boolean =
         otherExistingAccounts.some(
-            (account: Account) =>
+            (account: IAccountMeta) =>
                 account.name === currentAccountData?.name?.trim(),
         ) || !!config?.firstAccount;
 

@@ -1,24 +1,17 @@
-// import { Client, IClientEventDispatcher } from "@asichain/asi-wallet-sdk";
-// import { DEFAULT_NETWORK, NETWORKS_CONFIG } from "./networksConfig";
+import { Client } from "@asichain/asi-wallet-sdk";
 
-// let clientPromise: Promise<Client> | null = null;
-// let clientInstance: Client | null = null;
+let clientInstance: Client | null = null;
 
-// export const getOrCreateSdkClient = (
-//     eventDispatcher?: IClientEventDispatcher,
-// ): Promise<Client> => {
-//     if (!clientPromise) {
-//         clientPromise = Client.create({
-//             networksConfig: NETWORKS_CONFIG,
-//             defaultNetwork: DEFAULT_NETWORK,
-//             eventDispatcher,
-//         }).then((client) => {
-//             clientInstance = client;
-//             return client;
-//         });
-//     }
+export const setSdkClient = (client: Client | null): void => {
+    clientInstance = client;
+};
 
-//     return clientPromise;
-// };
+export const getSdkClient = (): Client | null => clientInstance;
 
-// export const getSdkClient = (): Client | null => clientInstance;
+export const requireSdkClient = (): Client => {
+    if (!clientInstance) {
+        throw new Error("SDK client is not ready yet");
+    }
+
+    return clientInstance;
+};

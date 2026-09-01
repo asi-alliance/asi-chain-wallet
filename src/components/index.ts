@@ -1,9 +1,12 @@
 export { Button } from './Button';
 export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Input, TextArea } from './Input';
+export { FileSelector } from './FileSelector';
+export { Checkbox } from './Checkbox';
 export { PasswordInput } from './PasswordInput';
 export { Layout } from './Layout';
 export { PasswordSetup } from './PasswordSetup';
+export { ModalWindow } from './ModalWindow';
 export { PasswordModal } from './PasswordModal';
 export { TransactionConfirmationModal } from './ConfirmationModal';
 export { DeploymentConfirmationModal } from './DeployConfirmationModal';
@@ -15,3 +18,4 @@ export { ASIAccountBalance } from './ASIAccountBalance';
 export { AIHint } from './AIHint';
 export { Switch } from './Switch';
 export { PrivateKeyDisplay } from './PrivateKeyDisplay';
+export { Loader } from './Loader';

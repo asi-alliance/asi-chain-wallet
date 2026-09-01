@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import styled, { DefaultTheme } from "styled-components";
 import { QRCodeCanvas } from "qrcode.react";
 import { RootState } from "store";
+import { selectAccountById, selectSelectedAccountId } from "store/WalletsStore";
 import {
     Card,
     CardHeader,
@@ -141,17 +142,22 @@ const formatOptions: ISelectOption[] = [
         value: AddressFormats.ASI,
         label: "ASI",
     },
-    {
-        id: AddressFormats.ETHEREUM,
-        value: AddressFormats.ETHEREUM,
-        label: "ETH",
-    },
+    //TODO: Restore the ETH format option when the SDK exposes the account eth address
+    // {
+    //     id: AddressFormats.ETHEREUM,
+    //     value: AddressFormats.ETHEREUM,
+    //     label: "ETH",
+    // },
 ];
 
 export const Receive: React.FC = () => {
     const navigate = useNavigate();
-    const { selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const selectedAccount = useSelector((state: RootState) =>
+        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
+    );
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork,
     );
 
     const { isLaptop } = useScreen();
@@ -191,12 +197,8 @@ export const Receive: React.FC = () => {
         );
     }
 
-    const currentAddress =
-        addressFormat === AddressFormats.ASI
-            ? selectedAccount.address
-            : selectedAccount.ethAddress;
-    const addressLabel =
-        addressFormat === AddressFormats.ASI ? "ASI Address" : "ETH Address";
+    const currentAddress = selectedAccount.address;
+    const addressLabel = "ASI Address";
 
     return (
         <ReceiveContainer>
