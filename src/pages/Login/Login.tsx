@@ -391,7 +391,7 @@ export const Login: React.FC = () => {
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && password.trim() && !isLockedOut) {
+        if (e.key === "Enter" && password.trim() && !isLockedOut && !isLoading) {
             handleLogin();
         }
     };

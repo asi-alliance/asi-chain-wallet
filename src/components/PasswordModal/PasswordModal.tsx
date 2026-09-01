@@ -70,6 +70,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     };
 
     const handleClose = () => {
+        if (loading) {
+            return;
+        }
+
         setPassword("");
         setLocalError("");
         onClose();

@@ -161,6 +161,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
         return (
             <PasswordSetup
                 title="Set Password for Imported Wallet"
+                loading={loading}
                 onPasswordSet={handlePasswordSet}
                 onCancel={() => {
                     setStep("form");
