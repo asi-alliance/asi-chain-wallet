@@ -12,7 +12,12 @@ import {
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import { walletsApi, useGetBalanceQuery } from "store/WalletsStore/api";
+import {
+    walletsApi,
+    useGetBalanceQuery,
+    useLazyGetBalanceQuery,
+    IAccountQueryArgs,
+} from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
@@ -42,6 +47,17 @@ import {
 } from "components/Icons";
 
 const BALANCE_POLLING_INTERVAL_MS = 30000;
+
+interface IPendingTransfer {
+    walletId: string;
+    accountId: string;
+    accountName: string;
+    accountAddress: string;
+    networkId: string;
+    to: Address;
+    amount: string;
+    balanceBeforeSend: string;
+}
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -231,10 +247,11 @@ export const Send: React.FC = () => {
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const { data: balance = "0", refetch: refetchBalance } = useGetBalanceQuery(
+    const { data: balance = "0" } = useGetBalanceQuery(
         selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
         { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
     );
+    const [fetchSenderBalance] = useLazyGetBalanceQuery();
     const isLoading = useSelector(
         (state: RootState) => state.walletsStore.isLoading,
     );
@@ -249,6 +266,8 @@ export const Send: React.FC = () => {
     const [scanError, setScanError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pendingTransfer, setPendingTransfer] =
+        useState<IPendingTransfer | null>(null);
     const [passwordModalError, setPasswordModalError] = useState("");
     const [passwordModalLoading, setPasswordModalLoading] = useState(false);
     const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
@@ -324,6 +343,16 @@ export const Send: React.FC = () => {
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const qrScannerRef = useRef<QrScanner | null>(null);
+    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(
+        () => () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+        },
+        [],
+    );
 
     // Initialize QR scanner when modal opens
     useEffect(() => {
@@ -548,6 +577,17 @@ export const Send: React.FC = () => {
             return;
         }
 
+        setPendingTransfer({
+            walletId,
+            accountId: selectedAccount.id,
+            accountName: selectedAccount.name,
+            accountAddress: selectedAccount.address,
+            networkId,
+            to: recipient.trim() as Address,
+            amount,
+            balanceBeforeSend: balance,
+        });
+
         if (SdkWalletService.isWalletUnlocked(walletId)) {
             setShowConfirmation(true);
         } else {
@@ -555,68 +595,74 @@ export const Send: React.FC = () => {
         }
     };
 
-    const startBalancePolling = (initialBalance: string): void => {
-        if (!selectedAccount) return;
+    const stopBalancePolling = (): void => {
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
 
+        setIsWaitingForBalance(false);
+    };
+
+    const startBalancePolling = (transfer: IPendingTransfer): void => {
         let pollCount = 0;
         const maxPolls = 30;
 
-        const pollInterval = setInterval(async () => {
+        const senderBalanceArgs: IAccountQueryArgs = {
+            accountId: transfer.accountId,
+            networkId: transfer.networkId,
+        };
+
+        pollIntervalRef.current = setInterval(async () => {
             pollCount++;
 
             try {
-                const { data: newBalance, isError } = await refetchBalance();
+                const { data: newBalance, isError } =
+                    await fetchSenderBalance(senderBalanceArgs);
 
                 if (isError) {
-                    const sentAmount = parseFloat(amount);
+                    const sentAmount = parseFloat(transfer.amount);
                     const fee = getGasFeeAsNumber();
                     const expectedNewBalance =
-                        parseFloat(initialBalance) - sentAmount - fee;
+                        parseFloat(transfer.balanceBeforeSend) -
+                        sentAmount -
+                        fee;
 
                     if (expectedNewBalance >= 0) {
                         dispatch(
                             walletsApi.util.upsertQueryData(
                                 "getBalance",
-                                {
-                                    accountId: selectedAccount.id,
-                                    networkId,
-                                },
+                                senderBalanceArgs,
                                 expectedNewBalance.toString(),
                             ),
                         );
                     }
 
                     if (pollCount >= maxPolls) {
-                        clearInterval(pollInterval);
-                        setIsWaitingForBalance(false);
+                        stopBalancePolling();
                     }
 
                     return;
                 }
 
-                if (newBalance !== initialBalance || pollCount >= maxPolls) {
-                    clearInterval(pollInterval);
-                    setIsWaitingForBalance(false);
+                if (
+                    newBalance !== transfer.balanceBeforeSend ||
+                    pollCount >= maxPolls
+                ) {
+                    stopBalancePolling();
                 }
             } catch (error) {
                 console.error("[Send] Error during balance polling:", error);
+
                 if (pollCount >= maxPolls) {
-                    clearInterval(pollInterval);
-                    setIsWaitingForBalance(false);
+                    stopBalancePolling();
                 }
             }
         }, 2000);
     };
 
     const executeSend = async (password?: string): Promise<void> => {
-        if (!selectedAccount || !walletId) {
-            return;
-        }
-
-        if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError(
-                "Sending to Ethereum addresses is not supported",
-            );
+        if (!pendingTransfer) {
             return;
         }
 
@@ -628,15 +674,13 @@ export const Send: React.FC = () => {
             setPasswordModalLoading(true);
         }
 
-        const initialBalance = balance;
-
         try {
             const resultAction = await dispatch(
                 sendTransaction({
-                    walletId,
-                    accountId: selectedAccount.id,
-                    to: recipient as Address,
-                    amount,
+                    walletId: pendingTransfer.walletId,
+                    accountId: pendingTransfer.accountId,
+                    to: pendingTransfer.to,
+                    amount: pendingTransfer.amount,
                     password,
                 }),
             );
@@ -644,13 +688,14 @@ export const Send: React.FC = () => {
             if (sendTransaction.fulfilled.match(resultAction)) {
                 setShowConfirmation(false);
                 setShowPasswordModal(false);
+                setPendingTransfer(null);
 
                 setTxHash(resultAction.payload.deployId);
                 setIsWaitingForBalance(true);
                 setRecipient("");
                 setAmount("");
 
-                startBalancePolling(initialBalance);
+                startBalancePolling(pendingTransfer);
                 return;
             }
 
@@ -699,6 +744,13 @@ export const Send: React.FC = () => {
         executeSend(password);
     };
 
+    const handleCancelTransfer = (): void => {
+        setShowConfirmation(false);
+        setShowPasswordModal(false);
+        setPasswordModalError("");
+        setPendingTransfer(null);
+    };
+
     const handleClearAll = (): void => {
         setRecipient("");
         setAmount("");
@@ -707,11 +759,9 @@ export const Send: React.FC = () => {
         setTxHash("");
         setIsWaitingForBalance(false);
         setScanError("");
-        setShowConfirmation(false);
-        setShowPasswordModal(false);
-        setPasswordModalError("");
         setCopied(false);
         setEstimatedFee(generateRandomGasFee());
+        handleCancelTransfer();
     };
 
     const maxAmount = () => {
@@ -839,6 +889,7 @@ export const Send: React.FC = () => {
                     <AccountSelectorWithMarginBottom
                         fullWidth
                         labelMode={AccountSelectorLabelMods.FULL}
+                        disabled={!!pendingTransfer || isWaitingForBalance}
                     />
 
                     <BalanceInfo className="balance-info">
@@ -1058,12 +1109,12 @@ export const Send: React.FC = () => {
             {/* Transaction Confirmation Modal (active session — no password needed) */}
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
-                onClose={() => setShowConfirmation(false)}
+                onClose={handleCancelTransfer}
                 onConfirm={handleConfirmSend}
-                amount={amount}
-                recipient={recipient}
-                senderAddress={selectedAccount?.address || ""}
-                senderName={selectedAccount?.name || ""}
+                amount={pendingTransfer?.amount ?? ""}
+                recipient={pendingTransfer?.to ?? ""}
+                senderAddress={pendingTransfer?.accountAddress ?? ""}
+                senderName={pendingTransfer?.accountName ?? ""}
                 estimatedFee={estimatedFee}
                 loading={isLoading}
             />
@@ -1071,10 +1122,7 @@ export const Send: React.FC = () => {
             {/* Password Modal (session expired — re-authenticate to sign) */}
             <PasswordModal
                 isOpen={showPasswordModal}
-                onClose={() => {
-                    setShowPasswordModal(false);
-                    setPasswordModalError("");
-                }}
+                onClose={handleCancelTransfer}
                 onConfirm={handlePasswordSubmit}
                 title="Enter password to sign transaction"
                 description="Your wallet session has expired. Enter your password to sign and send this transaction."

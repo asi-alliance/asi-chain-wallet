@@ -5,9 +5,11 @@ import {
     selectAccount,
     selectAccounts,
     selectSelectedAccountId,
+    selectSelectedNetworkId,
 } from "store/WalletsStore";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
+import { useIsNetworkBusy } from "sdk";
 
 interface IASIAccountSwitcherProps {
     adaptive?: boolean;
@@ -23,6 +25,8 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isNetworkBusy = useIsNetworkBusy(networkId);
 
     const accountViews: AccountView[] = useMemo(
         () =>
@@ -56,6 +60,7 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
             selectedId={selectedAccountId ?? undefined}
             onSelect={handleSelect}
             onOpen={refreshBalances}
+            disabled={isNetworkBusy}
             {...props}
         />
     );

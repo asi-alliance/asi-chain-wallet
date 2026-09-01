@@ -149,4 +149,8 @@ export const walletsApi = createApi({
     }),
 });
 
-export const { useGetBalanceQuery, useGetTransactionHistoryQuery } = walletsApi;
+export const {
+    useGetBalanceQuery,
+    useLazyGetBalanceQuery,
+    useGetTransactionHistoryQuery,
+} = walletsApi;
