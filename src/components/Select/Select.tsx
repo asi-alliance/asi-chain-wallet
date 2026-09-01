@@ -3,6 +3,8 @@ import { FC, useState, useRef, useEffect, CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 
+export type SelectVariant = "default" | "ghost";
+
 const SelectWrapper = styled.div<{ disabled?: boolean }>`
     position: relative;
     min-width: 150px;
@@ -19,12 +21,19 @@ const SelectWrapper = styled.div<{ disabled?: boolean }>`
 const SelectButton = styled.div<{
     $disabled?: boolean;
     $hasAdditionalLabel?: boolean;
+    $variant?: SelectVariant;
 }>`
     padding: 10px 20px;
     height: 44px;
-    border: 1px solid ${({ theme }) => theme.border};
+
+    border: ${({ $variant, theme }) =>
+        $variant === "ghost" ? "none" : `1px solid ${theme.border}`};
+
     border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
+
+    background: ${({ $variant, theme }) =>
+        $variant === "ghost" ? "transparent" : theme.surface};
+
     color: ${({ theme }) => theme.text.primary};
     font-size: 16px;
     min-width: 150px;
@@ -37,19 +46,13 @@ const SelectButton = styled.div<{
     ${({ $disabled, theme }) =>
         $disabled &&
         `
-         opacity: 0.4;
-        cursor: not-allowed;
-        background: ${theme.inputBg};
-
-    `}
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: ${theme.inputBg};
+        `}
 
     &:hover:not(:disabled) {
         background: ${({ theme }) => `${theme.text.primary}08`};
-    }
-
-    @media (max-width: 768px) {
-        height: ${({ $hasAdditionalLabel }) =>
-            $hasAdditionalLabel ? "auto" : "44px"};
     }
 `;
 
@@ -89,9 +92,11 @@ const AdditionalLabel = styled.span`
 const DropdownItem = styled.li<{
     $selected?: boolean;
     $withAdditionalLabel: boolean;
+    $disabled?: boolean;
 }>`
     padding: 10px 16px;
-    cursor: pointer;
+    cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+    opacity: ${({ $disabled }) => ($disabled ? 0.4 : 1)};
     font-size: 16px;
     display: ${({ $withAdditionalLabel }) =>
         $withAdditionalLabel ? "flex" : "block"};
@@ -132,6 +137,7 @@ export interface ISelectOption {
     value: string;
     label: string;
     additionalLabel?: string;
+    disabled?: boolean;
 }
 
 export interface ISelectProps {
@@ -143,6 +149,7 @@ export interface ISelectProps {
     id?: string;
     className?: string;
     style?: CSSProperties;
+    variant?: SelectVariant;
 }
 
 const DROPDOWN_ITEM_DATA_ID: string = "dropdown-item";
@@ -153,8 +160,10 @@ export const Select: FC<ISelectProps> = ({
     disabled = false,
     placeholder = "Select option",
     options,
+    id,
     className = "",
     style,
+    variant = "default",
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -231,8 +240,12 @@ export const Select: FC<ISelectProps> = ({
         }
     };
 
-    const handleSelect = (selectedValue: string) => {
-        onChange(selectedValue);
+    const handleSelect = (option: ISelectOption) => {
+        if (option.disabled) {
+            return;
+        }
+
+        onChange(option.value);
         setIsOpen(false);
     };
 
@@ -246,6 +259,7 @@ export const Select: FC<ISelectProps> = ({
 
     return (
         <SelectWrapper
+            id={id}
             className={`select-wrapper ${className}`}
             ref={wrapperRef}
             disabled={disabled}
@@ -255,6 +269,7 @@ export const Select: FC<ISelectProps> = ({
                 $hasAdditionalLabel={!!getSelectedAdditionalLabel()}
                 onClick={toggleDropdown}
                 $disabled={disabled}
+                $variant={variant}
             >
                 <SelectedValue>
                     <span>{getSelectedText()}</span>
@@ -280,10 +295,11 @@ export const Select: FC<ISelectProps> = ({
                                     data-id={DROPDOWN_ITEM_DATA_ID}
                                     key={option.id}
                                     $selected={isSelected}
-                                    onClick={() => handleSelect(option.value)}
+                                    onClick={() => handleSelect(option)}
                                     $withAdditionalLabel={
                                         !!option.additionalLabel
                                     }
+                                    $disabled={option.disabled}
                                 >
                                     <span className="text-ellipsis">
                                         {option.label}
