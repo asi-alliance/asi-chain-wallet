@@ -14,8 +14,7 @@ export const useNavItems = (accounts: any[] | undefined): NavItem[] => {
         return [
             { path: "/", label: "Wallet" },
             { path: "/send", label: "Send" },
-            //TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
-            // { path: "/bridge", label: "Bridge" },
+            { path: "/bridge", label: "Bridge" },
             { path: "/receive", label: "Receive" },
             { path: "/accounts", label: "Accounts" },
             { path: "/history", label: "Transactions" },

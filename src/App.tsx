@@ -14,8 +14,6 @@ import { lightTheme, darkTheme } from "styles/theme";
 import { Layout, Loader } from "components";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
-//TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
-// import { Bridge } from "pages/Bridge";
 import { Receive } from "pages/Receive";
 import { Accounts } from "pages/Accounts";
 //TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
@@ -24,6 +22,7 @@ import { Accounts } from "pages/Accounts";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
+import { Bridge } from "pages/Bridge";
 import { History } from "pages/History";
 import { useIdleTimer } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
@@ -64,9 +63,7 @@ const AppContent: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-    const isInitialLoadComplete = useSelector(
-        selectWalletsInitialLoadComplete,
-    );
+    const isInitialLoadComplete = useSelector(selectWalletsInitialLoadComplete);
     const theme = darkMode ? darkTheme : lightTheme;
 
     useIdleTimer();
@@ -146,7 +143,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                {/* TODO: Restore Bridge once the SDK exposes a signer-based deploy/lock flow
                 <Route
                     path="/bridge"
                     element={
@@ -157,7 +153,7 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                */}
+
                 <Route
                     path="/receive"
                     element={
@@ -245,7 +241,7 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                 }}
             >
-                <QueryProvider> 
+                <QueryProvider>
                     <EvmProvider>
                         <SdkClientProvider>
                             <AppContent />

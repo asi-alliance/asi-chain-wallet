@@ -1,13 +1,8 @@
 import { IAccountDefaultUpdateFieldsPayload } from ".";
-import {
-    Account,
-    IAccountMeta,
-    IUnlockedAccountMeta,
-    Network,
-} from "types/wallet";
+import { IAccountMeta, IUnlockedAccountMeta, Network } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { Address } from "@asichain/asi-wallet-sdk";
+import { Account, Address } from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
@@ -183,7 +178,7 @@ export const sendTransaction = createAsyncThunk<
 export const bridgeLock = createAsyncThunk(
     "wallets-store/bridgeLock",
     async ({
-        from,
+        fromAccountId,
         recipient,
         amountBaseUnits,
         destChainId,
@@ -191,7 +186,7 @@ export const bridgeLock = createAsyncThunk(
         password,
         network,
     }: {
-        from: Account;
+        fromAccountId: Account["id"];
         recipient: string;
         amountBaseUnits: string;
         destChainId: number;
@@ -205,12 +200,12 @@ export const bridgeLock = createAsyncThunk(
 
         let privateKey: string | undefined;
 
-        const unlockedAccount = SecureStorage.getUnlockedAccount(from.id);
+        const unlockedAccount = SecureStorage.getUnlockedAccount(fromAccountId);
         if (unlockedAccount?.privateKey) {
             privateKey = unlockedAccount.privateKey;
         } else if (password) {
             const unlocked = await SecureStorage.unlockAccount(
-                from.id,
+                fromAccountId,
                 password,
             );
             if (unlocked?.privateKey) {

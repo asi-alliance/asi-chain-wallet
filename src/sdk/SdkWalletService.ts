@@ -5,6 +5,7 @@ import {
     decodeBase16,
     encodeBase16,
     IReservedOperationResult,
+    ITransactionReservation,
     ITransactionsHistoryOptions,
     ITransferRequest,
     IWalletMetadata,
@@ -12,6 +13,7 @@ import {
     MnemonicStrength,
     PRIVATE_KEY_LENGTH,
     Transaction,
+    TTransactionReservationRequest,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
@@ -259,6 +261,13 @@ export class SdkWalletService {
             accountId,
             options,
         );
+    }
+
+    static savePendingTransaction(
+        request: TTransactionReservationRequest,
+        password?: string,
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().addTransactionReservation(request, password);
     }
 
     static isWalletUnlocked(walletId: string): boolean {
