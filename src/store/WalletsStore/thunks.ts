@@ -1,9 +1,8 @@
 import { IAccountDefaultUpdateFieldsPayload } from ".";
 import { IAccountMeta, IUnlockedAccountMeta, Network } from "types/wallet";
-import { SecureStorage } from "services/secureStorage";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { Account, Address } from "@asichain/asi-wallet-sdk";
-import { RChainService } from "services/rchain";
+import { Address, GasFee } from "@asichain/asi-wallet-sdk";
+import { IPreparedDeploy, RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
 import { walletsApi, WalletsApiTags } from "./api";
@@ -175,56 +174,37 @@ export const sendTransaction = createAsyncThunk<
     },
 );
 
-export const bridgeLock = createAsyncThunk(
+export interface IBridgeLockPayload {
+    walletId: string;
+    accountId: string;
+    recipient: string;
+    amountBaseUnits: string;
+    destChainId: number;
+    bridgeUri: string;
+    password?: string;
+    network: Network;
+}
+
+const BRIDGE_LOCK_GAS_COST: bigint = GasFee.MAX;
+
+export const bridgeLock = createAsyncThunk<
+    { deployId: string },
+    IBridgeLockPayload
+>(
     "wallets-store/bridgeLock",
-    async ({
-        fromAccountId,
-        recipient,
-        amountBaseUnits,
-        destChainId,
-        bridgeUri,
-        password,
-        network,
-    }: {
-        fromAccountId: Account["id"];
-        recipient: string;
-        amountBaseUnits: string;
-        destChainId: number;
-        bridgeUri: string;
-        password?: string;
-        network: Network;
-    }) => {
-        if (!SecureStorage.hasSessionToken()) {
-            throw new Error("Session expired. Please login again.");
-        }
-
-        let privateKey: string | undefined;
-
-        const unlockedAccount = SecureStorage.getUnlockedAccount(fromAccountId);
-        if (unlockedAccount?.privateKey) {
-            privateKey = unlockedAccount.privateKey;
-        } else if (password) {
-            const unlocked = await SecureStorage.unlockAccount(
-                fromAccountId,
-                password,
-            );
-            if (unlocked?.privateKey) {
-                privateKey = unlocked.privateKey;
-            }
-        }
-
-        if (!privateKey) {
-            throw new Error(
-                "Account is locked. Please provide password or unlock account first.",
-            );
-        }
-
-        if (!network.validatorUrl) {
-            throw new Error(
-                `Network "${network.name}" has no validator URL configured`,
-            );
-        }
-
+    async (
+        {
+            walletId,
+            accountId,
+            recipient,
+            amountBaseUnits,
+            destChainId,
+            bridgeUri,
+            password,
+            network,
+        }: IBridgeLockPayload,
+        { dispatch },
+    ) => {
         const rchain = new RChainService(
             network.validatorUrl,
             network.observerUrl,
@@ -233,14 +213,65 @@ export const bridgeLock = createAsyncThunk(
             network.indexerUrl,
         );
 
-        const deployId = await rchain.bridgeLock(
+        const preparedLock: IPreparedDeploy = await rchain.prepareBridgeLock({
             amountBaseUnits,
             recipient,
             destChainId,
-            privateKey,
             bridgeUri,
+            sign: (deployData) =>
+                SdkWalletService.signDeploy({
+                    walletId,
+                    accountId,
+                    deployData,
+                    password,
+                }),
+        });
+
+        const reservation = await SdkWalletService.addTransactionReservation(
+            {
+                walletId,
+                accountId,
+                kind: "deploy",
+                deployId: preparedLock.deployId,
+                term: preparedLock.term,
+                pendingAmount: BigInt(amountBaseUnits) + BRIDGE_LOCK_GAS_COST,
+                gasCost: BRIDGE_LOCK_GAS_COST,
+            },
+            password,
         );
 
-        return { deployId };
+        try {
+            await rchain.submitDeploy(preparedLock);
+        } catch (error: unknown) {
+            await SdkWalletService.removeTransactionReservation(
+                walletId,
+                reservation.id,
+            ).catch((releaseError: unknown) =>
+                console.error(
+                    "bridgeLock: failed to release the reservation of the rejected deploy:",
+                    releaseError,
+                ),
+            );
+
+            throw error;
+        }
+
+        const invalidateAccountData = (): void => {
+            dispatch(
+                walletsApi.util.invalidateTags([
+                    { type: WalletsApiTags.BALANCE, id: accountId },
+                    { type: WalletsApiTags.HISTORY, id: accountId },
+                ]),
+            );
+        };
+
+        SdkWalletService.watchDeploy(preparedLock.deployId, {
+            onConfirmed: invalidateAccountData,
+            onError: invalidateAccountData,
+        });
+
+        invalidateAccountData();
+
+        return { deployId: preparedLock.deployId };
     },
 );

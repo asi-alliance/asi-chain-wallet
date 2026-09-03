@@ -1,9 +1,12 @@
+import { blake2bHex } from "blakejs";
 import {
     Account,
     Address,
     Client,
     decodeBase16,
     encodeBase16,
+    IDeployWatchCallbacks,
+    IDeployWatchHandle,
     IReservedOperationResult,
     ITransactionReservation,
     ITransactionsHistoryOptions,
@@ -12,16 +15,31 @@ import {
     Mnemonic,
     MnemonicStrength,
     PRIVATE_KEY_LENGTH,
+    SecretsProvider,
+    SignerService,
     Transaction,
+    TSigningContext,
     TTransactionReservationRequest,
     Wallet,
+    WalletTypes,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
+import { Deploy, IDeploySignature } from "services/rchain";
 import {
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
     IWalletMeta,
 } from "types/wallet";
+
+const DEPLOY_HASH_BYTES_LENGTH = 32;
+const DEPLOY_SIGNATURE_ALGORITHM = "secp256k1";
+
+export interface ISignDeployPayload {
+    walletId: string;
+    accountId: string;
+    deployData: Deploy;
+    password?: string;
+}
 
 export class SdkWalletService {
     private static mapAccount(account: Account): IUnlockedAccountMeta {
@@ -263,11 +281,75 @@ export class SdkWalletService {
         );
     }
 
-    static savePendingTransaction(
+    static async signDeploy({
+        walletId,
+        accountId,
+        deployData,
+        password,
+    }: ISignDeployPayload): Promise<IDeploySignature> {
+        const client: Client = requireSdkClient();
+
+        const wallet: Wallet | null = client.getWalletManager().get(walletId);
+
+        if (!wallet) {
+            throw new Error(`Wallet ${walletId} is not open`);
+        }
+
+        const account: Account = client.getAccount(walletId, accountId);
+
+        const passwordProvider: SecretsProvider | undefined =
+            password === undefined
+                ? undefined
+                : new SecretsProvider(() => ({ password }));
+
+        const signingContext: TSigningContext =
+            wallet.getType() === WalletTypes.HD
+                ? { passwordProvider, index: account.getIndex()! }
+                : { passwordProvider };
+
+        const serializedDeploy: Uint8Array =
+            SignerService.deployDataProtobufSerialize(deployData);
+
+        const signed = await wallet
+            .getSigner()
+            .sign(
+                blake2bHex(
+                    serializedDeploy,
+                    undefined,
+                    DEPLOY_HASH_BYTES_LENGTH,
+                ),
+                signingContext,
+            );
+
+        return {
+            deployer: encodeBase16(signed.publicKey),
+            signature: encodeBase16(signed.signature),
+            sigAlgorithm: DEPLOY_SIGNATURE_ALGORITHM,
+        };
+    }
+
+    static addTransactionReservation(
         request: TTransactionReservationRequest,
         password?: string,
     ): Promise<ITransactionReservation> {
         return requireSdkClient().addTransactionReservation(request, password);
+    }
+
+    static removeTransactionReservation(
+        walletId: string,
+        reservationId: ITransactionReservation["id"],
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().removeTransactionReservation(
+            walletId,
+            reservationId,
+        );
+    }
+
+    static watchDeploy(
+        deployId: string,
+        callbacks: IDeployWatchCallbacks,
+    ): IDeployWatchHandle {
+        return requireSdkClient().watchDeploy(deployId, callbacks);
     }
 
     static isWalletUnlocked(walletId: string): boolean {

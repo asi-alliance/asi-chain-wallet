@@ -25,7 +25,6 @@ import {
     bridgeChainForKey,
     defaultDestinationFor,
     DESTINATION_CHAIN_KEYS,
-    SOURCE_CHAIN_KEYS,
 } from "constants/bridgeChains";
 import { formatToken, parseTokenInput } from "utils/tokenFormat";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
@@ -36,23 +35,14 @@ import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
 import {
-    AsiWalletSession,
     IWalletSessionContext,
     WalletKind,
 } from "types/bridgeWalletSession";
 import {
     ASIWalletSection,
     BridgeWalletSelector,
-} from "components/BridgeWalletSelector/BridgeWalletSelector";
+} from "components/BridgeWalletSelector";
 import { bridgeLock } from "store/WalletsStore/thunks";
-import { SdkWalletService } from "sdk";
-import {
-    DEFAULT_PHLO_LIMIT,
-    DEFAULT_PHLO_PRICE,
-    fromAtomicAmount,
-    GasFee,
-    NATIVE_TOKEN_DECIMALS_AMOUNT,
-} from "@asichain/asi-wallet-sdk";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 
 const BridgeContainer = styled.div`
@@ -199,6 +189,23 @@ const ChainFieldLabel = styled.label`
     color: ${({ theme }) => theme.text.primary};
 `;
 
+const StaticChainValue = styled.div`
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 150px;
+    height: 44px;
+    padding: 10px 20px;
+    border: 1px solid ${({ theme }) => theme.border};
+    border-radius: 6px;
+    background: ${({ theme }) => theme.surface};
+    color: ${({ theme }) => theme.text.primary};
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
 const ChainArrow = styled.span`
     flex-shrink: 0;
     align-self: flex-end;
@@ -239,9 +246,9 @@ export const Bridge: React.FC = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const [srcChainKey, setSrcChainKey] = useState<BridgeChainKey>("asi");
+    const srcChainKey: BridgeChainKey = "asi";
     const [dstChainKey, setDstChainKey] = useState<BridgeChainKey>(() =>
-        defaultDestinationFor("asi"),
+        defaultDestinationFor(srcChainKey),
     );
 
     const [txHash, setTxHash] = useState("");
@@ -257,12 +264,14 @@ export const Bridge: React.FC = () => {
     const cosmos = useCosmosWallet();
 
     const asiSession: IWalletSessionContext["asi"] = {
-        walletId: activeWallet?.id,
         account: selectedAccount,
     };
 
-    const sourceWalletSessionContext: AsiWalletSession = {
-        account: selectedAccount,
+    const sourceWalletSessionContext: IWalletSessionContext = {
+        asi: asiSession,
+        cardano: cardano.session,
+        cosmos: cosmos.session,
+        evm: evm.session,
     };
 
     const destinationWalletSessionContext: IWalletSessionContext = {
@@ -272,7 +281,7 @@ export const Bridge: React.FC = () => {
         evm: evmDestination.session,
     };
 
-    const sourceWallet = sourceWalletSessionContext;
+    const sourceWallet = sourceWalletSessionContext[srcKind];
     const destinationWallet = destinationWalletSessionContext[dstChain.kind];
 
     const hasWalletAccount = (
@@ -350,15 +359,6 @@ export const Bridge: React.FC = () => {
         evm.resetIfCurrent,
     ]);
 
-    const sourceOptions = useMemo<ISelectOption[]>(
-        () =>
-            SOURCE_CHAIN_KEYS.map((key) => {
-                const chain = bridgeChainForKey(key);
-                return { id: key, value: key, label: chain.label };
-            }),
-        [],
-    );
-
     const destinationOptions = useMemo<ISelectOption[]>(
         () =>
             DESTINATION_CHAIN_KEYS.filter((key) => key !== srcChainKey).map(
@@ -369,19 +369,6 @@ export const Bridge: React.FC = () => {
             ),
         [srcChainKey],
     );
-
-    const handleSourceChange = (key: string): void => {
-        const nextKey = key as BridgeChainKey;
-        setSrcChainKey(nextKey);
-        if (nextKey === dstChainKey) {
-            setDstChainKey(defaultDestinationFor(nextKey));
-        }
-        setAmount("");
-        setTxHash("");
-        setLockError("");
-        setAmountError("");
-        evm.reset();
-    };
 
     const handleDestinationChange = (key: string): void => {
         const nextKey = key as BridgeChainKey;
@@ -469,40 +456,36 @@ export const Bridge: React.FC = () => {
     };
 
     const handleAsiLock = async (passwordFromModal?: string): Promise<void> => {
-        if (!selectedAccount || !activeWallet) {
+        if (!selectedAccount) {
             return;
         }
 
         setShowConfirmation(false);
         setLockError("");
         setTxHash("");
+
+        if (!activeWallet) {
+            setLockError("Session expired. Please login again.");
+
+            return;
+        }
+
         setIsLoading(true);
         try {
             const result = await dispatch(
                 bridgeLock({
-                    fromAccountId: selectedAccount.id,
+                    walletId: activeWallet.id,
+                    accountId: selectedAccount.id,
                     recipient: destinationWallet.account!.address,
-                    amountBaseUnits: parseTokenInput(
-                        amount,
-                        srcChain.nativeDecimals,
-                    ).toString(),
+                    amountBaseUnits: rawAmount.toString(),
                     destChainId: dstChain.routeId,
                     bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
                     password: passwordFromModal ?? password,
                     network: selectedNetwork,
                 }),
             ).unwrap();
+
             setTxHash(result.deployId);
-
-            await SdkWalletService.savePendingTransaction({
-                walletId: sourceWallet.walletId!,
-                accountId: sourceWallet.account!.id,
-                deployId: result.deployId,
-                gasCost: GasFee.MAX,
-                kind: "deploy",
-                pendingAmount: BigInt(amount) + GasFee.MAX,
-            });
-
             setAmount("");
             setPassword("");
         } catch (err: any) {
@@ -742,14 +725,9 @@ export const Bridge: React.FC = () => {
                     <ChainSelectorRow>
                         <ChainField>
                             <ChainFieldLabel>Source</ChainFieldLabel>
-                            <Select
-                                id="bridge-source-select"
-                                value={srcChainKey}
-                                onChange={handleSourceChange}
-                                options={sourceOptions}
-                                style={{ width: "100%" }}
-                                disabled
-                            />
+                            <StaticChainValue id="bridge-source-chain">
+                                {srcChain.label}
+                            </StaticChainValue>
                         </ChainField>
                         <ChainArrow aria-hidden="true">
                             <ReceiveIcon size={24} />
@@ -768,7 +746,7 @@ export const Bridge: React.FC = () => {
 
                     <h2 style={{ marginBottom: "8px" }}>Source account</h2>
 
-                    <ASIWalletSection account={sourceWallet.account} />
+                    <ASIWalletSection account={selectedAccount} />
 
                     <InputFormGroup>
                         <InputWithButton className="input-with-button">
@@ -839,7 +817,7 @@ export const Bridge: React.FC = () => {
 
                     <BridgeWalletSelector
                         chainKind={dstChain.kind}
-                        wallet={destinationWalletSessionContext[dstChain.kind]}
+                        wallet={destinationWallet}
                     />
 
                     {srcKind === "asi" && (
