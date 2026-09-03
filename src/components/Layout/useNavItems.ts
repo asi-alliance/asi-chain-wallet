@@ -18,7 +18,8 @@ export const useNavItems = (accounts: any[] | undefined): NavItem[] => {
             { path: "/receive", label: "Receive" },
             { path: "/accounts", label: "Accounts" },
             { path: "/history", label: "Transactions" },
-            { path: "/deploy", label: "Deploy" },
+            //TODO: Restore Deploy once the SDK exposes a signer-based raw deploy/explore flow
+            // { path: "/deploy", label: "Deploy" },
             { path: "/settings", label: "Network Settings" },
         ];
     }, [accounts]);

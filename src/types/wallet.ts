@@ -1,3 +1,5 @@
+import { Address, NodeApiProfile, WalletTypes } from "@asichain/asi-wallet-sdk";
+
 export interface Account {
     id: string;
     name: string;
@@ -12,19 +14,6 @@ export interface Account {
     createdAt: Date;
 }
 
-export interface Transaction {
-    id: string;
-    deployId: string;
-    from: string;
-    to: string;
-    amount: string;
-    timestamp: string;
-    status: "pending" | "completed" | "failed";
-    blockNumber?: number;
-    error?: string;
-    gasCost?: string;
-}
-
 export interface Deploy {
     term: string;
     phloLimit: number;
@@ -36,23 +25,51 @@ export interface Deploy {
 export interface Network {
     id: string;
     name: string;
-    url: string;
-    readOnlyUrl?: string;
-    adminUrl?: string;
-    graphqlUrl?: string;
-    shardId?: string;
+    validatorUrl: string;
+    observerUrl: string;
+    indexerUrl: string;
+    nodeApiProfile: NodeApiProfile;
 }
 
-export interface WalletState {
-    accounts: Account[];
-    selectedAccount: Account | null;
-    transactions: Transaction[];
+export interface WalletStoreState {
+    wallets: IWalletMeta[];
+    selectedAccountId: string | null;
     networks: Network[];
     selectedNetwork: Network;
     isLoading: boolean;
-    error: string | null;
+    isInitialLoadComplete: boolean;
 }
 
-export enum AccountActions {
-    CREATE = "create-account",
+export interface IAccountMeta {
+    id: string;
+    name: string;
+    index: number | null;
+}
+
+export interface IUnlockedAccountMeta extends IAccountMeta {
+    address: Address;
+    publicKey: string;
+}
+
+interface IWalletMetaBase {
+    signerId: string;
+    type: WalletTypes;
+}
+
+export interface ILockedWalletMeta extends IWalletMetaBase {
+    id?: undefined;
+    isUnlocked: false;
+    accounts: IAccountMeta[];
+}
+
+export interface IUnlockedWalletMeta extends IWalletMetaBase {
+    id: string;
+    isUnlocked: true;
+    accounts: IUnlockedAccountMeta[];
+}
+
+export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
+
+export enum WalletActions {
+    CREATE_WALLET = "create-wallet",
 }

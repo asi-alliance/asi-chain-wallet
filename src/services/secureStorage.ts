@@ -63,8 +63,6 @@ export class SecureStorage {
             );
             settingsCache = settingsRecord
                 ? {
-                      requirePasswordForTransaction:
-                          settingsRecord.requirePasswordForTransaction,
                       idleTimeout: settingsRecord.idleTimeout,
                   }
                 : readLegacySettings();
@@ -257,15 +255,6 @@ export class SecureStorage {
     }
     static setCurrentUserId(userId: string): void {
         SessionStore.setUserId(userId);
-    }
-    static generateSessionToken(): string {
-        return SessionStore.generateToken();
-    }
-    static setSessionToken(token: string): void {
-        SessionStore.setToken(token);
-    }
-    static getSessionToken(): string | null {
-        return SessionStore.getToken();
     }
     static hasSessionToken(): boolean {
         return SessionStore.hasToken();

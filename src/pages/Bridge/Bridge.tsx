@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { AppDispatch, RootState } from "store";
-import { bridgeLock, savePendingTransaction } from "store/walletSlice";
 import {
     Card,
     CardHeader,
@@ -11,7 +10,7 @@ import {
     CardContent,
     Button,
     Input,
-    PasswordInput,
+    PasswordModal,
     TransactionConfirmationModal,
 } from "components";
 import { Select } from "components/Select";
@@ -26,18 +25,23 @@ import {
     bridgeChainForKey,
     defaultDestinationFor,
     DESTINATION_CHAIN_KEYS,
-    SOURCE_CHAIN_KEYS,
 } from "constants/bridgeChains";
 import { formatToken, parseTokenInput } from "utils/tokenFormat";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
+import { useWalletSessionAction } from "hooks";
+import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query";
+import { IWalletSessionContext, WalletKind } from "types/bridgeWalletSession";
 import {
+    ASIWalletSection,
     BridgeWalletSelector,
-    IWalletSessionContext,
-    WalletKind,
 } from "components/BridgeWalletSelector";
+import { bridgeLock } from "store/WalletsStore/thunks";
+import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 
 const BridgeContainer = styled.div`
     max-width: 946px;
@@ -183,6 +187,23 @@ const ChainFieldLabel = styled.label`
     color: ${({ theme }) => theme.text.primary};
 `;
 
+const StaticChainValue = styled.div`
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 150px;
+    height: 44px;
+    padding: 10px 20px;
+    border: 1px solid ${({ theme }) => theme.border};
+    border-radius: 6px;
+    background: ${({ theme }) => theme.surface};
+    color: ${({ theme }) => theme.text.primary};
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
 const ChainArrow = styled.span`
     flex-shrink: 0;
     align-self: flex-end;
@@ -200,27 +221,31 @@ const ChainArrow = styled.span`
 export const Bridge: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const navigate = useNavigate();
-    const selectedAccount = useSelector(
-        (state: RootState) => state.wallet.selectedAccount,
+    const activeWallet: IUnlockedWalletMeta | null =
+        useSelector(selectActiveWallet);
+    const selectedAccount: IUnlockedAccountMeta | null = useSelector(
+        selectSelectedAccount,
     );
     const selectedNetwork = useSelector(
-        (state: RootState) => state.wallet.selectedNetwork,
-    );
-    const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
-        (state: RootState) => state.auth,
+        (state: RootState) => state.walletsStore.selectedNetwork,
     );
 
     const cardano = useCardanoWallet();
 
+    const { data: selectedASIAccountBalance = "0" } = useGetBalanceQuery(
+        selectedAccount
+            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
+            : skipToken,
+    );
+
     const [amount, setAmount] = useState("");
     const [amountError, setAmountError] = useState("");
-    const [password, setPassword] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const [srcChainKey, setSrcChainKey] = useState<BridgeChainKey>("asi");
+    const srcChainKey: BridgeChainKey = "asi";
     const [dstChainKey, setDstChainKey] = useState<BridgeChainKey>(() =>
-        defaultDestinationFor("asi"),
+        defaultDestinationFor(srcChainKey),
     );
 
     const [txHash, setTxHash] = useState("");
@@ -265,15 +290,37 @@ export const Bridge: React.FC = () => {
     const sourceAccountLoaded = hasWalletAccount(sourceWallet);
     const destinationAccountLoaded = hasWalletAccount(destinationWallet);
 
-    const isAccountUnlocked =
-        selectedAccount &&
-        unlockedAccounts.some((a) => a.id === selectedAccount.id);
-
-    const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
-
     const rawAmount = amount.trim()
         ? parseTokenInput(amount, srcChain.nativeDecimals)
         : BigInt(0);
+
+    const asiLock = useWalletSessionAction({
+        walletId: activeWallet?.id,
+        action: (password?: string) => {
+            if (!selectedAccount || !activeWallet) {
+                throw new Error("Wallet not opened. Please login again.");
+            }
+
+            return dispatch(
+                bridgeLock({
+                    walletId: activeWallet.id,
+                    accountId: selectedAccount.id,
+                    recipient: destinationWallet.account!.address,
+                    amountBaseUnits: rawAmount.toString(),
+                    destChainId: dstChain.routeId,
+                    bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
+                    password,
+                    network: selectedNetwork,
+                }),
+            ).unwrap();
+        },
+        onSuccess: ({ deployId }) => {
+            setTxHash(deployId);
+            setAmount("");
+        },
+        onError: setLockError,
+        errorFallback: "Failed to lock tokens",
+    });
 
     const needsEvmApproval =
         srcKind === "evm" &&
@@ -286,7 +333,7 @@ export const Bridge: React.FC = () => {
             ? evm.isPending ||
               evm.isConfirming ||
               (evm.isSuccess && evm.lastAction === "approve")
-            : isLoading;
+            : isLoading || asiLock.isRunning;
     const isEvmLockSuccess =
         srcKind === "evm" &&
         evm.isSuccess &&
@@ -337,15 +384,6 @@ export const Bridge: React.FC = () => {
         evm.resetIfCurrent,
     ]);
 
-    const sourceOptions = useMemo<ISelectOption[]>(
-        () =>
-            SOURCE_CHAIN_KEYS.map((key) => {
-                const chain = bridgeChainForKey(key);
-                return { id: key, value: key, label: chain.label };
-            }),
-        [],
-    );
-
     const destinationOptions = useMemo<ISelectOption[]>(
         () =>
             DESTINATION_CHAIN_KEYS.filter((key) => key !== srcChainKey).map(
@@ -356,19 +394,6 @@ export const Bridge: React.FC = () => {
             ),
         [srcChainKey],
     );
-
-    const handleSourceChange = (key: string): void => {
-        const nextKey = key as BridgeChainKey;
-        setSrcChainKey(nextKey);
-        if (nextKey === dstChainKey) {
-            setDstChainKey(defaultDestinationFor(nextKey));
-        }
-        setAmount("");
-        setTxHash("");
-        setLockError("");
-        setAmountError("");
-        evm.reset();
-    };
 
     const handleDestinationChange = (key: string): void => {
         const nextKey = key as BridgeChainKey;
@@ -384,7 +409,7 @@ export const Bridge: React.FC = () => {
 
     const maxAmount = (): void => {
         if (srcKind === "asi") {
-            const balance = parseFloat(selectedAccount?.balance || "0");
+            const balance = parseFloat(selectedASIAccountBalance);
             const max = Math.max(0, balance - getGasFeeAsNumber());
             const maxRounded = Math.floor(max * 100000000) / 100000000;
             setAmount(maxRounded.toFixed(8));
@@ -414,11 +439,11 @@ export const Bridge: React.FC = () => {
 
     const handleClearAll = (): void => {
         setAmount("");
-        setPassword("");
         setTxHash("");
 
         setLockError("");
         setAmountError("");
+        asiLock.passwordPrompt.onClose();
         evm.reset();
     };
 
@@ -455,46 +480,12 @@ export const Bridge: React.FC = () => {
         }
     };
 
-    const handleAsiLock = async (passwordFromModal?: string): Promise<void> => {
-        if (!selectedAccount) return;
+    const handleAsiLock = (): void => {
         setShowConfirmation(false);
         setLockError("");
         setTxHash("");
-        setIsLoading(true);
-        try {
-            const result = await dispatch(
-                bridgeLock({
-                    from: selectedAccount,
-                    recipient: destinationWallet.account!.address,
-                    amountBaseUnits: parseTokenInput(
-                        amount,
-                        srcChain.nativeDecimals,
-                    ).toString(),
-                    destChainId: dstChain.routeId,
-                    bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
-                    password: passwordFromModal ?? password,
-                    network: selectedNetwork,
-                }),
-            ).unwrap();
-            setTxHash(result.deployId);
 
-            savePendingTransaction({
-                deployId: result.deployId,
-                from: selectedAccount.revAddress,
-                to: destinationWallet.account!.address,
-                amount,
-                timestamp: new Date().toISOString(),
-                accountId: selectedAccount.id,
-                type: "send",
-            });
-
-            setAmount("");
-            setPassword("");
-        } catch (err: any) {
-            setLockError(err?.message || String(err));
-        } finally {
-            setIsLoading(false);
-        }
+        void asiLock.run();
     };
 
     const handleCardanoLock = async (): Promise<void> => {
@@ -553,7 +544,7 @@ export const Bridge: React.FC = () => {
         }
 
         if (srcKind === "asi") {
-            const balance = Number(selectedAccount?.balance || "0");
+            const balance = Number(selectedASIAccountBalance);
 
             if (amountValue > balance) {
                 setAmountError(
@@ -633,8 +624,7 @@ export const Bridge: React.FC = () => {
         busy ||
         !sourceAccountLoaded ||
         !destinationAccountLoaded ||
-        !isAmountValid ||
-        (srcKind === "asi" && needsPassword && !password);
+        !isAmountValid;
 
     const lockLabel = (() => {
         if (srcKind === "cardano")
@@ -727,13 +717,9 @@ export const Bridge: React.FC = () => {
                     <ChainSelectorRow>
                         <ChainField>
                             <ChainFieldLabel>Source</ChainFieldLabel>
-                            <Select
-                                id="bridge-source-select"
-                                value={srcChainKey}
-                                onChange={handleSourceChange}
-                                options={sourceOptions}
-                                style={{ width: "100%" }}
-                            />
+                            <StaticChainValue id="bridge-source-chain">
+                                {srcChain.label}
+                            </StaticChainValue>
                         </ChainField>
                         <ChainArrow aria-hidden="true">
                             <ReceiveIcon size={24} />
@@ -752,10 +738,7 @@ export const Bridge: React.FC = () => {
 
                     <h2 style={{ marginBottom: "8px" }}>Source account</h2>
 
-                    <BridgeWalletSelector
-                        chainKind={srcKind}
-                        wallet={sourceWalletSessionContext[srcKind]}
-                    />
+                    <ASIWalletSection account={selectedAccount} />
 
                     <InputFormGroup>
                         <InputWithButton className="input-with-button">
@@ -826,27 +809,8 @@ export const Bridge: React.FC = () => {
 
                     <BridgeWalletSelector
                         chainKind={dstChain.kind}
-                        wallet={destinationWalletSessionContext[dstChain.kind]}
+                        wallet={destinationWallet}
                     />
-
-                    {srcKind === "asi" && needsPassword && (
-                        <FormGroup>
-                            <PasswordInput
-                                id="bridge-password-input"
-                                data-testid="bridge-password-input"
-                                data-cy="bridge-password-input"
-                                label={
-                                    requirePasswordForTransaction
-                                        ? "Transaction Password"
-                                        : "Account Password"
-                                }
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                autoComplete="current-password"
-                                placeholder="Enter password"
-                            />
-                        </FormGroup>
-                    )}
 
                     <ActionButtons>
                         <LockButton
@@ -884,17 +848,19 @@ export const Bridge: React.FC = () => {
 
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
-                onClose={() => {
-                    setShowConfirmation(false);
-                    setPassword("");
-                }}
+                onClose={() => setShowConfirmation(false)}
                 onConfirm={handleAsiLock}
                 amount={amount}
                 recipient={destinationWallet.account!.address}
-                senderAddress={selectedAccount?.revAddress || ""}
-                senderName={selectedAccount?.name || ""}
-                loading={isLoading}
-                requirePasswordForTransaction={requirePasswordForTransaction}
+                senderAddress={selectedAccount.address}
+                senderName={selectedAccount.name}
+                loading={asiLock.isRunning}
+            />
+
+            <PasswordModal
+                {...asiLock.passwordPrompt}
+                title="Enter password to sign transaction"
+                description="Your wallet session has expired. Enter your password to sign and send this bridge lock."
             />
         </BridgeContainer>
     );
