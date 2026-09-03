@@ -4,3 +4,4 @@ export { useValidAccountUpdating } from "./useValidAccountUpdating";
 export { useDeleteWallet } from "./useDeleteWallet";
 export { useDeleteActiveWallet } from "./useDeleteActiveWallet";
 export { useDisposableAsync } from "./useDisposableAsync";
+export { useWalletSessionAction } from "./useWalletSessionAction";

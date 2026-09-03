@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, CustomErrorCode } from "@asichain/asi-wallet-sdk";
+import { Address } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -24,7 +24,7 @@ import {
     TransactionConfirmationModal,
     PasswordModal,
 } from "components";
-import { SdkWalletService } from "sdk";
+import { useWalletSessionAction } from "hooks";
 import { getTokenDisplayName } from "../../constants/token";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
 import addressValidation from "utils/AddressValidation";
@@ -246,11 +246,41 @@ export const Send: React.FC = () => {
     const [showQRScanner, setShowQRScanner] = useState(false);
     const [scanError, setScanError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
-    const [passwordModalError, setPasswordModalError] = useState("");
-    const [passwordModalLoading, setPasswordModalLoading] = useState(false);
     const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
+
+    const walletId = selectedWallet?.id;
+
+    const sendAction = useWalletSessionAction({
+        walletId,
+        action: (password?: string) => {
+            if (!selectedAccount || !walletId) {
+                throw new Error("Wallet not opened. Please login again.");
+            }
+
+            return dispatch(
+                sendTransaction({
+                    walletId,
+                    accountId: selectedAccount.id,
+                    to: recipient as Address,
+                    amount,
+                    password,
+                }),
+            ).unwrap();
+        },
+        onSuccess: ({ deployId }) => {
+            setTxHash(deployId);
+            setIsWaitingForBalance(true);
+            setRecipient("");
+            setAmount("");
+
+            startBalancePolling(balance);
+        },
+        onError: setValidationError,
+        errorFallback: "Failed to send transaction",
+    });
+
+    const isSending = isLoading || sendAction.isRunning;
 
     const updateEstimatedFee = () => {
         setEstimatedFee(generateRandomGasFee());
@@ -529,12 +559,6 @@ export const Send: React.FC = () => {
         return true;
     };
 
-    const walletId = selectedWallet?.id;
-
-    const isWalletLockedError = (error: unknown): boolean =>
-        (error as { code?: string } | null)?.code ===
-        CustomErrorCode.WALLET_LOCKED;
-
     const handleSendClick = (): void => {
         if (!validateForm() || !selectedAccount) {
             return;
@@ -546,11 +570,10 @@ export const Send: React.FC = () => {
             return;
         }
 
-        if (SdkWalletService.isWalletUnlocked(walletId)) {
-            setShowConfirmation(true);
-        } else {
-            setShowPasswordModal(true);
-        }
+        setTxHash("");
+        setIsWaitingForBalance(false);
+
+        setShowConfirmation(true);
     };
 
     const startBalancePolling = (initialBalance: string): void => {
@@ -606,95 +629,10 @@ export const Send: React.FC = () => {
         }, 2000);
     };
 
-    const executeSend = async (password?: string): Promise<void> => {
-        if (!selectedAccount || !walletId) {
-            return;
-        }
-
-        if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError(
-                "Sending to Ethereum addresses is not supported",
-            );
-            return;
-        }
-
-        setTxHash("");
-        setIsWaitingForBalance(false);
-        setPasswordModalError("");
-
-        if (password !== undefined) {
-            setPasswordModalLoading(true);
-        }
-
-        const initialBalance = balance;
-
-        try {
-            const resultAction = await dispatch(
-                sendTransaction({
-                    walletId,
-                    accountId: selectedAccount.id,
-                    to: recipient as Address,
-                    amount,
-                    password,
-                }),
-            );
-
-            if (sendTransaction.fulfilled.match(resultAction)) {
-                setShowConfirmation(false);
-                setShowPasswordModal(false);
-
-                setTxHash(resultAction.payload.deployId);
-                setIsWaitingForBalance(true);
-                setRecipient("");
-                setAmount("");
-
-                startBalancePolling(initialBalance);
-                return;
-            }
-
-            const sendError = resultAction.error;
-
-            if (isWalletLockedError(sendError) && password === undefined) {
-                setShowConfirmation(false);
-                setShowPasswordModal(true);
-                return;
-            }
-
-            if (password !== undefined) {
-                setPasswordModalError(
-                    sendError.message ||
-                        "Failed to send transaction. Check your password.",
-                );
-                return;
-            }
-
-            setValidationError(
-                sendError.message || "Failed to send transaction",
-            );
-        } catch (err) {
-            console.error("Send failed:", err);
-
-            if (password !== undefined) {
-                setPasswordModalError(
-                    "Failed to send transaction. Check your password and try again.",
-                );
-            } else {
-                setValidationError("Failed to send transaction");
-            }
-        } finally {
-            if (password !== undefined) {
-                setPasswordModalLoading(false);
-            }
-        }
-    };
-
     const handleConfirmSend = (): void => {
         setShowConfirmation(false);
-        executeSend();
-    };
 
-    const handlePasswordSubmit = (password: string): void => {
-        executeSend(password);
+        void sendAction.run();
     };
 
     const handleClearAll = (): void => {
@@ -706,8 +644,7 @@ export const Send: React.FC = () => {
         setIsWaitingForBalance(false);
         setScanError("");
         setShowConfirmation(false);
-        setShowPasswordModal(false);
-        setPasswordModalError("");
+        sendAction.passwordPrompt.onClose();
         setCopied(false);
         setEstimatedFee(generateRandomGasFee());
     };
@@ -983,8 +920,9 @@ export const Send: React.FC = () => {
                         <Button
                             id="send-transaction-button"
                             onClick={handleSendClick}
-                            loading={isLoading}
+                            loading={isSending}
                             disabled={
+                                isSending ||
                                 !recipient ||
                                 !amount ||
                                 !!validationError ||
@@ -1068,16 +1006,9 @@ export const Send: React.FC = () => {
 
             {/* Password Modal (session expired — re-authenticate to sign) */}
             <PasswordModal
-                isOpen={showPasswordModal}
-                onClose={() => {
-                    setShowPasswordModal(false);
-                    setPasswordModalError("");
-                }}
-                onConfirm={handlePasswordSubmit}
+                {...sendAction.passwordPrompt}
                 title="Enter password to sign transaction"
                 description="Your wallet session has expired. Enter your password to sign and send this transaction."
-                loading={passwordModalLoading}
-                error={passwordModalError}
             />
         </SendContainer>
     );
