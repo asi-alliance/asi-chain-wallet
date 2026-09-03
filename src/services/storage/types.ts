@@ -31,7 +31,6 @@ export interface GeneralRecord {
 
 export interface SettingsRecord {
   id: string;
-  requirePasswordForTransaction: boolean;
   idleTimeout: number;
 }
 

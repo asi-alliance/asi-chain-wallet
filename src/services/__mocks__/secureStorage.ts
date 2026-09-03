@@ -4,7 +4,6 @@ export class SecureStorage {
     static getAllUnlockedAccounts = jest.fn(() => []);
     static isAuthenticated = jest.fn(() => false);
     static getSettings = jest.fn(() => ({
-        requirePasswordForTransaction: true,
         idleTimeout: 15,
     }));
     static updateSettings = jest.fn();

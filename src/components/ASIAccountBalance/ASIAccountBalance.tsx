@@ -1,12 +1,12 @@
 import { CSSProperties, ReactElement } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { useSelector } from "react-redux";
+import { selectSelectedNetworkId } from "store/WalletsStore";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { AccountBalance } from "components/AccountBalance";
-import { Account } from "types/wallet";
+import { IAccountMeta } from "types/wallet";
 
 interface IASIAccountBalanceProps {
-    account: Account;
+    account: IAccountMeta;
     isSelected?: boolean;
     style?: CSSProperties;
     onBalanceUpdate?: () => void;
@@ -18,26 +18,22 @@ export const ASIAccountBalance = ({
     style,
     onBalanceUpdate,
 }: IASIAccountBalanceProps): ReactElement => {
-    const dispatch = useDispatch();
-    const { selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const networkId = useSelector(selectSelectedNetworkId);
+    const {
+        data: balance = "0",
+        isFetching,
+        refetch,
+    } = useGetBalanceQuery({ accountId: account.id, networkId });
 
     const handleRefresh = () => {
-        dispatch(
-            fetchBalance({
-                account,
-                network: selectedNetwork,
-                forceRefresh: true,
-            }) as any,
-        );
+        refetch();
         onBalanceUpdate?.();
     };
 
     return (
         <AccountBalance
-            balance={account.balance}
-            loading={isLoading}
+            balance={balance}
+            loading={isFetching}
             onRefresh={handleRefresh}
             isSelected={isSelected}
             style={style}

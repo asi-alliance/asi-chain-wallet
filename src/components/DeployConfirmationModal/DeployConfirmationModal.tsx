@@ -1,30 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { Button } from "components";
-
-const Overlay = styled.div`
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-`;
-
-const Modal = styled.div`
-    background: ${({ theme }) => theme.card};
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-`;
+import { ModalWindow } from "components/ModalWindow";
 
 const Title = styled.h3`
     font-size: 20px;
@@ -167,8 +144,6 @@ export const DeploymentConfirmationModal: React.FC<
     fileName,
     loading = false,
 }) => {
-    if (!isOpen) return null;
-
     const handleClose = () => {
         if (!loading) {
             onClose();
@@ -190,82 +165,78 @@ export const DeploymentConfirmationModal: React.FC<
     const estimatedCost = parseInt(phloLimit) * parseInt(phloPrice);
 
     return (
-        <Overlay onClick={handleClose}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-                <Title>
-                    {isExplore ? "Confirm Exploration" : "Confirm Deployment"}
-                </Title>
-                <Description>
-                    Please review the {isExplore ? "exploration" : "deployment"}{" "}
-                    details before proceeding.
-                </Description>
+        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="600px">
+            <Title>
+                {isExplore ? "Confirm Exploration" : "Confirm Deployment"}
+            </Title>
+            <Description>
+                Please review the {isExplore ? "exploration" : "deployment"}{" "}
+                details before proceeding.
+            </Description>
 
-                {!isExplore && (
-                    <WarningText>
-                        WARNING: This deployment will consume gas and cannot be
-                        reversed once confirmed.
-                    </WarningText>
+            {!isExplore && (
+                <WarningText>
+                    WARNING: This deployment will consume gas and cannot be
+                    reversed once confirmed.
+                </WarningText>
+            )}
+
+            <AccountInfo>
+                <AccountName>Deploying from: {accountName}</AccountName>
+                <AccountAddress title={accountAddress}>
+                    {formatAddress(accountAddress)}
+                </AccountAddress>
+            </AccountInfo>
+
+            <DeploymentDetails>
+                {fileName && (
+                    <DetailRow>
+                        <DetailLabel>File:</DetailLabel>
+                        <DetailValue>{fileName}</DetailValue>
+                    </DetailRow>
                 )}
 
-                <AccountInfo>
-                    <AccountName>Deploying from: {accountName}</AccountName>
-                    <AccountAddress title={accountAddress}>
-                        {formatAddress(accountAddress)}
-                    </AccountAddress>
-                </AccountInfo>
+                <DetailRow>
+                    <DetailLabel>Code Length:</DetailLabel>
+                    <DetailValue>{rholangCode.length} characters</DetailValue>
+                </DetailRow>
 
-                <DeploymentDetails>
-                    {fileName && (
+                {!isExplore && (
+                    <>
                         <DetailRow>
-                            <DetailLabel>File:</DetailLabel>
-                            <DetailValue>{fileName}</DetailValue>
+                            <DetailLabel>Phlo Limit:</DetailLabel>
+                            <DetailValue>{phloLimit}</DetailValue>
                         </DetailRow>
-                    )}
 
-                    <DetailRow>
-                        <DetailLabel>Code Length:</DetailLabel>
-                        <DetailValue>
-                            {rholangCode.length} characters
-                        </DetailValue>
-                    </DetailRow>
+                        <DetailRow>
+                            <DetailLabel>Phlo Price:</DetailLabel>
+                            <DetailValue>{phloPrice}</DetailValue>
+                        </DetailRow>
 
-                    {!isExplore && (
-                        <>
-                            <DetailRow>
-                                <DetailLabel>Phlo Limit:</DetailLabel>
-                                <DetailValue>{phloLimit}</DetailValue>
-                            </DetailRow>
+                        <DetailRow>
+                            <DetailLabel>Estimated Cost:</DetailLabel>
+                            <DetailValue>{estimatedCost} phlo</DetailValue>
+                        </DetailRow>
+                    </>
+                )}
+            </DeploymentDetails>
 
-                            <DetailRow>
-                                <DetailLabel>Phlo Price:</DetailLabel>
-                                <DetailValue>{phloPrice}</DetailValue>
-                            </DetailRow>
+            <CodePreview>
+                <CodeContent>{getCodePreview()}</CodeContent>
+            </CodePreview>
 
-                            <DetailRow>
-                                <DetailLabel>Estimated Cost:</DetailLabel>
-                                <DetailValue>{estimatedCost} phlo</DetailValue>
-                            </DetailRow>
-                        </>
-                    )}
-                </DeploymentDetails>
-
-                <CodePreview>
-                    <CodeContent>{getCodePreview()}</CodeContent>
-                </CodePreview>
-
-                <Actions>
-                    <InlineButton onClick={onConfirm} loading={loading}>
-                        {isExplore ? "Explore Contract" : "Deploy Contract"}
-                    </InlineButton>
-                    <InlineButton
-                        variant="secondary"
-                        onClick={handleClose}
-                        disabled={loading}
-                    >
-                        Cancel
-                    </InlineButton>
-                </Actions>
-            </Modal>
-        </Overlay>
+            <Actions>
+                <InlineButton onClick={onConfirm} loading={loading}>
+                    {isExplore ? "Explore Contract" : "Deploy Contract"}
+                </InlineButton>
+                <InlineButton
+                    variant="secondary"
+                    onClick={handleClose}
+                    disabled={loading}
+                >
+                    Cancel
+                </InlineButton>
+            </Actions>
+        </ModalWindow>
     );
 };

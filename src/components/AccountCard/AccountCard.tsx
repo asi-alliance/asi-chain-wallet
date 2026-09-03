@@ -6,17 +6,22 @@ import { DownloadIcon, LockPassIcon } from "components/Icons";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useDispatch, useSelector } from "react-redux";
-import { exportAccountKeyfile } from "store/authSlice";
-import { selectAccount } from "store/walletSlice";
+import {
+    selectAccount,
+    selectIsAccountUnlocked,
+    selectSelectedAccountId,
+    selectWalletByAccountId,
+} from "store/WalletsStore";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";
-import { Account } from "types/wallet";
+import { IUnlockedAccountMeta } from "types/wallet";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { ReactElement } from "react";
 import { RootState } from "store";
 
 interface IAccountCardProps {
-    account: Account;
+    account: IUnlockedAccountMeta;
     fullMode?: boolean;
     className?: string;
 }
@@ -45,7 +50,7 @@ const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
     }
 `;
 
-const AccountHeader = styled.div<{ $fullMode: boolean }>`
+const AccountHeader = styled.div<{ $fullMode: boolean; $isActions: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -59,8 +64,12 @@ const AccountHeader = styled.div<{ $fullMode: boolean }>`
         flex: 1;
         min-width: 0;
     }
+        `}
 
-    & > :last-child {
+    ${({ $isActions }) =>
+        $isActions &&
+        `
+        & > :last-child {
         flex-shrink: 0;
         flex-grow: 0;
     }
@@ -124,16 +133,24 @@ export const AccountCard = ({
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const isUnlocked = useSelector((state: RootState) =>
+        selectIsAccountUnlocked(state, account.id),
+    );
+    const ownerWallet = useSelector((state: RootState) =>
+        selectWalletByAccountId(state, account.id),
+    );
+
+    const canRemoveAccount = ownerWallet?.type !== WalletTypes.PRIVATE_KEY;
 
     const handleSelectAccount = (accountId: string) => {
         dispatch(selectAccount(accountId));
     };
 
-    const handleExportKeyfile = (accountId: string) => {
-        dispatch(exportAccountKeyfile({ accountId }) as any);
-    };
+    //TODO: Restore after the SDK ships keyfile export/import support
+    // const handleExportKeyfile = (accountId: string) => {
+    //     dispatch(exportAccountKeyfile({ accountId }) as any);
+    // };
 
     const formatAddress = (
         address: string,
@@ -146,10 +163,7 @@ export const AccountCard = ({
         return `${address.slice(0, visibleSymbolsCount)}...${address.slice(-visibleSymbolsCount)}`;
     };
 
-    const isUnlocked = unlockedAccounts.some(
-        (unlockedAccount: Account) => unlockedAccount.id === account.id,
-    );
-    const isSelected = selectedAccount?.id === account.id;
+    const isSelected = selectedAccountId === account.id;
 
     return (
         <AccountCardWrapper
@@ -159,10 +173,18 @@ export const AccountCard = ({
             className={className}
             onClick={() => handleSelectAccount(account.id)}
         >
-            <AccountHeader $fullMode={fullMode}>
-                <AccountNameEditor accountId={account.id} />
+            <AccountHeader
+                $fullMode={fullMode}
+                $isActions={fullMode && canRemoveAccount}
+            >
+                <AccountNameEditor
+                    disabled={!isUnlocked}
+                    accountId={account.id}
+                />
 
-                {fullMode && <RemoveAccountButton account={account} />}
+                {fullMode && canRemoveAccount && (
+                    <RemoveAccountButton accountId={account.id} />
+                )}
             </AccountHeader>
 
             <ASIAccountBalance account={account} isSelected={isSelected} />
@@ -176,12 +198,12 @@ export const AccountCard = ({
                         style={{ marginRight: 10, lineHeight: "27px" }}
                         $isSelected={isSelected}
                     >
-                        {formatAddress(account.revAddress, {
+                        {formatAddress(account.address, {
                             isFullMode: !fullMode,
                         })}
                     </LabelSecond>
                     <CopyButton
-                        dataToCopy={account.revAddress}
+                        dataToCopy={account.address}
                         size={15}
                         title="Copy Address"
                     />
@@ -219,14 +241,15 @@ export const AccountCard = ({
                                 <LockPassIcon />
                             </ActionButton>
                         )}
+                        {/* TODO: Restore keyfile export after the SDK ships keyfile export/import support */}
                         <ActionButton
                             $isSelected={isSelected}
                             id={`export-account-${account.id}`}
                             variant="icon-button"
-                            title="Export Keyfile"
+                            title="Keyfile export is temporarily unavailable"
+                            disabled
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleExportKeyfile(account.id);
                             }}
                             withBorderColorHover={false}
                             withFadeHover

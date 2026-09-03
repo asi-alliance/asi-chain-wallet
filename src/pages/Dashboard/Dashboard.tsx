@@ -1,11 +1,23 @@
-import React, { useEffect, useMemo } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useMemo } from "react";
+import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import {
+    selectAccountById,
+    selectAccounts,
+    selectIsAccountUnlocked,
+    selectSelectedAccountId,
+    selectSelectedNetworkId,
+} from "store/WalletsStore";
+import {
+    IAccountQueryArgs,
+    IHistoryQueryArgs,
+    useGetBalanceQuery,
+    useGetTransactionHistoryQuery,
+} from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
 import { useNavigate } from "react-router-dom";
-import TransactionHistoryService from "../../services/transactionHistory";
 import { AccountCard } from "components/AccountCard";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { HistoryIcon, VectorIcon } from "components/Icons";
@@ -56,131 +68,44 @@ const CustomAccountCard = styled(AccountCard)`
     }
 `;
 
+const ACCOUNT_DATA_POLLING_INTERVAL_MS = 30000;
+
 export const Dashboard: React.FC = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { selectedAccount, selectedNetwork, accounts } = useSelector(
-        (state: RootState) => state.wallet,
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const selectedAccount = useSelector((state: RootState) =>
+        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
+    const accounts = useSelector(selectAccounts);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isAccountUnlocked = useSelector((state: RootState) =>
+        selectedAccountId
+            ? selectIsAccountUnlocked(state, selectedAccountId)
+            : false,
+    );
 
     const { isLaptop } = useScreen();
 
-    const isAccountUnlocked = useMemo(() => {
-        if (!selectedAccount) return false;
-        return unlockedAccounts.some(
-            (account) => account.id === selectedAccount.id,
-        );
-    }, [unlockedAccounts, selectedAccount]);
+    const balanceArgs: IAccountQueryArgs | typeof skipToken =
+        selectedAccountId && isAccountUnlocked
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken;
 
-    useEffect(() => {
-        if (
-            selectedAccount &&
-            selectedAccount.revAddress &&
-            selectedNetwork &&
-            isAccountUnlocked
-        ) {
-            const oldBalance = selectedAccount.balance || "0";
+    const historyArgs: IHistoryQueryArgs | typeof skipToken =
+        selectedAccountId && isAccountUnlocked
+            ? {
+                  accountId: selectedAccountId,
+                  networkId,
+                  source: "all",
+              }
+            : skipToken;
 
-            if (selectedNetwork.graphqlUrl) {
-                TransactionHistoryService.syncFromBlockchain(
-                    selectedAccount.revAddress,
-                    selectedAccount.publicKey,
-                    selectedNetwork.name,
-                    selectedNetwork.graphqlUrl,
-                )
-                    .then((result) => {
-                        if (result.added > 0 || result.updated > 0) {
-                            console.info(
-                                `[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`,
-                            );
-                        }
-                    })
-                    .catch((error) => {
-                        console.error(
-                            "[Dashboard] Error syncing from blockchain:",
-                            error,
-                        );
-                    });
-            }
-
-            if (selectedNetwork.readOnlyUrl) {
-                dispatch(
-                    fetchBalance({
-                        account: selectedAccount,
-                        network: selectedNetwork,
-                    }) as any,
-                ).then((result: any) => {
-                    if (result.payload) {
-                        const newBalance = result.payload.balance;
-
-                        if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-                            try {
-                                TransactionHistoryService.detectReceivedTransaction(
-                                    selectedAccount.revAddress,
-                                    oldBalance,
-                                    newBalance,
-                                    selectedNetwork.name,
-                                );
-                            } catch (error) {
-                                console.error(
-                                    `[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`,
-                                    error,
-                                );
-                            }
-                        }
-                    }
-                });
-            }
-        }
-    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
-
-    useEffect(() => {
-        if (
-            selectedAccount &&
-            selectedAccount.revAddress &&
-            selectedNetwork &&
-            isAccountUnlocked &&
-            selectedNetwork.readOnlyUrl
-        ) {
-            const interval = setInterval(() => {
-                if (selectedAccount && selectedAccount.revAddress) {
-                    const oldBalance = selectedAccount.balance || "0";
-
-                    dispatch(
-                        fetchBalance({
-                            account: selectedAccount,
-                            network: selectedNetwork,
-                        }) as any,
-                    ).then((result: any) => {
-                        if (result.payload) {
-                            const newBalance = result.payload.balance;
-
-                            if (
-                                parseFloat(newBalance) > parseFloat(oldBalance)
-                            ) {
-                                try {
-                                    TransactionHistoryService.detectReceivedTransaction(
-                                        selectedAccount.revAddress,
-                                        oldBalance,
-                                        newBalance,
-                                        selectedNetwork.name,
-                                    );
-                                } catch (error) {
-                                    console.error(
-                                        `[Dashboard Auto-refresh] Error detecting received transaction for ${selectedAccount.name}:`,
-                                        error,
-                                    );
-                                }
-                            }
-                        }
-                    });
-                }
-            }, 30000); // 30 seconds
-
-            return () => clearInterval(interval);
-        }
-    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
+    useGetBalanceQuery(balanceArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
+    useGetTransactionHistoryQuery(historyArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
 
     const accountIdForActions = useMemo(
         () => selectedAccount?.id ?? accounts[0]?.id,

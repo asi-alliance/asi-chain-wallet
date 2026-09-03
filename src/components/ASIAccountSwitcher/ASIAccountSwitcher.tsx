@@ -1,8 +1,15 @@
-import React, { CSSProperties, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { selectAccount, fetchBalance } from "store/walletSlice";
+import React, { CSSProperties, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccount,
+    selectAccounts,
+    selectSelectedAccountId,
+    selectSelectedNetworkId,
+} from "store/WalletsStore";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
+import { useIsNetworkBusy } from "sdk";
 
 interface IASIAccountSwitcherProps {
     adaptive?: boolean;
@@ -15,75 +22,45 @@ interface IASIAccountSwitcherProps {
 export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     props,
 ) => {
-    const dispatch = useDispatch();
-    const { accounts, selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
-    );
-    const [isLoadingBalances, setIsLoadingBalances] = useState(false);
-
-    const selectedNetworkId = selectedNetwork?.id;
-    const filteredAccounts = useMemo(
-        () =>
-            selectedNetworkId
-                ? accounts.filter(
-                      (account) => account.networkId === selectedNetworkId,
-                  )
-                : accounts,
-        [accounts, selectedNetworkId],
-    );
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isNetworkBusy = useIsNetworkBusy(networkId);
 
     const accountViews: AccountView[] = useMemo(
         () =>
-            filteredAccounts.map((account) => ({
+            accounts.map((account) => ({
                 id: account.id,
                 name: account.name,
-                address: account.revAddress,
-                balance: account.balance,
+                address: account.address,
             })),
-        [filteredAccounts],
+        [accounts],
     );
 
-    const fetchAllBalances = async (forceRefresh = false) => {
-        if (
-            !selectedNetwork ||
-            !selectedNetwork.readOnlyUrl ||
-            filteredAccounts.length === 0
-        )
-            return;
-
-        setIsLoadingBalances(true);
-
-        const balancePromises = filteredAccounts.map((account) =>
-            dispatch(
-                fetchBalance({
-                    account,
-                    network: selectedNetwork,
-                    forceRefresh,
-                }) as any,
+    const refreshBalances = () => {
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
             ),
         );
-
-        try {
-            await Promise.all(balancePromises);
-        } catch (error) {
-            console.error("Error fetching balances:", error);
-        } finally {
-            setIsLoadingBalances(false);
-        }
     };
 
     const handleSelect = (accountId: string) => {
         dispatch(selectAccount(accountId));
-        fetchAllBalances(true);
+        refreshBalances();
     };
 
     return (
         <AccountSwitcher
             accounts={accountViews}
-            selectedId={selectedAccount?.id}
+            selectedId={selectedAccountId ?? undefined}
             onSelect={handleSelect}
-            isLoading={isLoadingBalances}
-            onOpen={() => fetchAllBalances(true)}
+            onOpen={refreshBalances}
+            disabled={isNetworkBusy}
             {...props}
         />
     );
