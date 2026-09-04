@@ -329,13 +329,14 @@ export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
-export const selectIsAnyAccountBalanceFetching = (
-    state: RootState,
-): boolean => {
+export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => {
+    const networkId = selectSelectedNetworkId(state);
+
     return selectAccounts(state).some(
         (accountMeta: IAccountMeta) =>
             walletsApi.endpoints.getBalance.select({
                 accountId: accountMeta.id,
+                networkId,
             })(state).isLoading,
     );
 };

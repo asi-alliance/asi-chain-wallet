@@ -33,6 +33,10 @@ import {
 import { SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "../../constants/token";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
+import {
+    getAmountValidationError,
+    getMaxSendableAmount,
+} from "utils/balanceUtils";
 import addressValidation from "utils/AddressValidation";
 import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
@@ -47,6 +51,9 @@ import {
 } from "components/Icons";
 
 const BALANCE_POLLING_INTERVAL_MS = 30000;
+
+const BALANCE_UNAVAILABLE_ERROR =
+    "Failed to load balance for the selected network. Sending is unavailable.";
 
 interface IPendingTransfer {
     walletId: string;
@@ -247,10 +254,19 @@ export const Send: React.FC = () => {
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const { data: balance = "0" } = useGetBalanceQuery(
-        selectedAccountId ? { accountId: selectedAccountId } : skipToken,
+    const {
+        currentData: currentBalance,
+        isFetching,
+        isError: isBalanceError,
+    } = useGetBalanceQuery(
+        selectedAccountId
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken,
         { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
     );
+
+    const balance = currentBalance ?? "0";
+    const isBalanceReady = currentBalance !== undefined && !isBalanceError;
     const [fetchSenderBalance] = useLazyGetBalanceQuery();
     const isLoading = useSelector(
         (state: RootState) => state.walletsStore.isLoading,
@@ -272,6 +288,12 @@ export const Send: React.FC = () => {
     const [passwordModalLoading, setPasswordModalLoading] = useState(false);
     const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
+
+    const amountError = isBalanceReady
+        ? getAmountValidationError(amount, balance)
+        : "";
+    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
+    const displayedError = validationError || balanceError || amountError;
 
     const updateEstimatedFee = () => {
         setEstimatedFee(generateRandomGasFee());
@@ -302,42 +324,6 @@ export const Send: React.FC = () => {
     const handleAmountChange = (value: string) => {
         setAmount(value);
         updateEstimatedFee();
-
-        if (!value.trim()) {
-            setValidationError("");
-            return;
-        }
-
-        const amountValue = parseFloat(value);
-        if (isNaN(amountValue) || amountValue <= 0) {
-            return;
-        }
-
-        const balanceNum = parseFloat(balance);
-
-        if (amountValue > balanceNum) {
-            setValidationError(
-                `Insufficient balance. You have ${balanceNum.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
-            );
-            return;
-        }
-
-        const totalRequired = amountValue + getGasFeeAsNumber();
-        if (totalRequired > balanceNum) {
-            const maxSendable = Math.max(0, balanceNum - getGasFeeAsNumber());
-            const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
-            setValidationError(
-                `Amount + fee (${totalRequired.toFixed(
-                    8,
-                )}) exceeds balance. Max: ${maxRounded.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
-            );
-            return;
-        }
-
         setValidationError("");
     };
 
@@ -531,28 +517,17 @@ export const Send: React.FC = () => {
             return false;
         }
 
-        const balanceNum = parseFloat(balance);
-        const amountToSend = parseFloat(amount);
-
-        if (amountToSend > balanceNum) {
+        if (!isBalanceReady) {
             setValidationError(
-                `Insufficient balance. You have ${balanceNum.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
+                isBalanceError
+                    ? BALANCE_UNAVAILABLE_ERROR
+                    : "Balance is still loading. Please wait and try again.",
             );
             return false;
         }
 
-        const totalRequired = amountToSend + getGasFeeAsNumber();
-        if (totalRequired > balanceNum) {
-            const maxSendable = Math.max(0, balanceNum - getGasFeeAsNumber());
-            setValidationError(
-                `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(
-                    8,
-                )} ${getTokenDisplayName()} (${balanceNum.toFixed(
-                    8,
-                )} - ${getGasFeeAsNumber().toFixed(8)} fee)`,
-            );
+        if (amountError) {
+            setValidationError(amountError);
             return false;
         }
 
@@ -610,6 +585,7 @@ export const Send: React.FC = () => {
 
         const senderBalanceArgs: IAccountQueryArgs = {
             accountId: transfer.accountId,
+            networkId: transfer.networkId,
         };
 
         pollIntervalRef.current = setInterval(async () => {
@@ -764,17 +740,17 @@ export const Send: React.FC = () => {
     };
 
     const maxAmount = () => {
-        const balanceNum = parseFloat(balance);
-        const max = Math.max(0, balanceNum - getGasFeeAsNumber());
+        const max = getMaxSendableAmount(balance);
 
         if (max <= 0) {
             setValidationError("Insufficient balance to cover gas fees");
             setAmount("0");
-        } else {
-            const maxRounded = Math.floor(max * 100000000) / 100000000;
-            setAmount(maxRounded.toFixed(8));
-            setValidationError("");
+
+            return;
         }
+
+        setAmount(max.toFixed(8));
+        setValidationError("");
     };
 
     return (
@@ -881,8 +857,8 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
-                    {validationError && (
-                        <ErrorMessage>{validationError}</ErrorMessage>
+                    {displayedError && (
+                        <ErrorMessage>{displayedError}</ErrorMessage>
                     )}
 
                     <AccountSelectorWithMarginBottom
@@ -1020,6 +996,7 @@ export const Send: React.FC = () => {
                             id="send-max-amount-button"
                             variant="secondary"
                             onClick={maxAmount}
+                            disabled={!isBalanceReady}
                             style={{
                                 aspectRatio: "1/1",
                                 width: "44px",
@@ -1039,8 +1016,10 @@ export const Send: React.FC = () => {
                             disabled={
                                 !recipient ||
                                 !amount ||
-                                !!validationError ||
-                                !!addressError
+                                !!displayedError ||
+                                !!addressError ||
+                                !isBalanceReady ||
+                                isFetching
                             }
                             style={{ minWidth: "150px", height: "44px" }}
                         >

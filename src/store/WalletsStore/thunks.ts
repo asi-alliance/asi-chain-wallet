@@ -31,7 +31,7 @@ export const selectNetwork = createAsyncThunk<
     { state: RootState; rejectValue: string }
 >(
     "wallets-store/selectNetwork",
-    (networkId: string, { getState, dispatch, rejectWithValue }) => {
+    (networkId: string, { getState, rejectWithValue }) => {
         const { networks, selectedNetwork } = getState().walletsStore;
 
         if (selectedNetwork.id === networkId) {
@@ -52,13 +52,6 @@ export const selectNetwork = createAsyncThunk<
 
         SdkWalletService.setNetwork(network.id);
         persistSelectedNetworkId(network.id);
-
-        dispatch(
-            walletsApi.util.invalidateTags([
-                WalletsApiTags.BALANCE,
-                WalletsApiTags.HISTORY,
-            ]),
-        );
 
         return network;
     },
