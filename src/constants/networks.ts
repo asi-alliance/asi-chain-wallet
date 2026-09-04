@@ -6,6 +6,7 @@ import {
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
 import { Network } from "types/wallet";
+import { isNotEmptyPlainObject } from "utils/guards";
 
 type TNetworkEnvEntry = Partial<Record<keyof INetworkEndpoints, string>> & {
     name?: string;
@@ -126,10 +127,10 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         return { networks: [], issues };
     }
 
-    let entries: Record<string, TNetworkEnvEntry>;
+    let parsedEnv: unknown;
 
     try {
-        entries = JSON.parse(rawEnv) as Record<string, TNetworkEnvEntry>;
+        parsedEnv = JSON.parse(rawEnv);
     } catch (error) {
         issues.push({
             level: "error",
@@ -139,9 +140,19 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         return { networks: [], issues };
     }
 
+    if (!isNotEmptyPlainObject<TNetworkEnvEntry>(parsedEnv)) {
+        issues.push({
+            level: "error",
+            message:
+                "NETWORKS must be a non-empty JSON object mapping network ids to their configuration",
+        });
+
+        return { networks: [], issues };
+    }
+
     const networks: Network[] = [];
 
-    Object.entries(entries).forEach(([networkId, entry]) => {
+    Object.entries(parsedEnv).forEach(([networkId, entry]) => {
         if (!entry) {
             issues.push({
                 level: "warning",
