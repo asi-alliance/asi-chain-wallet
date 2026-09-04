@@ -32,7 +32,6 @@ const HISTORY_SOURCES: Record<
 
 export interface IAccountQueryArgs {
     accountId: string;
-    networkId: string;
 }
 
 export interface IHistoryQueryArgs extends IAccountQueryArgs {

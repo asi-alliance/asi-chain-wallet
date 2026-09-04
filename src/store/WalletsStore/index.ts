@@ -6,16 +6,12 @@ import {
     IUnlockedWalletMeta,
 } from "types/wallet";
 import { RootState } from "store";
-import { SdkWalletService } from "sdk";
-import {
-    getInitialNetwork,
-    NETWORKS,
-    persistSelectedNetworkId,
-} from "constants/networks";
+import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
     loadWalletsFromStorage,
     removeAccount,
     removeWallet,
+    selectNetwork,
     sendTransaction,
     updateAccountName,
 } from "./thunks";
@@ -55,11 +51,10 @@ const walletsStoreSlice = createSlice({
     initialState,
     reducers: {
         selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount =
-                getUnlockedWalletAndAccountFromWalletsMeta(
-                    state.wallets,
-                    action.payload,
-                );
+            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
+                state.wallets,
+                action.payload,
+            );
 
             if (!walletAndAccount) {
                 console.error(
@@ -72,21 +67,6 @@ const walletsStoreSlice = createSlice({
             state.selectedAccountId = walletAndAccount.account.id;
 
             persistSelectedAccountId(walletAndAccount.account.id);
-        },
-        selectNetwork: (state, action: PayloadAction<string>) => {
-            const network = state.networks.find(
-                (networkMeta) => networkMeta.id === action.payload,
-            );
-
-            if (!network || state.selectedNetwork.id === network.id) {
-                return;
-            }
-
-            SdkWalletService.setNetwork(network.id);
-
-            state.selectedNetwork = network;
-
-            persistSelectedNetworkId(network.id);
         },
         //TODO: Updated Custom Networks CRUD operations after SDK feature updates
         // updateNetwork: (state, action: PayloadAction<Network>) => {
@@ -213,6 +193,9 @@ const walletsStoreSlice = createSlice({
             })
             .addCase(loadWalletsFromStorage.rejected, (state) => {
                 state.isInitialLoadComplete = true;
+            })
+            .addCase(selectNetwork.fulfilled, (state, action) => {
+                state.selectedNetwork = action.payload;
             })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { removedWalletId, removedSignerId } = action.payload;
@@ -346,14 +329,13 @@ export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
-export const selectIsAnyAccountBalanceFetching = (state: RootState): boolean => {
-    const networkId = selectSelectedNetworkId(state);
-
+export const selectIsAnyAccountBalanceFetching = (
+    state: RootState,
+): boolean => {
     return selectAccounts(state).some(
         (accountMeta: IAccountMeta) =>
             walletsApi.endpoints.getBalance.select({
                 accountId: accountMeta.id,
-                networkId,
             })(state).isLoading,
     );
 };
@@ -377,7 +359,6 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
 
 export const {
     selectAccount,
-    selectNetwork,
     // updateNetwork,
     // addNetwork,
     // removeNetwork,

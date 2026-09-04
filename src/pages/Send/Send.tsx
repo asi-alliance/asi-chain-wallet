@@ -248,7 +248,7 @@ export const Send: React.FC = () => {
     );
     const networkId = useSelector(selectSelectedNetworkId);
     const { data: balance = "0" } = useGetBalanceQuery(
-        selectedAccountId ? { accountId: selectedAccountId, networkId } : skipToken,
+        selectedAccountId ? { accountId: selectedAccountId } : skipToken,
         { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
     );
     const [fetchSenderBalance] = useLazyGetBalanceQuery();
@@ -610,7 +610,6 @@ export const Send: React.FC = () => {
 
         const senderBalanceArgs: IAccountQueryArgs = {
             accountId: transfer.accountId,
-            networkId: transfer.networkId,
         };
 
         pollIntervalRef.current = setInterval(async () => {

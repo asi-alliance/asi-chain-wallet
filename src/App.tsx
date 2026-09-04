@@ -38,6 +38,7 @@ import {
     selectWalletsInitialLoadComplete,
 } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
+import { useAppDispatch } from "store/hooks";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -61,12 +62,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const AppContent: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-    const isInitialLoadComplete = useSelector(
-        selectWalletsInitialLoadComplete,
-    );
+    const isInitialLoadComplete = useSelector(selectWalletsInitialLoadComplete);
     const theme = darkMode ? darkTheme : lightTheme;
 
     useIdleTimer();
@@ -245,7 +244,7 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                 }}
             >
-                <QueryProvider> 
+                <QueryProvider>
                     <EvmProvider>
                         <SdkClientProvider>
                             <AppContent />

@@ -1,8 +1,6 @@
 import { ReactElement } from "react";
-import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { formatBalanceCompact } from "utils/balanceUtils";
-import { selectSelectedNetworkId } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 
 const LoadingSpinner = styled.div`
@@ -27,10 +25,8 @@ interface IAccountBalanceValueProps {
 export const AccountBalanceValue = ({
     accountId,
 }: IAccountBalanceValueProps): ReactElement => {
-    const networkId = useSelector(selectSelectedNetworkId);
     const { data: balance, isFetching } = useGetBalanceQuery({
         accountId,
-        networkId,
     });
 
     if (isFetching) {

@@ -10,6 +10,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Address } from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
+import { persistSelectedNetworkId } from "constants/networks";
 import { RootState } from "store";
 import { walletsApi, WalletsApiTags } from "./api";
 import { getUnlockedAccountFromWalletsMeta } from "./helpers";
@@ -23,6 +24,45 @@ export interface IAccountRemovePayload {
     walletId: string;
     accountId: string;
 }
+
+export const selectNetwork = createAsyncThunk<
+    Network,
+    string,
+    { state: RootState; rejectValue: string }
+>(
+    "wallets-store/selectNetwork",
+    (networkId: string, { getState, dispatch, rejectWithValue }) => {
+        const { networks, selectedNetwork } = getState().walletsStore;
+
+        if (selectedNetwork.id === networkId) {
+            return rejectWithValue(
+                "walletsStoreSlice.selectNetwork: This network already selected",
+            );
+        }
+
+        const network: Network | undefined = networks.find(
+            (networkMeta: Network) => networkMeta.id === networkId,
+        );
+
+        if (!network) {
+            return rejectWithValue(
+                "walletsStoreSlice.selectNetwork: Incorrect network id",
+            );
+        }
+
+        SdkWalletService.setNetwork(network.id);
+        persistSelectedNetworkId(network.id);
+
+        dispatch(
+            walletsApi.util.invalidateTags([
+                WalletsApiTags.BALANCE,
+                WalletsApiTags.HISTORY,
+            ]),
+        );
+
+        return network;
+    },
+);
 
 export const removeWallet = createAsyncThunk(
     "walletsStore/removeWallet",

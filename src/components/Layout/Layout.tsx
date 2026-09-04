@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import {
-    selectNetwork,
     selectAccounts,
     selectAccountById,
     selectSelectedAccountId,
 } from "store/WalletsStore";
+import { selectNetwork } from "store/WalletsStore/thunks";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
@@ -37,7 +38,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const location = useLocation();
     const networks = useSelector(
         (state: RootState) => state.walletsStore.networks,

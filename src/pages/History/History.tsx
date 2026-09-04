@@ -5,7 +5,6 @@ import { RootState } from "store";
 import {
     selectAccountById,
     selectSelectedAccountId,
-    selectSelectedNetworkId,
 } from "store/WalletsStore/";
 import {
     THistorySourceFilter,
@@ -294,7 +293,6 @@ export const History: React.FC = () => {
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
 
     const [filter, setFilter] = useState<TransactionFilter>({});
 
@@ -306,7 +304,6 @@ export const History: React.FC = () => {
         selectedAccountId
             ? {
                   accountId: selectedAccountId,
-                  networkId,
                   source: filter.source ?? "all",
               }
             : skipToken,
