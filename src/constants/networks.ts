@@ -5,6 +5,7 @@ import {
     NodeApiProfile,
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import { Network } from "types/wallet";
 import { isNotEmptyPlainObject } from "utils/guards";
 
@@ -25,8 +26,6 @@ interface INetworksEnvParseResult {
 }
 
 const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
-
-export const SELECTED_NETWORK_KEY = "asi_wallet_selected_network";
 
 export const UNCONFIGURED_NETWORK: Network = {
     id: "unconfigured",
@@ -272,30 +271,12 @@ export const getNetworksEnvError = (): string | null => {
     return errors.map((issue: INetworksEnvIssue) => issue.message).join("; ");
 };
 
-const readSelectedNetworkId = (): string | null => {
-    try {
-        return localStorage.getItem(SELECTED_NETWORK_KEY);
-    } catch (error) {
-        console.error("Failed to read selected network id:", error);
-
-        return null;
-    }
-};
-
-export const persistSelectedNetworkId = (networkId: string): void => {
-    try {
-        localStorage.setItem(SELECTED_NETWORK_KEY, networkId);
-    } catch (error) {
-        console.error("Failed to persist selected network id:", error);
-    }
-};
-
 export const getInitialNetwork = (): Network => {
     if (!NETWORKS.length) {
         return UNCONFIGURED_NETWORK;
     }
 
-    const selectedNetworkId = readSelectedNetworkId();
+    const selectedNetworkId = WalletPreferencesStorage.getSelectedNetworkId();
 
     return (
         NETWORKS.find((network: Network) => network.id === selectedNetworkId) ??

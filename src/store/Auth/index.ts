@@ -62,7 +62,7 @@ const authSlice = createSlice({
             })
             .addCase(createHdWallet.fulfilled, (state, action) => {
                 state.isLoading = false;
-                setActiveSession(state, action.payload);
+                setActiveSession(state, action.payload.wallet);
             })
             .addCase(createHdWallet.rejected, (state) => {
                 state.isLoading = false;
@@ -72,7 +72,7 @@ const authSlice = createSlice({
             })
             .addCase(importHdWallet.fulfilled, (state, action) => {
                 state.isLoading = false;
-                setActiveSession(state, action.payload);
+                setActiveSession(state, action.payload.wallet);
             })
             .addCase(importHdWallet.rejected, (state) => {
                 state.isLoading = false;
@@ -82,7 +82,7 @@ const authSlice = createSlice({
             })
             .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
                 state.isLoading = false;
-                setActiveSession(state, action.payload);
+                setActiveSession(state, action.payload.wallet);
             })
             .addCase(importPrivateKeyWallet.rejected, (state) => {
                 state.isLoading = false;
@@ -102,7 +102,7 @@ const authSlice = createSlice({
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 state.isLoading = false;
-                setActiveSession(state, action.payload);
+                setActiveSession(state, action.payload.wallet);
             })
             .addCase(loginWithPassword.rejected, (state) => {
                 state.isLoading = false;

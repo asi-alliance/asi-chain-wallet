@@ -70,6 +70,11 @@ export interface IUnlockedWalletMeta extends IWalletMetaBase {
 
 export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
 
+export interface IActiveWalletSession {
+    wallet: IUnlockedWalletMeta;
+    selectedAccountId: string | null;
+}
+
 export enum WalletActions {
     CREATE_WALLET = "create-wallet",
 }

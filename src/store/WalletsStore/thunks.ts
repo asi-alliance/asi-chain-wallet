@@ -3,6 +3,7 @@ import {
     Account,
     IAccountMeta,
     IUnlockedAccountMeta,
+    IWalletMeta,
     Network,
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
@@ -10,10 +11,13 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { Address } from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
-import { persistSelectedNetworkId } from "constants/networks";
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { walletsApi, WalletsApiTags } from "./api";
-import { getUnlockedAccountFromWalletsMeta } from "./helpers";
+import {
+    getUnlockedAccountFromWalletsMeta,
+    getUnlockedWalletAndAccountFromWalletsMeta,
+} from "./helpers";
 
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
@@ -51,9 +55,38 @@ export const selectNetwork = createAsyncThunk<
         }
 
         SdkWalletService.setNetwork(network.id);
-        persistSelectedNetworkId(network.id);
+        WalletPreferencesStorage.setSelectedNetworkId(network.id);
 
         return network;
+    },
+);
+
+export const selectAccount = createAsyncThunk<
+    string,
+    string,
+    { state: RootState; rejectValue: string }
+>(
+    "wallets-store/selectAccount",
+    (accountId: string, { getState, rejectWithValue }) => {
+        const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
+            getState().walletsStore.wallets,
+            accountId,
+        );
+
+        if (!walletAndAccount) {
+            return rejectWithValue(
+                "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
+            );
+        }
+
+        const { wallet, account } = walletAndAccount;
+
+        WalletPreferencesStorage.setSelectedAccountId(
+            wallet.signerId,
+            account.id,
+        );
+
+        return account.id;
     },
 );
 
@@ -62,10 +95,13 @@ export const removeWallet = createAsyncThunk(
     async ({ walletId }: { walletId: string }, { rejectWithValue }) => {
         try {
             const removedWallet = await SdkWalletService.removeWallet(walletId);
+            const removedSignerId = removedWallet.getSigner().getId();
+
+            WalletPreferencesStorage.removeSigner(removedSignerId);
 
             return {
                 removedWalletId: removedWallet.getId(),
-                removedSignerId: removedWallet.getSigner().getId(),
+                removedSignerId,
             };
         } catch (error) {
             return rejectWithValue(error);
@@ -73,16 +109,62 @@ export const removeWallet = createAsyncThunk(
     },
 );
 
-export const removeAccount = createAsyncThunk(
+export interface IAccountRemoveResponse extends IAccountRemovePayload {
+    selectedAccountId: string | null;
+}
+
+export const removeAccount = createAsyncThunk<
+    IAccountRemoveResponse,
+    IAccountRemovePayload,
+    { state: RootState }
+>(
     "walletsStore/removeAccount",
     async (
         { walletId, accountId }: IAccountRemovePayload,
-        { rejectWithValue },
+        { getState, rejectWithValue },
     ) => {
         try {
             await SdkWalletService.removeAccount(walletId, accountId);
 
-            return { walletId, accountId };
+            const { wallets, selectedAccountId } = getState().walletsStore;
+
+            const wallet: IWalletMeta | undefined = wallets.find(
+                (walletMeta: IWalletMeta) => walletMeta.id === walletId,
+            );
+
+            if (!wallet) {
+                return { walletId, accountId, selectedAccountId };
+            }
+
+            if (selectedAccountId !== accountId) {
+                return { walletId, accountId, selectedAccountId };
+            }
+
+            const nextSelectedAccountId: string | null =
+                wallet.accounts.find(
+                    (accountMeta: IAccountMeta) => accountMeta.id !== accountId,
+                )?.id ?? null;
+
+            if (nextSelectedAccountId) {
+                WalletPreferencesStorage.setSelectedAccountId(
+                    wallet.signerId,
+                    nextSelectedAccountId,
+                );
+
+                return {
+                    walletId,
+                    accountId,
+                    selectedAccountId: nextSelectedAccountId,
+                };
+            }
+
+            WalletPreferencesStorage.removeSigner(wallet.signerId);
+
+            return {
+                walletId,
+                accountId,
+                selectedAccountId: nextSelectedAccountId,
+            };
         } catch (error) {
             return rejectWithValue(error);
         }
@@ -136,7 +218,7 @@ export const updateAccountName = createAsyncThunk<
                 );
 
             if (!targetAccount) {
-                rejectWithValue(
+                return rejectWithValue(
                     "walletsStoreSlice.updateAccountName: Incorrect account id",
                 );
             }

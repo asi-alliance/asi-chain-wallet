@@ -1,7 +1,9 @@
 import { SecureStorage } from "services/secureStorage";
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import {
     Account,
     IAccountMeta,
+    IActiveWalletSession,
     ILockedWalletMeta,
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
@@ -122,12 +124,43 @@ export const lockOtherWallets = (
 
 export const applyActiveWalletSession = (
     state: WalletStoreState,
-    wallet: IUnlockedWalletMeta,
+    { wallet, selectedAccountId }: IActiveWalletSession,
 ): void => {
     addWalletToWalletsStore(state.wallets, wallet);
     lockOtherWallets(state.wallets, wallet.signerId);
-    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
+    state.selectedAccountId = selectedAccountId;
 };
+
+const restoreSelectedAccountId = (
+    wallet: IUnlockedWalletMeta,
+): string | null => {
+    const storedAccountId: string | null =
+        WalletPreferencesStorage.getSelectedAccountId(wallet.signerId);
+
+    const selectedAccountId: string | null =
+        wallet.accounts.find(
+            (accountMeta: IUnlockedAccountMeta) =>
+                accountMeta.id === storedAccountId,
+        )?.id ??
+        wallet.accounts[0]?.id ??
+        null;
+
+    if (selectedAccountId && selectedAccountId !== storedAccountId) {
+        WalletPreferencesStorage.setSelectedAccountId(
+            wallet.signerId,
+            selectedAccountId,
+        );
+    }
+
+    return selectedAccountId;
+};
+
+export const toActiveWalletSession = (
+    wallet: IUnlockedWalletMeta,
+): IActiveWalletSession => ({
+    wallet,
+    selectedAccountId: restoreSelectedAccountId(wallet),
+});
 
 export const isPredefinedNetwork = (networkId: string): boolean => {
     return NETWORKS.some((network: Network) => network.id === networkId);
@@ -195,18 +228,6 @@ export const filterAccountsForNetwork = (
     }
 
     return accounts.filter((account) => account.networkId === networkId);
-};
-
-export const persistSelectedAccountId = (accountId: string | null) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
-    }
-
-    if (accountId) {
-        localStorage.setItem("selectedAccountId", accountId);
-    } else {
-        localStorage.removeItem("selectedAccountId");
-    }
 };
 
 export const loadNetworks = (accountId?: string | null): Network[] => {

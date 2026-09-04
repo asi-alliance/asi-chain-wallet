@@ -1,4 +1,4 @@
-import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSelector, createSlice } from "@reduxjs/toolkit";
 import {
     WalletStoreState,
     IWalletMeta,
@@ -11,6 +11,7 @@ import {
     loadWalletsFromStorage,
     removeAccount,
     removeWallet,
+    selectAccount,
     selectNetwork,
     sendTransaction,
     updateAccountName,
@@ -18,8 +19,6 @@ import {
 import {
     applyActiveWalletSession,
     getUnlockedAccountFromWalletsMeta,
-    getUnlockedWalletAndAccountFromWalletsMeta,
-    persistSelectedAccountId,
     toLockedWalletMeta,
 } from "./helpers";
 import { walletsApi } from "./api";
@@ -50,24 +49,6 @@ const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
-        selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
-                state.wallets,
-                action.payload,
-            );
-
-            if (!walletAndAccount) {
-                console.error(
-                    "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
-                );
-
-                return;
-            }
-
-            state.selectedAccountId = walletAndAccount.account.id;
-
-            persistSelectedAccountId(walletAndAccount.account.id);
-        },
         //TODO: Updated Custom Networks CRUD operations after SDK feature updates
         // updateNetwork: (state, action: PayloadAction<Network>) => {
         //     const networkToUpdate = action.payload;
@@ -197,6 +178,9 @@ const walletsStoreSlice = createSlice({
             .addCase(selectNetwork.fulfilled, (state, action) => {
                 state.selectedNetwork = action.payload;
             })
+            .addCase(selectAccount.fulfilled, (state, action) => {
+                state.selectedAccountId = action.payload;
+            })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { removedWalletId, removedSignerId } = action.payload;
 
@@ -217,7 +201,8 @@ const walletsStoreSlice = createSlice({
                 state.selectedAccountId = state.wallets[0].accounts[0].id;
             })
             .addCase(removeAccount.fulfilled, (state, action) => {
-                const { walletId, accountId } = action.payload;
+                const { walletId, accountId, selectedAccountId } =
+                    action.payload;
 
                 const wallet = state.wallets.find(
                     (walletMeta) => walletMeta.id === walletId,
@@ -233,9 +218,7 @@ const walletsStoreSlice = createSlice({
                     (accountMeta) => accountMeta.id !== accountId,
                 );
 
-                if (state.selectedAccountId === accountId) {
-                    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
-                }
+                state.selectedAccountId = selectedAccountId;
             })
             .addCase(updateAccountName.pending, (state) => {
                 state.isLoading = true;
@@ -279,8 +262,7 @@ const walletsStoreSlice = createSlice({
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
-                applyActiveWalletSession(state, action.payload.wallet);
-                state.selectedAccountId = action.payload.accountId;
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
@@ -358,12 +340,12 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
 
-export const {
-    selectAccount,
-    // updateNetwork,
-    // addNetwork,
-    // removeNetwork,
-    // loadNetworksFromStorage,
-} = walletsStoreSlice.actions;
+//TODO: Restore custom networks actions after SDK feature updates
+// export const {
+//     updateNetwork,
+//     addNetwork,
+//     removeNetwork,
+//     loadNetworksFromStorage,
+// } = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

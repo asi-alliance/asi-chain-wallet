@@ -2,11 +2,11 @@ import React, { CSSProperties, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import {
-    selectAccount,
     selectAccounts,
     selectSelectedAccountId,
     selectSelectedNetworkId,
 } from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
 import { useIsNetworkBusy } from "sdk";
