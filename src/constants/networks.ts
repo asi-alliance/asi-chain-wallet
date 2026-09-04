@@ -180,8 +180,7 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
             issues.push({
                 level: "warning",
                 networkId,
-                message:
-                    "ReadOnlyURL is missing: reads will go to the validator",
+                message: "ReadOnlyURL is missing: reads is unavailable",
             });
         }
 
@@ -211,11 +210,16 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         });
     });
 
-    if (!networks.length) {
+    const hasCompleteNetwork = networks.some(
+        (network: Network) =>
+            network.validatorUrl && network.observerUrl && network.indexerUrl,
+    );
+
+    if (!hasCompleteNetwork) {
         issues.push({
             level: "error",
             message:
-                "NETWORKS contains no usable network: every entry needs a valid http(s) ValidatorURL",
+                "NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
         });
     }
 

@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { SecureStorage } from "services/secureStorage";
-import { store } from "store";
 
 const root = ReactDOM.createRoot(
     document.getElementById("root") as HTMLElement,
