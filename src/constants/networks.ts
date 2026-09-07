@@ -9,10 +9,7 @@ import { WalletPreferencesStorage } from "services/walletPreferences";
 import { Network } from "types/wallet";
 import { isNotEmptyPlainObject } from "utils/guards";
 
-type TNetworkEnvEntry = Partial<Record<keyof INetworkEndpoints, string>> & {
-    name?: string;
-    nodeApiProfile?: string;
-};
+type TNetworkEnvEntry = Record<string, unknown>;
 
 export interface INetworksEnvIssue {
     level: "error" | "warning";
@@ -56,13 +53,38 @@ const validateUrl = (url: string): string | null => {
     return null;
 };
 
+const readEntryString = (
+    entry: TNetworkEnvEntry,
+    field: string,
+    networkId: string,
+    issues: INetworksEnvIssue[],
+): string | null => {
+    const value: unknown = entry[field];
+
+    if (value === undefined || value === null) {
+        return "";
+    }
+
+    if (typeof value !== "string") {
+        issues.push({
+            level: "warning",
+            networkId,
+            message: `${field} must be a string and was ignored: got ${typeof value}`,
+        });
+
+        return null;
+    }
+
+    return value.trim();
+};
+
 const readNetworkUrl = (
     entry: TNetworkEnvEntry,
     field: keyof INetworkEndpoints,
     networkId: string,
     issues: INetworksEnvIssue[],
 ): string => {
-    const url = entry[field]?.trim() ?? "";
+    const url = readEntryString(entry, field, networkId, issues);
 
     if (!url) {
         return "";
@@ -88,7 +110,11 @@ const readNodeApiProfile = (
     networkId: string,
     issues: INetworksEnvIssue[],
 ): NodeApiProfile => {
-    const profile = entry.nodeApiProfile?.trim() ?? "";
+    const profile = readEntryString(entry, "nodeApiProfile", networkId, issues);
+
+    if (profile === null) {
+        return DEFAULT_NODE_API_PROFILE;
+    }
 
     if (!profile) {
         issues.push({
@@ -139,7 +165,7 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         return { networks: [], issues };
     }
 
-    if (!isNotEmptyPlainObject<TNetworkEnvEntry>(parsedEnv)) {
+    if (!isNotEmptyPlainObject(parsedEnv)) {
         issues.push({
             level: "error",
             message:
@@ -152,11 +178,12 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
     const networks: Network[] = [];
 
     Object.entries(parsedEnv).forEach(([networkId, entry]) => {
-        if (!entry) {
+        if (!isNotEmptyPlainObject(entry)) {
             issues.push({
                 level: "warning",
                 networkId,
-                message: "skipped: configuration is empty",
+                message:
+                    "skipped: configuration must be a non-empty JSON object",
             });
 
             return;
@@ -212,7 +239,8 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
 
         networks.push({
             id: networkId,
-            name: entry.name?.trim() || networkId,
+            name:
+                readEntryString(entry, "name", networkId, issues) || networkId,
             validatorUrl,
             observerUrl,
             indexerUrl,
