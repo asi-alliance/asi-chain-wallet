@@ -1,6 +1,8 @@
 import { getTokenDisplayName } from "../constants/token";
 import { getGasFeeAsNumber } from "../constants/gas";
 
+export const BALANCE_PLACEHOLDER = "--";
+
 export const getMaxSendableAmount = (balance: string): number => {
     const balanceNum = parseFloat(balance);
 

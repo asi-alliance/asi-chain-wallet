@@ -35,6 +35,7 @@ import {
 import { SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "../../constants/token";
 import { generateRandomGasFee } from "../../constants/gas";
+import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
     getMaxSendableAmount,
@@ -51,8 +52,6 @@ import {
     QRIcon,
     VectorIcon,
 } from "components/Icons";
-
-const BALANCE_POLLING_INTERVAL_MS = 30000;
 
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
@@ -268,7 +267,7 @@ export const Send: React.FC = () => {
         selectedAccountId
             ? { accountId: selectedAccountId, networkId }
             : skipToken,
-        { pollingInterval: BALANCE_POLLING_INTERVAL_MS },
+        { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
 
     const balance = currentBalance ?? "0";

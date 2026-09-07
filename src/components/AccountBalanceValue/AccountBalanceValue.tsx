@@ -1,13 +1,16 @@
 import { ReactElement } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { formatBalanceCompact } from "utils/balanceUtils";
+import { BALANCE_PLACEHOLDER, formatBalanceCompact } from "utils/balanceUtils";
 import { selectSelectedNetworkId } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 
-const LoadingSpinner = styled.div`
-    width: 12px;
-    height: 12px;
+const LoadingSpinner = styled.span`
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    vertical-align: middle;
     border: 1px solid ${({ theme }) => theme.primary};
     border-top-color: transparent;
     border-radius: 50%;
@@ -28,14 +31,17 @@ export const AccountBalanceValue = ({
     accountId,
 }: IAccountBalanceValueProps): ReactElement => {
     const networkId = useSelector(selectSelectedNetworkId);
-    const { data: balance, isFetching } = useGetBalanceQuery({
+    const { currentData: balance, isFetching } = useGetBalanceQuery({
         accountId,
         networkId,
     });
 
-    if (isFetching) {
-        return <LoadingSpinner />;
-    }
-
-    return <>{formatBalanceCompact(balance ?? "0")}</>;
+    return (
+        <>
+            {isFetching && <LoadingSpinner />}
+            {balance === undefined
+                ? BALANCE_PLACEHOLDER
+                : formatBalanceCompact(balance)}
+        </>
+    );
 };

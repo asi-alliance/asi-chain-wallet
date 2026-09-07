@@ -2,10 +2,10 @@ import { CSSProperties, ReactElement } from "react";
 import styled from "styled-components";
 import { Button } from "components/Button";
 import { ReloadIcon } from "components/Icons";
-import { formatBalanceCard } from "utils/balanceUtils";
+import { BALANCE_PLACEHOLDER, formatBalanceCard } from "utils/balanceUtils";
 
 interface IAccountBalanceProps {
-    balance: string;
+    balance?: string;
     loading?: boolean;
     onRefresh?: () => void;
     isSelected?: boolean;
@@ -60,14 +60,14 @@ export const AccountBalance = ({
     style,
     refreshButtonId,
 }: IAccountBalanceProps): ReactElement => {
-    const { amount, currency } = formatBalanceCard(balance);
+    const { amount, currency } = formatBalanceCard(balance ?? "0");
 
     return (
         <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
                     <AccountBalanceBlock $isSelected={isSelected}>
-                        {amount}
+                        {balance === undefined ? BALANCE_PLACEHOLDER : amount}
                     </AccountBalanceBlock>
                     <AccountCurrency $isSelected={isSelected}>
                         {currency}
