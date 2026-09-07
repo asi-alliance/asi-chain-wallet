@@ -17,6 +17,7 @@ import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { walletsApi, WalletsApiTags } from "./api";
 import {
     getUnlockedAccountFromWalletsMeta,
@@ -43,7 +44,15 @@ export const selectNetwork = createAsyncThunk<
 >(
     "wallets-store/selectNetwork",
     (networkId: string, { getState, rejectWithValue }) => {
-        const { networks, selectedNetwork } = getState().walletsStore;
+        const state: RootState = getState();
+
+        if (selectIsNetworkOperationPending(state)) {
+            return rejectWithValue(
+                "walletsStoreSlice.selectNetwork: Network cannot be changed while an operation is awaiting confirmation",
+            );
+        }
+
+        const { networks, selectedNetwork } = state.walletsStore;
 
         if (selectedNetwork.id === networkId) {
             return rejectWithValue(

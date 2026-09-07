@@ -8,6 +8,7 @@ import {
 } from "store/WalletsStore";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
 import { useIsNetworkBusy } from "sdk";
 
@@ -27,6 +28,9 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const networkId = useSelector(selectSelectedNetworkId);
     const isNetworkBusy = useIsNetworkBusy(networkId);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
 
     const accountViews: AccountView[] = useMemo(
         () =>
@@ -60,7 +64,7 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
             selectedId={selectedAccountId ?? undefined}
             onSelect={handleSelect}
             onOpen={refreshBalances}
-            disabled={isNetworkBusy}
+            disabled={isNetworkBusy || isNetworkOperationPending}
             {...props}
         />
     );

@@ -10,6 +10,7 @@ import {
     selectSelectedAccountId,
 } from "store/WalletsStore";
 import { selectNetwork } from "store/WalletsStore/thunks";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
@@ -54,6 +55,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         (state: RootState) => state.auth.isAuthenticated,
     );
     const accounts = useSelector(selectAccounts);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -178,6 +182,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 lastRefresh={lastRefresh}
                 selectedNetwork={selectedNetwork}
                 networks={networks}
+                isNetworkChangeLocked={isNetworkOperationPending}
                 onNetworkChange={handleNetworkChange}
             />
 

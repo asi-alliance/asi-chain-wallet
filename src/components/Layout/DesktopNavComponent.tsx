@@ -80,6 +80,9 @@ const RightSection = styled.div`
     }
 `;
 
+const NETWORK_CHANGE_LOCKED_TITLE =
+    "Finish or cancel the pending operation to change the network";
+
 const NetworkSelector = styled.select`
     padding: 6px;
     border: none;
@@ -182,6 +185,7 @@ interface DesktopNavComponentProps {
     lastRefresh: Date;
     selectedNetwork: any;
     networks: Network[];
+    isNetworkChangeLocked: boolean;
     onNetworkChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
@@ -191,6 +195,7 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
     lastRefresh,
     selectedNetwork,
     networks,
+    isNetworkChangeLocked,
     onNetworkChange,
 }) => {
     const navigate = useNavigate();
@@ -227,6 +232,12 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                 <NetworkSelector
                     id="mobile-header-network-selector"
                     value={selectedNetwork.id}
+                    disabled={isNetworkChangeLocked}
+                    title={
+                        isNetworkChangeLocked
+                            ? NETWORK_CHANGE_LOCKED_TITLE
+                            : undefined
+                    }
                     onChange={onNetworkChange}
                 >
                     {networks.map((network) => (

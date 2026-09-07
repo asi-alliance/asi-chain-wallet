@@ -19,6 +19,10 @@ import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
+    networkOperationFinished,
+    networkOperationStarted,
+} from "store/networkOperationSlice";
+import {
     Card,
     CardHeader,
     CardTitle,
@@ -54,6 +58,9 @@ const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
 
 const TRANSACTION_FAILED_ERROR = "Transaction failed on chain";
+
+const NETWORK_CHANGED_ERROR =
+    "Network changed while the transfer was awaiting confirmation. Check the details and send again.";
 
 interface IPendingTransfer {
     walletId: string;
@@ -298,6 +305,18 @@ export const Send: React.FC = () => {
         deployWatch?.status === DeployWatchStatus.FAILED
             ? (deployWatch.error ?? TRANSACTION_FAILED_ERROR)
             : "";
+
+    useEffect(() => {
+        if (!pendingTransfer) {
+            return;
+        }
+
+        dispatch(networkOperationStarted());
+
+        return () => {
+            dispatch(networkOperationFinished());
+        };
+    }, [dispatch, pendingTransfer]);
 
     const amountError = isBalanceReady
         ? getAmountValidationError(amount, balance)
@@ -583,6 +602,16 @@ export const Send: React.FC = () => {
             return;
         }
 
+        if (pendingTransfer.networkId !== networkId) {
+            setShowConfirmation(false);
+            setShowPasswordModal(false);
+            setPasswordModalError("");
+            setPendingTransfer(null);
+            setValidationError(NETWORK_CHANGED_ERROR);
+
+            return;
+        }
+
         clearDeployWatch();
         setPasswordModalError("");
 
@@ -629,6 +658,7 @@ export const Send: React.FC = () => {
                 return;
             }
 
+            setPendingTransfer(null);
             setValidationError(
                 sendError.message || "Failed to send transaction",
             );
@@ -640,6 +670,7 @@ export const Send: React.FC = () => {
                     "Failed to send transaction. Check your password and try again.",
                 );
             } else {
+                setPendingTransfer(null);
                 setValidationError("Failed to send transaction");
             }
         } finally {
