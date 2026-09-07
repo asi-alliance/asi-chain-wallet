@@ -31,11 +31,23 @@ export interface Network {
     nodeApiProfile: NodeApiProfile;
 }
 
+export enum DeployWatchStatus {
+    PENDING = "pending",
+    CONFIRMED = "confirmed",
+    FAILED = "failed",
+}
+
+export interface IDeployWatchState {
+    status: DeployWatchStatus;
+    error?: string;
+}
+
 export interface WalletStoreState {
     wallets: IWalletMeta[];
     selectedAccountId: string | null;
     networks: Network[];
     selectedNetwork: Network;
+    deployWatches: Record<string, IDeployWatchState>;
     isLoading: boolean;
     isInitialLoadComplete: boolean;
 }

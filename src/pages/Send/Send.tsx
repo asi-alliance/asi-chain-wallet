@@ -4,20 +4,18 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
 import { Address, CustomErrorCode } from "@asichain/asi-wallet-sdk";
+import { DeployWatchStatus } from "types/wallet";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
+    deployWatchCleared,
     selectAccountById,
+    selectDeployWatch,
     selectSelectedAccountId,
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import {
-    walletsApi,
-    useGetBalanceQuery,
-    useLazyGetBalanceQuery,
-    IAccountQueryArgs,
-} from "store/WalletsStore/api";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
@@ -32,7 +30,7 @@ import {
 } from "components";
 import { SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "../../constants/token";
-import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
+import { generateRandomGasFee } from "../../constants/gas";
 import {
     getAmountValidationError,
     getMaxSendableAmount,
@@ -55,6 +53,8 @@ const BALANCE_POLLING_INTERVAL_MS = 30000;
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
 
+const TRANSACTION_FAILED_ERROR = "Transaction failed on chain";
+
 interface IPendingTransfer {
     walletId: string;
     accountId: string;
@@ -63,7 +63,6 @@ interface IPendingTransfer {
     networkId: string;
     to: Address;
     amount: string;
-    balanceBeforeSend: string;
 }
 
 const SendContainer = styled.div`
@@ -267,7 +266,6 @@ export const Send: React.FC = () => {
 
     const balance = currentBalance ?? "0";
     const isBalanceReady = currentBalance !== undefined && !isBalanceError;
-    const [fetchSenderBalance] = useLazyGetBalanceQuery();
     const isLoading = useSelector(
         (state: RootState) => state.walletsStore.isLoading,
     );
@@ -277,7 +275,6 @@ export const Send: React.FC = () => {
     const [txHash, setTxHash] = useState("");
     const [validationError, setValidationError] = useState("");
     const [addressError, setAddressError] = useState("");
-    const [isWaitingForBalance, setIsWaitingForBalance] = useState(false);
     const [showQRScanner, setShowQRScanner] = useState(false);
     const [scanError, setScanError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -288,6 +285,19 @@ export const Send: React.FC = () => {
     const [passwordModalLoading, setPasswordModalLoading] = useState(false);
     const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
+
+    const deployWatch = useSelector((state: RootState) =>
+        txHash ? selectDeployWatch(state, txHash) : null,
+    );
+
+    const isWaitingForConfirmation =
+        deployWatch?.status === DeployWatchStatus.PENDING;
+    const isTransactionConfirmed =
+        deployWatch?.status === DeployWatchStatus.CONFIRMED;
+    const transactionError =
+        deployWatch?.status === DeployWatchStatus.FAILED
+            ? (deployWatch.error ?? TRANSACTION_FAILED_ERROR)
+            : "";
 
     const amountError = isBalanceReady
         ? getAmountValidationError(amount, balance)
@@ -329,16 +339,6 @@ export const Send: React.FC = () => {
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const qrScannerRef = useRef<QrScanner | null>(null);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    useEffect(
-        () => () => {
-            if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
-            }
-        },
-        [],
-    );
 
     // Initialize QR scanner when modal opens
     useEffect(() => {
@@ -560,7 +560,6 @@ export const Send: React.FC = () => {
             networkId,
             to: recipient.trim() as Address,
             amount,
-            balanceBeforeSend: balance,
         });
 
         if (SdkWalletService.isWalletUnlocked(walletId)) {
@@ -570,70 +569,13 @@ export const Send: React.FC = () => {
         }
     };
 
-    const stopBalancePolling = (): void => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
+    const clearDeployWatch = (): void => {
+        if (!txHash) {
+            return;
         }
 
-        setIsWaitingForBalance(false);
-    };
-
-    const startBalancePolling = (transfer: IPendingTransfer): void => {
-        let pollCount = 0;
-        const maxPolls = 30;
-
-        const senderBalanceArgs: IAccountQueryArgs = {
-            accountId: transfer.accountId,
-            networkId: transfer.networkId,
-        };
-
-        pollIntervalRef.current = setInterval(async () => {
-            pollCount++;
-
-            try {
-                const { data: newBalance, isError } =
-                    await fetchSenderBalance(senderBalanceArgs);
-
-                if (isError) {
-                    const sentAmount = parseFloat(transfer.amount);
-                    const fee = getGasFeeAsNumber();
-                    const expectedNewBalance =
-                        parseFloat(transfer.balanceBeforeSend) -
-                        sentAmount -
-                        fee;
-
-                    if (expectedNewBalance >= 0) {
-                        dispatch(
-                            walletsApi.util.upsertQueryData(
-                                "getBalance",
-                                senderBalanceArgs,
-                                expectedNewBalance.toString(),
-                            ),
-                        );
-                    }
-
-                    if (pollCount >= maxPolls) {
-                        stopBalancePolling();
-                    }
-
-                    return;
-                }
-
-                if (
-                    newBalance !== transfer.balanceBeforeSend ||
-                    pollCount >= maxPolls
-                ) {
-                    stopBalancePolling();
-                }
-            } catch (error) {
-                console.error("[Send] Error during balance polling:", error);
-
-                if (pollCount >= maxPolls) {
-                    stopBalancePolling();
-                }
-            }
-        }, 2000);
+        dispatch(deployWatchCleared(txHash));
+        setTxHash("");
     };
 
     const executeSend = async (password?: string): Promise<void> => {
@@ -641,8 +583,7 @@ export const Send: React.FC = () => {
             return;
         }
 
-        setTxHash("");
-        setIsWaitingForBalance(false);
+        clearDeployWatch();
         setPasswordModalError("");
 
         if (password !== undefined) {
@@ -666,11 +607,9 @@ export const Send: React.FC = () => {
                 setPendingTransfer(null);
 
                 setTxHash(resultAction.payload.deployId);
-                setIsWaitingForBalance(true);
                 setRecipient("");
                 setAmount("");
 
-                startBalancePolling(pendingTransfer);
                 return;
             }
 
@@ -731,8 +670,7 @@ export const Send: React.FC = () => {
         setAmount("");
         setValidationError("");
         setAddressError("");
-        setTxHash("");
-        setIsWaitingForBalance(false);
+        clearDeployWatch();
         setScanError("");
         setCopied(false);
         setEstimatedFee(generateRandomGasFee());
@@ -760,7 +698,7 @@ export const Send: React.FC = () => {
                     <CardTitle>Send ASI</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {txHash && !isWaitingForBalance && (
+                    {txHash && isTransactionConfirmed && (
                         <SuccessMessage>
                             <div
                                 style={{
@@ -805,7 +743,7 @@ export const Send: React.FC = () => {
                         </SuccessMessage>
                     )}
 
-                    {txHash && isWaitingForBalance && (
+                    {txHash && isWaitingForConfirmation && (
                         <LoadingMessage>
                             <div
                                 style={{
@@ -818,8 +756,8 @@ export const Send: React.FC = () => {
                             >
                                 <div style={{ flex: "1", minWidth: "200px" }}>
                                     <span className="spinner"></span>
-                                    Transaction sent! Waiting for balance
-                                    update...
+                                    Transaction sent! Waiting for
+                                    confirmation...
                                 </div>
                                 <Button
                                     variant="secondary"
@@ -857,6 +795,22 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
+                    {txHash && transactionError && (
+                        <ErrorMessage>
+                            <div>Transaction failed: {transactionError}</div>
+                            <div
+                                style={{
+                                    fontSize: "12px",
+                                    opacity: 0.8,
+                                    marginTop: "8px",
+                                    wordBreak: "break-all",
+                                }}
+                            >
+                                Deploy ID: {txHash}
+                            </div>
+                        </ErrorMessage>
+                    )}
+
                     {displayedError && (
                         <ErrorMessage>{displayedError}</ErrorMessage>
                     )}
@@ -864,7 +818,7 @@ export const Send: React.FC = () => {
                     <AccountSelectorWithMarginBottom
                         fullWidth
                         labelMode={AccountSelectorLabelMods.FULL}
-                        disabled={!!pendingTransfer || isWaitingForBalance}
+                        disabled={!!pendingTransfer || isWaitingForConfirmation}
                     />
 
                     <BalanceInfo className="balance-info">

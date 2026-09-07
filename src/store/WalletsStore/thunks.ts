@@ -1,4 +1,8 @@
-import { IAccountDefaultUpdateFieldsPayload } from ".";
+import {
+    deployConfirmed,
+    deployFailed,
+    IAccountDefaultUpdateFieldsPayload,
+} from ".";
 import {
     Account,
     IAccountMeta,
@@ -8,7 +12,7 @@ import {
 } from "types/wallet";
 import { SecureStorage } from "services/secureStorage";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { Address } from "@asichain/asi-wallet-sdk";
+import { Address, getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
@@ -18,6 +22,9 @@ import {
     getUnlockedAccountFromWalletsMeta,
     getUnlockedWalletAndAccountFromWalletsMeta,
 } from "./helpers";
+
+const FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE: string =
+    "Transaction failed on chain";
 
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
@@ -281,8 +288,22 @@ export const sendTransaction = createAsyncThunk<
         };
 
         subscribe({
-            onConfirmed: invalidateAccountData,
-            onError: invalidateAccountData,
+            onConfirmed: () => {
+                dispatch(deployConfirmed(deployId));
+                invalidateAccountData();
+            },
+            onError: (error: Error) => {
+                dispatch(
+                    deployFailed({
+                        deployId,
+                        error: getErrorMessage(
+                            error,
+                            FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE,
+                        ),
+                    }),
+                );
+                invalidateAccountData();
+            },
         });
 
         dispatch(

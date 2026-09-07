@@ -1,9 +1,11 @@
-import { createSelector, createSlice } from "@reduxjs/toolkit";
+import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
     WalletStoreState,
     IWalletMeta,
     IAccountMeta,
+    IDeployWatchState,
     IUnlockedWalletMeta,
+    DeployWatchStatus,
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
@@ -36,6 +38,7 @@ const initialState: WalletStoreState = {
     selectedAccountId: null,
     networks: [...NETWORKS],
     selectedNetwork: getInitialNetwork(),
+    deployWatches: {},
     isLoading: false,
     isInitialLoadComplete: false,
 };
@@ -45,10 +48,31 @@ export interface IAccountDefaultUpdateFieldsPayload {
     accountId: string;
 }
 
+export interface IDeployFailedPayload {
+    deployId: string;
+    error: string;
+}
+
 const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
+        deployConfirmed: (state, action: PayloadAction<string>) => {
+            state.deployWatches[action.payload] = {
+                status: DeployWatchStatus.CONFIRMED,
+            };
+        },
+        deployFailed: (state, action: PayloadAction<IDeployFailedPayload>) => {
+            const { deployId, error } = action.payload;
+
+            state.deployWatches[deployId] = {
+                status: DeployWatchStatus.FAILED,
+                error,
+            };
+        },
+        deployWatchCleared: (state, action: PayloadAction<string>) => {
+            delete state.deployWatches[action.payload];
+        },
         //TODO: Updated Custom Networks CRUD operations after SDK feature updates
         // updateNetwork: (state, action: PayloadAction<Network>) => {
         //     const networkToUpdate = action.payload;
@@ -246,8 +270,11 @@ const walletsStoreSlice = createSlice({
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(sendTransaction.fulfilled, (state) => {
+            .addCase(sendTransaction.fulfilled, (state, action) => {
                 state.isLoading = false;
+                state.deployWatches[action.payload.deployId] = {
+                    status: DeployWatchStatus.PENDING,
+                };
             })
             .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
@@ -339,6 +366,14 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
     state.walletsStore.wallets.some(
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
+export const selectDeployWatch = (
+    state: RootState,
+    deployId: string,
+): IDeployWatchState | null =>
+    state.walletsStore.deployWatches[deployId] ?? null;
+
+export const { deployConfirmed, deployFailed, deployWatchCleared } =
+    walletsStoreSlice.actions;
 
 //TODO: Restore custom networks actions after SDK feature updates
 // export const {
