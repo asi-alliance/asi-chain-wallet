@@ -342,17 +342,6 @@ export const History: React.FC = () => {
         return result;
     }, [transactions, selectedAccount, filter]);
 
-    //TODO: Restore transaction export once the SDK exposes a history download flow
-    const handleExportJSON = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("json", visibleTransactions, selectedAccount.address);
-    };
-
-    const handleExportCSV = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("csv", visibleTransactions, selectedAccount.address);
-    };
-
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
         setFilter((prev) => ({
             ...prev,
@@ -624,17 +613,20 @@ export const History: React.FC = () => {
                                     </TableBody>
                                 </Table>
                             </TransactionTable>
+                            {/* TODO: Restore transaction export once the SDK exposes a history download flow */}
                             <ExportButtonsWrapper>
                                 <ExportButton
+                                    id="history-export-csv-button"
                                     variant="secondary"
-                                    onClick={handleExportCSV}
+                                    disabled
                                 >
                                     <h3>Export CSV</h3>
                                     <DownloadIcon size={24} />
                                 </ExportButton>
                                 <ExportButton
+                                    id="history-export-json-button"
                                     variant="secondary"
-                                    onClick={handleExportJSON}
+                                    disabled
                                 >
                                     <h3>Export JSON</h3>
                                     <DownloadIcon size={24} />
