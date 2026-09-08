@@ -4,12 +4,16 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
+    IImportWalletKeyfileOptions,
+    IKeyfileAccountsImportResult,
+    IKeyfileImportPreview,
     INetworkConfig,
     INetworkRecord,
     INetworkUpdate,
     IReservedOperationResult,
     ITransactionsHistoryOptions,
     ITransferRequest,
+    IWalletKeyfile,
     IWalletMetadata,
     Mnemonic,
     MnemonicStrength,
@@ -50,7 +54,18 @@ export class SdkWalletService {
         };
     }
 
-    static mapNetwork<T extends boolean>(
+    private static toClosedWalletMeta(
+        publicWalletMeta: IWalletMetadata,
+    ): IWalletMeta {
+        return {
+            signerId: publicWalletMeta.signerId,
+            type: publicWalletMeta.type,
+            isUnlocked: false,
+            accounts: publicWalletMeta.accounts,
+        };
+    }
+
+    private static mapNetwork<T extends boolean>(
         record: INetworkRecord & { isDefault: T },
     ): Omit<Network, "isDefault"> & { isDefault: T } {
         return {
@@ -210,14 +225,38 @@ export class SdkWalletService {
                     return SdkWalletService.mapWallet(unlockedWallet);
                 }
 
-                return {
-                    signerId: publicWalletMeta.signerId,
-                    type: publicWalletMeta.type,
-                    isUnlocked: false,
-                    accounts: publicWalletMeta.accounts,
-                };
+                return SdkWalletService.toClosedWalletMeta(publicWalletMeta);
             },
         );
+    }
+
+    static async getWalletMetaBySignerId(
+        signerId: string,
+    ): Promise<IWalletMeta> {
+        const walletManager = requireSdkClient().getWalletManager();
+
+        const openWallet: Wallet | null = walletManager.getBySignerId(signerId);
+
+        if (openWallet) {
+            return SdkWalletService.mapWallet(openWallet);
+        }
+
+        const publicWalletsMetadata: IWalletMetadata[] =
+            await walletManager.getPublicWalletsMetadata();
+
+        const publicWalletMeta: IWalletMetadata | undefined =
+            publicWalletsMetadata.find(
+                (walletMeta: IWalletMetadata) =>
+                    walletMeta.signerId === signerId,
+            );
+
+        if (!publicWalletMeta) {
+            throw new Error(
+                "SdkWalletService.getWalletMetaBySignerId: wallet not found",
+            );
+        }
+
+        return SdkWalletService.toClosedWalletMeta(publicWalletMeta);
     }
 
     static getUnlockedWallets(): IUnlockedWalletMeta[] {
@@ -361,6 +400,46 @@ export class SdkWalletService {
         return client.transfer(
             { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
             password,
+        );
+    }
+
+    static exportWalletKeyfile(
+        walletId: string,
+        password: string,
+    ): Promise<IWalletKeyfile> {
+        return requireSdkClient().exportWalletKeyfile(walletId, password);
+    }
+
+    static previewWalletKeyfileImport(
+        source: string,
+        password: string,
+    ): Promise<IKeyfileImportPreview> {
+        return requireSdkClient().previewWalletKeyfileImport(source, password);
+    }
+
+    static async importWalletKeyfile(
+        source: string,
+        password: string,
+        options?: IImportWalletKeyfileOptions,
+    ): Promise<IUnlockedWalletMeta> {
+        const wallet: Wallet = await requireSdkClient().importWalletKeyfile(
+            source,
+            password,
+            options,
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static importKeyfileAccounts(
+        source: string,
+        password: string,
+        options?: IImportWalletKeyfileOptions,
+    ): Promise<IKeyfileAccountsImportResult> {
+        return requireSdkClient().importKeyfileAccounts(
+            source,
+            password,
+            options,
         );
     }
 

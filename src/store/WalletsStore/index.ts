@@ -12,6 +12,7 @@ import {
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
+    importKeyfileAccounts,
     addCustomNetwork,
     IInitializeNetworksResponse,
     initializeNetworks,
@@ -27,6 +28,7 @@ import {
     updateCustomNetwork,
 } from "./thunks";
 import {
+    addWalletToWalletsStore,
     applyActiveWalletSession,
     getUnlockedAccountFromWalletsMeta,
     toLockedWalletMeta,
@@ -36,6 +38,7 @@ import {
     createHdWallet,
     deriveHdAccount,
     importHdWallet,
+    importKeyfileWallet,
     importPrivateKeyWallet,
     loginWithPassword,
     logout,
@@ -90,6 +93,9 @@ const walletsStoreSlice = createSlice({
             })
             .addCase(loadWalletsFromStorage.rejected, (state) => {
                 state.isInitialLoadComplete = true;
+            })
+            .addCase(importKeyfileAccounts.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
             })
             .addCase(selectAccount.fulfilled, (state, action) => {
                 state.selectedAccountId = action.payload;
@@ -258,6 +264,9 @@ const walletsStoreSlice = createSlice({
             .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
             })
+            .addCase(importKeyfileWallet.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload);
+            })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
             })
@@ -306,8 +315,7 @@ export const selectAccounts = createSelector(
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
-export const selectNetworks = (state: RootState) =>
-    state.walletsStore.networks;
+export const selectNetworks = (state: RootState) => state.walletsStore.networks;
 export const selectSelectedNetwork = (state: RootState) =>
     state.walletsStore.selectedNetwork;
 export const selectSelectedNetworkId = (state: RootState) =>

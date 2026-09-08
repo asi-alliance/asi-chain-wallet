@@ -40,6 +40,28 @@ export const loadWalletsFromStorage = createAsyncThunk(
     () => SdkWalletService.loadWallets(),
 );
 
+export interface IImportKeyfileAccountsPayload {
+    keyfile: string;
+    password: string;
+    accountIndexes?: number[];
+}
+
+export const importKeyfileAccounts = createAsyncThunk<
+    IWalletMeta,
+    IImportKeyfileAccountsPayload
+>(
+    "wallets-store/importKeyfileAccounts",
+    async ({ keyfile, password, accountIndexes }) => {
+        const { signerId } = await SdkWalletService.importKeyfileAccounts(
+            keyfile,
+            password,
+            accountIndexes ? { accountIndexes } : undefined,
+        );
+
+        return SdkWalletService.getWalletMetaBySignerId(signerId);
+    },
+);
+
 export interface IAccountRemovePayload {
     walletId: string;
     accountId: string;
