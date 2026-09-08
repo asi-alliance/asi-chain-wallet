@@ -4,6 +4,10 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
+    IDeployRequest,
+    IDeployWatchCallbacks,
+    IDeployWatchHandle,
+    IDeployWatchOptions,
     IReservedOperationResult,
     ITransactionsHistoryOptions,
     ITransferRequest,
@@ -280,6 +284,28 @@ export class SdkWalletService {
             { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
             password,
         );
+    }
+
+    static deploy(
+        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        password?: string,
+    ): Promise<IReservedOperationResult> {
+        return requireSdkClient().deploy(
+            { walletId, accountId, term, phloLimit },
+            password,
+        );
+    }
+
+    static exploreDeploy(term: string): Promise<unknown> {
+        return requireSdkClient().exploreDeploy(term);
+    }
+
+    static watchDeploy(
+        deployId: string,
+        callbacks?: IDeployWatchCallbacks,
+        options?: IDeployWatchOptions,
+    ): IDeployWatchHandle {
+        return requireSdkClient().watchDeploy(deployId, callbacks, options);
     }
 
     static async hasStoredWallets(): Promise<boolean> {

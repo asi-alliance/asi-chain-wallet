@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, CustomErrorCode } from "@asichain/asi-wallet-sdk";
+import { Address } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -30,7 +30,7 @@ import {
     TransactionConfirmationModal,
     PasswordModal,
 } from "components";
-import { SdkWalletService } from "sdk";
+import { isWalletLockedError, SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "../../constants/token";
 import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
 import addressValidation from "utils/AddressValidation";
@@ -561,10 +561,6 @@ export const Send: React.FC = () => {
     };
 
     const walletId = selectedWallet?.id;
-
-    const isWalletLockedError = (error: unknown): boolean =>
-        (error as { code?: string } | null)?.code ===
-        CustomErrorCode.WALLET_LOCKED;
 
     const handleSendClick = (): void => {
         if (!validateForm() || !selectedAccount) {

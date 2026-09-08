@@ -180,6 +180,51 @@ export const sendTransaction = createAsyncThunk<
     },
 );
 
+export interface IDeployContractPayload {
+    walletId: string;
+    accountId: string;
+    term: string;
+    phloLimit: number;
+    password?: string;
+}
+
+export const deployContract = createAsyncThunk<
+    { deployId: string },
+    IDeployContractPayload,
+    { state: RootState }
+>(
+    "wallets-store/deployContract",
+    async (
+        { walletId, accountId, term, phloLimit, password }: IDeployContractPayload,
+        { getState, dispatch },
+    ) => {
+        const deployerAccount: IUnlockedAccountMeta | null =
+            getUnlockedAccountFromWalletsMeta(
+                getState().walletsStore.wallets,
+                accountId,
+            );
+
+        if (!deployerAccount) {
+            throw new Error(
+                "walletsStoreSlice.deployContract: Incorrect account id",
+            );
+        }
+
+        const { deployId } = await SdkWalletService.deploy(
+            { walletId, accountId, term, phloLimit },
+            password,
+        );
+
+        dispatch(
+            walletsApi.util.invalidateTags([
+                { type: WalletsApiTags.HISTORY, id: accountId },
+            ]),
+        );
+
+        return { deployId };
+    },
+);
+
 export const bridgeLock = createAsyncThunk(
     "wallets-store/bridgeLock",
     async ({
