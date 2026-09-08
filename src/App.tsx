@@ -25,7 +25,6 @@ import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
 import { History } from "pages/History";
-import { useIdleTimer } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 //TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
 // import TransactionPollingService from "services/transactionPolling";
@@ -38,6 +37,7 @@ import {
     selectWalletsInitialLoadComplete,
 } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
+import { useAppDispatch } from "store/hooks";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -61,15 +61,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const AppContent: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-    const isInitialLoadComplete = useSelector(
-        selectWalletsInitialLoadComplete,
-    );
+    const isInitialLoadComplete = useSelector(selectWalletsInitialLoadComplete);
     const theme = darkMode ? darkTheme : lightTheme;
-
-    useIdleTimer();
 
     const loadWallets = async (): Promise<void> => {
         try {
@@ -245,7 +241,7 @@ const App: React.FC = () => {
                     v7_relativeSplatPath: true,
                 }}
             >
-                <QueryProvider> 
+                <QueryProvider>
                     <EvmProvider>
                         <SdkClientProvider>
                             <AppContent />

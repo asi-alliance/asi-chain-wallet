@@ -8,7 +8,9 @@ import {
     formatLockoutMessage,
 } from "services/loginRateLimit";
 import { RootState } from "store";
-import { IUnlockedWalletMeta } from "types/wallet";
+import { WalletPreferencesStorage } from "services/walletPreferences";
+import { toActiveWalletSession } from "store/WalletsStore/helpers";
+import { IActiveWalletSession } from "types/wallet";
 import { classifyLoginError, handleLoginOutcome } from "./helpers";
 
 type CreateHdWalletPayload = {
@@ -18,10 +20,12 @@ type CreateHdWalletPayload = {
 };
 
 export const createHdWallet = createAsyncThunk<
-    IUnlockedWalletMeta,
+    IActiveWalletSession,
     CreateHdWalletPayload
 >("auth/createHdWallet", async ({ name, mnemonic, password }) => {
-    return SdkWalletService.createHdWallet({ name, mnemonic, password });
+    return toActiveWalletSession(
+        await SdkWalletService.createHdWallet({ name, mnemonic, password }),
+    );
 });
 
 type ImportHdWalletPayload = {
@@ -31,10 +35,12 @@ type ImportHdWalletPayload = {
 };
 
 export const importHdWallet = createAsyncThunk<
-    IUnlockedWalletMeta,
+    IActiveWalletSession,
     ImportHdWalletPayload
 >("auth/importHdWallet", async ({ name, mnemonic, password }) => {
-    return SdkWalletService.createHdWallet({ name, mnemonic, password });
+    return toActiveWalletSession(
+        await SdkWalletService.createHdWallet({ name, mnemonic, password }),
+    );
 });
 
 type ImportPrivateKeyWalletPayload = {
@@ -44,21 +50,23 @@ type ImportPrivateKeyWalletPayload = {
 };
 
 export const importPrivateKeyWallet = createAsyncThunk<
-    IUnlockedWalletMeta,
+    IActiveWalletSession,
     ImportPrivateKeyWalletPayload
 >(
     "auth/importPrivateKeyWallet",
     async ({ name, privateKeyHex, password }) => {
-        return SdkWalletService.createPrivateKeyWallet({
-            name,
-            privateKeyHex,
-            password,
-        });
+        return toActiveWalletSession(
+            await SdkWalletService.createPrivateKeyWallet({
+                name,
+                privateKeyHex,
+                password,
+            }),
+        );
     },
 );
 
 export const deriveHdAccount = createAsyncThunk<
-    { wallet: IUnlockedWalletMeta; accountId: string },
+    IActiveWalletSession,
     { name: string; password: string },
     { state: RootState }
 >("auth/deriveHdAccount", async ({ name, password }, { getState }) => {
@@ -74,17 +82,21 @@ export const deriveHdAccount = createAsyncThunk<
         throw new Error("No active HD wallet to derive an account from");
     }
 
-    return SdkWalletService.deriveAccount({
+    const { wallet, accountId } = await SdkWalletService.deriveAccount({
         walletId: activeWallet.id,
         name,
         password,
     });
+
+    WalletPreferencesStorage.setSelectedAccountId(wallet.signerId, accountId);
+
+    return { wallet, selectedAccountId: accountId };
 });
 
 const LOCK_WAIT_THRESHOLD_MS = 500;
 
 export const loginWithPassword = createAsyncThunk<
-    IUnlockedWalletMeta,
+    IActiveWalletSession,
     { signerId: string; password: string }
 >("auth/loginWithPassword", async ({ signerId, password }) => {
     const loginType = LoginType.ByName;
@@ -130,7 +142,7 @@ export const loginWithPassword = createAsyncThunk<
 
         succeeded = true;
 
-        return unlockedWallet;
+        return toActiveWalletSession(unlockedWallet);
     } catch (err: unknown) {
         console.log("AuthSlice.loginWithPassword: ", err);
 
@@ -160,14 +172,16 @@ export interface IImportKeyfileWalletPayload {
 }
 
 export const importKeyfileWallet = createAsyncThunk<
-    IUnlockedWalletMeta,
+    IActiveWalletSession,
     IImportKeyfileWalletPayload
 >(
     "auth/importKeyfileWallet",
-    ({ keyfile, password, accountIndexes }: IImportKeyfileWalletPayload) =>
-        SdkWalletService.importWalletKeyfile(
-            keyfile,
-            password,
-            accountIndexes ? { accountIndexes } : undefined,
+    async ({ keyfile, password, accountIndexes }: IImportKeyfileWalletPayload) =>
+        toActiveWalletSession(
+            await SdkWalletService.importWalletKeyfile(
+                keyfile,
+                password,
+                accountIndexes ? { accountIndexes } : undefined,
+            ),
         ),
 );

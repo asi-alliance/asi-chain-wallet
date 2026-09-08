@@ -1,12 +1,10 @@
 import { Select } from "components/Select";
 import { ISelectOption, ISelectProps } from "components/Select/Select";
 import { CSSProperties, ReactElement, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import {
-    selectAccount,
-    selectAccounts,
-    selectSelectedAccountId,
-} from "store/WalletsStore";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import { selectAccounts, selectSelectedAccountId } from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
 import styled from "styled-components";
 import { IUnlockedAccountMeta } from "types/wallet";
 
@@ -44,7 +42,7 @@ export const AccountSelector = ({
     labelMode,
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
 

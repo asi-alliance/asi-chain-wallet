@@ -3,9 +3,8 @@ import CopyButton from "components/CopyButton";
 import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
 import { RemoveAccountButton } from "components/RemoveAccountButton";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import {
-    selectAccount,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
     selectWalletByAccountId,
@@ -15,6 +14,8 @@ import { IUnlockedAccountMeta } from "types/wallet";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { ReactElement } from "react";
 import { RootState } from "store";
+import { selectAccount } from "store/WalletsStore/thunks";
+import { useAppDispatch } from "store/hooks";
 
 interface IAccountCardProps {
     account: IUnlockedAccountMeta;
@@ -112,7 +113,7 @@ export const AccountCard = ({
     fullMode = true,
     className = "",
 }: IAccountCardProps): ReactElement => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const isUnlocked = useSelector((state: RootState) =>

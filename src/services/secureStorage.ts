@@ -4,25 +4,14 @@ import { SessionPersistence } from "./sessionPersistence";
 import {
     AccountsVault,
     fromStoredRecord,
-    WalletSettings,
     readFromLocalStorage,
 } from "./accountsVault";
 import { SessionStore } from "./sessionStore";
 import { GeneralKVStore } from "./generalKVStore";
-import {
-    runMigrations,
-    readLegacySettings,
-    DEFAULT_SETTINGS,
-} from "./storageMigration";
+import { runMigrations } from "./storageMigration";
 
 export type { SecureAccount } from "./accountsVault";
 
-export interface SecureStorageData {
-    accounts: ReturnType<typeof AccountsVault.getAll>;
-    settings: WalletSettings;
-}
-
-let settingsCache: WalletSettings = { ...DEFAULT_SETTINGS };
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 
@@ -41,7 +30,6 @@ export class SecureStorage {
 
             if (!adapter) {
                 // IDB unavailable: AccountsVault already seeded from localStorage at class load
-                settingsCache = readLegacySettings();
                 initialized = true;
                 return;
             }
@@ -51,21 +39,13 @@ export class SecureStorage {
 
             await runMigrations(adapter);
 
-            const [records, settingsRecord] = await Promise.all([
-                adapter.getAllAccounts(),
-                adapter.getSettings(),
-            ]);
+            const records = await adapter.getAllAccounts();
 
             AccountsVault.load(
                 records.length > 0
                     ? records.map(fromStoredRecord)
                     : readFromLocalStorage(),
             );
-            settingsCache = settingsRecord
-                ? {
-                      idleTimeout: settingsRecord.idleTimeout,
-                  }
-                : readLegacySettings();
 
             await SessionPersistence.restore(adapter);
             SessionPersistence.cleanupStale(adapter);
@@ -76,16 +56,12 @@ export class SecureStorage {
                 err,
             );
             // AccountsVault already seeded from localStorage at class load — no action needed
-            settingsCache = readLegacySettings();
             initialized = true;
         }
     }
 
     static async flush(): Promise<void> {
-        const adapter = StorageProvider.getAdapter();
-        if (!adapter) return;
         await AccountsVault.flush();
-        await adapter.putSettings({ id: "default", ...settingsCache });
     }
 
     // --- Accounts ---
@@ -259,33 +235,6 @@ export class SecureStorage {
     static hasSessionToken(): boolean {
         return SessionStore.hasToken();
     }
-    static updateLastActivity(): void {
-        SessionStore.updateLastActivity();
-    }
-    static getLastActivity(): number {
-        return SessionStore.getLastActivity();
-    }
-
-    // --- Settings ---
-
-    static getSettings(): WalletSettings {
-        return settingsCache;
-    }
-
-    static updateSettings(settings: Partial<WalletSettings>): void {
-        settingsCache = { ...settingsCache, ...settings };
-        const adapter = StorageProvider.getAdapter();
-        if (adapter) {
-            adapter
-                .putSettings({ id: "default", ...settingsCache })
-                .catch((err: unknown) => {
-                    console.error(
-                        "[SecureStorage] Failed to persist settings:",
-                        err,
-                    );
-                });
-        }
-    }
 
     // --- KV store ---
 
@@ -310,7 +259,6 @@ export class SecureStorage {
 
     static async clearAll(): Promise<void> {
         AccountsVault.save([]);
-        settingsCache = { ...DEFAULT_SETTINGS };
         SessionStore.clear();
         const adapter = StorageProvider.getAdapter();
         if (adapter) await adapter.clear();

@@ -19,7 +19,12 @@ export const DeriveAccountModal: React.FC<DeriveAccountModalProps> = ({
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={onClose} title="Create Account">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Create Account"
+            dismissible={false}
+        >
             <DeriveAccountForm onSuccess={handleSuccess} onCancel={onClose} />
         </ModalWindow>
     );

@@ -5,6 +5,7 @@ import themeReducer from "./themeSlice";
 import authReducer from "./Auth/";
 import hardwareWalletReducer from "./hardwareWalletSlice";
 import multisigReducer from "./multisigSlice";
+import networkOperationReducer from "./networkOperationSlice";
 
 export const store = configureStore({
     reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
         auth: authReducer,
         hardwareWallet: hardwareWalletReducer,
         multisig: multisigReducer,
+        networkOperation: networkOperationReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
