@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Network } from "types/wallet";
 
 const DesktopNavStyled = styled.nav`
     height: 41px;
@@ -78,6 +79,9 @@ const RightSection = styled.div`
         margin: 0 auto;
     }
 `;
+
+const NETWORK_CHANGE_LOCKED_TITLE =
+    "Finish or cancel the pending operation to change the network";
 
 const NetworkSelector = styled.select`
     padding: 6px;
@@ -180,7 +184,8 @@ interface DesktopNavComponentProps {
     networkStatus: "connected" | "disconnected" | "checking";
     lastRefresh: Date;
     selectedNetwork: any;
-    networks: any[];
+    networks: Network[];
+    isNetworkChangeLocked: boolean;
     onNetworkChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
@@ -190,6 +195,7 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
     lastRefresh,
     selectedNetwork,
     networks,
+    isNetworkChangeLocked,
     onNetworkChange,
 }) => {
     const navigate = useNavigate();
@@ -226,13 +232,22 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                 <NetworkSelector
                     id="mobile-header-network-selector"
                     value={selectedNetwork.id}
+                    disabled={isNetworkChangeLocked}
+                    title={
+                        isNetworkChangeLocked
+                            ? NETWORK_CHANGE_LOCKED_TITLE
+                            : undefined
+                    }
                     onChange={onNetworkChange}
                 >
                     {networks.map((network) => (
                         <option
                             key={network.id}
                             value={network.id}
-                            disabled={!network.url || network.url.trim() === ""}
+                            disabled={
+                                !network.validatorUrl ||
+                                network.validatorUrl.trim() === ""
+                            }
                         >
                             {network.name}
                         </option>

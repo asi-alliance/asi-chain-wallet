@@ -324,7 +324,9 @@ const multisigSlice = createSlice({
                     if (index >= 0) {
                         state.wallets[index] = action.payload.wallet;
                     }
-                    if (state.selectedWallet?.id === action.payload.wallet.id) {
+                    if (
+                        state.selectedWallet?.id === action.payload.wallet!.id
+                    ) {
                         state.selectedWallet = action.payload.wallet;
                     }
                 }

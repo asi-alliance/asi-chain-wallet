@@ -1,30 +1,9 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { Button, PasswordInput } from "components";
+import { ModalWindow } from "components/ModalWindow";
 import { getTokenDisplayName } from "../../constants/token";
 import { useScreen } from "hooks";
-
-const Overlay = styled.div`
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-`;
-
-const Modal = styled.div`
-    background: ${({ theme }) => theme.card};
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-`;
 
 const Title = styled.div`
     color: ${({ theme }) => theme.text.primary};
@@ -126,7 +105,6 @@ interface TransactionConfirmationProps {
     estimatedFee?: string;
     loading?: boolean;
     needsPassword?: boolean;
-    requirePasswordForTransaction?: boolean;
 }
 
 export const TransactionConfirmationModal: React.FC<
@@ -141,13 +119,10 @@ export const TransactionConfirmationModal: React.FC<
     senderName,
     loading = false,
     needsPassword = false,
-    requirePasswordForTransaction = false,
 }) => {
     const { isLaptop } = useScreen();
 
     const [password, setPassword] = useState("");
-
-    if (!isOpen) return null;
 
     const formatAddress = (address: string): string => {
         if (!address) return "";
@@ -171,113 +146,107 @@ export const TransactionConfirmationModal: React.FC<
     };
 
     return (
-        <Overlay onClick={handleClose}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-                <Title>
-                    <h1>Confirm Transaction</h1>
-                </Title>
-                <Description>
-                    Please review the transaction details before sending.
-                </Description>
+        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="500px">
+            <Title>
+                <h1>Confirm Transaction</h1>
+            </Title>
+            <Description>
+                Please review the transaction details before sending.
+            </Description>
 
-                <WarningText>
-                    WARNING: This transaction cannot be reversed once sent.
-                    Please verify all details carefully.
-                </WarningText>
+            <WarningText>
+                WARNING: This transaction cannot be reversed once sent. Please
+                verify all details carefully.
+            </WarningText>
 
-                <TransactionDetails>
-                    <DetailRow>
-                        <DetailLabel>From Account:</DetailLabel>
-                        <DetailValue>{senderName}</DetailValue>
-                    </DetailRow>
+            <TransactionDetails>
+                <DetailRow>
+                    <DetailLabel>From Account:</DetailLabel>
+                    <DetailValue>{senderName}</DetailValue>
+                </DetailRow>
 
-                    <DetailRow>
-                        <DetailLabel>From Address:</DetailLabel>
-                        <AddressValue title={senderAddress}>
-                            {formatAddress(senderAddress)}
-                        </AddressValue>
-                    </DetailRow>
+                <DetailRow>
+                    <DetailLabel>From Address:</DetailLabel>
+                    <AddressValue title={senderAddress}>
+                        {formatAddress(senderAddress)}
+                    </AddressValue>
+                </DetailRow>
 
-                    <DetailRow>
-                        <DetailLabel>To Address:</DetailLabel>
-                        <AddressValue title={recipient}>
-                            {formatAddress(recipient)}
-                        </AddressValue>
-                    </DetailRow>
+                <DetailRow>
+                    <DetailLabel>To Address:</DetailLabel>
+                    <AddressValue title={recipient}>
+                        {formatAddress(recipient)}
+                    </AddressValue>
+                </DetailRow>
 
-                    <DetailRow>
-                        <DetailLabel>Amount:</DetailLabel>
-                        <AmountValue>
-                            {amount} {getTokenDisplayName()}
-                        </AmountValue>
-                    </DetailRow>
+                <DetailRow>
+                    <DetailLabel>Amount:</DetailLabel>
+                    <AmountValue>
+                        {amount} {getTokenDisplayName()}
+                    </AmountValue>
+                </DetailRow>
 
-                    <DetailRow>
-                        <DetailLabel>Commission amount can be :</DetailLabel>
-                        <DetailValue>
-                            ~0.0017-0.0025 {getTokenDisplayName()}
-                        </DetailValue>
-                    </DetailRow>
+                <DetailRow>
+                    <DetailLabel>Commission amount can be :</DetailLabel>
+                    <DetailValue>
+                        ~0.0017-0.0025 {getTokenDisplayName()}
+                    </DetailValue>
+                </DetailRow>
 
-                    <DetailRow>
-                        <DetailLabel>Total Cost:</DetailLabel>
-                        <AmountValue>
-                            {totalAmount} {getTokenDisplayName()}
-                        </AmountValue>
-                    </DetailRow>
-                </TransactionDetails>
+                <DetailRow>
+                    <DetailLabel>Total Cost:</DetailLabel>
+                    <AmountValue>
+                        {totalAmount} {getTokenDisplayName()}
+                    </AmountValue>
+                </DetailRow>
+            </TransactionDetails>
 
-                {needsPassword && (
-                    <div style={{ marginBottom: "24px" }}>
-                        <PasswordInput
-                            id="transaction-confirmation-password-input"
-                            data-testid="transaction-confirmation-password-input"
-                            data-cy="transaction-confirmation-password-input"
-                            label={
-                                requirePasswordForTransaction
-                                    ? "Transaction Password"
-                                    : "Account Password"
+            {needsPassword && (
+                <div style={{ marginBottom: "24px" }}>
+                    <PasswordInput
+                        id="transaction-confirmation-password-input"
+                        data-testid="transaction-confirmation-password-input"
+                        data-cy="transaction-confirmation-password-input"
+                        label="Account Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onInput={(e) => {
+                            const target = e.currentTarget;
+                            if (target.value !== password) {
+                                setPassword(target.value);
                             }
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onInput={(e) => {
-                                const target = e.currentTarget;
-                                if (target.value !== password) {
-                                    setPassword(target.value);
-                                }
-                            }}
-                            placeholder="Enter password"
-                            style={{ marginBottom: "16px" }}
-                            autoComplete="current-password"
-                            autoFocus={needsPassword}
-                        />
-                    </div>
-                )}
-
-                <Actions>
-                    <AdaptiveButton
-                        onClick={handleConfirm}
-                        loading={loading}
-                        disabled={needsPassword && !password.trim()}
-                        fullWidth={isLaptop}
-                        style={{
-                            ...(isLaptop && {
-                                marginBottom: "12px",
-                            }),
                         }}
-                    >
-                        Confirm & Send
-                    </AdaptiveButton>
-                    <AdaptiveButton
-                        variant="secondary"
-                        onClick={handleClose}
-                        disabled={loading}
-                        fullWidth={isLaptop}
-                    >
-                        Cancel
-                    </AdaptiveButton>
-                </Actions>
-            </Modal>
-        </Overlay>
+                        placeholder="Enter password"
+                        wrapperStyle={{ marginBottom: "16px" }}
+                        autoComplete="current-password"
+                        autoFocus={needsPassword}
+                    />
+                </div>
+            )}
+
+            <Actions>
+                <AdaptiveButton
+                    onClick={handleConfirm}
+                    loading={loading}
+                    disabled={needsPassword && !password.trim()}
+                    fullWidth={isLaptop}
+                    style={{
+                        ...(isLaptop && {
+                            marginBottom: "12px",
+                        }),
+                    }}
+                >
+                    Confirm & Send
+                </AdaptiveButton>
+                <AdaptiveButton
+                    variant="secondary"
+                    onClick={handleClose}
+                    disabled={loading}
+                    fullWidth={isLaptop}
+                >
+                    Cancel
+                </AdaptiveButton>
+            </Actions>
+        </ModalWindow>
     );
 };

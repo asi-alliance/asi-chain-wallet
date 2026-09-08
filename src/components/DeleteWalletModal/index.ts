@@ -1,0 +1,1 @@
+export { DeleteWalletModal } from "./DeleteWalletModal";

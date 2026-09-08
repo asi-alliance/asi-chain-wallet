@@ -18,7 +18,6 @@ export interface SecureAccount extends Omit<Account, "privateKey"> {
 }
 
 export interface WalletSettings {
-    requirePasswordForTransaction: boolean;
     idleTimeout: number;
 }
 

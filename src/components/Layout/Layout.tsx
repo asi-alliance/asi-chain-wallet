@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { RootState } from "store";
-import { selectNetwork } from "store/walletSlice";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccounts,
+    selectAccountById,
+    selectSelectedAccountId,
+} from "store/WalletsStore";
+import { selectNetwork } from "store/WalletsStore/thunks";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
@@ -32,13 +39,25 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const location = useLocation();
-    const { networks, selectedNetwork, selectedAccount } = useSelector(
-        (state: RootState) => state.wallet,
+    const networks = useSelector(
+        (state: RootState) => state.walletsStore.networks,
     );
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-    const { accounts } = useSelector((state: RootState) => state.wallet);
+    const selectedNetwork = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork,
+    );
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const selectedAccount = useSelector((state: RootState) =>
+        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
+    );
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
+    );
+    const accounts = useSelector(selectAccounts);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -50,9 +69,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         const checkNetwork = async () => {
             if (!selectedNetwork) return;
 
-            const networkUrl =
-                selectedNetwork.readOnlyUrl || selectedNetwork.url;
-            if (!networkUrl || !networkUrl.trim()) {
+            const networkUrl = selectedNetwork.observerUrl;
+            if (!networkUrl) {
                 setNetworkStatus("disconnected");
                 return;
             }
@@ -81,13 +99,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     useEffect(() => {
         const setCachedNetwork = () => {
             if (!isAuthenticated || !selectedAccount?.address) {
-                return;
-            }
-
-            if (
-                selectedNetwork?.id &&
-                selectedAccount.networkId === selectedNetwork.id
-            ) {
                 return;
             }
 
@@ -171,6 +182,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 lastRefresh={lastRefresh}
                 selectedNetwork={selectedNetwork}
                 networks={networks}
+                isNetworkChangeLocked={isNetworkOperationPending}
                 onNetworkChange={handleNetworkChange}
             />
 

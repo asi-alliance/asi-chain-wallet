@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useMemo, Fragment } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useState, Fragment } from "react";
+import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccounts,
+    selectActiveWallet,
+    selectIsAnyAccountBalanceFetching,
+} from "store/WalletsStore";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
-import { Account } from "types/wallet";
-import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
+import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
-import { CreateAccountModal } from "components/CreateAccountModal";
-import { ImportAccountModal } from "components/ImportAccountModal";
+import { DeriveAccountModal } from "components/DeriveAccountModal";
 import { useScreen } from "hooks/";
+import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 
 const AccountsContainer = styled.div``;
 
@@ -64,98 +69,41 @@ const InlineButton = styled(Button)`
 `;
 
 export const Accounts: React.FC = () => {
-    const dispatch = useDispatch();
-    const { accounts, selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const activeWallet: IUnlockedWalletMeta | null =
+        useSelector(selectActiveWallet);
+    const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
 
     const { isLaptop } = useScreen();
 
     const [searchParams] = useSearchParams();
     const actionParam: string | null = searchParams.get("action");
 
-    const selectedNetworkId = selectedNetwork?.id;
-    const filteredAccounts = useMemo(
-        () =>
-            selectedNetworkId
-                ? accounts.filter(
-                      (account: Account) =>
-                          account.networkId === selectedNetworkId,
-                  )
-                : accounts,
-        [accounts, selectedNetworkId],
-    );
-
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
-    const [showImportModal, setShowImportModal] = useState(false);
-
-    const filteredAccountIds = useMemo(
-        () => filteredAccounts.map((account: Account) => account.id).join(","),
-        [filteredAccounts],
-    );
-
-    useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            const timeoutId = setTimeout(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
-                });
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
-
-    useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            const interval = setInterval(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
-                });
-            }, 30000);
-            return () => clearInterval(interval);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
 
     const handleRefreshBalances = () => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account: Account) => {
-                dispatch(
-                    fetchBalance({
-                        account,
-                        network: selectedNetwork,
-                        forceRefresh: true,
-                    }) as any,
-                );
-            });
-        }
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account: IUnlockedAccountMeta) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
+            ),
+        );
     };
 
     return (
         <Fragment>
             <AccountsContainer>
-                {filteredAccounts.length === 0 && (
-                    <FirstAccountCreatingWidget />
-                )}
-                {filteredAccounts.length > 0 && (
+                {accounts.length === 0 && <FirstHdWalletCreatingWidget />}
+                {accounts.length > 0 && (
                     <Card style={{ marginBottom: "32px" }}>
                         <CardHeader>
                             <CardTitle>
-                                Your Accounts ({filteredAccounts.length})
+                                Your Accounts ({accounts.length})
                             </CardTitle>
                             <Button
                                 title="Refresh Balances"
@@ -169,90 +117,53 @@ export const Accounts: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                             <AccountsGrid className="accounts-grid">
-                                {filteredAccounts.map((account: Account) => (
+                                {accounts.map((account: IUnlockedAccountMeta) => (
                                     <AccountCard
                                         key={account.id}
                                         account={account}
                                     />
                                 ))}
                             </AccountsGrid>
-                            <AccountsActionsFooter>
-                                <InlineButton
-                                    id="create-account-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Account </h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                                <InlineButton
-                                    id="import-account-button"
-                                    variant="secondary"
-                                    onClick={() => setShowImportModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Import Account</h3>
-                                    <svg
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <g clipPath="url(#clip0_3_1930)">
-                                            <path
-                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                                fill="currentcolor"
-                                            />
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_3_1930">
-                                                <rect
-                                                    width="24"
-                                                    height="24"
+                            {!!activeWallet &&
+                                activeWallet.type !==
+                                    WalletTypes.PRIVATE_KEY && (
+                                    <AccountsActionsFooter>
+                                        <InlineButton
+                                            id="create-account-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Account </h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
                                                     fill="currentcolor"
                                                 />
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </InlineButton>
-                            </AccountsActionsFooter>
+                                            </svg>
+                                        </InlineButton>
+                                    </AccountsActionsFooter>
+                                )}
                         </CardContent>
                     </Card>
                 )}
             </AccountsContainer>
-            <CreateAccountModal
+            <DeriveAccountModal
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
                     console.info("Account created successfully");
-                }}
-            />
-
-            <ImportAccountModal
-                isOpen={showImportModal}
-                onClose={() => setShowImportModal(false)}
-                onSuccess={() => {
-                    console.info("Account imported successfully");
                 }}
             />
         </Fragment>

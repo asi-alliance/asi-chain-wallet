@@ -21,6 +21,28 @@ The wallet uses a dual approach for managing network configurations:
 - Create React App receives values through `config-overrides.js` (DefinePlugin + reading `.env`)
 - These predefined networks are **read-only** and cannot be modified by users
 
+`process.env.NETWORKS` is read in exactly one place — `src/constants/networks.ts`. It parses and validates the variable once at startup and exports everything the app needs:
+
+| Export | Used by |
+| --- | --- |
+| `NETWORKS` | Redux initial state (`state.walletsStore.networks`) and network selection UI |
+| `NETWORKS_CONFIG` | `Client.create({ networksConfig })` in `src/sdk/SdkClientProvider.tsx` |
+| `getInitialNetwork()` | Initially selected network for both the store and the SDK client |
+| `persistSelectedNetworkId()` | Persisting the selected network (`asi_wallet_selected_network`) |
+| `getNetworksEnvError()` | Fatal configuration errors surfaced by `SdkClientProvider` |
+| `NETWORKS_ENV_ISSUES` | Full validation report (errors and warnings) |
+
+The JSON key of every entry is the network id, and it is the same id the SDK uses in `setNetwork(id)`.
+
+Validation rules applied while parsing:
+
+- A missing, non-JSON, or empty `NETWORKS` is a **fatal error**: the SDK client is not created and the app shows the reason instead of failing deep inside the SDK
+- An entry whose `ValidatorURL` is missing or not a valid `http(s)` URL is **skipped** with a warning (this is why `MainNet` and `TestNet` with empty URLs never reach the SDK or the UI)
+- A missing `ReadOnlyURL` falls back to `ValidatorURL` (reads go to the validator node), a missing `IndexerURL` leaves transaction history unavailable — both are reported as warnings
+- Every issue is logged once at startup with the `[NETWORKS env]` prefix
+
+In application code a network is `Network` from `src/types/wallet.ts`, whose URL fields map 1:1 onto the SDK ones: `validatorUrl` → `ValidatorURL` (deploys), `observerUrl` → `ReadOnlyURL` (read-only queries), `indexerUrl` → `IndexerURL` (GraphQL history).
+
 ### Custom Networks
 
 - Custom networks are stored in **localStorage** per account

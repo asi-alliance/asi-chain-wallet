@@ -1,8 +1,8 @@
-import { Navigate, useSearchParams } from "react-router-dom";
-import { AccountActions } from "types/wallet";
+import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { PropsWithChildren } from "react";
 import { RootState } from "store";
+import { selectHasWallets } from "store/WalletsStore";
 
 export const ExistingAccountGuard = ({
     children,
@@ -10,15 +10,9 @@ export const ExistingAccountGuard = ({
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
-    const hasAccounts = useSelector(
-        (state: RootState) => state.auth.hasAccounts,
-    );
-    const [searchParams] = useSearchParams();
+    const hasWallets = useSelector(selectHasWallets);
 
-    const isCreatingAccount: boolean =
-        searchParams.get("action") === AccountActions.CREATE;
-
-    if (hasAccounts && !isAuthenticated && !isCreatingAccount) {
+    if (hasWallets && !isAuthenticated) {
         return <Navigate to={"/login"} />;
     }
 

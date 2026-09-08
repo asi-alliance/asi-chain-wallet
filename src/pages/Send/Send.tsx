@@ -1,14 +1,27 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { AppDispatch, RootState } from "store";
+import { Address, CustomErrorCode } from "@asichain/asi-wallet-sdk";
+import { DeployWatchStatus } from "types/wallet";
+import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import {
-    sendTransaction,
-    fetchBalance,
-    updateAccountBalance,
-} from "store/walletSlice";
+    deployWatchCleared,
+    selectAccountById,
+    selectDeployWatch,
+    selectSelectedAccountId,
+    selectSelectedNetworkId,
+    selectWalletByAccountId,
+} from "store/WalletsStore";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
+import { sendTransaction } from "store/WalletsStore/thunks";
+import {
+    networkOperationFinished,
+    networkOperationStarted,
+} from "store/networkOperationSlice";
 import {
     Card,
     CardHeader,
@@ -16,11 +29,17 @@ import {
     CardContent,
     Button,
     Input,
-    PasswordInput,
     TransactionConfirmationModal,
+    PasswordModal,
 } from "components";
+import { SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "../../constants/token";
-import { generateRandomGasFee, getGasFeeAsNumber } from "../../constants/gas";
+import { generateRandomGasFee } from "../../constants/gas";
+import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
+import {
+    getAmountValidationError,
+    getMaxSendableAmount,
+} from "utils/balanceUtils";
 import addressValidation from "utils/AddressValidation";
 import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
@@ -33,7 +52,24 @@ import {
     QRIcon,
     VectorIcon,
 } from "components/Icons";
-import { unlockAccount } from "store/authSlice";
+
+const BALANCE_UNAVAILABLE_ERROR =
+    "Failed to load balance for the selected network. Sending is unavailable.";
+
+const TRANSACTION_FAILED_ERROR = "Transaction failed on chain";
+
+const NETWORK_CHANGED_ERROR =
+    "Network changed while the transfer was awaiting confirmation. Check the details and send again.";
+
+interface IPendingTransfer {
+    walletId: string;
+    accountId: string;
+    accountName: string;
+    accountAddress: string;
+    networkId: string;
+    to: Address;
+    amount: string;
+}
 
 const SendContainer = styled.div`
     max-width: 600px;
@@ -99,15 +135,6 @@ const SuccessMessage = styled.div`
         color: ${({ theme }) => theme.text.inverse};
         opacity: 0.8;
     }
-`;
-
-const InfoMessage = styled.div`
-    background: ${({ theme }) => `${theme.primary}20`};
-    color: ${({ theme }) => theme.text.primary};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
 `;
 
 const LoadingMessage = styled.div`
@@ -220,28 +247,81 @@ const AccountSelectorWithMarginBottom = styled(AccountSelector)`
 `;
 
 export const Send: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const { selectedAccount, selectedNetwork, isLoading, error } = useSelector(
-        (state: RootState) => state.wallet,
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const selectedAccount = useSelector((state: RootState) =>
+        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const { unlockedAccounts, requirePasswordForTransaction } = useSelector(
-        (state: RootState) => state.auth,
+    const selectedWallet = useSelector((state: RootState) =>
+        selectedAccountId
+            ? selectWalletByAccountId(state, selectedAccountId)
+            : null,
+    );
+    const networkId = useSelector(selectSelectedNetworkId);
+    const {
+        currentData: currentBalance,
+        isFetching,
+        isError: isBalanceError,
+    } = useGetBalanceQuery(
+        selectedAccountId
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken,
+        { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
+    );
+
+    const balance = currentBalance ?? "0";
+    const isBalanceReady = currentBalance !== undefined && !isBalanceError;
+    const isLoading = useSelector(
+        (state: RootState) => state.walletsStore.isLoading,
     );
 
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
-    const [password, setPassword] = useState("");
-    const [passwordError, setPasswordError] = useState("");
     const [txHash, setTxHash] = useState("");
     const [validationError, setValidationError] = useState("");
     const [addressError, setAddressError] = useState("");
-    const [isWaitingForBalance, setIsWaitingForBalance] = useState(false);
     const [showQRScanner, setShowQRScanner] = useState(false);
     const [scanError, setScanError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pendingTransfer, setPendingTransfer] =
+        useState<IPendingTransfer | null>(null);
+    const [passwordModalError, setPasswordModalError] = useState("");
+    const [passwordModalLoading, setPasswordModalLoading] = useState(false);
     const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
+
+    const deployWatch = useSelector((state: RootState) =>
+        txHash ? selectDeployWatch(state, txHash) : null,
+    );
+
+    const isWaitingForConfirmation =
+        deployWatch?.status === DeployWatchStatus.PENDING;
+    const isTransactionConfirmed =
+        deployWatch?.status === DeployWatchStatus.CONFIRMED;
+    const transactionError =
+        deployWatch?.status === DeployWatchStatus.FAILED
+            ? (deployWatch.error ?? TRANSACTION_FAILED_ERROR)
+            : "";
+
+    useEffect(() => {
+        if (!pendingTransfer) {
+            return;
+        }
+
+        dispatch(networkOperationStarted());
+
+        return () => {
+            dispatch(networkOperationFinished());
+        };
+    }, [dispatch, pendingTransfer]);
+
+    const amountError = isBalanceReady
+        ? getAmountValidationError(amount, balance)
+        : "";
+    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
+    const displayedError = validationError || balanceError || amountError;
 
     const updateEstimatedFee = () => {
         setEstimatedFee(generateRandomGasFee());
@@ -272,74 +352,11 @@ export const Send: React.FC = () => {
     const handleAmountChange = (value: string) => {
         setAmount(value);
         updateEstimatedFee();
-
-        if (!value.trim()) {
-            setValidationError("");
-            return;
-        }
-
-        const amountValue = parseFloat(value);
-        if (isNaN(amountValue) || amountValue <= 0) {
-            return;
-        }
-
-        const balance = parseFloat(selectedAccount?.balance || "0");
-
-        if (amountValue > balance) {
-            setValidationError(
-                `Insufficient balance. You have ${balance.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
-            );
-            return;
-        }
-
-        const totalRequired = amountValue + getGasFeeAsNumber();
-        if (totalRequired > balance) {
-            const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
-            const maxRounded = Math.floor(maxSendable * 100000000) / 100000000;
-            setValidationError(
-                `Amount + fee (${totalRequired.toFixed(
-                    8,
-                )}) exceeds balance. Max: ${maxRounded.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
-            );
-            return;
-        }
-
         setValidationError("");
     };
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const qrScannerRef = useRef<QrScanner | null>(null);
-
-    // Fetch balance on mount and when selected account changes
-    useEffect(() => {
-        if (selectedAccount && selectedNetwork) {
-            dispatch(
-                fetchBalance({
-                    account: selectedAccount,
-                    network: selectedNetwork,
-                }) as any,
-            );
-        }
-    }, [selectedAccount, selectedNetwork, dispatch]);
-
-    useEffect(() => {
-        if (!selectedAccount || !selectedNetwork) return;
-
-        const interval = setInterval(() => {
-            dispatch(
-                fetchBalance({
-                    account: selectedAccount,
-                    network: selectedNetwork,
-                }) as any,
-            );
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [selectedAccount, selectedNetwork, dispatch]);
 
     // Initialize QR scanner when modal opens
     useEffect(() => {
@@ -460,12 +477,6 @@ export const Send: React.FC = () => {
         }
     };
 
-    // Check if selected account is unlocked
-    const isAccountUnlocked =
-        selectedAccount &&
-        unlockedAccounts.some((a) => a.id === selectedAccount.id);
-    const needsPassword = !isAccountUnlocked || requirePasswordForTransaction;
-
     if (!selectedAccount) {
         return (
             <SendContainer>
@@ -524,33 +535,17 @@ export const Send: React.FC = () => {
             return false;
         }
 
-        const balance = parseFloat(selectedAccount?.balance || "0");
-        const amountToSend = parseFloat(amount);
-
-        if (amountToSend > balance) {
+        if (!isBalanceReady) {
             setValidationError(
-                `Insufficient balance. You have ${balance.toFixed(
-                    8,
-                )} ${getTokenDisplayName()}`,
+                isBalanceError
+                    ? BALANCE_UNAVAILABLE_ERROR
+                    : "Balance is still loading. Please wait and try again.",
             );
             return false;
         }
 
-        const totalRequired = amountToSend + getGasFeeAsNumber();
-        if (totalRequired > balance) {
-            const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
-            setValidationError(
-                `Insufficient balance for transaction + fee. Maximum sendable: ${maxSendable.toFixed(
-                    8,
-                )} ${getTokenDisplayName()} (${balance.toFixed(
-                    8,
-                )} - ${getGasFeeAsNumber().toFixed(8)} fee)`,
-            );
-            return false;
-        }
-
-        if (needsPassword && !password.trim()) {
-            setValidationError("Password is required");
+        if (amountError) {
+            setValidationError(amountError);
             return false;
         }
 
@@ -558,211 +553,172 @@ export const Send: React.FC = () => {
         return true;
     };
 
-    const handlePasswordChange = (newPassword: string) => {
-        setPassword(newPassword);
-        setPasswordError("");
-    };
+    const walletId = selectedWallet?.id;
 
-    const handleSendClick = async (): Promise<void> => {
+    const isWalletLockedError = (error: unknown): boolean =>
+        (error as { code?: string } | null)?.code ===
+        CustomErrorCode.WALLET_LOCKED;
+
+    const handleSendClick = (): void => {
         if (!validateForm() || !selectedAccount) {
             return;
         }
 
-        if (isAccountUnlocked) {
-            setShowConfirmation(true);
-
+        if (!walletId) {
+            setValidationError("Session expired. Please login again.");
+            navigate("/login");
             return;
         }
 
-        try {
-            await dispatch(
-                unlockAccount({ accountId: selectedAccount.id, password }),
-            ).unwrap();
+        setPendingTransfer({
+            walletId,
+            accountId: selectedAccount.id,
+            accountName: selectedAccount.name,
+            accountAddress: selectedAccount.address,
+            networkId,
+            to: recipient.trim() as Address,
+            amount,
+        });
 
+        if (SdkWalletService.isWalletUnlocked(walletId)) {
             setShowConfirmation(true);
-            setPasswordError("");
-        } catch (error: unknown) {
-            setPasswordError("Invalid password. Please try again.");
-
-            setTimeout(() => setPasswordError(""), 3000);
+        } else {
+            setShowPasswordModal(true);
         }
     };
 
-    const handleConfirmSend = async (passwordFromModal?: string) => {
-        if (!selectedAccount) return;
-
-        setShowConfirmation(false);
-
-        if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError(
-                "Sending to Ethereum addresses is not supported",
-            );
+    const clearDeployWatch = (): void => {
+        if (!txHash) {
             return;
         }
 
-        // Clear previous transaction state
+        dispatch(deployWatchCleared(txHash));
         setTxHash("");
-        setIsWaitingForBalance(false);
+    };
+
+    const executeSend = async (password?: string): Promise<void> => {
+        if (!pendingTransfer) {
+            return;
+        }
+
+        if (pendingTransfer.networkId !== networkId) {
+            setShowConfirmation(false);
+            setShowPasswordModal(false);
+            setPasswordModalError("");
+            setPendingTransfer(null);
+            setValidationError(NETWORK_CHANGED_ERROR);
+
+            return;
+        }
+
+        clearDeployWatch();
+        setPasswordModalError("");
+
+        if (password !== undefined) {
+            setPasswordModalLoading(true);
+        }
 
         try {
             const resultAction = await dispatch(
                 sendTransaction({
-                    from: selectedAccount,
-                    to: recipient,
-                    amount,
-                    password: passwordFromModal,
-                    network: selectedNetwork,
-                }) as any,
+                    walletId: pendingTransfer.walletId,
+                    accountId: pendingTransfer.accountId,
+                    to: pendingTransfer.to,
+                    amount: pendingTransfer.amount,
+                    password,
+                }),
             );
 
             if (sendTransaction.fulfilled.match(resultAction)) {
-                const deployId = resultAction.payload.deployId;
-                setTxHash(deployId);
-                setIsWaitingForBalance(true);
+                setShowConfirmation(false);
+                setShowPasswordModal(false);
+                setPendingTransfer(null);
+
+                setTxHash(resultAction.payload.deployId);
                 setRecipient("");
                 setAmount("");
-                handlePasswordChange("");
 
-                setTimeout(async () => {
-                    try {
-                        await dispatch(
-                            fetchBalance({
-                                account: selectedAccount,
-                                network: selectedNetwork,
-                                forceRefresh: true,
-                            }) as any,
-                        );
-                    } catch (error) {
-                        console.warn(
-                            "[Send] Failed to refresh balance:",
-                            error,
-                        );
-                    }
-                }, 2000);
-
-                let pollCount = 0;
-                const maxPolls = 30;
-                const initialBalance = selectedAccount.balance;
-
-                const pollInterval = setInterval(async () => {
-                    pollCount++;
-
-                    try {
-                        const balanceResult = await dispatch(
-                            fetchBalance({
-                                account: selectedAccount,
-                                network: selectedNetwork,
-                                forceRefresh: true,
-                            }) as any,
-                        );
-
-                        if (fetchBalance.fulfilled.match(balanceResult)) {
-                            const newBalance = balanceResult.payload.balance;
-
-                            if (
-                                newBalance !== initialBalance ||
-                                pollCount >= maxPolls
-                            ) {
-                                clearInterval(pollInterval);
-                                setIsWaitingForBalance(false);
-
-                                if (newBalance !== initialBalance) {
-                                    console.info(
-                                        "[Send] Balance updated from",
-                                        initialBalance,
-                                        "to",
-                                        newBalance,
-                                    );
-                                } else {
-                                    console.info(
-                                        "[Send] Balance update timeout - transaction may still be processing",
-                                    );
-                                    const sentAmount = parseFloat(amount);
-                                    const fee = getGasFeeAsNumber();
-                                    const expectedNewBalance =
-                                        parseFloat(initialBalance) -
-                                        sentAmount -
-                                        fee;
-
-                                    if (expectedNewBalance >= 0) {
-                                        dispatch(
-                                            updateAccountBalance({
-                                                accountId: selectedAccount.id,
-                                                balance:
-                                                    expectedNewBalance.toString(),
-                                            }),
-                                        );
-                                    }
-                                }
-                            }
-                        } else if (fetchBalance.rejected.match(balanceResult)) {
-                            console.warn(
-                                "[Send] Balance fetch failed, but transaction was sent successfully",
-                            );
-
-                            const sentAmount = parseFloat(amount);
-                            const fee = getGasFeeAsNumber();
-                            const expectedNewBalance =
-                                parseFloat(initialBalance) - sentAmount - fee;
-
-                            if (expectedNewBalance >= 0) {
-                                dispatch(
-                                    updateAccountBalance({
-                                        accountId: selectedAccount.id,
-                                        balance: expectedNewBalance.toString(),
-                                    }),
-                                );
-                            }
-
-                            if (pollCount >= maxPolls) {
-                                clearInterval(pollInterval);
-                                setIsWaitingForBalance(false);
-                            }
-                        }
-                    } catch (error) {
-                        console.error(
-                            "[Send] Error during balance polling:",
-                            error,
-                        );
-                        if (pollCount >= maxPolls) {
-                            clearInterval(pollInterval);
-                            setIsWaitingForBalance(false);
-                        }
-                    }
-                }, 2000);
+                return;
             }
+
+            const sendError = resultAction.error;
+
+            if (isWalletLockedError(sendError) && password === undefined) {
+                setShowConfirmation(false);
+                setShowPasswordModal(true);
+                return;
+            }
+
+            if (password !== undefined) {
+                setPasswordModalError(
+                    sendError.message ||
+                        "Failed to send transaction. Check your password.",
+                );
+                return;
+            }
+
+            setPendingTransfer(null);
+            setValidationError(
+                sendError.message || "Failed to send transaction",
+            );
         } catch (err) {
             console.error("Send failed:", err);
+
+            if (password !== undefined) {
+                setPasswordModalError(
+                    "Failed to send transaction. Check your password and try again.",
+                );
+            } else {
+                setPendingTransfer(null);
+                setValidationError("Failed to send transaction");
+            }
+        } finally {
+            if (password !== undefined) {
+                setPasswordModalLoading(false);
+            }
         }
+    };
+
+    const handleConfirmSend = (): void => {
+        setShowConfirmation(false);
+        executeSend();
+    };
+
+    const handlePasswordSubmit = (password: string): void => {
+        executeSend(password);
+    };
+
+    const handleCancelTransfer = (): void => {
+        setShowConfirmation(false);
+        setShowPasswordModal(false);
+        setPasswordModalError("");
+        setPendingTransfer(null);
     };
 
     const handleClearAll = (): void => {
         setRecipient("");
         setAmount("");
-        setPassword("");
-        setPasswordError("");
         setValidationError("");
         setAddressError("");
-        setTxHash("");
-        setIsWaitingForBalance(false);
+        clearDeployWatch();
         setScanError("");
-        setShowConfirmation(false);
         setCopied(false);
         setEstimatedFee(generateRandomGasFee());
+        handleCancelTransfer();
     };
 
     const maxAmount = () => {
-        const balance = parseFloat(selectedAccount?.balance || "0");
-        const max = Math.max(0, balance - getGasFeeAsNumber());
+        const max = getMaxSendableAmount(balance);
 
         if (max <= 0) {
             setValidationError("Insufficient balance to cover gas fees");
             setAmount("0");
-        } else {
-            const maxRounded = Math.floor(max * 100000000) / 100000000;
-            setAmount(maxRounded.toFixed(8));
-            setValidationError("");
+
+            return;
         }
+
+        setAmount(max.toFixed(8));
+        setValidationError("");
     };
 
     return (
@@ -772,7 +728,7 @@ export const Send: React.FC = () => {
                     <CardTitle>Send ASI</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {txHash && !isWaitingForBalance && (
+                    {txHash && isTransactionConfirmed && (
                         <SuccessMessage>
                             <div
                                 style={{
@@ -817,7 +773,7 @@ export const Send: React.FC = () => {
                         </SuccessMessage>
                     )}
 
-                    {txHash && isWaitingForBalance && (
+                    {txHash && isWaitingForConfirmation && (
                         <LoadingMessage>
                             <div
                                 style={{
@@ -830,8 +786,8 @@ export const Send: React.FC = () => {
                             >
                                 <div style={{ flex: "1", minWidth: "200px" }}>
                                     <span className="spinner"></span>
-                                    Transaction sent! Waiting for balance
-                                    update...
+                                    Transaction sent! Waiting for
+                                    confirmation...
                                 </div>
                                 <Button
                                     variant="secondary"
@@ -869,27 +825,35 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
-                    {(error || validationError || passwordError) && (
+                    {txHash && transactionError && (
                         <ErrorMessage>
-                            {error || validationError || passwordError}
+                            <div>Transaction failed: {transactionError}</div>
+                            <div
+                                style={{
+                                    fontSize: "12px",
+                                    opacity: 0.8,
+                                    marginTop: "8px",
+                                    wordBreak: "break-all",
+                                }}
+                            >
+                                Deploy ID: {txHash}
+                            </div>
                         </ErrorMessage>
+                    )}
+
+                    {displayedError && (
+                        <ErrorMessage>{displayedError}</ErrorMessage>
                     )}
 
                     <AccountSelectorWithMarginBottom
                         fullWidth
                         labelMode={AccountSelectorLabelMods.FULL}
+                        disabled={!!pendingTransfer || isWaitingForConfirmation}
                     />
 
                     <BalanceInfo className="balance-info">
                         <ASIAccountBalance account={selectedAccount} />
                     </BalanceInfo>
-
-                    {!isAccountUnlocked && (
-                        <InfoMessage>
-                            Account is locked. You'll need to enter your
-                            password to send the transaction.
-                        </InfoMessage>
-                    )}
 
                     <RecipientAddressFormGroup>
                         <label
@@ -1008,7 +972,7 @@ export const Send: React.FC = () => {
                             placeholder="Enter amount"
                             step="0.00000001"
                             min="0"
-                            max={selectedAccount.balance}
+                            max={balance}
                             copyable
                             CustomCopyIcon={ContentPasteIcon}
                         />
@@ -1016,6 +980,7 @@ export const Send: React.FC = () => {
                             id="send-max-amount-button"
                             variant="secondary"
                             onClick={maxAmount}
+                            disabled={!isBalanceReady}
                             style={{
                                 aspectRatio: "1/1",
                                 width: "44px",
@@ -1027,33 +992,6 @@ export const Send: React.FC = () => {
                         </Button>
                     </InputWithButton>
 
-                    {needsPassword && (
-                        <FormGroup>
-                            <PasswordInput
-                                id="send-password-input"
-                                data-testid="send-password-input"
-                                data-cy="send-password-input"
-                                label={
-                                    requirePasswordForTransaction
-                                        ? "Transaction Password"
-                                        : "Account Password"
-                                }
-                                value={password}
-                                onChange={(e) =>
-                                    handlePasswordChange(e.target.value)
-                                }
-                                onInput={(e) => {
-                                    const target = e.currentTarget;
-                                    if (target.value !== password) {
-                                        handlePasswordChange(target.value);
-                                    }
-                                }}
-                                autoComplete="current-password"
-                                placeholder="Enter password"
-                            />
-                        </FormGroup>
-                    )}
-
                     <ActionButtons>
                         <Button
                             id="send-transaction-button"
@@ -1062,9 +1000,10 @@ export const Send: React.FC = () => {
                             disabled={
                                 !recipient ||
                                 !amount ||
-                                (needsPassword && !password) ||
-                                !!validationError ||
-                                !!addressError
+                                !!displayedError ||
+                                !!addressError ||
+                                !isBalanceReady ||
+                                isFetching
                             }
                             style={{ minWidth: "150px", height: "44px" }}
                         >
@@ -1129,21 +1068,28 @@ export const Send: React.FC = () => {
                 </QRScannerContent>
             </QRScannerModal>
 
-            {/* Transaction Confirmation Modal */}
+            {/* Transaction Confirmation Modal (active session — no password needed) */}
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
-                onClose={() => {
-                    setShowConfirmation(false);
-                    handlePasswordChange("");
-                }}
+                onClose={handleCancelTransfer}
                 onConfirm={handleConfirmSend}
-                amount={amount}
-                recipient={recipient}
-                senderAddress={selectedAccount?.revAddress || ""}
-                senderName={selectedAccount?.name || ""}
+                amount={pendingTransfer?.amount ?? ""}
+                recipient={pendingTransfer?.to ?? ""}
+                senderAddress={pendingTransfer?.accountAddress ?? ""}
+                senderName={pendingTransfer?.accountName ?? ""}
                 estimatedFee={estimatedFee}
                 loading={isLoading}
-                requirePasswordForTransaction={requirePasswordForTransaction}
+            />
+
+            {/* Password Modal (session expired — re-authenticate to sign) */}
+            <PasswordModal
+                isOpen={showPasswordModal}
+                onClose={handleCancelTransfer}
+                onConfirm={handlePasswordSubmit}
+                title="Enter password to sign transaction"
+                description="Your wallet session has expired. Enter your password to sign and send this transaction."
+                loading={passwordModalLoading}
+                error={passwordModalError}
             />
         </SendContainer>
     );

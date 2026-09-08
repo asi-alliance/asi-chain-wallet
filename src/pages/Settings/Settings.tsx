@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { RootState } from "store";
+import { selectAccounts } from "store/WalletsStore";
 import { PrivateKeyDisplay, PasswordModal } from "components";
-import { CustomNetworkConfig } from "./CustomNetworkConfig";
+//TODO: Restore custom networks once the SDK supports custom network configuration
+// import { CustomNetworkConfig } from "./CustomNetworkConfig";
 import { SecureStorage } from "services/secureStorage";
 
 const SettingsContainer = styled.div`
@@ -12,7 +13,7 @@ const SettingsContainer = styled.div`
 `;
 
 export const Settings: React.FC = () => {
-    const { accounts } = useSelector((state: RootState) => state.wallet);
+    const accounts = useSelector(selectAccounts);
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [selectedAccountForPrivateKey, setSelectedAccountForPrivateKey] =
         useState<string | null>(null);
@@ -48,7 +49,8 @@ export const Settings: React.FC = () => {
 
     return (
         <SettingsContainer>
-            <CustomNetworkConfig />
+            {/* TODO: Restore custom networks once the SDK supports custom network configuration
+            <CustomNetworkConfig /> */}
 
             {/* Password Modal for Private Key */}
             {showPasswordModal && selectedAccountForPrivateKey && (

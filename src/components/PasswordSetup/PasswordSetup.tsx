@@ -15,6 +15,12 @@ const Title = styled.h2`
     margin-bottom: 24px;
 `;
 
+const Description = styled.p`
+    font-size: 14px;
+    color: ${({ theme }) => theme.text.secondary};
+    margin-bottom: 24px;
+`;
+
 const ValidationList = styled.ul`
     list-style: none;
     padding: 0;
@@ -46,44 +52,71 @@ const ButtonContainer = styled.div`
     margin-top: 24px;
 `;
 
+type PasswordSetupMode = "create" | "unlock";
+
 interface PasswordSetupProps {
     onPasswordSet: (password: string) => void;
     onCancel?: () => void;
     title?: string;
+    description?: string;
     submitLabel?: string;
+    mode?: PasswordSetupMode;
+    error?: string;
+    loading?: boolean;
 }
 
 export const PasswordSetup: React.FC<PasswordSetupProps> = ({
     onPasswordSet,
     onCancel,
     title = "Set Password",
+    description,
     submitLabel = "Continue",
+    mode = "create",
+    error,
+    loading = false,
 }) => {
+    const isUnlockMode = mode === "unlock";
+
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [validation, setValidation] = useState<PasswordValidation | null>(
         null,
     );
-    const [error, setError] = useState("");
+    const [localError, setLocalError] = useState("");
 
     useEffect(() => {
-        if (password) {
-            setValidation(validatePassword(password));
-        } else {
+        if (isUnlockMode || !password) {
             setValidation(null);
+            return;
         }
-    }, [password]);
+
+        setValidation(validatePassword(password));
+    }, [password, isUnlockMode]);
+
+    const canSubmit = isUnlockMode
+        ? password.length > 0
+        : !!validation?.isValid && password === confirmPassword;
 
     const handleSubmit = () => {
-        setError("");
+        setLocalError("");
+
+        if (isUnlockMode) {
+            if (!password) {
+                setLocalError("Password is required");
+                return;
+            }
+
+            onPasswordSet(password);
+            return;
+        }
 
         if (!validation?.isValid) {
-            setError("Please meet all password requirements");
+            setLocalError("Please meet all password requirements");
             return;
         }
 
         if (password !== confirmPassword) {
-            setError("Passwords do not match");
+            setLocalError("Passwords do not match");
             return;
         }
 
@@ -91,11 +124,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (
-            e.key === "Enter" &&
-            validation?.isValid &&
-            password === confirmPassword
-        ) {
+        if (e.key === "Enter" && canSubmit && !loading) {
             handleSubmit();
         }
     };
@@ -104,11 +133,13 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
         <Container>
             <Title>{title}</Title>
 
+            {description && <Description>{description}</Description>}
+
             <PasswordInput
                 id="password-setup-password-input"
                 data-testid="password-setup-password-input"
                 data-cy="password-setup-password-input"
-                label="Password"
+                label={isUnlockMode ? "Wallet Password" : "Password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onInput={(e) => {
@@ -119,7 +150,10 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                 }}
                 placeholder="Enter password"
                 onKeyPress={handleKeyPress}
-                autoComplete="new-password"
+                autoComplete={
+                    isUnlockMode ? "current-password" : "new-password"
+                }
+                disabled={loading}
             />
 
             {validation && (
@@ -142,33 +176,36 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                 </ValidationList>
             )}
 
-            <PasswordInput
-                id="password-setup-confirm-input"
-                data-testid="password-setup-confirm-input"
-                data-cy="password-setup-confirm-input"
-                label="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onInput={(e) => {
-                    const target = e.currentTarget;
-                    if (target.value !== confirmPassword) {
-                        setConfirmPassword(target.value);
-                    }
-                }}
-                placeholder="Confirm password"
-                onKeyPress={handleKeyPress}
-                autoComplete="new-password"
-            />
+            {!isUnlockMode && (
+                <PasswordInput
+                    id="password-setup-confirm-input"
+                    data-testid="password-setup-confirm-input"
+                    data-cy="password-setup-confirm-input"
+                    label="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onInput={(e) => {
+                        const target = e.currentTarget;
+                        if (target.value !== confirmPassword) {
+                            setConfirmPassword(target.value);
+                        }
+                    }}
+                    placeholder="Confirm password"
+                    onKeyPress={handleKeyPress}
+                    autoComplete="new-password"
+                />
+            )}
 
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {(error || localError) && (
+                <ErrorMessage>{error || localError}</ErrorMessage>
+            )}
 
             <ButtonContainer>
                 <Button
                     id="password-setup-submit-button"
                     onClick={handleSubmit}
-                    disabled={
-                        !validation?.isValid || password !== confirmPassword
-                    }
+                    disabled={!canSubmit || loading}
+                    loading={loading}
                     fullWidth
                 >
                     {submitLabel}
@@ -178,6 +215,7 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                         id="password-setup-cancel-button"
                         variant="secondary"
                         onClick={onCancel}
+                        disabled={loading}
                         fullWidth
                         style={{ marginTop: "8px" }}
                     >
