@@ -315,11 +315,7 @@ export const sendTransaction = createAsyncThunk<
             },
         });
 
-        dispatch(
-            walletsApi.util.invalidateTags([
-                { type: WalletsApiTags.HISTORY, id: accountId },
-            ]),
-        );
+        invalidateAccountData();
 
         return { deployId };
     },
