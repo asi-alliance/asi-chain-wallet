@@ -45,11 +45,23 @@ export type TCustomNetwork = Omit<Network, "isDefault"> & {
     isDefault: false;
 };
 
+export enum DeployWatchStatus {
+    PENDING = "pending",
+    CONFIRMED = "confirmed",
+    FAILED = "failed",
+}
+
+export interface IDeployWatchState {
+    status: DeployWatchStatus;
+    error?: string;
+}
+
 export interface WalletStoreState {
     wallets: IWalletMeta[];
     selectedAccountId: string | null;
     networks: Network[];
     selectedNetwork: Network;
+    deployWatches: Record<string, IDeployWatchState>;
     isLoading: boolean;
     isInitialLoadComplete: boolean;
 }
@@ -83,6 +95,11 @@ export interface IUnlockedWalletMeta extends IWalletMetaBase {
 }
 
 export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
+
+export interface IActiveWalletSession {
+    wallet: IUnlockedWalletMeta;
+    selectedAccountId: string | null;
+}
 
 export enum WalletActions {
     CREATE_WALLET = "create-wallet",

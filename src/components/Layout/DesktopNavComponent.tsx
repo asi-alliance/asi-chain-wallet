@@ -219,8 +219,8 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                         minWidth: "200px",
                     }}
                 />
-                <NetworkStatusBar>
-                    <NetworkInfo>
+                <NetworkStatusBar id="dashboard-network-status-bar">
+                    <NetworkInfo id="dashboard-network-info">
                         <DelimiterIcon />
 
                         <span>

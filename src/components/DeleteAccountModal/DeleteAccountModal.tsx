@@ -18,6 +18,12 @@ const IconWrapper = styled.div`
     flex-shrink: 0;
 `;
 
+const ErrorMessage = styled.div`
+    color: ${({ theme }) => theme.danger};
+    font-size: 14px;
+    margin-top: 16px;
+`;
+
 const Actions = styled.div`
     display: flex;
     justify-content: flex-end;
@@ -25,23 +31,27 @@ const Actions = styled.div`
     margin-top: 24px;
 `;
 
-interface DeleteWalletModalProps {
+interface IDeleteAccountModalProps {
     isOpen: boolean;
+    accountName: string;
     onConfirm: () => void;
     onCancel: () => void;
     isDeleting?: boolean;
+    error?: string;
 }
 
-export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
+export const DeleteAccountModal: React.FC<IDeleteAccountModalProps> = ({
     isOpen,
+    accountName,
     onConfirm,
     onCancel,
     isDeleting = false,
+    error,
 }) => (
     <ModalWindow
         isOpen={isOpen}
         onClose={onCancel}
-        title="Delete Wallet"
+        title="Remove Account"
         maxWidth="480px"
         dismissible={!isDeleting}
     >
@@ -50,14 +60,13 @@ export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
                 <WarningIcon size={24} />
             </IconWrapper>
             <span>
-                This removes the wallet and all of its accounts from this device.
-                Make sure your Secret Recovery Phrase or private key is backed up
-                — without it this wallet cannot be restored.
+                {`This removes the account "${accountName}" from this device. It can be restored only from the Secret Recovery Phrase of its wallet.`}
             </span>
         </WarningRow>
+        {error && <ErrorMessage>{error}</ErrorMessage>}
         <Actions>
             <Button
-                id="delete-wallet-cancel-button"
+                id="delete-account-cancel-button"
                 variant="secondary"
                 onClick={onCancel}
                 disabled={isDeleting}
@@ -65,12 +74,12 @@ export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
                 Cancel
             </Button>
             <Button
-                id="delete-wallet-confirm-button"
+                id="delete-account-confirm-button"
                 variant="danger"
                 onClick={onConfirm}
                 loading={isDeleting}
             >
-                Delete Wallet
+                Remove Account
             </Button>
         </Actions>
     </ModalWindow>

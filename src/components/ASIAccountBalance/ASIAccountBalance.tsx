@@ -20,7 +20,7 @@ export const ASIAccountBalance = ({
 }: IASIAccountBalanceProps): ReactElement => {
     const networkId = useSelector(selectSelectedNetworkId);
     const {
-        data: balance = "0",
+        currentData: balance,
         isFetching,
         refetch,
     } = useGetBalanceQuery({ accountId: account.id, networkId });

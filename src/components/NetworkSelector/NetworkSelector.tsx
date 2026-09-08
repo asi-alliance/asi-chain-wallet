@@ -5,6 +5,7 @@ import { useIsNetworkBusy } from "sdk";
 import { AppDispatch } from "store";
 import { selectNetworks, selectSelectedNetwork } from "store/WalletsStore";
 import { selectNetwork } from "store/WalletsStore/thunks";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { Network } from "types/wallet";
 
 type NetworkSelectorProps = Omit<
@@ -22,6 +23,9 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     const selectedNetwork = useSelector(selectSelectedNetwork);
 
     const isNetworkBusy = useIsNetworkBusy(selectedNetwork.id);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
 
     const handleNetworkChange = (networkId: string): void => {
         dispatch(selectNetwork({ id: networkId }))
@@ -42,7 +46,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
             {...props}
             value={selectedNetwork.id}
             onChange={handleNetworkChange}
-            disabled={disabled || isNetworkBusy}
+            disabled={disabled || isNetworkBusy || isNetworkOperationPending}
             options={options}
             variant="ghost"
         />

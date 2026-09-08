@@ -2,12 +2,15 @@ import React, { CSSProperties, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import {
-    selectAccount,
     selectAccounts,
     selectSelectedAccountId,
+    selectSelectedNetworkId,
 } from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
+import { useIsNetworkBusy } from "sdk";
 
 interface IASIAccountSwitcherProps {
     adaptive?: boolean;
@@ -23,6 +26,11 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isNetworkBusy = useIsNetworkBusy(networkId);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
 
     const accountViews: AccountView[] = useMemo(
         () =>
@@ -56,6 +64,7 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
             selectedId={selectedAccountId ?? undefined}
             onSelect={handleSelect}
             onOpen={refreshBalances}
+            disabled={isNetworkBusy || isNetworkOperationPending}
             {...props}
         />
     );

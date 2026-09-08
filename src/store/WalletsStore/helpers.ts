@@ -1,5 +1,7 @@
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import {
     IAccountMeta,
+    IActiveWalletSession,
     ILockedWalletMeta,
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
@@ -118,21 +120,40 @@ export const lockOtherWallets = (
 
 export const applyActiveWalletSession = (
     state: WalletStoreState,
-    wallet: IUnlockedWalletMeta,
+    { wallet, selectedAccountId }: IActiveWalletSession,
 ): void => {
     addWalletToWalletsStore(state.wallets, wallet);
     lockOtherWallets(state.wallets, wallet.signerId);
-    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
+    state.selectedAccountId = selectedAccountId;
 };
 
-export const persistSelectedAccountId = (accountId: string | null) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
+const restoreSelectedAccountId = (
+    wallet: IUnlockedWalletMeta,
+): string | null => {
+    const storedAccountId: string | null =
+        WalletPreferencesStorage.getSelectedAccountId(wallet.signerId);
+
+    const selectedAccountId: string | null =
+        wallet.accounts.find(
+            (accountMeta: IUnlockedAccountMeta) =>
+                accountMeta.id === storedAccountId,
+        )?.id ??
+        wallet.accounts[0]?.id ??
+        null;
+
+    if (selectedAccountId && selectedAccountId !== storedAccountId) {
+        WalletPreferencesStorage.setSelectedAccountId(
+            wallet.signerId,
+            selectedAccountId,
+        );
     }
 
-    if (accountId) {
-        localStorage.setItem("selectedAccountId", accountId);
-    } else {
-        localStorage.removeItem("selectedAccountId");
-    }
+    return selectedAccountId;
 };
+
+export const toActiveWalletSession = (
+    wallet: IUnlockedWalletMeta,
+): IActiveWalletSession => ({
+    wallet,
+    selectedAccountId: restoreSelectedAccountId(wallet),
+});

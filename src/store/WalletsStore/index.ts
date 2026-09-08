@@ -3,9 +3,11 @@ import {
     WalletStoreState,
     IWalletMeta,
     IAccountMeta,
+    IDeployWatchState,
     IUnlockedWalletMeta,
     Network,
     TCustomNetwork,
+    DeployWatchStatus,
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
@@ -18,6 +20,7 @@ import {
     removeAccount,
     removeCustomNetwork,
     removeWallet,
+    selectAccount,
     selectNetwork,
     sendTransaction,
     updateAccountName,
@@ -26,8 +29,6 @@ import {
 import {
     applyActiveWalletSession,
     getUnlockedAccountFromWalletsMeta,
-    getUnlockedWalletAndAccountFromWalletsMeta,
-    persistSelectedAccountId,
     toLockedWalletMeta,
 } from "./helpers";
 import { walletsApi } from "./api";
@@ -45,6 +46,7 @@ const initialState: WalletStoreState = {
     selectedAccountId: null,
     networks: [...NETWORKS],
     selectedNetwork: getInitialNetwork(),
+    deployWatches: {},
     isLoading: false,
     isInitialLoadComplete: false,
 };
@@ -54,27 +56,30 @@ export interface IAccountDefaultUpdateFieldsPayload {
     accountId: string;
 }
 
+export interface IDeployFailedPayload {
+    deployId: string;
+    error: string;
+}
+
 const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
-        selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
-                state.wallets,
-                action.payload,
-            );
+        deployConfirmed: (state, action: PayloadAction<string>) => {
+            state.deployWatches[action.payload] = {
+                status: DeployWatchStatus.CONFIRMED,
+            };
+        },
+        deployFailed: (state, action: PayloadAction<IDeployFailedPayload>) => {
+            const { deployId, error } = action.payload;
 
-            if (!walletAndAccount) {
-                console.error(
-                    "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
-                );
-
-                return;
-            }
-
-            state.selectedAccountId = walletAndAccount.account.id;
-
-            persistSelectedAccountId(walletAndAccount.account.id);
+            state.deployWatches[deployId] = {
+                status: DeployWatchStatus.FAILED,
+                error,
+            };
+        },
+        deployWatchCleared: (state, action: PayloadAction<string>) => {
+            delete state.deployWatches[action.payload];
         },
     },
     extraReducers: (builder) => {
@@ -85,6 +90,9 @@ const walletsStoreSlice = createSlice({
             })
             .addCase(loadWalletsFromStorage.rejected, (state) => {
                 state.isInitialLoadComplete = true;
+            })
+            .addCase(selectAccount.fulfilled, (state, action) => {
+                state.selectedAccountId = action.payload;
             })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { removedWalletId, removedSignerId } = action.payload;
@@ -106,7 +114,8 @@ const walletsStoreSlice = createSlice({
                 state.selectedAccountId = state.wallets[0].accounts[0].id;
             })
             .addCase(removeAccount.fulfilled, (state, action) => {
-                const { walletId, accountId } = action.payload;
+                const { walletId, accountId, selectedAccountId } =
+                    action.payload;
 
                 const wallet = state.wallets.find(
                     (walletMeta) => walletMeta.id === walletId,
@@ -122,9 +131,7 @@ const walletsStoreSlice = createSlice({
                     (accountMeta) => accountMeta.id !== accountId,
                 );
 
-                if (state.selectedAccountId === accountId) {
-                    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
-                }
+                state.selectedAccountId = selectedAccountId;
             })
             .addCase(updateAccountName.pending, (state) => {
                 state.isLoading = true;
@@ -233,8 +240,11 @@ const walletsStoreSlice = createSlice({
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(sendTransaction.fulfilled, (state) => {
+            .addCase(sendTransaction.fulfilled, (state, action) => {
                 state.isLoading = false;
+                state.deployWatches[action.payload.deployId] = {
+                    status: DeployWatchStatus.PENDING,
+                };
             })
             .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
@@ -249,8 +259,7 @@ const walletsStoreSlice = createSlice({
                 applyActiveWalletSession(state, action.payload);
             })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
-                applyActiveWalletSession(state, action.payload.wallet);
-                state.selectedAccountId = action.payload.accountId;
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
@@ -338,7 +347,13 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
     state.walletsStore.wallets.some(
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
+export const selectDeployWatch = (
+    state: RootState,
+    deployId: string,
+): IDeployWatchState | null =>
+    state.walletsStore.deployWatches[deployId] ?? null;
 
-export const { selectAccount } = walletsStoreSlice.actions;
+export const { deployConfirmed, deployFailed, deployWatchCleared } =
+    walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

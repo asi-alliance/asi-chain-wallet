@@ -5,13 +5,14 @@ import { RemoveAccountButton } from "components/RemoveAccountButton";
 import { DownloadIcon, LockPassIcon } from "components/Icons";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import {
-    selectAccount,
     selectIsAccountUnlocked,
     selectSelectedAccountId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
+import { useAppDispatch } from "store/hooks";
 import { useNavigate } from "react-router-dom";
 import { Button } from "components/Button";
 import { Card } from "components/Card";
@@ -130,7 +131,7 @@ export const AccountCard = ({
     fullMode = true,
     className = "",
 }: IAccountCardProps): ReactElement => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
 
     const selectedAccountId = useSelector(selectSelectedAccountId);

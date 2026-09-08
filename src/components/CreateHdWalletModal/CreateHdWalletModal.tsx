@@ -21,7 +21,12 @@ export const CreateHdWalletModal: React.FC<CreateHdWalletModalProps> = ({
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={onCancel} title="Create Wallet">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={onCancel}
+            title="Create Wallet"
+            dismissible={false}
+        >
             <CreateHdWalletForm onSuccess={handleSuccess} onCancel={onCancel} />
         </ModalWindow>
     );

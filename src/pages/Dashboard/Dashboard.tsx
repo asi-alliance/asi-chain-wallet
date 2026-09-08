@@ -10,7 +10,8 @@ import {
     selectSelectedNetworkId,
 } from "store/WalletsStore";
 import {
-    THistorySourceFilter,
+    IAccountQueryArgs,
+    IHistoryQueryArgs,
     useGetBalanceQuery,
     useGetTransactionHistoryQuery,
 } from "store/WalletsStore/api";
@@ -20,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { AccountCard } from "components/AccountCard";
 import { buildUrlWithParams } from "utils/navigationUtils";
 import { HistoryIcon, VectorIcon } from "components/Icons";
+import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import { useScreen } from "hooks/";
 
 import { AccountSelector } from "components/AccountSelector";
@@ -67,7 +69,6 @@ const CustomAccountCard = styled(AccountCard)`
     }
 `;
 
-const ACCOUNT_DATA_POLLING_INTERVAL_MS = 30000;
 
 export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -85,19 +86,24 @@ export const Dashboard: React.FC = () => {
 
     const { isLaptop } = useScreen();
 
-    const accountDataArgs =
+    const balanceArgs: IAccountQueryArgs | typeof skipToken =
+        selectedAccountId && isAccountUnlocked
+            ? { accountId: selectedAccountId, networkId }
+            : skipToken;
+
+    const historyArgs: IHistoryQueryArgs | typeof skipToken =
         selectedAccountId && isAccountUnlocked
             ? {
                   accountId: selectedAccountId,
                   networkId,
-                  source: "all" as THistorySourceFilter,
+                  source: "all",
               }
             : skipToken;
 
-    useGetBalanceQuery(accountDataArgs, {
+    useGetBalanceQuery(balanceArgs, {
         pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
     });
-    useGetTransactionHistoryQuery(accountDataArgs, {
+    useGetTransactionHistoryQuery(historyArgs, {
         pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
     });
 

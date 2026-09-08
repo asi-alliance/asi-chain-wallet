@@ -1,8 +1,13 @@
-import { IAccountDefaultUpdateFieldsPayload } from ".";
+import {
+    deployConfirmed,
+    deployFailed,
+    IAccountDefaultUpdateFieldsPayload,
+} from ".";
 import {
     Account,
     IAccountMeta,
     IUnlockedAccountMeta,
+    IWalletMeta,
     Network,
     TCustomNetwork,
 } from "types/wallet";
@@ -14,17 +19,21 @@ import {
     INetworkUpdate,
     NetworkId,
     NetworkName,
+    getErrorMessage,
 } from "@asichain/asi-wallet-sdk";
 import { RChainService } from "services/rchain";
 import { SdkWalletService } from "sdk";
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
-import {
-    persistSelectedNetworkId,
-    readSelectedNetworkId,
-} from "constants/networks";
-import { getErrorMessage } from "utils/helpers";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { walletsApi, WalletsApiTags } from "./api";
-import { getUnlockedAccountFromWalletsMeta } from "./helpers";
+import {
+    getUnlockedAccountFromWalletsMeta,
+    getUnlockedWalletAndAccountFromWalletsMeta,
+} from "./helpers";
+
+const FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE: string =
+    "Transaction failed on chain";
 
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
@@ -83,15 +92,47 @@ export interface IInitializeNetworksResponse {
     selectedNetwork: TCustomNetwork | null;
 }
 
+export const selectAccount = createAsyncThunk<
+    string,
+    string,
+    { state: RootState; rejectValue: string }
+>(
+    "wallets-store/selectAccount",
+    (accountId: string, { getState, rejectWithValue }) => {
+        const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
+            getState().walletsStore.wallets,
+            accountId,
+        );
+
+        if (!walletAndAccount) {
+            return rejectWithValue(
+                "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
+            );
+        }
+
+        const { wallet, account } = walletAndAccount;
+
+        WalletPreferencesStorage.setSelectedAccountId(
+            wallet.signerId,
+            account.id,
+        );
+
+        return account.id;
+    },
+);
+
 export const removeWallet = createAsyncThunk(
     "walletsStore/removeWallet",
     async ({ walletId }: { walletId: string }, { rejectWithValue }) => {
         try {
             const removedWallet = await SdkWalletService.removeWallet(walletId);
+            const removedSignerId = removedWallet.getSigner().getId();
+
+            WalletPreferencesStorage.removeSigner(removedSignerId);
 
             return {
                 removedWalletId: removedWallet.getId(),
-                removedSignerId: removedWallet.getSigner().getId(),
+                removedSignerId,
             };
         } catch (error) {
             return rejectWithValue(error);
@@ -99,16 +140,62 @@ export const removeWallet = createAsyncThunk(
     },
 );
 
-export const removeAccount = createAsyncThunk(
+export interface IAccountRemoveResponse extends IAccountRemovePayload {
+    selectedAccountId: string | null;
+}
+
+export const removeAccount = createAsyncThunk<
+    IAccountRemoveResponse,
+    IAccountRemovePayload,
+    { state: RootState }
+>(
     "walletsStore/removeAccount",
     async (
         { walletId, accountId }: IAccountRemovePayload,
-        { rejectWithValue },
+        { getState, rejectWithValue },
     ) => {
         try {
             await SdkWalletService.removeAccount(walletId, accountId);
 
-            return { walletId, accountId };
+            const { wallets, selectedAccountId } = getState().walletsStore;
+
+            const wallet: IWalletMeta | undefined = wallets.find(
+                (walletMeta: IWalletMeta) => walletMeta.id === walletId,
+            );
+
+            if (!wallet) {
+                return { walletId, accountId, selectedAccountId };
+            }
+
+            if (selectedAccountId !== accountId) {
+                return { walletId, accountId, selectedAccountId };
+            }
+
+            const nextSelectedAccountId: string | null =
+                wallet.accounts.find(
+                    (accountMeta: IAccountMeta) => accountMeta.id !== accountId,
+                )?.id ?? null;
+
+            if (nextSelectedAccountId) {
+                WalletPreferencesStorage.setSelectedAccountId(
+                    wallet.signerId,
+                    nextSelectedAccountId,
+                );
+
+                return {
+                    walletId,
+                    accountId,
+                    selectedAccountId: nextSelectedAccountId,
+                };
+            }
+
+            WalletPreferencesStorage.removeSigner(wallet.signerId);
+
+            return {
+                walletId,
+                accountId,
+                selectedAccountId: nextSelectedAccountId,
+            };
         } catch (error) {
             return rejectWithValue(error);
         }
@@ -137,7 +224,7 @@ export const updateAccountName = createAsyncThunk<
                 );
 
             if (!targetAccount) {
-                rejectWithValue(
+                return rejectWithValue(
                     "walletsStoreSlice.updateAccountName: Incorrect account id",
                 );
             }
@@ -160,7 +247,8 @@ export const initializeNetworks = createAsyncThunk<IInitializeNetworksResponse>(
         const customNetworks: TCustomNetwork[] =
             SdkWalletService.getCustomNetworks();
 
-        const persistedNetworkId = readSelectedNetworkId();
+        const persistedNetworkId =
+            WalletPreferencesStorage.getSelectedNetworkId();
 
         const persistedCustomNetwork =
             customNetworks.find(
@@ -202,7 +290,15 @@ export const selectNetwork = createAsyncThunk<
         { id }: ICustomNetworkDefaultGetFieldsPayload,
         { getState, rejectWithValue },
     ) => {
-        const { networks, selectedNetwork } = getState().walletsStore;
+        const state: RootState = getState();
+
+        if (selectIsNetworkOperationPending(state)) {
+            return rejectWithValue(
+                "Network cannot be changed while an operation is awaiting confirmation",
+            );
+        }
+
+        const { networks, selectedNetwork } = state.walletsStore;
 
         const network = networks.find(
             (networkMeta: Network) => networkMeta.id === id,
@@ -224,7 +320,7 @@ export const selectNetwork = createAsyncThunk<
             );
         }
 
-        persistSelectedNetworkId(network.id);
+        WalletPreferencesStorage.setSelectedNetworkId(network.id);
 
         return network;
     },
@@ -280,7 +376,7 @@ export const removeCustomNetwork = createAsyncThunk<
             const selectedNetworkId: NetworkId =
                 SdkWalletService.getActiveNetworkId();
 
-            persistSelectedNetworkId(selectedNetworkId);
+            WalletPreferencesStorage.setSelectedNetworkId(selectedNetworkId);
 
             return {
                 id,
@@ -340,15 +436,25 @@ export const sendTransaction = createAsyncThunk<
         };
 
         subscribe({
-            onConfirmed: invalidateAccountData,
-            onError: invalidateAccountData,
+            onConfirmed: () => {
+                dispatch(deployConfirmed(deployId));
+                invalidateAccountData();
+            },
+            onError: (error: Error) => {
+                dispatch(
+                    deployFailed({
+                        deployId,
+                        error: getErrorMessage(
+                            error,
+                            FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE,
+                        ),
+                    }),
+                );
+                invalidateAccountData();
+            },
         });
 
-        dispatch(
-            walletsApi.util.invalidateTags([
-                { type: WalletsApiTags.HISTORY, id: accountId },
-            ]),
-        );
+        invalidateAccountData();
 
         return { deployId };
     },

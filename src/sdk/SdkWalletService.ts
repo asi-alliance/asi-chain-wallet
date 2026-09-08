@@ -163,9 +163,18 @@ export class SdkWalletService {
     ): Promise<IUnlockedWalletMeta> {
         const client: Client = requireSdkClient();
 
-        client.closeAllWallets();
-
         const wallet: Wallet = await client.openWallet(signerId, password);
+        const openedWalletId: string = wallet.getId();
+
+        [...client.getWalletManager().getAll()].forEach(
+            (previousWallet: Wallet) => {
+                if (previousWallet.getId() === openedWalletId) {
+                    return;
+                }
+
+                client.closeWallet(previousWallet.getId());
+            },
+        );
 
         return SdkWalletService.mapWallet(wallet);
     }
