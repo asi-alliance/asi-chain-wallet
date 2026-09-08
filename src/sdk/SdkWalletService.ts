@@ -4,12 +4,17 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
+    INetworkConfig,
+    INetworkRecord,
+    INetworkUpdate,
     IReservedOperationResult,
     ITransactionsHistoryOptions,
     ITransferRequest,
     IWalletMetadata,
     Mnemonic,
     MnemonicStrength,
+    NetworkId,
+    NetworkName,
     PRIVATE_KEY_LENGTH,
     Transaction,
     Wallet,
@@ -19,6 +24,9 @@ import {
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
     IWalletMeta,
+    Network,
+    TCustomNetwork,
+    TCustomNetworkRecord,
 } from "types/wallet";
 
 export class SdkWalletService {
@@ -39,6 +47,20 @@ export class SdkWalletService {
             isUnlocked: true,
             type: wallet.getType(),
             accounts: wallet.getAccounts().map(SdkWalletService.mapAccount),
+        };
+    }
+
+    static mapNetwork<T extends boolean>(
+        record: INetworkRecord & { isDefault: T },
+    ): Omit<Network, "isDefault"> & { isDefault: T } {
+        return {
+            id: record.id,
+            name: record.name,
+            validatorUrl: record.config.ValidatorURL,
+            observerUrl: record.config.ReadOnlyURL,
+            indexerUrl: record.config.IndexerURL,
+            nodeApiProfile: record.config.nodeApiProfile,
+            isDefault: record.isDefault,
         };
     }
 
@@ -209,6 +231,57 @@ export class SdkWalletService {
             .getWalletManager()
             .getAll()
             .map(SdkWalletService.mapWallet);
+    }
+
+    static getCustomNetworks(): TCustomNetwork[] {
+        return requireSdkClient()
+            .getNetworks()
+            .filter(
+                (network: INetworkRecord): network is TCustomNetworkRecord =>
+                    !network.isDefault,
+            )
+            .map(SdkWalletService.mapNetwork);
+    }
+
+    static getActiveNetwork(): Network {
+        return SdkWalletService.mapNetwork(
+            requireSdkClient().getCurrentNetwork(),
+        );
+    }
+
+    static getActiveNetworkId(): NetworkId {
+        return requireSdkClient().getCurrentNetworkId();
+    }
+
+    static async addCustomNetwork(
+        name: NetworkName,
+        config: INetworkConfig,
+    ): Promise<TCustomNetwork> {
+        const addedNetworkRecord = (await requireSdkClient().addNetwork(
+            name,
+            config,
+        )) as TCustomNetworkRecord;
+
+        return SdkWalletService.mapNetwork(addedNetworkRecord);
+    }
+
+    static async updateCustomNetwork(
+        id: NetworkId,
+        update: INetworkUpdate,
+    ): Promise<TCustomNetwork> {
+        const client = requireSdkClient();
+
+        await client.updateNetwork(id, update);
+
+        return SdkWalletService.mapNetwork(
+            client.getNetwork(id) as TCustomNetworkRecord,
+        );
+    }
+
+    static async removeCustomNetwork(id: NetworkId): Promise<void> {
+        const client = requireSdkClient();
+
+        await client.removeNetwork(id);
     }
 
     static lockAll(): void {

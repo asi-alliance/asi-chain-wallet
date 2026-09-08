@@ -6,6 +6,9 @@ import React, {
     useState,
 } from "react";
 import { setSdkClient } from "./client";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "store";
+import { initializeNetworks } from "store/WalletsStore/thunks";
 import {
     Client,
     ClientEvent,
@@ -65,6 +68,8 @@ const SdkClientContext = createContext<ISdkClientContextValue | null>(null);
 export const SdkClientProvider: React.FC<{
     children: React.ReactNode;
 }> = ({ children }) => {
+    const dispatch = useDispatch<AppDispatch>();
+
     const [client, setClient] = useState<Client | null>(null);
     const [isReady, setIsReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -78,6 +83,8 @@ export const SdkClientProvider: React.FC<{
                 if (cancelled) {
                     return;
                 }
+
+                dispatch(initializeNetworks());
 
                 setClient(client);
                 setIsReady(true);
@@ -99,7 +106,7 @@ export const SdkClientProvider: React.FC<{
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [dispatch]);
 
     useEffect(() => {
         if (!client) {
