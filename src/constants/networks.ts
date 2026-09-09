@@ -5,12 +5,11 @@ import {
     NodeApiProfile,
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
+import { WalletPreferencesStorage } from "services/walletPreferences";
 import { Network } from "types/wallet";
+import { isNotEmptyPlainObject } from "utils/guards";
 
-type TNetworkEnvEntry = Partial<Record<keyof INetworkEndpoints, string>> & {
-    name?: string;
-    nodeApiProfile?: string;
-};
+type TNetworkEnvEntry = Record<string, unknown>;
 
 export interface INetworksEnvIssue {
     level: "error" | "warning";
@@ -25,8 +24,6 @@ interface INetworksEnvParseResult {
 
 const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
 
-export const SELECTED_NETWORK_KEY = "asi_wallet_selected_network";
-
 export const UNCONFIGURED_NETWORK: Network = {
     id: "unconfigured",
     name: "Network is not configured",
@@ -34,6 +31,7 @@ export const UNCONFIGURED_NETWORK: Network = {
     observerUrl: "",
     indexerUrl: "",
     nodeApiProfile: DEFAULT_NODE_API_PROFILE,
+    isDefault: true,
 };
 
 const validateUrl = (url: string): string | null => {
@@ -56,13 +54,38 @@ const validateUrl = (url: string): string | null => {
     return null;
 };
 
+const readEntryString = (
+    entry: TNetworkEnvEntry,
+    field: string,
+    networkId: string,
+    issues: INetworksEnvIssue[],
+): string | null => {
+    const value: unknown = entry[field];
+
+    if (value === undefined || value === null) {
+        return "";
+    }
+
+    if (typeof value !== "string") {
+        issues.push({
+            level: "warning",
+            networkId,
+            message: `${field} must be a string and was ignored: got ${typeof value}`,
+        });
+
+        return null;
+    }
+
+    return value.trim();
+};
+
 const readNetworkUrl = (
     entry: TNetworkEnvEntry,
     field: keyof INetworkEndpoints,
     networkId: string,
     issues: INetworksEnvIssue[],
 ): string => {
-    const url = entry[field]?.trim() ?? "";
+    const url = readEntryString(entry, field, networkId, issues);
 
     if (!url) {
         return "";
@@ -88,7 +111,11 @@ const readNodeApiProfile = (
     networkId: string,
     issues: INetworksEnvIssue[],
 ): NodeApiProfile => {
-    const profile = entry.nodeApiProfile?.trim() ?? "";
+    const profile = readEntryString(entry, "nodeApiProfile", networkId, issues);
+
+    if (profile === null) {
+        return DEFAULT_NODE_API_PROFILE;
+    }
 
     if (!profile) {
         issues.push({
@@ -126,10 +153,10 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         return { networks: [], issues };
     }
 
-    let entries: Record<string, TNetworkEnvEntry>;
+    let parsedEnv: unknown;
 
     try {
-        entries = JSON.parse(rawEnv) as Record<string, TNetworkEnvEntry>;
+        parsedEnv = JSON.parse(rawEnv);
     } catch (error) {
         issues.push({
             level: "error",
@@ -139,14 +166,25 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         return { networks: [], issues };
     }
 
+    if (!isNotEmptyPlainObject(parsedEnv)) {
+        issues.push({
+            level: "error",
+            message:
+                "NETWORKS must be a non-empty JSON object mapping network ids to their configuration",
+        });
+
+        return { networks: [], issues };
+    }
+
     const networks: Network[] = [];
 
-    Object.entries(entries).forEach(([networkId, entry]) => {
-        if (!entry) {
+    Object.entries(parsedEnv).forEach(([networkId, entry]) => {
+        if (!isNotEmptyPlainObject(entry)) {
             issues.push({
                 level: "warning",
                 networkId,
-                message: "skipped: configuration is empty",
+                message:
+                    "skipped: configuration must be a non-empty JSON object",
             });
 
             return;
@@ -180,8 +218,7 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
             issues.push({
                 level: "warning",
                 networkId,
-                message:
-                    "ReadOnlyURL is missing: reads will go to the validator",
+                message: "ReadOnlyURL is missing: reads is unavailable",
             });
         }
 
@@ -203,19 +240,26 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
 
         networks.push({
             id: networkId,
-            name: entry.name?.trim() || networkId,
+            name:
+                readEntryString(entry, "name", networkId, issues) || networkId,
             validatorUrl,
             observerUrl,
             indexerUrl,
             nodeApiProfile: readNodeApiProfile(entry, networkId, issues),
+            isDefault: true,
         });
     });
 
-    if (!networks.length) {
+    const hasCompleteNetwork = networks.some(
+        (network: Network) =>
+            network.validatorUrl && network.observerUrl && network.indexerUrl,
+    );
+
+    if (!hasCompleteNetwork) {
         issues.push({
             level: "error",
             message:
-                "NETWORKS contains no usable network: every entry needs a valid http(s) ValidatorURL",
+                "NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
         });
     }
 
@@ -257,30 +301,12 @@ export const getNetworksEnvError = (): string | null => {
     return errors.map((issue: INetworksEnvIssue) => issue.message).join("; ");
 };
 
-const readSelectedNetworkId = (): string | null => {
-    try {
-        return localStorage.getItem(SELECTED_NETWORK_KEY);
-    } catch (error) {
-        console.error("Failed to read selected network id:", error);
-
-        return null;
-    }
-};
-
-export const persistSelectedNetworkId = (networkId: string): void => {
-    try {
-        localStorage.setItem(SELECTED_NETWORK_KEY, networkId);
-    } catch (error) {
-        console.error("Failed to persist selected network id:", error);
-    }
-};
-
 export const getInitialNetwork = (): Network => {
     if (!NETWORKS.length) {
         return UNCONFIGURED_NETWORK;
     }
 
-    const selectedNetworkId = readSelectedNetworkId();
+    const selectedNetworkId = WalletPreferencesStorage.getSelectedNetworkId();
 
     return (
         NETWORKS.find((network: Network) => network.id === selectedNetworkId) ??

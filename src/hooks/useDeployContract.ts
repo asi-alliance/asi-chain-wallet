@@ -1,24 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { skipToken } from "@reduxjs/toolkit/query/react";
-import {
-    DeployStatus,
-    IDeployStatusResult,
-    IDeployWatchHandle,
-} from "@asichain/asi-wallet-sdk";
+import { DeployStatus } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
+    deployWatchCleared,
     selectAccountById,
+    selectDeployWatch,
     selectSelectedAccountId,
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import {
-    useGetBalanceQuery,
-    walletsApi,
-    WalletsApiTags,
-} from "store/WalletsStore/api";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { deployContract } from "store/WalletsStore/thunks";
 import { isWalletLockedError, SdkWalletService } from "sdk";
 import { IUnlockedAccountMeta } from "types/wallet";
@@ -40,7 +34,7 @@ export type TDeployEvent =
     | { type: DeployEventTypes.DEPLOY_STARTED; fileName?: string }
     | { type: DeployEventTypes.DEPLOY_SUBMITTED; deployId: string }
     | { type: DeployEventTypes.DEPLOY_STATUS; status: DeployStatus }
-    | { type: DeployEventTypes.DEPLOY_CONFIRMED; blockHash?: string }
+    | { type: DeployEventTypes.DEPLOY_CONFIRMED }
     | { type: DeployEventTypes.DEPLOY_FAILED; message: string }
     | { type: DeployEventTypes.EXPLORE_STARTED; fileName?: string }
     | { type: DeployEventTypes.EXPLORE_COMPLETED; result: unknown }
@@ -68,6 +62,8 @@ export interface IUseDeployContractResponse {
     pendingTerm: string;
     pendingFileName?: string;
     isProcessing: boolean;
+    isWaitingForConfirmation: boolean;
+    isDeployConfirmed: boolean;
     isDeployConfirmationOpen: boolean;
     isExploreConfirmationOpen: boolean;
     isPasswordModalOpen: boolean;
@@ -115,24 +111,49 @@ export const useDeployContract = ({
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [passwordError, setPasswordError] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
+    const [submittedDeployId, setSubmittedDeployId] = useState("");
+
+    const deployWatch = useSelector((state: RootState) =>
+        submittedDeployId ? selectDeployWatch(state, submittedDeployId) : null,
+    );
+
+    const isDeployConfirmed = deployWatch?.status === DeployStatus.FINALIZED;
+    const isWaitingForConfirmation =
+        !!deployWatch && !isDeployConfirmed && !deployWatch.error;
 
     const onEventRef = useRef(onEvent);
-    const watchHandleRef = useRef<IDeployWatchHandle | null>(null);
 
     useEffect(() => {
         onEventRef.current = onEvent;
     });
 
-    useEffect(
-        () => () => {
-            watchHandleRef.current?.cancel();
-        },
-        [],
-    );
-
     const emit = (event: TDeployEvent): void => {
         onEventRef.current(event);
     };
+
+    useEffect(() => {
+        if (!deployWatch) {
+            return;
+        }
+
+        if (deployWatch.error) {
+            emit({
+                type: DeployEventTypes.DEPLOY_FAILED,
+                message: deployWatch.error,
+            });
+
+            return;
+        }
+
+        emit({
+            type: DeployEventTypes.DEPLOY_STATUS,
+            status: deployWatch.status,
+        });
+
+        if (deployWatch.status === DeployStatus.FINALIZED) {
+            emit({ type: DeployEventTypes.DEPLOY_CONFIRMED });
+        }
+    }, [deployWatch]);
 
     const closeModals = (): void => {
         setConfirmationMode(null);
@@ -173,33 +194,13 @@ export const useDeployContract = ({
         setConfirmationMode(DeployConfirmationMods.EXPLORE);
     };
 
-    const watchDeployStatus = (deployId: string, accountId: string): void => {
-        watchHandleRef.current?.cancel();
+    const clearDeployWatch = (): void => {
+        if (!submittedDeployId) {
+            return;
+        }
 
-        const invalidateAccountData = (): void => {
-            dispatch(
-                walletsApi.util.invalidateTags([
-                    { type: WalletsApiTags.BALANCE, id: accountId },
-                    { type: WalletsApiTags.HISTORY, id: accountId },
-                ]),
-            );
-        };
-
-        watchHandleRef.current = SdkWalletService.watchDeploy(deployId, {
-            onStatus: ({ status }: IDeployStatusResult) =>
-                emit({ type: DeployEventTypes.DEPLOY_STATUS, status }),
-            onConfirmed: ({ blockHash }) => {
-                invalidateAccountData();
-                emit({ type: DeployEventTypes.DEPLOY_CONFIRMED, blockHash });
-            },
-            onError: (watchError: Error) => {
-                invalidateAccountData();
-                emit({
-                    type: DeployEventTypes.DEPLOY_FAILED,
-                    message: watchError.message,
-                });
-            },
-        });
+        dispatch(deployWatchCleared(submittedDeployId));
+        setSubmittedDeployId("");
     };
 
     const executeDeploy = async (password?: string): Promise<void> => {
@@ -242,6 +243,7 @@ export const useDeployContract = ({
             return;
         }
 
+        clearDeployWatch();
         setPasswordError("");
         setIsProcessing(true);
         emit({
@@ -262,14 +264,11 @@ export const useDeployContract = ({
 
             if (deployContract.fulfilled.match(resultAction)) {
                 cancel();
+                setSubmittedDeployId(resultAction.payload.deployId);
                 emit({
                     type: DeployEventTypes.DEPLOY_SUBMITTED,
                     deployId: resultAction.payload.deployId,
                 });
-                watchDeployStatus(
-                    resultAction.payload.deployId,
-                    selectedAccountId,
-                );
 
                 return;
             }
@@ -346,6 +345,8 @@ export const useDeployContract = ({
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
         isProcessing,
+        isWaitingForConfirmation,
+        isDeployConfirmed,
         isDeployConfirmationOpen:
             confirmationMode === DeployConfirmationMods.DEPLOY,
         isExploreConfirmationOpen:

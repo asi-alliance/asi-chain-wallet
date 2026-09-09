@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
 import styled from "styled-components";
-import { DeployStatus } from "@asichain/asi-wallet-sdk";
 import {
     Button,
     DeploymentConfirmationModal,
@@ -122,12 +121,46 @@ const SuccessMessage = styled.div`
     }
 `;
 
+const LoadingMessage = styled.div`
+    background: ${({ theme }) => `${theme.primary}20`};
+    color: ${({ theme }) => theme.primary};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
+
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid ${({ theme }) => theme.primary};
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .deploy-id {
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0.8;
+        line-height: 1.4;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
 export const exampleContract = `new stdout(\`rho:io:stdout\`), deployerId(\`rho:rchain:deployerId\`) in {
   stdout!("Hello from ASI Wallet!") |
   deployerId!("Deploy successful")
 }`;
 
-const SUBMITTED_STATUS_LABEL = "Submitted";
+const SENT_STATUS_LABEL = "Sent";
 
 interface IDeployLiteModeContextValue extends IUseDeployContractResponse {
     code: string;
@@ -192,15 +225,11 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
                 return;
             case DeployEventTypes.DEPLOY_SUBMITTED:
                 setDeployId(event.deployId);
-                setDeployStatus(SUBMITTED_STATUS_LABEL);
+                setDeployStatus(SENT_STATUS_LABEL);
 
                 return;
             case DeployEventTypes.DEPLOY_STATUS:
                 setDeployStatus(event.status);
-
-                return;
-            case DeployEventTypes.DEPLOY_CONFIRMED:
-                setDeployStatus(DeployStatus.FINALIZED);
 
                 return;
             case DeployEventTypes.EXPLORE_COMPLETED:
@@ -275,6 +304,24 @@ const DeployLiteModeActions: React.FC = () => {
     );
 };
 
+const CopyDeployIdButton: React.FC<{ deployId: string }> = ({ deployId }) => (
+    <Button
+        variant="secondary"
+        size="small"
+        style={{
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+        }}
+        onClick={async () => {
+            try {
+                await navigator.clipboard.writeText(deployId);
+            } catch {}
+        }}
+    >
+        Copy
+    </Button>
+);
+
 const DeployLiteModeBoard: React.FC = () => {
     const {
         account,
@@ -289,6 +336,8 @@ const DeployLiteModeBoard: React.FC = () => {
         phloPrice,
         pendingTerm,
         isProcessing,
+        isWaitingForConfirmation,
+        isDeployConfirmed,
         isDeployConfirmationOpen,
         isExploreConfirmationOpen,
         isPasswordModalOpen,
@@ -309,7 +358,36 @@ const DeployLiteModeBoard: React.FC = () => {
     return (
         <>
             {error && <ErrorMessage>{error}</ErrorMessage>}
-            {deployId && (
+            {deployId && isWaitingForConfirmation && (
+                <LoadingMessage>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 12,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ flex: "1", minWidth: "200px" }}>
+                            <div>
+                                <span className="spinner"></span>
+                                Deploy sent! Waiting for confirmation...
+                            </div>
+                            <div className="deploy-id">
+                                Deploy ID: {deployId}
+                            </div>
+                            {deployStatus && (
+                                <div className="deploy-id">
+                                    Status: {deployStatus}
+                                </div>
+                            )}
+                        </div>
+                        <CopyDeployIdButton deployId={deployId} />
+                    </div>
+                </LoadingMessage>
+            )}
+            {deployId && isDeployConfirmed && (
                 <SuccessMessage>
                     <div
                         style={{
@@ -325,29 +403,8 @@ const DeployLiteModeBoard: React.FC = () => {
                             <div className="deploy-id">
                                 Deploy ID: {deployId}
                             </div>
-                            {deployStatus && (
-                                <div className="deploy-id">
-                                    Status: {deployStatus}
-                                </div>
-                            )}
                         </div>
-                        <Button
-                            variant="secondary"
-                            size="small"
-                            style={{
-                                flexShrink: 0,
-                                whiteSpace: "nowrap",
-                            }}
-                            onClick={async () => {
-                                try {
-                                    await navigator.clipboard.writeText(
-                                        deployId,
-                                    );
-                                } catch {}
-                            }}
-                        >
-                            Copy
-                        </Button>
+                        <CopyDeployIdButton deployId={deployId} />
                     </div>
                 </SuccessMessage>
             )}

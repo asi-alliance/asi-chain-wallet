@@ -4,6 +4,7 @@ import {
     THistorySource,
 } from "@asichain/asi-wallet-sdk";
 import { generateRandomGasFee } from "constants/gas";
+import { ACCOUNT_DATA_POLLING_INTERVAL_SECONDS } from "constants/polling";
 import { Transaction } from "types/transactions";
 import { SdkWalletService } from "sdk";
 import { RootState } from "store";
@@ -46,6 +47,8 @@ export const walletsApi = createApi({
     reducerPath: "walletsApi",
     baseQuery: fakeBaseQuery<string>(),
     tagTypes: [WalletsApiTags.BALANCE, WalletsApiTags.HISTORY],
+    refetchOnMountOrArgChange: true,
+    keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
         getBalance: build.query<string, IAccountQueryArgs>({
             queryFn: async ({ accountId }, { getState }) => {

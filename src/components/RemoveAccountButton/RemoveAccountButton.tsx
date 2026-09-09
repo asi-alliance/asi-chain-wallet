@@ -1,18 +1,22 @@
 import styled from "styled-components";
-import { selectWallets } from "store/WalletsStore";
-import { removeAccount } from "store/WalletsStore/thunks";
-import { getUnlockedWalletAndAccountFromWalletsMeta } from "store/WalletsStore/helpers";
+import { selectAccountById, selectWalletByAccountId } from "store/WalletsStore";
 import { useSelector } from "react-redux";
-import { useAppDispatch } from "store/hooks";
 import { DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
-import { IWalletMeta } from "types/wallet";
-import { ReactElement } from "react";
+import { DeleteAccountModal } from "components/DeleteAccountModal";
+import { IAccountMeta, IWalletMeta } from "types/wallet";
+import { Fragment, MouseEvent, ReactElement } from "react";
 import { ButtonProps } from "components/Button/Button";
+import { RootState } from "store";
+import { useDeleteAccount } from "hooks";
 
 interface IRemoveAccountButtonProps extends ButtonProps {
     accountId: string;
 }
+
+const REMOVE_ACCOUNT_TITLE = "Remove account";
+const LAST_ACCOUNT_TITLE =
+    "The last account cannot be removed. Delete the wallet instead.";
 
 const RemoveButton = styled(Button)`
     background: ${({ theme }) => theme.colors.background.secondary};
@@ -21,48 +25,53 @@ const RemoveButton = styled(Button)`
 export const RemoveAccountButton = ({
     accountId,
 }: IRemoveAccountButtonProps): ReactElement => {
-    const dispatch = useAppDispatch();
+    const wallet: IWalletMeta | null = useSelector((state: RootState) =>
+        selectWalletByAccountId(state, accountId),
+    );
+    const account: IAccountMeta | null = useSelector((state: RootState) =>
+        selectAccountById(state, accountId),
+    );
 
-    const wallets: IWalletMeta[] = useSelector(selectWallets);
+    const deleteAccount = useDeleteAccount(wallet?.id, accountId);
 
-    const handleRemoveAccount = () => {
-        if (!window.confirm("Are you sure you want to remove this account?")) {
-            return;
+    const isLastAccount: boolean = wallet?.accounts.length === 1;
+    const isDisabled: boolean = isLastAccount || !wallet?.id;
+
+    const getTitle = (): string => {
+        if (isLastAccount) {
+            return LAST_ACCOUNT_TITLE;
         }
 
-        const walletAndAccountPath = getUnlockedWalletAndAccountFromWalletsMeta(
-            wallets,
-            accountId,
-        );
-
-        if (!walletAndAccountPath) {
-            console.error(
-                "RemoveAccountButton: wallet is locked or not found, cannot remove",
-            );
-
-            return;
-        }
-
-        dispatch(
-            removeAccount({
-                walletId: walletAndAccountPath.wallet.id,
-                accountId,
-            }),
-        );
+        return REMOVE_ACCOUNT_TITLE;
     };
 
+    const handleClick = (event: MouseEvent<HTMLButtonElement>): void => {
+        event.stopPropagation();
+
+        deleteAccount.open();
+    }
+
     return (
-        <RemoveButton
-            title="Remove account"
-            id={`remove-account-${accountId}`}
-            variant="icon-button"
-            onClick={(e) => {
-                e.stopPropagation();
-                handleRemoveAccount();
-            }}
-            dangerHover
-        >
-            <DeleteIcon />
-        </RemoveButton>
+        <Fragment>
+            <RemoveButton
+                title={getTitle()}
+                id={`remove-account-${accountId}`}
+                variant="icon-button"
+                disabled={isDisabled}
+                onClick={handleClick}
+                dangerHover
+            >
+                <DeleteIcon />
+            </RemoveButton>
+
+            <DeleteAccountModal
+                isOpen={deleteAccount.isOpen}
+                accountName={account?.name ?? ""}
+                isDeleting={deleteAccount.isDeleting}
+                error={deleteAccount.error}
+                onConfirm={deleteAccount.confirm}
+                onCancel={deleteAccount.close}
+            />
+        </Fragment>
     );
 };

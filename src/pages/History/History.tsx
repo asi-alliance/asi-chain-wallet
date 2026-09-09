@@ -19,6 +19,10 @@ import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
 import { getTokenDisplayName } from "constants/token";
+import {
+    ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
+} from "constants/polling";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks";
 import { TransactionStatus, TransactionType } from "@asichain/asi-wallet-sdk";
@@ -217,6 +221,14 @@ const EmptyState = styled.div`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
+const ErrorMessage = styled.div`
+    background: ${({ theme }) => theme.danger};
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+`;
+
 const RefreshText = styled.div`
     display: flex;
     flex-direction: column;
@@ -232,6 +244,24 @@ const RefreshTextLine = styled.span`
 
     @media (max-width: 768px) {
         font-size: 0.5rem;
+    }
+`;
+
+const RefreshSpinner = styled.span`
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border: 1px solid ${({ theme }) => theme.primary};
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 `;
 
@@ -286,21 +316,25 @@ const statusOptions = [
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
-const HISTORY_POLLING_INTERVAL_MS = 30000;
 const EMPTY_TRANSACTIONS: Transaction[] = [];
+
+const HISTORY_UNAVAILABLE_ERROR =
+    "Failed to load transaction history for the selected network.";
 
 export const History: React.FC = () => {
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
+
     const networkId = useSelector(selectSelectedNetworkId);
 
     const [filter, setFilter] = useState<TransactionFilter>({});
 
     const {
-        data: transactions = EMPTY_TRANSACTIONS,
+        currentData: transactions = EMPTY_TRANSACTIONS,
         isFetching,
+        isError,
         fulfilledTimeStamp,
     } = useGetTransactionHistoryQuery(
         selectedAccountId
@@ -310,7 +344,7 @@ export const History: React.FC = () => {
                   source: filter.source ?? "all",
               }
             : skipToken,
-        { pollingInterval: HISTORY_POLLING_INTERVAL_MS },
+        { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
 
     const { isTablet } = useScreen();
@@ -341,16 +375,7 @@ export const History: React.FC = () => {
         return result;
     }, [transactions, selectedAccount, filter]);
 
-    //TODO: Restore transaction export once the SDK exposes a history download flow
-    const handleExportJSON = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("json", visibleTransactions, selectedAccount.address);
-    };
-
-    const handleExportCSV = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("csv", visibleTransactions, selectedAccount.address);
-    };
+    const hasVisibleTransactions = visibleTransactions.length > 0;
 
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
         setFilter((prev) => ({
@@ -379,9 +404,11 @@ export const History: React.FC = () => {
                     <CardTitle>Transactions</CardTitle>
                     <RefreshText>
                         <RefreshTextLine>
-                            Auto-refresh: every 30s
+                            Auto-refresh: every{" "}
+                            {ACCOUNT_DATA_POLLING_INTERVAL_SECONDS}s
                         </RefreshTextLine>
                         <RefreshTextLine>
+                            {isFetching && <RefreshSpinner />}
                             Last:{" "}
                             {fulfilledTimeStamp
                                 ? new Date(
@@ -466,7 +493,12 @@ export const History: React.FC = () => {
                             </FilterGroup>
                         )}
                     </FilterSection>
-                    {visibleTransactions.length > 0 ? (
+                    {isError && (
+                        <ErrorMessage id="history-load-error">
+                            {HISTORY_UNAVAILABLE_ERROR}
+                        </ErrorMessage>
+                    )}
+                    {hasVisibleTransactions && (
                         <div className="transactions-table-wrapper">
                             <TransactionTable>
                                 <Table>
@@ -623,24 +655,28 @@ export const History: React.FC = () => {
                                     </TableBody>
                                 </Table>
                             </TransactionTable>
+                            {/* TODO: Restore transaction export once the SDK exposes a history download flow */}
                             <ExportButtonsWrapper>
                                 <ExportButton
+                                    id="history-export-csv-button"
                                     variant="secondary"
-                                    onClick={handleExportCSV}
+                                    disabled
                                 >
                                     <h3>Export CSV</h3>
                                     <DownloadIcon size={24} />
                                 </ExportButton>
                                 <ExportButton
+                                    id="history-export-json-button"
                                     variant="secondary"
-                                    onClick={handleExportJSON}
+                                    disabled
                                 >
                                     <h3>Export JSON</h3>
                                     <DownloadIcon size={24} />
                                 </ExportButton>
                             </ExportButtonsWrapper>
                         </div>
-                    ) : (
+                    )}
+                    {!hasVisibleTransactions && !isError && (
                         <EmptyState>
                             {!selectedAccount && (
                                 <p>

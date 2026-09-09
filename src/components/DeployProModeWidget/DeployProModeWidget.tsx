@@ -505,8 +505,8 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
                 return;
             case DeployEventTypes.DEPLOY_SUBMITTED:
                 addConsoleMessage(
-                    ConsoleMessageMods.SUCCESS,
-                    `Deploy submitted successfully! Deploy ID: ${event.deployId}`,
+                    ConsoleMessageMods.INFO,
+                    `Deploy sent! Deploy ID: ${event.deployId}`,
                 );
                 addConsoleMessage(
                     ConsoleMessageMods.INFO,
@@ -524,9 +524,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
             case DeployEventTypes.DEPLOY_CONFIRMED:
                 addConsoleMessage(
                     ConsoleMessageMods.SUCCESS,
-                    event.blockHash
-                        ? `Deploy finalized. Block hash: ${event.blockHash}`
-                        : "Deploy finalized",
+                    "Deploy finalized",
                 );
 
                 return;

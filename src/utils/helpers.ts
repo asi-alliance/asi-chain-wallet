@@ -9,3 +9,15 @@ export const stringifyWithBigInt = (value: unknown): string =>
             typeof item === "bigint" ? item.toString() : item,
         2,
     );
+
+export const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (typeof error === "string" && error.trim()) {
+        return error;
+    }
+
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+};
