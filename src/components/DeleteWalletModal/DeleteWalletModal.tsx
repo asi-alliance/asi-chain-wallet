@@ -43,6 +43,7 @@ export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
         onClose={onCancel}
         title="Delete Wallet"
         maxWidth="480px"
+        dismissible={!isDeleting}
     >
         <WarningRow>
             <IconWrapper>

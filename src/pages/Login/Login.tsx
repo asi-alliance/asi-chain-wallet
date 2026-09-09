@@ -41,6 +41,8 @@ import { IWalletMeta, WalletActions } from "types/wallet";
 import { CreateHdWalletModal } from "components/CreateHdWalletModal";
 import { ImportHdWalletModal } from "components/ImportHdWalletModal";
 import { ImportPkWalletModal } from "components/ImportPkWalletModal";
+import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
+import { IKeyfileAccountsImportOutcome } from "components/ImportKeyfileWalletForm";
 import { useScreen } from "hooks/";
 
 const LoginContainer = styled.div`
@@ -98,6 +100,31 @@ const SecurityWarningBanner = styled.div`
     margin-bottom: 16px;
     font-size: 13px;
     line-height: 1.5;
+`;
+
+const ImportNoticeBanner = styled.div`
+    background: ${({ theme }) => `${theme.success}12`};
+    border: 1px solid ${({ theme }) => `${theme.success}40`};
+    color: ${({ theme }) => theme.text.primary};
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+`;
+
+const ImportNoticeTitle = styled.div`
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: ${({ theme }) => theme.success};
+`;
+
+const ImportNoticeActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
 `;
 
 const SecurityWarningTitle = styled.div`
@@ -217,6 +244,12 @@ export const Login: React.FC = () => {
     );
     const [showImportModal, setShowImportModal] = useState(false);
     const [showImportPkModal, setShowImportPkModal] = useState(false);
+    const [showImportKeyfileModal, setShowImportKeyfileModal] = useState(false);
+
+    const [keyfileImport, setKeyfileImport] =
+        useState<IKeyfileAccountsImportOutcome | null>(null);
+
+    const passwordInputRef = useRef<HTMLInputElement>(null);
 
     // Rate limit UI state
     const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(
@@ -391,7 +424,7 @@ export const Login: React.FC = () => {
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && password.trim() && !isLockedOut) {
+        if (e.key === "Enter" && password.trim() && !isLockedOut && !isLoading) {
             handleLogin();
         }
     };
@@ -399,6 +432,22 @@ export const Login: React.FC = () => {
     if (!hasWallets) {
         return <Navigate to={"/accounts"} replace />;
     }
+
+    const importedWalletLabel: string = keyfileImport
+        ? (walletOptions.find(
+              (option: LoginWalletOption) =>
+                  option.signerId === keyfileImport.signerId,
+          )?.label ?? "the existing wallet")
+        : "";
+
+    const handleSelectImportedWallet = (): void => {
+        if (!keyfileImport) {
+            return;
+        }
+
+        setSelectedSignerId(keyfileImport.signerId);
+        passwordInputRef.current?.focus();
+    };
 
     const selectWalletOptions: ISelectOption[] = walletOptions.map(
         (option) => ({
@@ -465,6 +514,38 @@ export const Login: React.FC = () => {
                             <ErrorMessage>{loginError}</ErrorMessage>
                         )}
 
+                        {keyfileImport && (
+                            <ImportNoticeBanner>
+                                <ImportNoticeTitle>
+                                    Accounts imported, you are not signed in yet
+                                </ImportNoticeTitle>
+                                {keyfileImport.importedAccountsCount === 1
+                                    ? "1 account was added to "
+                                    : `${keyfileImport.importedAccountsCount} accounts were added to `}
+                                <strong>{importedWalletLabel}</strong>. This was
+                                an import into an existing wallet, not a login.
+                                Unlock that wallet to see the imported accounts.
+                                <ImportNoticeActions>
+                                    {selectedSignerId !==
+                                        keyfileImport.signerId && (
+                                        <Button
+                                            id="select-imported-wallet-button"
+                                            size="small"
+                                            variant="secondary"
+                                            onClick={handleSelectImportedWallet}
+                                        >
+                                            Select this wallet
+                                        </Button>
+                                    )}
+                                    <DismissLink
+                                        onClick={() => setKeyfileImport(null)}
+                                    >
+                                        Dismiss
+                                    </DismissLink>
+                                </ImportNoticeActions>
+                            </ImportNoticeBanner>
+                        )}
+
                         {walletOptions.length > 1 && (
                             <FormGroup>
                                 <label
@@ -519,6 +600,7 @@ export const Login: React.FC = () => {
                                 }
                                 autoComplete="current-password"
                                 disabled={isLockedOut}
+                                inputRef={passwordInputRef}
                             />
                         </FormGroup>
 
@@ -634,6 +716,41 @@ export const Login: React.FC = () => {
                                     </defs>
                                 </svg>
                             </InlineButton>
+                            <InlineButton
+                                id="import-keyfile-wallet-button"
+                                variant="full-ghost"
+                                onClick={() => setShowImportKeyfileModal(true)}
+                                fullWidth={isLaptop}
+                                style={{
+                                    flexWrap: "nowrap",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                <h3>Import from Keyfile</h3>
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <g clipPath="url(#clip0_3_1930)">
+                                        <path
+                                            d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                            fill="currentcolor"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_3_1930">
+                                            <rect
+                                                width="24"
+                                                height="24"
+                                                fill="currentcolor"
+                                            />
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </InlineButton>
                         </ActionsFooter>
                     </CardContent>
                 </Card>
@@ -664,6 +781,15 @@ export const Login: React.FC = () => {
                 onSuccess={() => {
                     navigate("/");
                 }}
+            />
+            <ImportKeyfileWalletModal
+                isOpen={showImportKeyfileModal}
+                onCancel={() => setShowImportKeyfileModal(false)}
+                onClose={() => setShowImportKeyfileModal(false)}
+                onWalletImported={() => {
+                    navigate("/");
+                }}
+                onAccountsImported={setKeyfileImport}
             />
         </Fragment>
     );

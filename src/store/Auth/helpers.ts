@@ -14,21 +14,14 @@ export const setActiveSession = (
     state: AuthState,
     wallet: IUnlockedWalletMeta,
 ): void => {
-    const now = Date.now();
-
     state.activeWalletId = wallet.id ?? null;
     state.activeSignerId = wallet.signerId;
-    state.status = "unlocked";
-    state.unlockedAt = now;
-    state.lastActivity = now;
     state.isAuthenticated = true;
 };
 
 export const clearActiveSession = (state: AuthState): void => {
     state.activeWalletId = null;
     state.activeSignerId = null;
-    state.status = "locked";
-    state.unlockedAt = null;
     state.isAuthenticated = false;
 };
 

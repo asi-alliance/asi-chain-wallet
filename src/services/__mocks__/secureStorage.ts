@@ -3,11 +3,6 @@ export class SecureStorage {
     static getEncryptedAccounts = jest.fn(() => []);
     static getAllUnlockedAccounts = jest.fn(() => []);
     static isAuthenticated = jest.fn(() => false);
-    static getSettings = jest.fn(() => ({
-        idleTimeout: 15,
-    }));
-    static updateSettings = jest.fn();
-    static saveSettings = jest.fn();
     static clearSession = jest.fn();
     static clearAll = jest.fn();
     static savePasswordHash = jest.fn();
@@ -27,6 +22,4 @@ export class SecureStorage {
     static getUnlockedAccount = jest.fn();
     static clearAccountFromSession = jest.fn();
     static setAuthenticated = jest.fn();
-    static updateLastActivity = jest.fn();
-    static getLastActivity = jest.fn(() => Date.now());
 }

@@ -3,27 +3,34 @@ import {
     WalletStoreState,
     IWalletMeta,
     IAccountMeta,
+    IDeployWatchState,
     IUnlockedWalletMeta,
+    Network,
+    TCustomNetwork,
+    DeployWatchStatus,
 } from "types/wallet";
 import { RootState } from "store";
-import { SdkWalletService } from "sdk";
+import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
-    getInitialNetwork,
-    NETWORKS,
-    persistSelectedNetworkId,
-} from "constants/networks";
-import {
+    importKeyfileAccounts,
+    addCustomNetwork,
+    IInitializeNetworksResponse,
+    initializeNetworks,
+    IRemoveNetworkResponse,
     loadWalletsFromStorage,
     removeAccount,
+    removeCustomNetwork,
     removeWallet,
+    selectAccount,
+    selectNetwork,
     sendTransaction,
     updateAccountName,
+    updateCustomNetwork,
 } from "./thunks";
 import {
+    addWalletToWalletsStore,
     applyActiveWalletSession,
     getUnlockedAccountFromWalletsMeta,
-    getUnlockedWalletAndAccountFromWalletsMeta,
-    persistSelectedAccountId,
     toLockedWalletMeta,
 } from "./helpers";
 import { walletsApi } from "./api";
@@ -31,6 +38,7 @@ import {
     createHdWallet,
     deriveHdAccount,
     importHdWallet,
+    importKeyfileWallet,
     importPrivateKeyWallet,
     loginWithPassword,
     logout,
@@ -41,6 +49,7 @@ const initialState: WalletStoreState = {
     selectedAccountId: null,
     networks: [...NETWORKS],
     selectedNetwork: getInitialNetwork(),
+    deployWatches: {},
     isLoading: false,
     isInitialLoadComplete: false,
 };
@@ -50,159 +59,31 @@ export interface IAccountDefaultUpdateFieldsPayload {
     accountId: string;
 }
 
+export interface IDeployFailedPayload {
+    deployId: string;
+    error: string;
+}
+
 const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
-        selectAccount: (state, action: PayloadAction<string>) => {
-            const walletAndAccount = getUnlockedWalletAndAccountFromWalletsMeta(
-                state.wallets,
-                action.payload,
-            );
-
-            if (!walletAndAccount) {
-                console.error(
-                    "walletsStoreSlice.selectAccount: Account not found in any unlocked wallet",
-                );
-
-                return;
-            }
-
-            state.selectedAccountId = walletAndAccount.account.id;
-
-            persistSelectedAccountId(walletAndAccount.account.id);
+        deployConfirmed: (state, action: PayloadAction<string>) => {
+            state.deployWatches[action.payload] = {
+                status: DeployWatchStatus.CONFIRMED,
+            };
         },
-        selectNetwork: (state, action: PayloadAction<string>) => {
-            const network = state.networks.find(
-                (networkMeta) => networkMeta.id === action.payload,
-            );
+        deployFailed: (state, action: PayloadAction<IDeployFailedPayload>) => {
+            const { deployId, error } = action.payload;
 
-            if (!network || state.selectedNetwork.id === network.id) {
-                return;
-            }
-
-            SdkWalletService.setNetwork(network.id);
-
-            state.selectedNetwork = network;
-
-            persistSelectedNetworkId(network.id);
+            state.deployWatches[deployId] = {
+                status: DeployWatchStatus.FAILED,
+                error,
+            };
         },
-        //TODO: Updated Custom Networks CRUD operations after SDK feature updates
-        // updateNetwork: (state, action: PayloadAction<Network>) => {
-        //     const networkToUpdate = action.payload;
-
-        //     if (isPredefinedNetwork(networkToUpdate.id)) {
-        //         console.warn(
-        //             `Cannot update predefined network "${networkToUpdate.id}". Only custom networks can be edited.`,
-        //         );
-        //         return;
-        //     }
-
-        //     if (!networkToUpdate.id?.startsWith("custom")) {
-        //         console.warn(
-        //             `Network updates are only allowed for custom networks (custom-*). Attempted to update: "${networkToUpdate.id}"`,
-        //         );
-        //         return;
-        //     }
-        //     const index = state.networks.findIndex(
-        //         (n) => n.id === action.payload.id,
-        //     );
-        //     if (index !== -1) {
-        //         state.networks[index] = action.payload;
-        //         if (state.selectedNetwork.id === action.payload.id) {
-        //             state.selectedNetwork = action.payload;
-        //         }
-        //     } else {
-        //         state.networks.push(action.payload);
-        //     }
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        // },
-        // addNetwork: (state, action: PayloadAction<Network>) => {
-        //     const networkToAdd = action.payload;
-
-        //     if (isPredefinedNetwork(networkToAdd.id)) {
-        //         console.warn(
-        //             `Cannot add predefined network "${networkToAdd.id}" as custom network.`,
-        //         );
-        //         return;
-        //     }
-        //     const timestamp = Date.now();
-        //     const newNetwork = {
-        //         ...action.payload,
-        //         id: action.payload.id?.startsWith("custom")
-        //             ? action.payload.id
-        //             : `custom-${timestamp}`,
-        //     };
-        //     state.networks.push(newNetwork);
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        // },
-        // removeNetwork: (state, action: PayloadAction<string>) => {
-        //     const id = action.payload;
-        //     if (!id?.startsWith("custom")) {
-        //         console.warn(
-        //             `Only custom networks can be removed. Attempted: "${id}"`,
-        //         );
-        //         return;
-        //     }
-        //     state.networks = state.networks.filter((n) => n.id !== id);
-        //     saveNetworks(state.networks, state.selectedAccount?.id);
-        //     if (state.selectedNetwork?.id === id) {
-        //         const firstAvailable =
-        //             state.networks.find((n) => n.url && n.url.trim() !== "") ||
-        //             state.networks[0];
-        //         if (firstAvailable) {
-        //             state.selectedNetwork = firstAvailable;
-        //             if (typeof window !== "undefined" && window.localStorage) {
-        //                 localStorage.setItem(
-        //                     SELECTED_NETWORK_KEY,
-        //                     firstAvailable.id,
-        //                 );
-        //             }
-        //         }
-        //     }
-        // },
-        // loadNetworksFromStorage: (state) => {
-        //     const loadedNetworks = loadNetworks(state.selectedAccount?.id);
-        //     state.networks = loadedNetworks;
-
-        //     try {
-        //         if (typeof window !== "undefined" && window.localStorage) {
-        //             const selectedNetworkId =
-        //                 localStorage.getItem(SELECTED_NETWORK_KEY);
-        //             if (selectedNetworkId) {
-        //                 const selectedNetwork = loadedNetworks.find(
-        //                     (n) =>
-        //                         n.id === selectedNetworkId &&
-        //                         n.url &&
-        //                         n.url.trim() !== "",
-        //                 );
-        //                 if (selectedNetwork) {
-        //                     state.selectedNetwork = selectedNetwork;
-        //                     return;
-        //                 }
-        //             }
-        //         }
-        //     } catch (error) {
-        //         console.error("Failed to restore selected network:", error);
-        //     }
-
-        //     const currentSelected = loadedNetworks.find(
-        //         (n) =>
-        //             n.id === state.selectedNetwork.id &&
-        //             n.url &&
-        //             n.url.trim() !== "",
-        //     );
-        //     if (currentSelected) {
-        //         state.selectedNetwork = currentSelected;
-        //     } else {
-        //         const firstAvailable = loadedNetworks.find(
-        //             (n) => n.url && n.url.trim() !== "",
-        //         );
-        //         if (firstAvailable) {
-        //             state.selectedNetwork = firstAvailable;
-        //         }
-        //     }
-        // },
+        deployWatchCleared: (state, action: PayloadAction<string>) => {
+            delete state.deployWatches[action.payload];
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -212,6 +93,12 @@ const walletsStoreSlice = createSlice({
             })
             .addCase(loadWalletsFromStorage.rejected, (state) => {
                 state.isInitialLoadComplete = true;
+            })
+            .addCase(importKeyfileAccounts.fulfilled, (state, action) => {
+                addWalletToWalletsStore(state.wallets, action.payload);
+            })
+            .addCase(selectAccount.fulfilled, (state, action) => {
+                state.selectedAccountId = action.payload;
             })
             .addCase(removeWallet.fulfilled, (state, action) => {
                 const { removedWalletId, removedSignerId } = action.payload;
@@ -233,7 +120,8 @@ const walletsStoreSlice = createSlice({
                 state.selectedAccountId = state.wallets[0].accounts[0].id;
             })
             .addCase(removeAccount.fulfilled, (state, action) => {
-                const { walletId, accountId } = action.payload;
+                const { walletId, accountId, selectedAccountId } =
+                    action.payload;
 
                 const wallet = state.wallets.find(
                     (walletMeta) => walletMeta.id === walletId,
@@ -249,9 +137,7 @@ const walletsStoreSlice = createSlice({
                     (accountMeta) => accountMeta.id !== accountId,
                 );
 
-                if (state.selectedAccountId === accountId) {
-                    state.selectedAccountId = wallet.accounts[0]?.id ?? null;
-                }
+                state.selectedAccountId = selectedAccountId;
             })
             .addCase(updateAccountName.pending, (state) => {
                 state.isLoading = true;
@@ -276,11 +162,95 @@ const walletsStoreSlice = createSlice({
             .addCase(updateAccountName.rejected, (state) => {
                 state.isLoading = false;
             })
+            .addCase(
+                initializeNetworks.fulfilled,
+                (state, action: PayloadAction<IInitializeNetworksResponse>) => {
+                    const { customNetworks, selectedNetwork } = action.payload;
+
+                    state.networks = [
+                        ...state.networks.filter(
+                            (network: Network) => network.isDefault,
+                        ),
+                        ...customNetworks,
+                    ];
+
+                    if (selectedNetwork) {
+                        state.selectedNetwork = selectedNetwork;
+                    }
+                },
+            )
+            .addCase(
+                selectNetwork.fulfilled,
+                (state, action: PayloadAction<Network>) => {
+                    state.selectedNetwork = action.payload;
+                },
+            )
+            .addCase(
+                addCustomNetwork.fulfilled,
+                (state, action: PayloadAction<TCustomNetwork>) => {
+                    state.networks.push(action.payload);
+                },
+            )
+            .addCase(
+                updateCustomNetwork.fulfilled,
+                (state, action: PayloadAction<TCustomNetwork>) => {
+                    const updatedNetwork = action.payload;
+
+                    const targetNetworkIndex = state.networks.findIndex(
+                        (network: Network) => network.id === updatedNetwork.id,
+                    );
+
+                    if (targetNetworkIndex === -1) {
+                        console.error(
+                            "walletsStoreSlice.updateCustomNetwork: Incorrect network id",
+                        );
+
+                        return;
+                    }
+
+                    state.networks[targetNetworkIndex] = updatedNetwork;
+
+                    if (state.selectedNetwork.id === updatedNetwork.id) {
+                        state.selectedNetwork = updatedNetwork;
+                    }
+                },
+            )
+            .addCase(
+                removeCustomNetwork.fulfilled,
+                (state, action: PayloadAction<IRemoveNetworkResponse>) => {
+                    const { id, selectedNetworkId } = action.payload;
+
+                    state.networks = state.networks.filter(
+                        (network: Network) => network.id !== id,
+                    );
+
+                    if (state.selectedNetwork.id !== id) {
+                        return;
+                    }
+
+                    const currentNetwork = state.networks.find(
+                        (network: Network) => network.id === selectedNetworkId,
+                    );
+
+                    if (!currentNetwork) {
+                        console.error(
+                            "walletsStoreSlice.removeCustomNetwork: SDK switched to an unknown network",
+                        );
+
+                        return;
+                    }
+
+                    state.selectedNetwork = currentNetwork;
+                },
+            )
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
-            .addCase(sendTransaction.fulfilled, (state) => {
+            .addCase(sendTransaction.fulfilled, (state, action) => {
                 state.isLoading = false;
+                state.deployWatches[action.payload.deployId] = {
+                    status: DeployWatchStatus.PENDING,
+                };
             })
             .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
@@ -294,9 +264,11 @@ const walletsStoreSlice = createSlice({
             .addCase(importPrivateKeyWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
             })
+            .addCase(importKeyfileWallet.fulfilled, (state, action) => {
+                applyActiveWalletSession(state, action.payload);
+            })
             .addCase(deriveHdAccount.fulfilled, (state, action) => {
-                applyActiveWalletSession(state, action.payload.wallet);
-                state.selectedAccountId = action.payload.accountId;
+                applyActiveWalletSession(state, action.payload);
             })
             .addCase(loginWithPassword.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
@@ -348,8 +320,18 @@ export const selectSelectedAccount = (state: RootState) => {
         ? selectAccountById(state, state.walletsStore.selectedAccountId)
         : null;
 };
+
+export const selectNetworks = (state: RootState) => state.walletsStore.networks;
+export const selectSelectedNetwork = (state: RootState) =>
+    state.walletsStore.selectedNetwork;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
+export const selectCustomNetworks = createSelector(
+    [selectNetworks],
+    (networks: Network[]): Network[] =>
+        networks.filter((network: Network) => !network.isDefault),
+);
+
 export const selectIsAnyAccountBalanceFetching = (
     state: RootState,
 ): boolean => {
@@ -380,14 +362,13 @@ export const selectIsAccountUnlocked = (state: RootState, accountId: string) =>
     state.walletsStore.wallets.some(
         (w) => w.isUnlocked && w.accounts.some((a) => a.id === accountId),
     );
+export const selectDeployWatch = (
+    state: RootState,
+    deployId: string,
+): IDeployWatchState | null =>
+    state.walletsStore.deployWatches[deployId] ?? null;
 
-export const {
-    selectAccount,
-    selectNetwork,
-    // updateNetwork,
-    // addNetwork,
-    // removeNetwork,
-    // loadNetworksFromStorage,
-} = walletsStoreSlice.actions;
+export const { deployConfirmed, deployFailed, deployWatchCleared } =
+    walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

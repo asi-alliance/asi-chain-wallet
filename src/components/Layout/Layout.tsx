@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { RootState } from "store";
-import {
-    selectNetwork,
-    selectAccounts,
-    selectSelectedAccount,
-} from "store/WalletsStore";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
 import { useNavItems } from "./useNavItems";
+import { selectAccounts } from "store/WalletsStore";
 
 const Container = styled.div`
     min-height: 100vh;
@@ -36,17 +32,9 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-    const dispatch = useDispatch();
     const location = useLocation();
-    const networks = useSelector(
-        (state: RootState) => state.walletsStore.networks,
-    );
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
-    const selectedAccount = useSelector(selectSelectedAccount);
-    const isAuthenticated = useSelector(
-        (state: RootState) => state.auth.isAuthenticated,
+    const observerUrl = useSelector(
+        (state: RootState) => state.walletsStore.selectedNetwork.observerUrl,
     );
     const accounts = useSelector(selectAccounts);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -58,17 +46,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     useEffect(() => {
         const checkNetwork = async () => {
-            if (!selectedNetwork) return;
-
-            const networkUrl = selectedNetwork.observerUrl;
-            if (!networkUrl) {
+            if (!observerUrl) {
                 setNetworkStatus("disconnected");
                 return;
             }
 
             setNetworkStatus("checking");
             try {
-                const response = await fetch(networkUrl + "/api/status", {
+                const response = await fetch(observerUrl + "/api/status", {
                     method: "GET",
                     headers: { Accept: "application/json" },
                     signal: AbortSignal.timeout(5000),
@@ -85,81 +70,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         const interval = setInterval(checkNetwork, 60000); // Check every minute
 
         return () => clearInterval(interval);
-    }, [selectedNetwork]);
-
-    useEffect(() => {
-        const setCachedNetwork = () => {
-            if (!isAuthenticated || !selectedAccount?.address) {
-                return;
-            }
-
-            const networkByAddressMapRaw = localStorage.getItem(
-                "NETWORKS_BY_ADDRESS",
-            );
-
-            if (!networkByAddressMapRaw) {
-                return;
-            }
-
-            const networkByAddressMap = JSON.parse(networkByAddressMapRaw);
-            const lastSelectedNetworkId =
-                networkByAddressMap[selectedAccount.address];
-
-            if (!lastSelectedNetworkId) {
-                return;
-            }
-
-            if (selectedNetwork?.id === lastSelectedNetworkId) {
-                return;
-            }
-
-            const networkToSet = networks.find(
-                (network) => network.id === lastSelectedNetworkId,
-            );
-
-            if (!networkToSet) {
-                return;
-            }
-
-            dispatch(selectNetwork(networkToSet.id));
-        };
-
-        setCachedNetwork();
-    }, [
-        isAuthenticated,
-        selectedAccount,
-        networks,
-        dispatch,
-        selectedNetwork?.id,
-    ]);
-
-    const cacheNetworkByAddress = (networkId: string) => {
-        if (!isAuthenticated || !selectedAccount?.address) {
-            return;
-        }
-
-        const networkByAddressMapRaw = localStorage.getItem(
-            "NETWORKS_BY_ADDRESS",
-        );
-
-        const networkByAddressMap = !!networkByAddressMapRaw
-            ? JSON.parse(networkByAddressMapRaw)
-            : {};
-
-        networkByAddressMap[selectedAccount?.address] = networkId;
-
-        localStorage.setItem(
-            "NETWORKS_BY_ADDRESS",
-            JSON.stringify(networkByAddressMap),
-        );
-    };
-
-    const handleNetworkChange = (
-        event: React.ChangeEvent<HTMLSelectElement>,
-    ) => {
-        dispatch(selectNetwork(event.target.value));
-        cacheNetworkByAddress(event.target.value);
-    };
+    }, [observerUrl]);
 
     const navItems = useNavItems(accounts);
 
@@ -171,9 +82,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 navItems={navItems}
                 networkStatus={networkStatus}
                 lastRefresh={lastRefresh}
-                selectedNetwork={selectedNetwork}
-                networks={networks}
-                onNetworkChange={handleNetworkChange}
             />
 
             <MobileNavDrawerComponent

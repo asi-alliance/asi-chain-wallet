@@ -25,6 +25,7 @@ export const ImportPkWalletModal: React.FC<ImportPkWalletModalProps> = ({
             isOpen={isOpen}
             onClose={onCancel}
             title="Import Private Key"
+            dismissible={false}
         >
             <ImportPkWalletForm onSuccess={handleSuccess} onCancel={onCancel} />
         </ModalWindow>

@@ -1,3 +1,7 @@
 export { getSdkClient, requireSdkClient, setSdkClient } from "./client";
-export { SdkClientProvider } from "./SdkClientProvider";
+export {
+    SdkClientProvider,
+    useIsNetworkBusy,
+    useSdkClient,
+} from "./SdkClientProvider";
 export { SdkWalletService } from "./SdkWalletService";

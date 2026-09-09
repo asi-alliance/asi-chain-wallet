@@ -1,4 +1,9 @@
-import { Address, NodeApiProfile, WalletTypes } from "@asichain/asi-wallet-sdk";
+import {
+    Address,
+    INetworkRecord,
+    NodeApiProfile,
+    WalletTypes,
+} from "@asichain/asi-wallet-sdk";
 
 export interface Account {
     id: string;
@@ -29,6 +34,26 @@ export interface Network {
     observerUrl: string;
     indexerUrl: string;
     nodeApiProfile: NodeApiProfile;
+    isDefault: boolean;
+}
+
+export type TCustomNetworkRecord = Omit<INetworkRecord, "isDefault"> & {
+    isDefault: false;
+};
+
+export type TCustomNetwork = Omit<Network, "isDefault"> & {
+    isDefault: false;
+};
+
+export enum DeployWatchStatus {
+    PENDING = "pending",
+    CONFIRMED = "confirmed",
+    FAILED = "failed",
+}
+
+export interface IDeployWatchState {
+    status: DeployWatchStatus;
+    error?: string;
 }
 
 export interface WalletStoreState {
@@ -36,6 +61,7 @@ export interface WalletStoreState {
     selectedAccountId: string | null;
     networks: Network[];
     selectedNetwork: Network;
+    deployWatches: Record<string, IDeployWatchState>;
     isLoading: boolean;
     isInitialLoadComplete: boolean;
 }
@@ -69,6 +95,11 @@ export interface IUnlockedWalletMeta extends IWalletMetaBase {
 }
 
 export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
+
+export interface IActiveWalletSession {
+    wallet: IUnlockedWalletMeta;
+    selectedAccountId: string | null;
+}
 
 export enum WalletActions {
     CREATE_WALLET = "create-wallet",
