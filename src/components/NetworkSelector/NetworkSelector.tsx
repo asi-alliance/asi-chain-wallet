@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AdaptiveSelect, ISelectOption, ISelectProps } from "components/Select";
-import { useIsNetworkBusy } from "sdk";
+import { useBusyNetworkIds } from "sdk";
 import { AppDispatch } from "store";
 import { selectNetworks, selectSelectedNetwork } from "store/WalletsStore";
 import { selectNetwork } from "store/WalletsStore/thunks";
@@ -22,7 +22,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     const networks = useSelector(selectNetworks);
     const selectedNetwork = useSelector(selectSelectedNetwork);
 
-    const isNetworkBusy = useIsNetworkBusy(selectedNetwork.id);
+    const busyNetworkIds = useBusyNetworkIds();
     const isNetworkOperationPending = useSelector(
         selectIsNetworkOperationPending,
     );
@@ -35,18 +35,41 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
             });
     };
 
-    const options: ISelectOption[] = networks.map((network: Network) => ({
-        id: network.id,
-        value: network.id,
-        label: network.name,
-    }));
+    const options: ISelectOption[] = useMemo(() => {
+        const busyNetworkIdSet = new Set(busyNetworkIds);
+        const isSelectedNetworkBusy = busyNetworkIdSet.has(
+            selectedNetwork.id,
+        );
+        const isSwitchingBlocked =
+            isNetworkOperationPending || isSelectedNetworkBusy;
+
+        return networks.map((network: Network) => {
+            const isBusy = busyNetworkIdSet.has(network.id);
+            const isSelected = network.id === selectedNetwork.id;
+
+            return {
+                id: network.id,
+                value: network.id,
+                label: network.name,
+                additionalLabel: isBusy ? "(busy)" : undefined,
+                disabled:
+                    !network.validatorUrl ||
+                    (!isSelected && (isBusy || isSwitchingBlocked)),
+            };
+        });
+    }, [
+        busyNetworkIds,
+        isNetworkOperationPending,
+        networks,
+        selectedNetwork.id,
+    ]);
 
     return (
         <AdaptiveSelect
             {...props}
             value={selectedNetwork.id}
             onChange={handleNetworkChange}
-            disabled={disabled || isNetworkBusy || isNetworkOperationPending}
+            disabled={disabled}
             options={options}
             variant="ghost"
         />
