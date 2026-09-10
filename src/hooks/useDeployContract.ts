@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import {
     DeployStatus,
+    isIntegerInRange,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
 } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
@@ -21,6 +22,9 @@ import { isWalletLockedError, SdkWalletService } from "sdk";
 import { IUnlockedAccountMeta } from "types/wallet";
 
 const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
+
+const MIN_PHLO_LIMIT = 1;
+const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
 
 export enum DeployEventTypes {
     DEPLOY_STARTED = "deploy-started",
@@ -82,7 +86,9 @@ export interface IUseDeployContractResponse {
 const parsePhloLimit = (value: string): number | null => {
     const parsed = Number(value.trim());
 
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    return isIntegerInRange(parsed, MIN_PHLO_LIMIT, MAX_PHLO_LIMIT)
+        ? parsed
+        : null;
 };
 
 export const useDeployContract = ({
