@@ -11,11 +11,7 @@ import styled from "styled-components";
 import { useSelector } from "react-redux";
 import Editor from "@monaco-editor/react";
 import { RootState } from "store";
-import {
-    Button,
-    DeploymentConfirmationModal,
-    PasswordModal,
-} from "components";
+import { Button, DeploymentConfirmationModal, PasswordModal } from "components";
 import {
     FileIcon,
     FolderIcon,
@@ -564,7 +560,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     });
 
     const handleEditorChange = (value: string | undefined): void => {
-        if (!value || !activeFile) {
+        if (value === undefined) {
             return;
         }
 
