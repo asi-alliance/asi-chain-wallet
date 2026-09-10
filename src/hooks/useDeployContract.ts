@@ -107,11 +107,14 @@ export const useDeployContract = ({
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const { data: balance } = useGetBalanceQuery(
-        selectedAccountId
-            ? { accountId: selectedAccountId, networkId }
-            : skipToken,
-    );
+    const { currentData: balance, isError: isBalanceError } =
+        useGetBalanceQuery(
+            selectedAccountId
+                ? { accountId: selectedAccountId, networkId }
+                : skipToken,
+        );
+
+    const isBalanceReady = balance !== undefined && !isBalanceError;
 
     const [pendingRequest, setPendingRequest] =
         useState<IPendingDeployRequest | null>(null);
@@ -217,7 +220,7 @@ export const useDeployContract = ({
             return;
         }
 
-        if (balance === undefined) {
+        if (!isBalanceReady) {
             cancel();
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
@@ -351,7 +354,7 @@ export const useDeployContract = ({
 
     return {
         account,
-        isBalanceReady: balance !== undefined,
+        isBalanceReady,
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
         isProcessing,
