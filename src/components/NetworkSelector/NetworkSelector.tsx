@@ -52,9 +52,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                 value: network.id,
                 label: network.name,
                 additionalLabel: isBusy ? "(busy)" : undefined,
-                disabled:
-                    !network.validatorUrl ||
-                    (!isSelected && (isBusy || isSwitchingBlocked)),
+                disabled: !isSelected && (isBusy || isSwitchingBlocked),
             };
         });
     }, [
