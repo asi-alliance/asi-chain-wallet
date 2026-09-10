@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { skipToken } from "@reduxjs/toolkit/query/react";
-import { DeployStatus } from "@asichain/asi-wallet-sdk";
+import {
+    DeployStatus,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
+} from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -17,7 +20,7 @@ import { deployContract } from "store/WalletsStore/thunks";
 import { isWalletLockedError, SdkWalletService } from "sdk";
 import { IUnlockedAccountMeta } from "types/wallet";
 
-const PHLO_PER_ASI = 1000000000;
+const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
 
 export enum DeployEventTypes {
     DEPLOY_STARTED = "deploy-started",
@@ -230,7 +233,8 @@ export const useDeployContract = ({
             return;
         }
 
-        const minGasCost = (phloLimitValue * Number(phloPrice)) / PHLO_PER_ASI;
+        const minGasCost =
+            (phloLimitValue * Number(phloPrice)) / ATOMIC_UNITS_PER_ASI;
         const availableBalance = Number(balance);
 
         if (availableBalance <= 0 || availableBalance < minGasCost) {
