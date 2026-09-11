@@ -4,7 +4,7 @@ import {
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { IPreparedDeploy, RChainService } from "services/rchain";
+import { BRIDGE_LOCK_PHLO_LIMIT, RChainService } from "services/rchain";
 import {
     IAccountMeta,
     IUnlockedAccountMeta,
@@ -19,6 +19,7 @@ import {
     INetworkUpdate,
     NetworkId,
     NetworkName,
+    SignedResult,
     getErrorMessage,
 } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "sdk";
@@ -520,27 +521,32 @@ export const bridgeLock = createAsyncThunk<
             network.indexerUrl,
         );
 
-        const preparedLock: IPreparedDeploy = await rchain.prepareBridgeLock({
+        const lockTerm: string = rchain.buildBridgeLockTerm(
             amountBaseUnits,
             recipient,
             destChainId,
             bridgeUri,
-            sign: (deployData) =>
-                SdkWalletService.signDeploy({
-                    walletId,
-                    accountId,
-                    deployData,
-                    password,
-                }),
-        });
+        );
+
+        const signedLock: SignedResult = await SdkWalletService.signDeploy(
+            {
+                walletId,
+                accountId,
+                term: lockTerm,
+                phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
+            },
+            password,
+        );
+
+        const deployId: string = signedLock.signature;
 
         const reservation = await SdkWalletService.addTransactionReservation(
             {
                 walletId,
                 accountId,
                 kind: "deploy",
-                deployId: preparedLock.deployId,
-                term: preparedLock.term,
+                deployId,
+                term: lockTerm,
                 pendingAmount: BigInt(amountBaseUnits) + BRIDGE_LOCK_GAS_COST,
                 gasCost: BRIDGE_LOCK_GAS_COST,
             },
@@ -548,7 +554,7 @@ export const bridgeLock = createAsyncThunk<
         );
 
         try {
-            await rchain.submitDeploy(preparedLock);
+            await rchain.submitDeploy(signedLock);
         } catch (error: unknown) {
             await SdkWalletService.removeTransactionReservation(
                 walletId,
@@ -572,13 +578,13 @@ export const bridgeLock = createAsyncThunk<
             );
         };
 
-        SdkWalletService.watchDeploy(preparedLock.deployId, {
+        SdkWalletService.watchDeploy(deployId, {
             onConfirmed: invalidateAccountData,
             onError: invalidateAccountData,
         });
 
         invalidateAccountData();
 
-        return { deployId: preparedLock.deployId };
+        return { deployId };
     },
 );

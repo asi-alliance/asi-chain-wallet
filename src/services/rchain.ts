@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { SignedResult } from "@asichain/asi-wallet-sdk";
 import { signDeploy } from "utils/crypto";
 
 // Global balance cache to prevent excessive API calls
@@ -51,15 +52,6 @@ export const createPrivateKeySigner =
             sigAlgorithm: signedDeploy.sigAlgorithm,
         };
     };
-
-export interface IBridgeLockParams {
-    amountBaseUnits: string;
-    recipient: string;
-    destChainId: number;
-    bridgeUri: string;
-    sign: TDeploySigner;
-    phloLimit?: number;
-}
 
 export const BRIDGE_LOCK_PHLO_LIMIT = 5_000_000_000;
 
@@ -361,26 +353,6 @@ export class RChainService {
     `;
     }
 
-    async prepareBridgeLock({
-        amountBaseUnits,
-        recipient,
-        destChainId,
-        bridgeUri,
-        sign,
-        phloLimit = BRIDGE_LOCK_PHLO_LIMIT,
-    }: IBridgeLockParams): Promise<IPreparedDeploy> {
-        return this.prepareDeploy(
-            this.buildBridgeLockTerm(
-                amountBaseUnits,
-                recipient,
-                destChainId,
-                bridgeUri,
-            ),
-            sign,
-            phloLimit,
-        );
-    }
-
     async prepareDeploy(
         rholangCode: string,
         sign: TDeploySigner,
@@ -424,16 +396,16 @@ export class RChainService {
     ): Promise<string> {
         const prepared = await this.prepareDeploy(rholangCode, sign, phloLimit);
 
-        await this.submitDeploy(prepared);
+        await this.submitDeploy(prepared.webDeploy);
 
         return prepared.deployId;
     }
 
-    async submitDeploy({ webDeploy }: IPreparedDeploy): Promise<void> {
+    async submitDeploy(signedDeploy: SignedResult): Promise<void> {
         try {
             let result;
             try {
-                result = await this.rnodeHttp("deploy", webDeploy);
+                result = await this.rnodeHttp("deploy", signedDeploy);
             } catch (error: any) {
                 console.error("Deploy failed to send:", error);
 
