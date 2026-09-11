@@ -1,10 +1,8 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import styled, { css } from "styled-components";
-import { RootState } from "store";
 import {
-    selectAccountById,
-    selectSelectedAccountId,
+    selectSelectedAccount,
     selectSelectedNetworkId,
 } from "store/WalletsStore/";
 import {
@@ -322,11 +320,7 @@ const HISTORY_UNAVAILABLE_ERROR =
     "Failed to load transaction history for the selected network.";
 
 export const History: React.FC = () => {
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
-
+    const selectedAccount = useSelector(selectSelectedAccount);
     const networkId = useSelector(selectSelectedNetworkId);
 
     const [filter, setFilter] = useState<TransactionFilter>({});
@@ -337,9 +331,9 @@ export const History: React.FC = () => {
         isError,
         fulfilledTimeStamp,
     } = useGetTransactionHistoryQuery(
-        selectedAccountId
+        selectedAccount
             ? {
-                  accountId: selectedAccountId,
+                  accountId: selectedAccount.id,
                   networkId,
                   source: filter.source ?? "all",
               }

@@ -315,6 +315,12 @@ export const selectAccounts = createSelector(
 );
 export const selectSelectedAccountId = (state: RootState) =>
     state.walletsStore.selectedAccountId;
+export const selectSelectedAccount = (state: RootState) => {
+    return state.walletsStore.selectedAccountId
+        ? selectAccountById(state, state.walletsStore.selectedAccountId)
+        : null;
+};
+
 export const selectNetworks = (state: RootState) => state.walletsStore.networks;
 export const selectSelectedNetwork = (state: RootState) =>
     state.walletsStore.selectedNetwork;
@@ -325,6 +331,7 @@ export const selectCustomNetworks = createSelector(
     (networks: Network[]): Network[] =>
         networks.filter((network: Network) => !network.isDefault),
 );
+
 export const selectIsAnyAccountBalanceFetching = (
     state: RootState,
 ): boolean => {

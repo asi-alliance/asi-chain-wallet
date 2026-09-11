@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import styled, { DefaultTheme } from "styled-components";
 import { QRCodeCanvas } from "qrcode.react";
 import { RootState } from "store";
-import { selectAccountById, selectSelectedAccountId } from "store/WalletsStore";
+import { selectSelectedAccount } from "store/WalletsStore";
 import {
     Card,
     CardHeader,
@@ -152,10 +152,7 @@ const formatOptions: ISelectOption[] = [
 
 export const Receive: React.FC = () => {
     const navigate = useNavigate();
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
+    const selectedAccount = useSelector(selectSelectedAccount);
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );

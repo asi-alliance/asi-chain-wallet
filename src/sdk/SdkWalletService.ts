@@ -4,6 +4,8 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
+    IDeployWatchCallbacks,
+    IDeployWatchHandle,
     IImportWalletKeyfileOptions,
     IKeyfileAccountsImportResult,
     IKeyfileImportPreview,
@@ -11,6 +13,8 @@ import {
     INetworkRecord,
     INetworkUpdate,
     IReservedOperationResult,
+    ISignDeployRequest,
+    ITransactionReservation,
     ITransactionsHistoryOptions,
     ITransferRequest,
     IWalletKeyfile,
@@ -20,7 +24,9 @@ import {
     NetworkId,
     NetworkName,
     PRIVATE_KEY_LENGTH,
+    SignedResult,
     Transaction,
+    TTransactionReservationRequest,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
@@ -380,6 +386,37 @@ export class SdkWalletService {
             accountId,
             options,
         );
+    }
+
+    static signDeploy(
+        request: ISignDeployRequest,
+        password?: string,
+    ): Promise<SignedResult> {
+        return requireSdkClient().signDeploy(request, password);
+    }
+
+    static addTransactionReservation(
+        request: TTransactionReservationRequest,
+        password?: string,
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().addTransactionReservation(request, password);
+    }
+
+    static removeTransactionReservation(
+        walletId: string,
+        reservationId: ITransactionReservation["id"],
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().removeTransactionReservation(
+            walletId,
+            reservationId,
+        );
+    }
+
+    static watchDeploy(
+        deployId: string,
+        callbacks: IDeployWatchCallbacks,
+    ): IDeployWatchHandle {
+        return requireSdkClient().watchDeploy(deployId, callbacks);
     }
 
     static isWalletUnlocked(walletId: string): boolean {

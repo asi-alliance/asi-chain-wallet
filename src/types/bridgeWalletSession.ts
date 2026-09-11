@@ -1,4 +1,4 @@
-import { Account } from "types/wallet";
+import { IUnlockedAccountMeta } from "types/wallet";
 
 export interface IWalletAccount {
     id: string;
@@ -8,7 +8,7 @@ export interface IWalletAccount {
 }
 
 export interface AsiWalletSession {
-    account?: Account | null;
+    account?: IUnlockedAccountMeta | null;
 }
 
 export interface CardanoWalletSession {
