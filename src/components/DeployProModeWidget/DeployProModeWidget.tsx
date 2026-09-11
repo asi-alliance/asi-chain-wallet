@@ -357,6 +357,7 @@ interface IDeployProModeContextValue extends IUseDeployContractResponse {
     monacoInitialized: boolean;
     darkMode: boolean;
     activeFile: IDEFile | undefined;
+    deployableFile: IDEFile | undefined;
     phloLimit: string;
     phloPrice: string;
     setActiveFileId: (id: string) => void;
@@ -479,6 +480,10 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     const activeFile = items.find(
         (item) => item.id === activeFileId && item.type === "file",
     ) as IDEFile | undefined;
+
+    const deployableFile: IDEFile | undefined = activeFile?.content.trim()
+        ? activeFile
+        : undefined;
 
     const addConsoleMessage = (
         type: ConsoleMessageMods,
@@ -747,29 +752,35 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     };
 
     const handleDeployClick = (): void => {
-        if (!activeFile) {
+        if (!deployableFile) {
             addConsoleMessage(
                 ConsoleMessageMods.ERROR,
-                "Please select a file to deploy",
+                "Please select a file with contract code to deploy",
             );
 
             return;
         }
 
-        deployContractState.requestDeploy(activeFile.content, activeFile.name);
+        deployContractState.requestDeploy(
+            deployableFile.content,
+            deployableFile.name,
+        );
     };
 
     const handleExploreClick = (): void => {
-        if (!activeFile) {
+        if (!deployableFile) {
             addConsoleMessage(
                 ConsoleMessageMods.ERROR,
-                "Please select a file to explore",
+                "Please select a file with contract code to explore",
             );
 
             return;
         }
 
-        deployContractState.requestExplore(activeFile.content, activeFile.name);
+        deployContractState.requestExplore(
+            deployableFile.content,
+            deployableFile.name,
+        );
     };
 
     const toggleFolder = (folderId: string): void => {
@@ -801,6 +812,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         monacoInitialized,
         darkMode,
         activeFile,
+        deployableFile,
         phloLimit,
         phloPrice,
         setActiveFileId,
@@ -882,6 +894,7 @@ const DeployProModeBoard: React.FC = () => {
         monacoInitialized,
         darkMode,
         activeFile,
+        deployableFile,
         phloLimit,
         phloPrice,
         pendingTerm,
@@ -1153,7 +1166,9 @@ const DeployProModeBoard: React.FC = () => {
                         size="small"
                         onClick={handleDeployClick}
                         loading={isProcessing}
-                        disabled={!activeFile || !account || !isBalanceReady}
+                        disabled={
+                            !deployableFile || !account || !isBalanceReady
+                        }
                     >
                         <h3>Deploy</h3>
                     </Button>
@@ -1163,7 +1178,7 @@ const DeployProModeBoard: React.FC = () => {
                         variant="secondary"
                         onClick={handleExploreClick}
                         loading={isProcessing}
-                        disabled={!activeFile}
+                        disabled={!deployableFile}
                     >
                         <h3>Explore</h3>
                     </Button>
