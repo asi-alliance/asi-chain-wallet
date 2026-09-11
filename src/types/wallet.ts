@@ -1,5 +1,6 @@
 import {
     Address,
+    DeployStatus,
     INetworkRecord,
     NodeApiProfile,
     WalletTypes,
@@ -45,15 +46,9 @@ export type TCustomNetwork = Omit<Network, "isDefault"> & {
     isDefault: false;
 };
 
-export enum DeployWatchStatus {
-    PENDING = "pending",
-    CONFIRMED = "confirmed",
-    FAILED = "failed",
-}
-
 export interface IDeployWatchState {
-    status: DeployWatchStatus;
-    error?: string;
+    status: DeployStatus;
+    unresolvedReason?: string;
 }
 
 export interface WalletStoreState {
