@@ -1,6 +1,6 @@
 import {
-    deployFailed,
     deployStatusChanged,
+    deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
 import {
@@ -35,23 +35,24 @@ import {
     getUnlockedWalletAndAccountFromWalletsMeta,
 } from "./helpers";
 
-const FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE: string =
-    "Transaction failed on chain";
+const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this transfer before it was finalized";
 
-const FALLBACK_DEPLOY_CONTRACT_ERROR_MESSAGE: string = "Deploy failed on chain";
+const FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this deploy before it was finalized";
 
 interface IDeployWatchCallbacksOptions {
     deployId: string;
     dispatch: (action: AnyAction) => void;
     invalidateAccountData: () => void;
-    fallbackErrorMessage: string;
+    fallbackUnresolvedMessage: string;
 }
 
 const buildDeployWatchCallbacks = ({
     deployId,
     dispatch,
     invalidateAccountData,
-    fallbackErrorMessage,
+    fallbackUnresolvedMessage,
 }: IDeployWatchCallbacksOptions): IDeployWatchCallbacks => ({
     onStatus: (result: IDeployStatusResult) =>
         dispatch(
@@ -71,9 +72,9 @@ const buildDeployWatchCallbacks = ({
     },
     onError: (error: Error) => {
         dispatch(
-            deployFailed({
+            deployWatchUnresolved({
                 deployId,
-                error: getErrorMessage(error, fallbackErrorMessage),
+                reason: getErrorMessage(error, fallbackUnresolvedMessage),
             }),
         );
         invalidateAccountData();
@@ -507,7 +508,8 @@ export const sendTransaction = createAsyncThunk<
                 deployId,
                 dispatch,
                 invalidateAccountData,
-                fallbackErrorMessage: FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE,
+                fallbackUnresolvedMessage:
+                    FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE,
             }),
         );
 
@@ -572,7 +574,8 @@ export const deployContract = createAsyncThunk<
                 deployId,
                 dispatch,
                 invalidateAccountData,
-                fallbackErrorMessage: FALLBACK_DEPLOY_CONTRACT_ERROR_MESSAGE,
+                fallbackUnresolvedMessage:
+                    FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE,
             }),
         );
 

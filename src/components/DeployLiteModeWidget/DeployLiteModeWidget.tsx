@@ -98,6 +98,15 @@ const ErrorMessage = styled.div`
     margin-bottom: 16px;
 `;
 
+const WarningMessage = styled.div`
+    background: ${({ theme }) => `${theme.warning}20`};
+    color: ${({ theme }) => theme.warning};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
+`;
+
 const SuccessMessage = styled.div`
     background: ${({ theme }) => theme.success};
     color: ${({ theme }) => theme.text.inverse};
@@ -162,10 +171,14 @@ export const exampleContract = `new stdout(\`rho:io:stdout\`), deployerId(\`rho:
 
 const SENT_STATUS_LABEL = "Sent";
 
+const DEPLOY_UNRESOLVED_TITLE =
+    "Deploy status is unknown. It may still be finalized, check the transaction history later.";
+
 interface IDeployLiteModeContextValue extends IUseDeployContractResponse {
     code: string;
     setCode: (value: string) => void;
     error: string;
+    unresolvedReason: string;
     exploreResult: unknown;
     deployId: string;
     deployStatus: string;
@@ -205,12 +218,14 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 }) => {
     const [code, setCode] = useState(exampleContract);
     const [error, setError] = useState("");
+    const [unresolvedReason, setUnresolvedReason] = useState("");
     const [exploreResult, setExploreResult] = useState<unknown>(null);
     const [deployId, setDeployId] = useState("");
     const [deployStatus, setDeployStatus] = useState("");
 
     const resetOutput = (): void => {
         setError("");
+        setUnresolvedReason("");
         setExploreResult(null);
         setDeployId("");
         setDeployStatus("");
@@ -234,6 +249,10 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
                 return;
             case DeployEventTypes.EXPLORE_COMPLETED:
                 setExploreResult(event.result);
+
+                return;
+            case DeployEventTypes.DEPLOY_UNRESOLVED:
+                setUnresolvedReason(event.message);
 
                 return;
             case DeployEventTypes.DEPLOY_FAILED:
@@ -269,6 +288,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
         code,
         setCode,
         error,
+        unresolvedReason,
         exploreResult,
         deployId,
         deployStatus,
@@ -329,6 +349,7 @@ const DeployLiteModeBoard: React.FC = () => {
         code,
         setCode,
         error,
+        unresolvedReason,
         exploreResult,
         deployId,
         deployStatus,
@@ -358,6 +379,19 @@ const DeployLiteModeBoard: React.FC = () => {
     return (
         <>
             {error && <ErrorMessage>{error}</ErrorMessage>}
+            {unresolvedReason && (
+                <WarningMessage>
+                    <div>{DEPLOY_UNRESOLVED_TITLE}</div>
+                    <div style={{ fontSize: "12px", marginTop: "8px" }}>
+                        {unresolvedReason}
+                    </div>
+                    {deployId && (
+                        <div style={{ fontSize: "12px", marginTop: "8px" }}>
+                            Deploy ID: {deployId}
+                        </div>
+                    )}
+                </WarningMessage>
+            )}
             {deployId && isWaitingForConfirmation && (
                 <LoadingMessage>
                     <div

@@ -65,9 +65,9 @@ export interface IDeployStatusChangedPayload {
     status: DeployStatus;
 }
 
-export interface IDeployFailedPayload {
+export interface IDeployWatchUnresolvedPayload {
     deployId: string;
-    error: string;
+    reason: string;
 }
 
 const walletsStoreSlice = createSlice({
@@ -82,13 +82,18 @@ const walletsStoreSlice = createSlice({
 
             state.deployWatches[deployId] = { status };
         },
-        deployFailed: (state, action: PayloadAction<IDeployFailedPayload>) => {
-            const { deployId, error } = action.payload;
+        deployWatchUnresolved: (
+            state,
+            action: PayloadAction<IDeployWatchUnresolvedPayload>,
+        ) => {
+            const { deployId, reason } = action.payload;
+            const watch = state.deployWatches[deployId];
 
-            state.deployWatches[deployId] = {
-                status: DeployStatus.CHECK_ERROR,
-                error,
-            };
+            if (!watch) {
+                return;
+            }
+
+            watch.unresolvedReason = reason;
         },
         deployWatchCleared: (state, action: PayloadAction<string>) => {
             delete state.deployWatches[action.payload];
@@ -375,7 +380,10 @@ export const selectDeployWatch = (
 ): IDeployWatchState | null =>
     state.walletsStore.deployWatches[deployId] ?? null;
 
-export const { deployStatusChanged, deployFailed, deployWatchCleared } =
-    walletsStoreSlice.actions;
+export const {
+    deployStatusChanged,
+    deployWatchUnresolved,
+    deployWatchCleared,
+} = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;

@@ -55,7 +55,8 @@ import {
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
 
-const TRANSACTION_FAILED_ERROR = "Transaction failed on chain";
+const TRANSACTION_UNRESOLVED_TITLE =
+    "Transaction status is unknown. It may still complete on chain, check the transaction history later.";
 
 const NETWORK_CHANGED_ERROR =
     "Network changed while the transfer was awaiting confirmation. Check the details and send again.";
@@ -134,6 +135,15 @@ const SuccessMessage = styled.div`
         color: ${({ theme }) => theme.text.inverse};
         opacity: 0.8;
     }
+`;
+
+const WarningMessage = styled.div`
+    background: ${({ theme }) => `${theme.warning}20`};
+    color: ${({ theme }) => theme.warning};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
 `;
 
 const LoadingMessage = styled.div`
@@ -297,12 +307,9 @@ export const Send: React.FC = () => {
 
     const isTransactionConfirmed =
         deployWatch?.status === DeployStatus.FINALIZED;
-    const transactionError =
-        deployWatch?.status === DeployStatus.CHECK_ERROR
-            ? (deployWatch.error ?? TRANSACTION_FAILED_ERROR)
-            : "";
+    const unresolvedReason = deployWatch?.unresolvedReason ?? "";
     const isWaitingForConfirmation =
-        !!deployWatch && !isTransactionConfirmed && !transactionError;
+        !!deployWatch && !isTransactionConfirmed && !unresolvedReason;
 
     useEffect(() => {
         if (!pendingTransfer) {
@@ -820,9 +827,18 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
-                    {txHash && transactionError && (
-                        <ErrorMessage>
-                            <div>Transaction failed: {transactionError}</div>
+                    {txHash && unresolvedReason && (
+                        <WarningMessage>
+                            <div>{TRANSACTION_UNRESOLVED_TITLE}</div>
+                            <div
+                                style={{
+                                    fontSize: "12px",
+                                    opacity: 0.8,
+                                    marginTop: "8px",
+                                }}
+                            >
+                                {unresolvedReason}
+                            </div>
                             <div
                                 style={{
                                     fontSize: "12px",
@@ -833,7 +849,7 @@ export const Send: React.FC = () => {
                             >
                                 Deploy ID: {txHash}
                             </div>
-                        </ErrorMessage>
+                        </WarningMessage>
                     )}
 
                     {displayedError && (

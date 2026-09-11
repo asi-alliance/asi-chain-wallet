@@ -47,6 +47,7 @@ enum ConsoleMessageMods {
     INFO = "info",
     ERROR = "error",
     SUCCESS = "success",
+    WARNING = "warning",
 }
 
 const IDEContainer = styled.div`
@@ -277,12 +278,18 @@ const OutputContent = styled.div`
 
 const ConsoleEntry = styled.div<{ $type?: ConsoleMessageMods }>`
     margin-bottom: 4px;
-    color: ${({ theme, $type }) =>
-        $type === ConsoleMessageMods.ERROR
-            ? theme.danger
-            : $type === ConsoleMessageMods.SUCCESS
-              ? theme.success
-              : theme.text.secondary};
+    color: ${({ theme, $type }) => {
+        switch ($type) {
+            case ConsoleMessageMods.ERROR:
+                return theme.danger;
+            case ConsoleMessageMods.SUCCESS:
+                return theme.success;
+            case ConsoleMessageMods.WARNING:
+                return theme.warning;
+            default:
+                return theme.text.secondary;
+        }
+    }};
     display: flex;
     align-items: flex-start;
     gap: 6px;
@@ -528,6 +535,13 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
                 addConsoleMessage(
                     ConsoleMessageMods.ERROR,
                     `Deploy failed: ${event.message}`,
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_UNRESOLVED:
+                addConsoleMessage(
+                    ConsoleMessageMods.WARNING,
+                    `Deploy status is unknown: ${event.message}. It may still be finalized, check the transaction history later.`,
                 );
 
                 return;

@@ -32,6 +32,7 @@ export enum DeployEventTypes {
     DEPLOY_STATUS = "deploy-status",
     DEPLOY_CONFIRMED = "deploy-confirmed",
     DEPLOY_FAILED = "deploy-failed",
+    DEPLOY_UNRESOLVED = "deploy-unresolved",
     EXPLORE_STARTED = "explore-started",
     EXPLORE_COMPLETED = "explore-completed",
     EXPLORE_FAILED = "explore-failed",
@@ -43,6 +44,7 @@ export type TDeployEvent =
     | { type: DeployEventTypes.DEPLOY_STATUS; status: DeployStatus }
     | { type: DeployEventTypes.DEPLOY_CONFIRMED }
     | { type: DeployEventTypes.DEPLOY_FAILED; message: string }
+    | { type: DeployEventTypes.DEPLOY_UNRESOLVED; message: string }
     | { type: DeployEventTypes.EXPLORE_STARTED; fileName?: string }
     | { type: DeployEventTypes.EXPLORE_COMPLETED; result: unknown }
     | { type: DeployEventTypes.EXPLORE_FAILED; message: string };
@@ -131,7 +133,7 @@ export const useDeployContract = ({
 
     const isDeployConfirmed = deployWatch?.status === DeployStatus.FINALIZED;
     const isWaitingForConfirmation =
-        !!deployWatch && !isDeployConfirmed && !deployWatch.error;
+        !!deployWatch && !isDeployConfirmed && !deployWatch.unresolvedReason;
 
     const onEventRef = useRef(onEvent);
 
@@ -148,10 +150,10 @@ export const useDeployContract = ({
             return;
         }
 
-        if (deployWatch.error) {
+        if (deployWatch.unresolvedReason) {
             emit({
-                type: DeployEventTypes.DEPLOY_FAILED,
-                message: deployWatch.error,
+                type: DeployEventTypes.DEPLOY_UNRESOLVED,
+                message: deployWatch.unresolvedReason,
             });
 
             return;
