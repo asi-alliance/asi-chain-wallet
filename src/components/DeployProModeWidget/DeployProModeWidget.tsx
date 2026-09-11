@@ -401,6 +401,41 @@ interface IDeployProModeWidgetProps {
     children: React.ReactNode;
 }
 
+const DEFAULT_EXPANDED_FOLDER_IDS = ["examples-folder", "contracts-folder"];
+const DEFAULT_FILE_ID = "hello-rho";
+
+interface IInitialWorkspace {
+    items: IDEItem[];
+    activeFileId: string;
+    openFiles: string[];
+    expandedFolders: Set<string>;
+}
+
+const loadInitialWorkspace = (): IInitialWorkspace => {
+    const items = IDEStorageService.loadFiles();
+    const workspaceState = IDEStorageService.loadWorkspaceState();
+
+    if (workspaceState) {
+        return {
+            items,
+            activeFileId: workspaceState.activeFileId || "",
+            openFiles: workspaceState.openFiles || [],
+            expandedFolders: new Set<string>(
+                workspaceState.expandedFolders || [],
+            ),
+        };
+    }
+
+    const defaultFile = items.find((item) => item.id === DEFAULT_FILE_ID);
+
+    return {
+        items,
+        activeFileId: defaultFile?.id ?? "",
+        openFiles: defaultFile ? [defaultFile.id] : [],
+        expandedFolders: new Set(DEFAULT_EXPANDED_FOLDER_IDS),
+    };
+};
+
 const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     phloLimit,
     phloPrice,
@@ -408,12 +443,20 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
 }) => {
     const darkMode = useSelector((state: RootState) => state.theme.darkMode);
 
+    const [initialWorkspace] = useState<IInitialWorkspace>(
+        loadInitialWorkspace,
+    );
+
     const [monacoInitialized, setMonacoInitialized] = useState(false);
-    const [items, setItems] = useState<IDEItem[]>([]);
-    const [activeFileId, setActiveFileId] = useState<string>("");
-    const [openFiles, setOpenFiles] = useState<string[]>([]);
+    const [items, setItems] = useState<IDEItem[]>(initialWorkspace.items);
+    const [activeFileId, setActiveFileId] = useState<string>(
+        initialWorkspace.activeFileId,
+    );
+    const [openFiles, setOpenFiles] = useState<string[]>(
+        initialWorkspace.openFiles,
+    );
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-        new Set(["examples-folder", "contracts-folder"]),
+        initialWorkspace.expandedFolders,
     );
     const [contextMenu, setContextMenu] = useState<IContextMenuState | null>(
         null,
@@ -434,31 +477,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     }, []);
 
     useEffect(() => {
-        const loadedItems = IDEStorageService.loadFiles();
-        setItems(loadedItems);
-
-        const workspaceState = IDEStorageService.loadWorkspaceState();
-
-        if (workspaceState) {
-            setActiveFileId(workspaceState.activeFileId || "");
-            setOpenFiles(workspaceState.openFiles || []);
-            setExpandedFolders(new Set(workspaceState.expandedFolders || []));
-
-            return;
-        }
-
-        const defaultFile = loadedItems.find((item) => item.id === "hello-rho");
-
-        if (defaultFile) {
-            setActiveFileId(defaultFile.id);
-            setOpenFiles([defaultFile.id]);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (items.length > 0) {
-            IDEStorageService.saveFiles(items);
-        }
+        IDEStorageService.saveFiles(items);
     }, [items]);
 
     useEffect(() => {
