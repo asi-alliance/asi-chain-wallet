@@ -140,6 +140,13 @@ export const SdkClientProvider: React.FC<{
             ),
         ];
 
+        setBusyNetworkIds(
+            client
+                .getNetworks()
+                .filter(({ id }: INetworkRecord) => client.isNetworkBusy(id))
+                .map(({ id }: INetworkRecord) => id),
+        );
+
         return () => {
             for (const unsubscribe of unsubscribes) {
                 unsubscribe();
@@ -183,8 +190,14 @@ export const useSdkClient = (): TSdkClientReturnedValue => {
     return context as TSdkClientReturnedValue;
 };
 
-export const useIsNetworkBusy = (networkId: NetworkId): boolean => {
+export const useBusyNetworkIds = (): NetworkId[] => {
     const { busyNetworkIds } = useSdkClient();
+
+    return busyNetworkIds;
+};
+
+export const useIsNetworkBusy = (networkId: NetworkId): boolean => {
+    const busyNetworkIds = useBusyNetworkIds();
 
     return busyNetworkIds.includes(networkId);
 };
