@@ -1,4 +1,5 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { DeployStatus } from "@asichain/asi-wallet-sdk";
 import {
     WalletStoreState,
     IWalletMeta,
@@ -7,13 +8,13 @@ import {
     IUnlockedWalletMeta,
     Network,
     TCustomNetwork,
-    DeployWatchStatus,
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
     importKeyfileAccounts,
     addCustomNetwork,
+    deployContract,
     IInitializeNetworksResponse,
     initializeNetworks,
     IRemoveNetworkResponse,
@@ -59,27 +60,40 @@ export interface IAccountDefaultUpdateFieldsPayload {
     accountId: string;
 }
 
-export interface IDeployFailedPayload {
+export interface IDeployStatusChangedPayload {
     deployId: string;
-    error: string;
+    status: DeployStatus;
+}
+
+export interface IDeployWatchUnresolvedPayload {
+    deployId: string;
+    reason: string;
 }
 
 const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
     reducers: {
-        deployConfirmed: (state, action: PayloadAction<string>) => {
-            state.deployWatches[action.payload] = {
-                status: DeployWatchStatus.CONFIRMED,
-            };
-        },
-        deployFailed: (state, action: PayloadAction<IDeployFailedPayload>) => {
-            const { deployId, error } = action.payload;
+        deployStatusChanged: (
+            state,
+            action: PayloadAction<IDeployStatusChangedPayload>,
+        ) => {
+            const { deployId, status } = action.payload;
 
-            state.deployWatches[deployId] = {
-                status: DeployWatchStatus.FAILED,
-                error,
-            };
+            state.deployWatches[deployId] = { status };
+        },
+        deployWatchUnresolved: (
+            state,
+            action: PayloadAction<IDeployWatchUnresolvedPayload>,
+        ) => {
+            const { deployId, reason } = action.payload;
+            const watch = state.deployWatches[deployId];
+
+            if (!watch) {
+                return;
+            }
+
+            watch.unresolvedReason = reason;
         },
         deployWatchCleared: (state, action: PayloadAction<string>) => {
             delete state.deployWatches[action.payload];
@@ -249,11 +263,16 @@ const walletsStoreSlice = createSlice({
             .addCase(sendTransaction.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.deployWatches[action.payload.deployId] = {
-                    status: DeployWatchStatus.PENDING,
+                    status: DeployStatus.DEPLOYING,
                 };
             })
             .addCase(sendTransaction.rejected, (state) => {
                 state.isLoading = false;
+            })
+            .addCase(deployContract.fulfilled, (state, action) => {
+                state.deployWatches[action.payload.deployId] = {
+                    status: DeployStatus.DEPLOYING,
+                };
             })
             .addCase(createHdWallet.fulfilled, (state, action) => {
                 applyActiveWalletSession(state, action.payload);
@@ -361,7 +380,10 @@ export const selectDeployWatch = (
 ): IDeployWatchState | null =>
     state.walletsStore.deployWatches[deployId] ?? null;
 
-export const { deployConfirmed, deployFailed, deployWatchCleared } =
-    walletsStoreSlice.actions;
+export const {
+    deployStatusChanged,
+    deployWatchUnresolved,
+    deployWatchCleared,
+} = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;
