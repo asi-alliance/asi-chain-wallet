@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { CustomErrorCode, getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
+import { isWalletLockedError, SdkWalletService } from "sdk";
 
 const DEFAULT_ERROR_FALLBACK = "Operation failed";
 const WALLET_NOT_OPENED_MESSAGE = "Wallet is not opened. Please login again.";
-
-const isWalletLockedError = (error: unknown): boolean =>
-    (error as { code?: string } | null)?.code === CustomErrorCode.WALLET_LOCKED;
 
 export interface IPasswordPromptProps {
     isOpen: boolean;

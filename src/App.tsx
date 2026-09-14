@@ -16,9 +16,7 @@ import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
 import { Receive } from "pages/Receive";
 import { Accounts } from "pages/Accounts";
-//TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
-// import { Deploy } from "pages/Deploy";
-// import { IDE } from "pages/IDE";
+import { Deploy } from "pages/Deploy";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
@@ -172,7 +170,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                {/* TODO: Restore Deploy/IDE once the SDK exposes a signer-based raw deploy/explore flow
                 <Route
                     path="/deploy"
                     element={
@@ -183,18 +180,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
-                <Route
-                    path="/ide"
-                    element={
-                        <ProtectedRoute>
-                            <Layout>
-                                <IDE />
-                            </Layout>
-                        </ProtectedRoute>
-                    }
-                />
-                */}
                 <Route
                     path="/settings"
                     element={

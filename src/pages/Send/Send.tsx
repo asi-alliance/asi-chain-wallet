@@ -3,8 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address } from "@asichain/asi-wallet-sdk";
-import { DeployWatchStatus } from "types/wallet";
+import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -55,7 +54,8 @@ import {
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
 
-const TRANSACTION_FAILED_ERROR = "Transaction failed on chain";
+const TRANSACTION_UNRESOLVED_TITLE =
+    "Transaction status is unknown. It may still complete on chain, check the transaction history later.";
 
 const NETWORK_CHANGED_ERROR =
     "Network changed while the transfer was awaiting confirmation. Check the details and send again.";
@@ -134,6 +134,15 @@ const SuccessMessage = styled.div`
         color: ${({ theme }) => theme.text.inverse};
         opacity: 0.8;
     }
+`;
+
+const WarningMessage = styled.div`
+    background: ${({ theme }) => `${theme.warning}20`};
+    color: ${({ theme }) => theme.warning};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
 `;
 
 const LoadingMessage = styled.div`
@@ -289,14 +298,11 @@ export const Send: React.FC = () => {
         txHash ? selectDeployWatch(state, txHash) : null,
     );
 
-    const isWaitingForConfirmation =
-        deployWatch?.status === DeployWatchStatus.PENDING;
     const isTransactionConfirmed =
-        deployWatch?.status === DeployWatchStatus.CONFIRMED;
-    const transactionError =
-        deployWatch?.status === DeployWatchStatus.FAILED
-            ? (deployWatch.error ?? TRANSACTION_FAILED_ERROR)
-            : "";
+        deployWatch?.status === DeployStatus.FINALIZED;
+    const unresolvedReason = deployWatch?.unresolvedReason ?? "";
+    const isWaitingForConfirmation =
+        !!deployWatch && !isTransactionConfirmed && !unresolvedReason;
 
     const walletId = selectedWallet?.id;
 
@@ -761,9 +767,18 @@ export const Send: React.FC = () => {
                         </LoadingMessage>
                     )}
 
-                    {txHash && transactionError && (
-                        <ErrorMessage>
-                            <div>Transaction failed: {transactionError}</div>
+                    {txHash && unresolvedReason && (
+                        <WarningMessage>
+                            <div>{TRANSACTION_UNRESOLVED_TITLE}</div>
+                            <div
+                                style={{
+                                    fontSize: "12px",
+                                    opacity: 0.8,
+                                    marginTop: "8px",
+                                }}
+                            >
+                                {unresolvedReason}
+                            </div>
                             <div
                                 style={{
                                     fontSize: "12px",
@@ -774,7 +789,7 @@ export const Send: React.FC = () => {
                             >
                                 Deploy ID: {txHash}
                             </div>
-                        </ErrorMessage>
+                        </WarningMessage>
                     )}
 
                     {displayedError && (

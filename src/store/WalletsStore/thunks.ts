@@ -1,9 +1,9 @@
 import {
-    deployConfirmed,
-    deployFailed,
+    deployStatusChanged,
+    deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
-import { createAsyncThunk } from "@reduxjs/toolkit";
+import { AnyAction, createAsyncThunk } from "@reduxjs/toolkit";
 import { BRIDGE_LOCK_PHLO_LIMIT, RChainService } from "services/rchain";
 import {
     IAccountMeta,
@@ -14,7 +14,10 @@ import {
 } from "types/wallet";
 import {
     Address,
+    DeployStatus,
     GasFee,
+    IDeployStatusResult,
+    IDeployWatchCallbacks,
     INetworkConfig,
     INetworkUpdate,
     NetworkId,
@@ -32,8 +35,51 @@ import {
     getUnlockedWalletAndAccountFromWalletsMeta,
 } from "./helpers";
 
-const FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE: string =
-    "Transaction failed on chain";
+const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this transfer before it was finalized";
+
+const FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this deploy before it was finalized";
+
+interface IDeployWatchCallbacksOptions {
+    deployId: string;
+    dispatch: (action: AnyAction) => void;
+    invalidateAccountData: () => void;
+    fallbackUnresolvedMessage: string;
+}
+
+const buildDeployWatchCallbacks = ({
+    deployId,
+    dispatch,
+    invalidateAccountData,
+    fallbackUnresolvedMessage,
+}: IDeployWatchCallbacksOptions): IDeployWatchCallbacks => ({
+    onStatus: (result: IDeployStatusResult) =>
+        dispatch(
+            deployStatusChanged({
+                deployId,
+                status:
+                    result.status === DeployStatus.CHECK_ERROR
+                        ? DeployStatus.DEPLOYING
+                        : result.status,
+            }),
+        ),
+    onConfirmed: () => {
+        dispatch(
+            deployStatusChanged({ deployId, status: DeployStatus.FINALIZED }),
+        );
+        invalidateAccountData();
+    },
+    onError: (error: Error) => {
+        dispatch(
+            deployWatchUnresolved({
+                deployId,
+                reason: getErrorMessage(error, fallbackUnresolvedMessage),
+            }),
+        );
+        invalidateAccountData();
+    },
+});
 
 export const loadWalletsFromStorage = createAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
@@ -457,24 +503,81 @@ export const sendTransaction = createAsyncThunk<
             );
         };
 
-        subscribe({
-            onConfirmed: () => {
-                dispatch(deployConfirmed(deployId));
-                invalidateAccountData();
-            },
-            onError: (error: Error) => {
-                dispatch(
-                    deployFailed({
-                        deployId,
-                        error: getErrorMessage(
-                            error,
-                            FALLBACK_SEND_TRANSACTION_ERROR_MESSAGE,
-                        ),
-                    }),
-                );
-                invalidateAccountData();
-            },
-        });
+        subscribe(
+            buildDeployWatchCallbacks({
+                deployId,
+                dispatch,
+                invalidateAccountData,
+                fallbackUnresolvedMessage:
+                    FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE,
+            }),
+        );
+
+        invalidateAccountData();
+
+        return { deployId };
+    },
+);
+
+export interface IDeployContractPayload {
+    walletId: string;
+    accountId: string;
+    term: string;
+    phloLimit: number;
+    password?: string;
+}
+
+export const deployContract = createAsyncThunk<
+    { deployId: string },
+    IDeployContractPayload,
+    { state: RootState }
+>(
+    "wallets-store/deployContract",
+    async (
+        {
+            walletId,
+            accountId,
+            term,
+            phloLimit,
+            password,
+        }: IDeployContractPayload,
+        { getState, dispatch },
+    ) => {
+        const deployerAccount: IUnlockedAccountMeta | null =
+            getUnlockedAccountFromWalletsMeta(
+                getState().walletsStore.wallets,
+                accountId,
+            );
+
+        if (!deployerAccount) {
+            throw new Error(
+                "walletsStoreSlice.deployContract: Incorrect account id",
+            );
+        }
+
+        const { deployId, subscribe } = await SdkWalletService.deploy(
+            { walletId, accountId, term, phloLimit },
+            password,
+        );
+
+        const invalidateAccountData = (): void => {
+            dispatch(
+                walletsApi.util.invalidateTags([
+                    { type: WalletsApiTags.BALANCE, id: accountId },
+                    { type: WalletsApiTags.HISTORY, id: accountId },
+                ]),
+            );
+        };
+
+        subscribe(
+            buildDeployWatchCallbacks({
+                deployId,
+                dispatch,
+                invalidateAccountData,
+                fallbackUnresolvedMessage:
+                    FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE,
+            }),
+        );
 
         invalidateAccountData();
 
