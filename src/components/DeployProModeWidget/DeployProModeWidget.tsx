@@ -660,9 +660,17 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
 
         setOpenFiles(nextOpenFiles);
 
-        if (activeFileId === fileId && nextOpenFiles.length > 0) {
-            setActiveFileId(nextOpenFiles[nextOpenFiles.length - 1]);
+        if (activeFileId !== fileId) {
+            return;
         }
+
+        const nextActiveFileId: string = nextOpenFiles.length > 0
+                ? nextOpenFiles[nextOpenFiles.length - 1]
+                : "";
+
+        setActiveFileId(
+            nextActiveFileId
+        );
     };
 
     const handleDelete = (item: IDEItem): void => {
