@@ -929,11 +929,9 @@ const DeployProModeBoard: React.FC = () => {
         isProcessing,
         isDeployConfirmationOpen,
         isExploreConfirmationOpen,
-        isPasswordModalOpen,
-        passwordError,
+        passwordPrompt,
         confirmDeploy,
         confirmExplore,
-        submitPassword,
         cancel,
         setActiveFileId,
         setOpenFiles,
@@ -1194,7 +1192,10 @@ const DeployProModeBoard: React.FC = () => {
                         onClick={handleDeployClick}
                         loading={isProcessing}
                         disabled={
-                            !deployableFile || !account || !isBalanceReady
+                            isProcessing ||
+                            !deployableFile ||
+                            !account ||
+                            !isBalanceReady
                         }
                     >
                         <h3>Deploy</h3>
@@ -1205,7 +1206,7 @@ const DeployProModeBoard: React.FC = () => {
                         variant="secondary"
                         onClick={handleExploreClick}
                         loading={isProcessing}
-                        disabled={!deployableFile}
+                        disabled={isProcessing || !deployableFile}
                     >
                         <h3>Explore</h3>
                     </Button>
@@ -1348,13 +1349,10 @@ const DeployProModeBoard: React.FC = () => {
             />
 
             <PasswordModal
-                isOpen={isPasswordModalOpen}
+                {...passwordPrompt}
                 onClose={cancel}
-                onConfirm={submitPassword}
                 title="Enter password to deploy"
                 description="Your wallet session has expired. Enter your password to sign and deploy this contract."
-                loading={isProcessing}
-                error={passwordError}
             />
         </IDEContainer>
     );

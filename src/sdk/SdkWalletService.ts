@@ -15,6 +15,8 @@ import {
     INetworkRecord,
     INetworkUpdate,
     IReservedOperationResult,
+    ISignDeployRequest,
+    ITransactionReservation,
     ITransactionsHistoryOptions,
     ITransferRequest,
     IWalletKeyfile,
@@ -24,7 +26,9 @@ import {
     NetworkId,
     NetworkName,
     PRIVATE_KEY_LENGTH,
+    SignedResult,
     Transaction,
+    TTransactionReservationRequest,
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import { getSdkClient, requireSdkClient } from "./client";
@@ -383,6 +387,30 @@ export class SdkWalletService {
             walletId,
             accountId,
             options,
+        );
+    }
+
+    static signDeploy(
+        request: ISignDeployRequest,
+        password?: string,
+    ): Promise<SignedResult> {
+        return requireSdkClient().signDeploy(request, password);
+    }
+
+    static addTransactionReservation(
+        request: TTransactionReservationRequest,
+        password?: string,
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().addTransactionReservation(request, password);
+    }
+
+    static removeTransactionReservation(
+        walletId: string,
+        reservationId: ITransactionReservation["id"],
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().removeTransactionReservation(
+            walletId,
+            reservationId,
         );
     }
 
