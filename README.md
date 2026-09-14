@@ -102,6 +102,28 @@ The production build will be in the `build/` directory, ready for deployment to 
 2. **ESLint warnings**: The development server shows warnings about React Hooks and unused variables. These don't prevent the wallet from functioning.
 3. **Deprecation warnings**: Some packages show deprecation notices. This is normal in the JavaScript ecosystem.
 
+### Transaction History Is Capped And Not Paginated
+
+Transaction history is currently limited to a single window of 50 records, is not paginated, and can be incomplete or misordered at the edge of that window. The cause is upstream, in how the SDK assembles a history page from the indexer, not in the wallet UI. Tracked in [asi-chain-wallet-sdk#178](https://github.com/asi-alliance/asi-chain-wallet-sdk/issues/178).
+
+**Root cause.** `SdkWalletService.getTransactionsHistory` is backed by `TRANSACTION_HISTORY_QUERY` in the SDK, which queries two independent root fields in a single GraphQL request: `transfers`, filtered by `from_address` or `to_address`, and `deployments`, filtered by `deployer`. Both are ordered by `block_number: desc` and both receive the same `$offset` and `$limit`. The SDK then merges the two lists into a map keyed by `deploy_id` and re-sorts the result by `timestamp` descending. A page of the merged timeline cannot be expressed as the same offset and limit applied to two separately ordered lists.
+
+**What this means in the app today:**
+
+1. **Hard cap at 50 records.** `HISTORY_LIMIT` in `src/store/WalletsStore/api.ts` is 50 and the endpoint never sends an offset, so exactly one window is fetched. Anything older than the 50th record is unreachable and nothing in the UI signals that the list is truncated.
+2. **Ordering mismatch at the window boundary.** The window is cut server side by `block_number` but sorted client side by `timestamp`. Deploy timestamps are supplied by the client rather than derived from the block, so the two orderings can disagree. When they do, a record that belongs in the visible window can be missing and the displayed order can be wrong on the first screen.
+3. **Missing enrichment at the window boundary.** Deduplication is keyed on `deploy_id`. When a transfer falls inside the top 50 transfers but its matching deployment falls outside the top 50 deployments, the row is rendered without its `blockHash`.
+4. **Unstable order inside a block.** Records sharing a `block_number` have no tiebreak, so their relative order can change between polling cycles.
+5. **Filtering over a truncated window.** The Type and Period filters operate on the already capped result set, so client side filtering cannot return a complete answer.
+
+**Why pagination is not implemented.** This is deliberate. The wallet never sends an offset today, so it does not currently hit the upstream paging defect. Adding pagination or a load more control would surface it immediately: records would be dropped between pages and repeated across pages, with the skew growing per page and with any imbalance between the transfers and deployments collections. Correcting the window on the client would require unbounded overfetching, so the fix belongs in the indexer, as a single root field returning the combined ordered timeline under one offset and limit, and in the SDK method built on top of it.
+
+**Affected code:** `src/store/WalletsStore/api.ts` (the `getTransactionHistory` endpoint, `HISTORY_LIMIT`, and the mapping of the Status filter onto the SDK `sources` option), `src/pages/History/History.tsx` (the history table, the disabled Search, Type and Period filters, the disabled CSV and JSON export), `src/pages/Dashboard/Dashboard.tsx` (recent transactions, served from the same cached window).
+
+**Blocked by:** DevNet migration to the Rust indexer, a single indexer root field returning the combined ordered timeline under one offset and limit, and an updated `getTransactionsHistory` in the SDK built on that root field.
+
+**Once unblocked:** restore pagination or a load more control in the history page, re-enable the Search, Type and Period filters, re-enable CSV and JSON export, remove the truncation notice from the history page, and update this section.
+
 ### Production Considerations
 - Address critical security vulnerabilities before deploying to production
 - Test thoroughly with your specific RChain network configuration (see CONFIGURATION.md and NETWORKS env)
