@@ -18,7 +18,6 @@ import { ISelectOption } from "components/Select/Select";
 import { TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { DefaultTheme } from "styled-components/dist/types";
 import { ContentPasteIcon, HistoryIcon, ReceiveIcon } from "components/Icons";
-import { getGasFeeAsNumber } from "constants/gas";
 import {
     ASI_BRIDGE_URI,
     BridgeChainKey,
@@ -42,6 +41,7 @@ import {
 } from "components/BridgeWalletSelector";
 import { bridgeLock } from "store/WalletsStore/thunks";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
+import { getGasFeeForBridgeAsNumber } from "constants/gas";
 
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Locking is unavailable.";
@@ -427,7 +427,7 @@ export const Bridge: React.FC = () => {
     const maxAmount = (): void => {
         if (srcKind === "asi") {
             const balance = parseFloat(selectedASIAccountBalance);
-            const max = Math.max(0, balance - getGasFeeAsNumber());
+            const max = Math.max(0, balance - getGasFeeForBridgeAsNumber());
             const maxRounded = Math.floor(max * 100000000) / 100000000;
             setAmount(maxRounded.toFixed(8));
         } else if (srcKind === "cardano") {
@@ -579,10 +579,13 @@ export const Bridge: React.FC = () => {
                 return;
             }
 
-            const totalRequired = amountValue + getGasFeeAsNumber();
+            const totalRequired = amountValue + getGasFeeForBridgeAsNumber();
 
             if (totalRequired > balance) {
-                const maxSendable = Math.max(0, balance - getGasFeeAsNumber());
+                const maxSendable = Math.max(
+                    0,
+                    balance - getGasFeeForBridgeAsNumber(),
+                );
 
                 setAmountError(
                     `Amount + fee exceeds balance. Max: ${maxSendable.toFixed(
