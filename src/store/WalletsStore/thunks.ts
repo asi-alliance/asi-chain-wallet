@@ -4,7 +4,12 @@ import {
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
 import { AnyAction, createAsyncThunk } from "@reduxjs/toolkit";
-import { BRIDGE_LOCK_PHLO_LIMIT, RChainService } from "services/rchain";
+import {
+    BRIDGE_LOCK_MAX_GAS_COST,
+    BRIDGE_LOCK_PHLO_LIMIT,
+    BRIDGE_LOCK_PHLO_PRICE,
+    RChainService,
+} from "services/rchain";
 import {
     IAccountMeta,
     IUnlockedAccountMeta,
@@ -15,7 +20,6 @@ import {
 import {
     Address,
     DeployStatus,
-    GasFee,
     IDeployStatusResult,
     IDeployWatchCallbacks,
     INetworkConfig,
@@ -596,8 +600,6 @@ export interface IBridgeLockPayload {
     network: Network;
 }
 
-const BRIDGE_LOCK_GAS_COST: bigint = GasFee.MAX;
-
 export const bridgeLock = createAsyncThunk<
     { deployId: string },
     IBridgeLockPayload
@@ -637,6 +639,7 @@ export const bridgeLock = createAsyncThunk<
                 accountId,
                 term: lockTerm,
                 phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
+                phloPrice: BRIDGE_LOCK_PHLO_PRICE,
             },
             password,
         );
@@ -650,8 +653,9 @@ export const bridgeLock = createAsyncThunk<
                 kind: "deploy",
                 deployId,
                 term: lockTerm,
-                pendingAmount: BigInt(amountBaseUnits) + BRIDGE_LOCK_GAS_COST,
-                gasCost: BRIDGE_LOCK_GAS_COST,
+                pendingAmount:
+                    BigInt(amountBaseUnits) + BRIDGE_LOCK_MAX_GAS_COST,
+                gasCost: BRIDGE_LOCK_MAX_GAS_COST,
             },
             password,
         );
