@@ -43,6 +43,12 @@ import {
 import { bridgeLock } from "store/WalletsStore/thunks";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 
+const BALANCE_UNAVAILABLE_ERROR =
+    "Failed to load balance for the selected network. Locking is unavailable.";
+
+const BALANCE_LOADING_ERROR =
+    "Balance is still loading. Please wait and try again.";
+
 const BridgeContainer = styled.div`
     max-width: 946px;
     margin: 0 auto;
@@ -232,11 +238,19 @@ export const Bridge: React.FC = () => {
 
     const cardano = useCardanoWallet();
 
-    const { data: selectedASIAccountBalance = "0" } = useGetBalanceQuery(
+    const {
+        currentData: currentASIAccountBalance,
+        isFetching: isBalanceFetching,
+        isError: isBalanceError,
+    } = useGetBalanceQuery(
         selectedAccount
             ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
             : skipToken,
     );
+
+    const selectedASIAccountBalance = currentASIAccountBalance ?? "0";
+    const isBalanceReady =
+        currentASIAccountBalance !== undefined && !isBalanceError;
 
     const [amount, setAmount] = useState("");
     const [amountError, setAmountError] = useState("");
@@ -344,8 +358,11 @@ export const Bridge: React.FC = () => {
         : srcKind === "evm"
           ? ""
           : txHash;
+    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const shownError =
-        (srcKind === "evm" ? evm.error?.message : lockError) || "";
+        (srcKind === "evm" ? evm.error?.message : lockError) ||
+        balanceError ||
+        "";
 
     useEffect(() => {
         if (srcKind !== "evm" || !evm.isSuccess || !evm.lastAction) {
@@ -544,6 +561,15 @@ export const Bridge: React.FC = () => {
         }
 
         if (srcKind === "asi") {
+            if (!isBalanceReady) {
+                setAmountError(
+                    isBalanceError
+                        ? BALANCE_UNAVAILABLE_ERROR
+                        : BALANCE_LOADING_ERROR,
+                );
+                return;
+            }
+
             const balance = Number(selectedASIAccountBalance);
 
             if (amountValue > balance) {
@@ -622,6 +648,8 @@ export const Bridge: React.FC = () => {
 
     const lockDisabled =
         busy ||
+        !isBalanceReady ||
+        isBalanceFetching ||
         !sourceAccountLoaded ||
         !destinationAccountLoaded ||
         !isAmountValid;
@@ -767,6 +795,7 @@ export const Bridge: React.FC = () => {
                                 placeholder="Enter amount"
                                 step="0.00000001"
                                 min="0"
+                                disabled={!isBalanceReady}
                                 copyable
                                 CustomCopyIcon={ContentPasteIcon}
                             />
@@ -774,6 +803,7 @@ export const Bridge: React.FC = () => {
                                 id="bridge-max-amount-button"
                                 variant="secondary"
                                 onClick={maxAmount}
+                                disabled={!isBalanceReady}
                                 style={{
                                     aspectRatio: "1/1",
                                     width: "44px",
