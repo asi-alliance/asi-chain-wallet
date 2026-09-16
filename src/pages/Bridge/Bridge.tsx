@@ -42,6 +42,7 @@ import {
 import { bridgeLock } from "store/WalletsStore/thunks";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { getGasFeeForBridgeAsNumber } from "constants/gas";
+import { getAmountValidationError } from "utils/balanceUtils";
 
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Locking is unavailable.";
@@ -253,7 +254,6 @@ export const Bridge: React.FC = () => {
         currentASIAccountBalance !== undefined && !isBalanceError;
 
     const [amount, setAmount] = useState("");
-    const [amountError, setAmountError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -358,6 +358,10 @@ export const Bridge: React.FC = () => {
         : srcKind === "evm"
           ? ""
           : txHash;
+
+    const amountError = isBalanceReady
+        ? getAmountValidationError(amount, selectedASIAccountBalance)
+        : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
@@ -420,7 +424,6 @@ export const Bridge: React.FC = () => {
         setDstChainKey(nextKey);
         setTxHash("");
         setLockError("");
-        setAmountError("");
         evm.reset();
     };
 
@@ -459,7 +462,6 @@ export const Bridge: React.FC = () => {
         setTxHash("");
 
         setLockError("");
-        setAmountError("");
         asiLock.passwordPrompt.onClose();
         evm.reset();
     };
@@ -547,103 +549,6 @@ export const Bridge: React.FC = () => {
 
     const handleAmountChange = (value: string) => {
         setAmount(value);
-
-        if (!value.trim()) {
-            setAmountError("");
-            return;
-        }
-
-        const amountValue = Number(value);
-
-        if (isNaN(amountValue) || amountValue <= 0) {
-            setAmountError("Valid amount is required");
-            return;
-        }
-
-        if (srcKind === "asi") {
-            if (!isBalanceReady) {
-                setAmountError(
-                    isBalanceError
-                        ? BALANCE_UNAVAILABLE_ERROR
-                        : BALANCE_LOADING_ERROR,
-                );
-                return;
-            }
-
-            const balance = Number(selectedASIAccountBalance);
-
-            if (amountValue > balance) {
-                setAmountError(
-                    `Insufficient balance. You have ${balance.toFixed(8)} ASI`,
-                );
-                return;
-            }
-
-            const totalRequired = amountValue + getGasFeeForBridgeAsNumber();
-
-            if (totalRequired > balance) {
-                const maxSendable = Math.max(
-                    0,
-                    balance - getGasFeeForBridgeAsNumber(),
-                );
-
-                setAmountError(
-                    `Amount + fee exceeds balance. Max: ${maxSendable.toFixed(
-                        8,
-                    )} ASI`,
-                );
-                return;
-            }
-        }
-
-        if (srcKind === "evm") {
-            if (evm.tokenBalance !== undefined) {
-                const balance = Number(
-                    formatToken(evm.tokenBalance, srcChain.nativeDecimals),
-                );
-
-                if (amountValue > balance) {
-                    setAmountError(
-                        `Insufficient balance. You have ${balance.toFixed(8)}`,
-                    );
-                    return;
-                }
-            }
-        }
-
-        if (srcKind === "cardano") {
-            const balance = Number(
-                formatToken(
-                    BigInt(cardano.balanceRaw || "0"),
-                    srcChain.nativeDecimals,
-                ),
-            );
-
-            if (amountValue > balance) {
-                setAmountError(
-                    `Insufficient balance. You have ${balance.toFixed(8)}`,
-                );
-                return;
-            }
-        }
-
-        if (srcKind === "cosmos") {
-            const balance = Number(
-                formatToken(
-                    BigInt(cosmos.balanceRaw || "0"),
-                    srcChain.nativeDecimals,
-                ),
-            );
-
-            if (amountValue > balance) {
-                setAmountError(
-                    `Insufficient balance. You have ${balance.toFixed(8)}`,
-                );
-                return;
-            }
-        }
-
-        setAmountError("");
     };
 
     const isAmountValid =

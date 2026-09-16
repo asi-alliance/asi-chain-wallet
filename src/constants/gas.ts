@@ -20,5 +20,7 @@ export const getGasFeeAsNumber = (): number => {
 };
 
 export const getGasFeeForBridgeAsNumber = (): number => {
-    return Number(SdkWalletService.toDisplayAmount(BRIDGE_LOCK_MAX_GAS_COST));
+    return parseFloat(
+        SdkWalletService.toDisplayAmount(BRIDGE_LOCK_MAX_GAS_COST),
+    );
 };
