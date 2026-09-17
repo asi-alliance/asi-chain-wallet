@@ -40,6 +40,10 @@ import {
     BridgeWalletSelector,
 } from "components/BridgeWalletSelector";
 import { bridgeLock } from "store/WalletsStore/thunks";
+import {
+    networkOperationFinished,
+    networkOperationStarted,
+} from "store/networkOperationSlice";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { getGasFeeForBridgeAsNumber } from "constants/gas";
 import {
@@ -56,6 +60,23 @@ const BALANCE_LOADING_ERROR =
 
 const INVALID_AMOUNT_FORMAT_ERROR =
     "Invalid amount format. Enter a plain number, for example 0.01";
+
+const NETWORK_CHANGED_ERROR =
+    "Network changed while the lock was awaiting confirmation. Check the details and try again.";
+
+const LOCK_DETAILS_MISSING_ERROR = "Lock details are missing. Please retry.";
+
+interface IPendingBridgeLock {
+    walletId: string;
+    accountId: string;
+    accountName: string;
+    accountAddress: string;
+    networkId: string;
+    recipient: string;
+    amount: string;
+    destChainId: number;
+    bridgeUri: string;
+}
 
 const parseAtomicAmount = (value: string): bigint | null => {
     try {
@@ -270,6 +291,9 @@ export const Bridge: React.FC = () => {
 
     const [amount, setAmount] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [pendingLock, setPendingLock] = useState<IPendingBridgeLock | null>(
+        null,
+    );
     const [copied, setCopied] = useState(false);
 
     const srcChainKey: BridgeChainKey = "asi";
@@ -322,30 +346,50 @@ export const Bridge: React.FC = () => {
     const asiLock = useWalletSessionAction({
         walletId: activeWallet?.id,
         action: (password?: string) => {
-            if (!selectedAccount || !activeWallet) {
-                throw new Error("Wallet not opened. Please login again.");
+            if (!pendingLock) {
+                throw new Error(LOCK_DETAILS_MISSING_ERROR);
+            }
+
+            if (pendingLock.networkId !== selectedNetwork.id) {
+                throw new Error(NETWORK_CHANGED_ERROR);
             }
 
             return dispatch(
                 bridgeLock({
-                    walletId: activeWallet.id,
-                    accountId: selectedAccount.id,
-                    recipient: destinationWallet.account!.address,
-                    amount,
-                    destChainId: dstChain.routeId,
-                    bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
+                    walletId: pendingLock.walletId,
+                    accountId: pendingLock.accountId,
+                    recipient: pendingLock.recipient,
+                    amount: pendingLock.amount,
+                    destChainId: pendingLock.destChainId,
+                    bridgeUri: pendingLock.bridgeUri,
                     password,
                     network: selectedNetwork,
                 }),
             ).unwrap();
         },
         onSuccess: ({ deployId }) => {
+            setPendingLock(null);
             setTxHash(deployId);
             setAmount("");
         },
-        onError: setLockError,
+        onError: (message: string) => {
+            setPendingLock(null);
+            setLockError(message);
+        },
         errorFallback: "Failed to lock tokens",
     });
+
+    useEffect(() => {
+        if (!pendingLock) {
+            return;
+        }
+
+        dispatch(networkOperationStarted());
+
+        return () => {
+            dispatch(networkOperationFinished());
+        };
+    }, [dispatch, pendingLock]);
 
     const parsedAmount: bigint | null = amount.trim()
         ? parseAtomicAmount(amount)
@@ -492,12 +536,18 @@ export const Bridge: React.FC = () => {
         }
     };
 
+    const handleCancelLock = (): void => {
+        setShowConfirmation(false);
+        asiLock.passwordPrompt.onClose();
+        setPendingLock(null);
+    };
+
     const handleClearAll = (): void => {
         setAmount("");
         setTxHash("");
 
         setLockError("");
-        asiLock.passwordPrompt.onClose();
+        handleCancelLock();
         evm.reset();
     };
 
@@ -572,6 +622,25 @@ export const Bridge: React.FC = () => {
 
     const handleLockClick = (): void => {
         if (srcKind === "asi") {
+            const recipient = destinationWallet.account?.address;
+
+            if (!activeWallet || !selectedAccount || !recipient) {
+                setLockError("Wallet not opened. Please login again.");
+
+                return;
+            }
+
+            setPendingLock({
+                walletId: activeWallet.id,
+                accountId: selectedAccount.id,
+                accountName: selectedAccount.name,
+                accountAddress: selectedAccount.address,
+                networkId: selectedNetwork.id,
+                recipient,
+                amount,
+                destChainId: dstChain.routeId,
+                bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
+            });
             setShowConfirmation(true);
         } else if (srcKind === "cardano") {
             handleCardanoLock();
@@ -821,12 +890,12 @@ export const Bridge: React.FC = () => {
 
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
-                onClose={() => setShowConfirmation(false)}
+                onClose={handleCancelLock}
                 onConfirm={handleAsiLock}
-                amount={amount}
-                recipient={destinationWallet.account!.address}
-                senderAddress={selectedAccount.address}
-                senderName={selectedAccount.name}
+                amount={pendingLock?.amount ?? ""}
+                recipient={pendingLock?.recipient ?? ""}
+                senderAddress={pendingLock?.accountAddress ?? ""}
+                senderName={pendingLock?.accountName ?? ""}
                 maxFee={bridgeGasFee}
                 feeLabel={`up to ${bridgeGasFee.toFixed(8)}`}
                 loading={asiLock.isRunning}
@@ -834,6 +903,7 @@ export const Bridge: React.FC = () => {
 
             <PasswordModal
                 {...asiLock.passwordPrompt}
+                onClose={handleCancelLock}
                 title="Enter password to sign transaction"
                 description="Your wallet session has expired. Enter your password to sign and send this bridge lock."
             />
