@@ -1,15 +1,13 @@
 import {
     ASI_DECIMALS,
     fromAtomicAmountToNumber,
+    GasFee,
 } from "@asichain/asi-wallet-sdk";
 import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";
 
 export const GAS_FEE = {
     BASE_FEE: 0.0025,
     VARIATION_RANGE: 0.1,
-    LABEL: "ASI",
-    TRANSFER: "0.0025",
-    DEPLOY: "0.0025",
 } as const;
 
 export const generateRandomGasFee = (): string => {
@@ -19,7 +17,14 @@ export const generateRandomGasFee = (): string => {
 };
 
 export const getGasFeeAsNumber = (): number => {
-    return GAS_FEE.BASE_FEE;
+    return fromAtomicAmountToNumber(GasFee.MAX, ASI_DECIMALS);
+};
+
+export const getGasFeeRangeLabel = (): string => {
+    const min = fromAtomicAmountToNumber(GasFee.MIN, ASI_DECIMALS);
+    const max = fromAtomicAmountToNumber(GasFee.MAX, ASI_DECIMALS);
+
+    return `~${min}-${max}`;
 };
 
 export const getGasFeeForBridgeAsNumber = (): number => {

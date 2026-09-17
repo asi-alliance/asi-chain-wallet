@@ -32,7 +32,7 @@ import {
 } from "components";
 import { useWalletSessionAction } from "hooks";
 import { getTokenDisplayName } from "../../constants/token";
-import { generateRandomGasFee } from "../../constants/gas";
+import { getGasFeeAsNumber, getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
@@ -291,7 +291,6 @@ export const Send: React.FC = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [pendingTransfer, setPendingTransfer] =
         useState<IPendingTransfer | null>(null);
-    const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
 
     const deployWatch = useSelector((state: RootState) =>
@@ -371,13 +370,8 @@ export const Send: React.FC = () => {
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const displayedError = validationError || balanceError || amountError;
 
-    const updateEstimatedFee = () => {
-        setEstimatedFee(generateRandomGasFee());
-    };
-
     const handleRecipientChange = (value: string) => {
         setRecipient(value);
-        updateEstimatedFee();
 
         if (!value.trim()) {
             setAddressError("");
@@ -399,7 +393,6 @@ export const Send: React.FC = () => {
 
     const handleAmountChange = (value: string) => {
         setAmount(value);
-        updateEstimatedFee();
         setValidationError("");
     };
 
@@ -645,7 +638,6 @@ export const Send: React.FC = () => {
         clearDeployWatch();
         setScanError("");
         setCopied(false);
-        setEstimatedFee(generateRandomGasFee());
         handleCancelTransfer();
     };
 
@@ -1029,7 +1021,8 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                estimatedFee={estimatedFee}
+                maxFee={getGasFeeAsNumber()}
+                feeLabel={getGasFeeRangeLabel()}
                 loading={isLoading}
             />
 

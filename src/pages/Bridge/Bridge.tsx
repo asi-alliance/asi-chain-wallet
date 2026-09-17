@@ -351,6 +351,7 @@ export const Bridge: React.FC = () => {
         ? parseAtomicAmount(amount)
         : BigInt(0);
     const atomicAmount: bigint = parsedAmount ?? BigInt(0);
+    const bridgeGasFee: number = getGasFeeForBridgeAsNumber();
 
     const needsEvmApproval =
         srcKind === "evm" &&
@@ -389,7 +390,7 @@ export const Bridge: React.FC = () => {
         return getAmountValidationError(
             amount,
             selectedASIAccountBalance,
-            getGasFeeForBridgeAsNumber(),
+            bridgeGasFee,
         );
     };
 
@@ -463,7 +464,7 @@ export const Bridge: React.FC = () => {
         if (srcKind === "asi") {
             const max = getMaxSendableAmount(
                 selectedASIAccountBalance,
-                getGasFeeForBridgeAsNumber(),
+                bridgeGasFee,
             );
 
             setAmount(max.toFixed(8));
@@ -826,6 +827,8 @@ export const Bridge: React.FC = () => {
                 recipient={destinationWallet.account!.address}
                 senderAddress={selectedAccount.address}
                 senderName={selectedAccount.name}
+                maxFee={bridgeGasFee}
+                feeLabel={`up to ${bridgeGasFee.toFixed(8)}`}
                 loading={asiLock.isRunning}
             />
 
