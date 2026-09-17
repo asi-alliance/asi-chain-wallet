@@ -593,7 +593,7 @@ export interface IBridgeLockPayload {
     walletId: string;
     accountId: string;
     recipient: string;
-    amountBaseUnits: string;
+    amount: string;
     destChainId: number;
     bridgeUri: string;
     password?: string;
@@ -610,7 +610,7 @@ export const bridgeLock = createAsyncThunk<
             walletId,
             accountId,
             recipient,
-            amountBaseUnits,
+            amount,
             destChainId,
             bridgeUri,
             password,
@@ -626,8 +626,7 @@ export const bridgeLock = createAsyncThunk<
             network.indexerUrl,
         );
 
-        const atomicAmount: bigint =
-            SdkWalletService.toAtomicAmount(amountBaseUnits);
+        const atomicAmount: bigint = SdkWalletService.toAtomicAmount(amount);
 
         const lockTerm: string = rchain.buildBridgeLockTerm(
             atomicAmount.toString(),

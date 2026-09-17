@@ -1,4 +1,7 @@
-import { SdkWalletService } from "sdk";
+import {
+    ASI_DECIMALS,
+    fromAtomicAmountToNumber,
+} from "@asichain/asi-wallet-sdk";
 import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";
 
 export const GAS_FEE = {
@@ -20,7 +23,5 @@ export const getGasFeeAsNumber = (): number => {
 };
 
 export const getGasFeeForBridgeAsNumber = (): number => {
-    return parseFloat(
-        SdkWalletService.toDisplayAmount(BRIDGE_LOCK_MAX_GAS_COST),
-    );
+    return fromAtomicAmountToNumber(BRIDGE_LOCK_MAX_GAS_COST, ASI_DECIMALS);
 };

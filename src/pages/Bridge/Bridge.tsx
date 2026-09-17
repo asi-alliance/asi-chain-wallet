@@ -42,7 +42,10 @@ import {
 import { bridgeLock } from "store/WalletsStore/thunks";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { getGasFeeForBridgeAsNumber } from "constants/gas";
-import { getAmountValidationError } from "utils/balanceUtils";
+import {
+    getAmountValidationError,
+    getMaxSendableAmount,
+} from "utils/balanceUtils";
 import { SdkWalletService } from "sdk";
 
 const BALANCE_UNAVAILABLE_ERROR =
@@ -50,6 +53,17 @@ const BALANCE_UNAVAILABLE_ERROR =
 
 const BALANCE_LOADING_ERROR =
     "Balance is still loading. Please wait and try again.";
+
+const INVALID_AMOUNT_FORMAT_ERROR =
+    "Invalid amount format. Enter a plain number, for example 0.01";
+
+const parseAtomicAmount = (value: string): bigint | null => {
+    try {
+        return SdkWalletService.toAtomicAmount(value);
+    } catch {
+        return null;
+    }
+};
 
 const BridgeContainer = styled.div`
     max-width: 946px;
@@ -317,7 +331,7 @@ export const Bridge: React.FC = () => {
                     walletId: activeWallet.id,
                     accountId: selectedAccount.id,
                     recipient: destinationWallet.account!.address,
-                    amountBaseUnits: amount,
+                    amount,
                     destChainId: dstChain.routeId,
                     bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
                     password,
@@ -333,9 +347,10 @@ export const Bridge: React.FC = () => {
         errorFallback: "Failed to lock tokens",
     });
 
-    const atomicAmount: bigint = !amount
-        ? BigInt(0)
-        : SdkWalletService.toAtomicAmount(amount);
+    const parsedAmount: bigint | null = amount.trim()
+        ? parseAtomicAmount(amount)
+        : BigInt(0);
+    const atomicAmount: bigint = parsedAmount ?? BigInt(0);
 
     const needsEvmApproval =
         srcKind === "evm" &&
@@ -360,9 +375,25 @@ export const Bridge: React.FC = () => {
           ? ""
           : txHash;
 
-    const amountError = isBalanceReady
-        ? getAmountValidationError(amount, selectedASIAccountBalance)
-        : BALANCE_LOADING_ERROR;
+    const getAmountError = (): string => {
+        if (parsedAmount === null) {
+            return INVALID_AMOUNT_FORMAT_ERROR;
+        }
+
+        if (!isBalanceReady) {
+            return amount.trim() && !isBalanceError
+                ? BALANCE_LOADING_ERROR
+                : "";
+        }
+
+        return getAmountValidationError(
+            amount,
+            selectedASIAccountBalance,
+            getGasFeeForBridgeAsNumber(),
+        );
+    };
+
+    const amountError = getAmountError();
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
@@ -430,10 +461,12 @@ export const Bridge: React.FC = () => {
 
     const maxAmount = (): void => {
         if (srcKind === "asi") {
-            const balance = parseFloat(selectedASIAccountBalance);
-            const max = Math.max(0, balance - getGasFeeForBridgeAsNumber());
-            const maxRounded = Math.floor(max * 100000000) / 100000000;
-            setAmount(maxRounded.toFixed(8));
+            const max = getMaxSendableAmount(
+                selectedASIAccountBalance,
+                getGasFeeForBridgeAsNumber(),
+            );
+
+            setAmount(max.toFixed(8));
         } else if (srcKind === "cardano") {
             setAmount(
                 formatToken(
