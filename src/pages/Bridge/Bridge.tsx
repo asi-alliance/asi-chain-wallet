@@ -25,7 +25,7 @@ import {
     defaultDestinationFor,
     DESTINATION_CHAIN_KEYS,
 } from "constants/bridgeChains";
-import { formatToken, parseTokenInput } from "utils/tokenFormat";
+import { formatToken } from "utils/tokenFormat";
 import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
@@ -43,6 +43,7 @@ import { bridgeLock } from "store/WalletsStore/thunks";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { getGasFeeForBridgeAsNumber } from "constants/gas";
 import { getAmountValidationError } from "utils/balanceUtils";
+import { SdkWalletService } from "sdk";
 
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Locking is unavailable.";
@@ -304,10 +305,6 @@ export const Bridge: React.FC = () => {
     const sourceAccountLoaded = hasWalletAccount(sourceWallet);
     const destinationAccountLoaded = hasWalletAccount(destinationWallet);
 
-    const rawAmount = amount.trim()
-        ? parseTokenInput(amount, srcChain.nativeDecimals)
-        : BigInt(0);
-
     const asiLock = useWalletSessionAction({
         walletId: activeWallet?.id,
         action: (password?: string) => {
@@ -320,7 +317,7 @@ export const Bridge: React.FC = () => {
                     walletId: activeWallet.id,
                     accountId: selectedAccount.id,
                     recipient: destinationWallet.account!.address,
-                    amountBaseUnits: rawAmount.toString(),
+                    amountBaseUnits: amount,
                     destChainId: dstChain.routeId,
                     bridgeUri: srcChain.bridgeUri || ASI_BRIDGE_URI,
                     password,
@@ -336,11 +333,15 @@ export const Bridge: React.FC = () => {
         errorFallback: "Failed to lock tokens",
     });
 
+    const atomicAmount: bigint = !amount
+        ? BigInt(0)
+        : SdkWalletService.toAtomicAmount(amount);
+
     const needsEvmApproval =
         srcKind === "evm" &&
         evm.allowance !== undefined &&
-        rawAmount > BigInt(0) &&
-        evm.allowance < rawAmount;
+        atomicAmount > BigInt(0) &&
+        evm.allowance < atomicAmount;
 
     const busy =
         srcKind === "evm"
@@ -361,7 +362,7 @@ export const Bridge: React.FC = () => {
 
     const amountError = isBalanceReady
         ? getAmountValidationError(amount, selectedASIAccountBalance)
-        : "";
+        : BALANCE_LOADING_ERROR;
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
@@ -470,10 +471,10 @@ export const Bridge: React.FC = () => {
         if (evm.wrongNetwork) {
             evm.switchToSource();
         } else if (needsEvmApproval) {
-            evm.approve(rawAmount);
+            evm.approve(atomicAmount);
         } else {
             evm.lock(
-                rawAmount,
+                atomicAmount,
                 destinationWallet.account!.address,
                 dstChain.routeId,
             );
@@ -486,7 +487,7 @@ export const Bridge: React.FC = () => {
         setIsLoading(true);
         try {
             const result = await cosmos.lock(
-                rawAmount,
+                atomicAmount,
                 destinationWallet.account!.address,
                 dstChain.routeId,
             );
@@ -518,7 +519,7 @@ export const Bridge: React.FC = () => {
                 chain: srcChain,
                 senderAddress: cardano.address,
                 recipient: destinationWallet.account!.address,
-                amount: parseTokenInput(amount, srcChain.nativeDecimals),
+                amount: atomicAmount,
                 destChainId: dstChain.routeId,
             });
             const signed = await cardano.api.signTx(
@@ -552,7 +553,7 @@ export const Bridge: React.FC = () => {
     };
 
     const isAmountValid =
-        amount.trim() !== "" && rawAmount > BigInt(0) && !amountError;
+        amount.trim() !== "" && atomicAmount > BigInt(0) && !amountError;
 
     const lockDisabled =
         busy ||

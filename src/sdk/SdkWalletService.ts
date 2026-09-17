@@ -48,6 +48,12 @@ export class SdkWalletService {
         return client.toDisplayAmount(atomicAmount);
     }
 
+    public static toAtomicAmount(amount: string | number): bigint {
+        const client = requireSdkClient();
+
+        return client.toAtomicAmount(amount);
+    }
+
     private static mapAccount(account: Account): IUnlockedAccountMeta {
         return {
             id: account.getId(),

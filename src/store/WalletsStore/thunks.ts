@@ -626,8 +626,11 @@ export const bridgeLock = createAsyncThunk<
             network.indexerUrl,
         );
 
+        const atomicAmount: bigint =
+            SdkWalletService.toAtomicAmount(amountBaseUnits);
+
         const lockTerm: string = rchain.buildBridgeLockTerm(
-            amountBaseUnits,
+            atomicAmount.toString(),
             recipient,
             destChainId,
             bridgeUri,
@@ -654,7 +657,8 @@ export const bridgeLock = createAsyncThunk<
                 deployId,
                 term: lockTerm,
                 pendingAmount:
-                    BigInt(amountBaseUnits) + BRIDGE_LOCK_MAX_GAS_COST,
+                    atomicAmount +
+                    BRIDGE_LOCK_MAX_GAS_COST,
                 gasCost: BRIDGE_LOCK_MAX_GAS_COST,
             },
             password,
