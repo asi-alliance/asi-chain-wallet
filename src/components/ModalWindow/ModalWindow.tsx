@@ -67,6 +67,7 @@ interface ModalWindowProps {
     onClose: () => void;
     title?: React.ReactNode;
     maxWidth?: string;
+    dismissible?: boolean;
     children: React.ReactNode;
 }
 
@@ -75,10 +76,11 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
     onClose,
     title,
     maxWidth = "705px",
+    dismissible = true,
     children,
 }) => {
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !dismissible) return;
 
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
@@ -89,7 +91,7 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
         document.addEventListener("keydown", handleKeyDown);
 
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen, onClose]);
+    }, [isOpen, dismissible, onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -110,7 +112,7 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
     if (!isOpen) return null;
 
     return createPortal(
-        <Overlay onClick={onClose}>
+        <Overlay onClick={dismissible ? onClose : undefined}>
             <ModalContainer
                 $maxWidth={maxWidth}
                 onClick={(event) => event.stopPropagation()}

@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useMemo, Fragment } from "react";
+import React, { useState, Fragment } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
-import { selectAccounts } from "store/WalletsStore";
-import { fetchBalance } from "store/WalletsStore/thunks";
+import {
+    selectAccounts,
+    selectActiveWallet,
+    selectIsAnyAccountBalanceFetching,
+} from "store/WalletsStore";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
 import { AccountCard } from "components/AccountCard";
-import { IAccountMeta } from "types/wallet";
+import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
 import { DeriveAccountModal } from "components/DeriveAccountModal";
+import { ExportWalletKeyfileModal } from "components/ExportWalletKeyfileModal";
 import { useScreen } from "hooks/";
 import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
 
 const AccountsContainer = styled.div``;
 
@@ -67,12 +72,9 @@ const InlineButton = styled(Button)`
 export const Accounts: React.FC = () => {
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
-    const isLoading = useSelector(
-        (state: RootState) => state.walletsStore.isLoading,
-    );
+    const activeWallet: IUnlockedWalletMeta | null =
+        useSelector(selectActiveWallet);
+    const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
 
     const { isLaptop } = useScreen();
 
@@ -82,41 +84,17 @@ export const Accounts: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
-
-    const accountIds = useMemo(
-        () => accounts.map((account: IAccountMeta) => account.id).join(","),
-        [accounts],
-    );
-
-    useEffect(() => {
-        if (accounts.length > 0) {
-            const timeoutId = setTimeout(() => {
-                accounts.forEach((account: IAccountMeta) => {
-                    dispatch(fetchBalance({ accountId: account.id }));
-                });
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, accountIds]);
-
-    useEffect(() => {
-        if (accounts.length > 0) {
-            const interval = setInterval(() => {
-                accounts.forEach((account: IAccountMeta) => {
-                    dispatch(fetchBalance({ accountId: account.id }));
-                });
-            }, 30000);
-            return () => clearInterval(interval);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, accountIds]);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const handleRefreshBalances = () => {
-        accounts.forEach((account: IAccountMeta) => {
-            dispatch(fetchBalance({ accountId: account.id }));
-        });
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account: IUnlockedAccountMeta) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
+            ),
+        );
     };
 
     return (
@@ -141,38 +119,57 @@ export const Accounts: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                             <AccountsGrid className="accounts-grid">
-                                {accounts.map((account: IAccountMeta) => (
+                                {accounts.map((account: IUnlockedAccountMeta) => (
                                     <AccountCard
                                         key={account.id}
                                         account={account}
                                     />
                                 ))}
                             </AccountsGrid>
-                            <AccountsActionsFooter>
-                                <InlineButton
-                                    id="create-account-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Account </h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
+                            {!!activeWallet && (
+                                <AccountsActionsFooter>
+                                    {activeWallet.type !==
+                                        WalletTypes.PRIVATE_KEY && (
+                                        <InlineButton
+                                            id="create-account-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Account </h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
+                                                    fill="currentcolor"
+                                                />
+                                            </svg>
+                                        </InlineButton>
+                                    )}
+                                    <InlineButton
+                                        id="export-wallet-keyfile-button"
+                                        variant="secondary"
+                                        onClick={() => setShowExportModal(true)}
+                                        fullWidth={isLaptop}
+                                        style={{
+                                            flexWrap: "nowrap",
+                                            whiteSpace: "nowrap",
+                                        }}
                                     >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                            </AccountsActionsFooter>
+                                        <h3>Export Keyfile</h3>
+                                    </InlineButton>
+                                </AccountsActionsFooter>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -184,6 +181,13 @@ export const Accounts: React.FC = () => {
                     console.info("Account created successfully");
                 }}
             />
+            {!!activeWallet && (
+                <ExportWalletKeyfileModal
+                    isOpen={showExportModal}
+                    walletId={activeWallet.id}
+                    onClose={() => setShowExportModal(false)}
+                />
+            )}
         </Fragment>
     );
 };

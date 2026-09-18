@@ -11,13 +11,11 @@ export const SESSION_STORAGE_KEYS = {
 
 export interface SessionPersistencePort {
   persist(): void;
-  persistThrottled(): void;
   remove(): void;
 }
 
 export const NullSessionPersistence: SessionPersistencePort = {
   persist() { /* no-op */ },
-  persistThrottled() { /* no-op */ },
   remove() { /* no-op */ },
 };
 
@@ -40,7 +38,6 @@ function sanitizeAccountsForPersistence(raw: string): string {
 export class SessionPersistence implements SessionPersistencePort {
 
   static readonly SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-  static readonly ACTIVITY_THROTTLE_MS = 60 * 1000;
 
   private static _instance: SessionPersistence | null = null;
 
@@ -50,7 +47,6 @@ export class SessionPersistence implements SessionPersistencePort {
   }
 
   private readonly adapter: StorageAdapter | null;
-  private lastActivityPersistTime = 0;
 
   private constructor(adapter: StorageAdapter | null) {
     this.adapter = adapter;
@@ -73,9 +69,6 @@ export class SessionPersistence implements SessionPersistencePort {
     if (!sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) && record.unlockedAccounts) {
       sessionStorage.setItem(SESSION_STORAGE_KEYS.SESSION, record.unlockedAccounts);
     }
-    if (!sessionStorage.getItem('lastActivity') && record.lastActivity) {
-      sessionStorage.setItem('lastActivity', record.lastActivity.toString());
-    }
   }
 
   static cleanupStale(adapter: StorageAdapter): void {
@@ -92,8 +85,6 @@ export class SessionPersistence implements SessionPersistencePort {
 
     const userId          = sessionStorage.getItem(SESSION_STORAGE_KEYS.USER_ID) ?? '';
     const isAuthenticated = sessionStorage.getItem(SESSION_STORAGE_KEYS.AUTH) === 'true';
-    const lastActivityStr = sessionStorage.getItem('lastActivity');
-    const lastActivity    = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
     const rawAccounts     = sessionStorage.getItem(SESSION_STORAGE_KEYS.SESSION) ?? '{}';
 
     // Strip private keys — sessionStorage keeps them for in-tab use; IDB must not
@@ -103,7 +94,6 @@ export class SessionPersistence implements SessionPersistencePort {
       token,
       userId,
       isAuthenticated,
-      lastActivity,
       unlockedAccounts: safeAccounts,
       updatedAt: Date.now(),
     };
@@ -111,13 +101,6 @@ export class SessionPersistence implements SessionPersistencePort {
     this.adapter.putSession(record).catch((err: unknown) => {
       console.error('[SessionPersistence] Failed to persist session to IDB:', err);
     });
-  }
-
-  persistThrottled(): void {
-    const now = Date.now();
-    if (now - this.lastActivityPersistTime < SessionPersistence.ACTIVITY_THROTTLE_MS) return;
-    this.lastActivityPersistTime = now;
-    this.persist();
   }
 
   remove(): void {

@@ -1,5 +1,10 @@
-import { Address, WalletTypes } from "@asichain/asi-wallet-sdk";
-import { Transaction } from "./transactions";
+import {
+    Address,
+    DeployStatus,
+    INetworkRecord,
+    NodeApiProfile,
+    WalletTypes,
+} from "@asichain/asi-wallet-sdk";
 
 export interface Account {
     id: string;
@@ -29,15 +34,29 @@ export interface Network {
     validatorUrl: string;
     observerUrl: string;
     indexerUrl: string;
+    nodeApiProfile: NodeApiProfile;
+    isDefault: boolean;
+}
+
+export type TCustomNetworkRecord = Omit<INetworkRecord, "isDefault"> & {
+    isDefault: false;
+};
+
+export type TCustomNetwork = Omit<Network, "isDefault"> & {
+    isDefault: false;
+};
+
+export interface IDeployWatchState {
+    status: DeployStatus;
+    unresolvedReason?: string;
 }
 
 export interface WalletStoreState {
     wallets: IWalletMeta[];
-    balances: Record<string, string>;
     selectedAccountId: string | null;
-    transactions: Transaction[];
     networks: Network[];
     selectedNetwork: Network;
+    deployWatches: Record<string, IDeployWatchState>;
     isLoading: boolean;
     isInitialLoadComplete: boolean;
 }
@@ -46,16 +65,35 @@ export interface IAccountMeta {
     id: string;
     name: string;
     index: number | null;
+}
+
+export interface IUnlockedAccountMeta extends IAccountMeta {
     address: Address;
     publicKey: string;
 }
 
-export interface IWalletMeta {
-    id?: string;
+interface IWalletMetaBase {
     signerId: string;
-    isUnlocked: boolean;
     type: WalletTypes;
+}
+
+export interface ILockedWalletMeta extends IWalletMetaBase {
+    id?: undefined;
+    isUnlocked: false;
     accounts: IAccountMeta[];
+}
+
+export interface IUnlockedWalletMeta extends IWalletMetaBase {
+    id: string;
+    isUnlocked: true;
+    accounts: IUnlockedAccountMeta[];
+}
+
+export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
+
+export interface IActiveWalletSession {
+    wallet: IUnlockedWalletMeta;
+    selectedAccountId: string | null;
 }
 
 export enum WalletActions {

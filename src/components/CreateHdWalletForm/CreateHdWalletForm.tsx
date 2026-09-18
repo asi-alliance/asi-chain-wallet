@@ -119,6 +119,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
         return (
             <PasswordSetup
                 title="Set Password for New Wallet"
+                loading={loading}
                 onPasswordSet={handlePasswordSet}
                 onCancel={() => setStep("form")}
             />

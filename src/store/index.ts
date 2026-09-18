@@ -1,17 +1,21 @@
 import { configureStore } from "@reduxjs/toolkit";
 import walletReducer from "./WalletsStore";
+import { walletsApi } from "./WalletsStore/api";
 import themeReducer from "./themeSlice";
 import authReducer from "./Auth/";
 import hardwareWalletReducer from "./hardwareWalletSlice";
 import multisigReducer from "./multisigSlice";
+import networkOperationReducer from "./networkOperationSlice";
 
 export const store = configureStore({
     reducer: {
         walletsStore: walletReducer,
+        [walletsApi.reducerPath]: walletsApi.reducer,
         theme: themeReducer,
         auth: authReducer,
         hardwareWallet: hardwareWalletReducer,
         multisig: multisigReducer,
+        networkOperation: networkOperationReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -30,7 +34,7 @@ export const store = configureStore({
                     "multisig.lastUpdated",
                 ],
             },
-        }),
+        }).concat(walletsApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

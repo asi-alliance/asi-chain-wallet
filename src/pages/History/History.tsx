@@ -1,13 +1,15 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import styled, { css } from "styled-components";
-import { RootState } from "store";
-import { useAppDispatch } from "store/hooks";
 import {
-    selectAccountById,
-    selectSelectedAccountId,
+    selectSelectedAccount,
+    selectSelectedNetworkId,
 } from "store/WalletsStore/";
-import { fetchTransactionHistory } from "store/WalletsStore/thunks";
+import {
+    THistorySourceFilter,
+    useGetTransactionHistoryQuery,
+} from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { Transaction } from "types/transactions";
 import { ContentPasteIcon, DownloadIcon } from "components/Icons";
@@ -15,13 +17,17 @@ import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
 import { getTokenDisplayName } from "constants/token";
+import {
+    ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
+} from "constants/polling";
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks";
 import { TransactionStatus, TransactionType } from "@asichain/asi-wallet-sdk";
 
 interface TransactionFilter {
     type?: TransactionType;
-    status?: TransactionStatus;
+    source?: THistorySourceFilter;
     startDate?: string;
     endDate?: string;
 }
@@ -213,6 +219,14 @@ const EmptyState = styled.div`
     color: ${({ theme }) => theme.text.secondary};
 `;
 
+const ErrorMessage = styled.div`
+    background: ${({ theme }) => theme.danger};
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+`;
+
 const RefreshText = styled.div`
     display: flex;
     flex-direction: column;
@@ -228,6 +242,24 @@ const RefreshTextLine = styled.span`
 
     @media (max-width: 768px) {
         font-size: 0.5rem;
+    }
+`;
+
+const RefreshSpinner = styled.span`
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border: 1px solid ${({ theme }) => theme.primary};
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 `;
 
@@ -278,25 +310,38 @@ const typeOptions = [
 const statusOptions = [
     { id: "all", value: "all", label: "All Status" },
     { id: "pending", value: "pending", label: "Pending" },
-    { id: "completed", value: "completed", label: "Completed" },
-    { id: "failed", value: "failed", label: "Failed" },
+    { id: "executed", value: "executed", label: "Executed" },
 ];
 const weekOptions = [{ id: "1-week", value: "1 Week", label: "1 Week" }];
 
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+
+const HISTORY_UNAVAILABLE_ERROR =
+    "Failed to load transaction history for the selected network.";
+
 export const History: React.FC = () => {
-    const dispatch = useAppDispatch();
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
-    const transactions = useSelector(
-        (state: RootState) => state.walletsStore.transactions,
+    const selectedAccount = useSelector(selectSelectedAccount);
+    const networkId = useSelector(selectSelectedNetworkId);
+
+    const [filter, setFilter] = useState<TransactionFilter>({});
+
+    const {
+        currentData: transactions = EMPTY_TRANSACTIONS,
+        isFetching,
+        isError,
+        fulfilledTimeStamp,
+    } = useGetTransactionHistoryQuery(
+        selectedAccount
+            ? {
+                  accountId: selectedAccount.id,
+                  networkId,
+                  source: filter.source ?? "all",
+              }
+            : skipToken,
+        { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
 
     const { isTablet } = useScreen();
-
-    const [filter, setFilter] = useState<TransactionFilter>({});
-    const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
     const handleCopy = useCallback(async (text: string) => {
         try {
@@ -304,40 +349,11 @@ export const History: React.FC = () => {
         } catch {}
     }, []);
 
-    const loadTransactions = useCallback(() => {
-        if (!selectedAccount) return;
-
-        dispatch(
-            fetchTransactionHistory({
-                address: selectedAccount.address,
-                publicKey: selectedAccount.publicKey,
-            }),
-        );
-    }, [dispatch, selectedAccount]);
-
-    useEffect(() => {
-        loadTransactions();
-    }, [loadTransactions]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            loadTransactions();
-            setLastRefresh(new Date());
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [loadTransactions]);
-
     const visibleTransactions = useMemo<Transaction[]>(() => {
-        if (!selectedAccount) return [];
-
-        let result = structuredClone(transactions);
+        let result = transactions;
 
         if (filter.type) {
             result = result.filter((tx) => tx.type === filter.type);
-        }
-        if (filter.status) {
-            result = result.filter((tx) => tx.status === filter.status);
         }
         if (filter.startDate) {
             const startDate = new Date(filter.startDate);
@@ -353,16 +369,7 @@ export const History: React.FC = () => {
         return result;
     }, [transactions, selectedAccount, filter]);
 
-    //TODO: Restore transaction export once the SDK exposes a history download flow
-    const handleExportJSON = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("json", visibleTransactions, selectedAccount.address);
-    };
-
-    const handleExportCSV = () => {
-        // if (!selectedAccount) return;
-        // downloadTransactions("csv", visibleTransactions, selectedAccount.address);
-    };
+    const hasVisibleTransactions = visibleTransactions.length > 0;
 
     const handleFilterChange = (key: keyof TransactionFilter, value: any) => {
         setFilter((prev) => ({
@@ -378,7 +385,7 @@ export const History: React.FC = () => {
     const hasActiveFilters = () => {
         return !!(
             filter.type ||
-            filter.status ||
+            filter.source ||
             filter.startDate ||
             filter.endDate
         );
@@ -391,10 +398,17 @@ export const History: React.FC = () => {
                     <CardTitle>Transactions</CardTitle>
                     <RefreshText>
                         <RefreshTextLine>
-                            Auto-refresh: every 30s
+                            Auto-refresh: every{" "}
+                            {ACCOUNT_DATA_POLLING_INTERVAL_SECONDS}s
                         </RefreshTextLine>
                         <RefreshTextLine>
-                            Last: {lastRefresh.toLocaleTimeString()}
+                            {isFetching && <RefreshSpinner />}
+                            Last:{" "}
+                            {fulfilledTimeStamp
+                                ? new Date(
+                                      fulfilledTimeStamp,
+                                  ).toLocaleTimeString()
+                                : "—"}
                         </RefreshTextLine>
                     </RefreshText>
                 </CardHeader>
@@ -424,6 +438,7 @@ export const History: React.FC = () => {
                                 onChange={(value) =>
                                     handleFilterChange("type", value)
                                 }
+                                disabled
                                 options={typeOptions}
                             />
                         </FilterGroup>
@@ -434,9 +449,9 @@ export const History: React.FC = () => {
                             </FilterLabel>
                             <AdaptiveSelect
                                 id="history-filter-status-select"
-                                value={filter.status || "all"}
+                                value={filter.source || "all"}
                                 onChange={(value) =>
-                                    handleFilterChange("status", value)
+                                    handleFilterChange("source", value)
                                 }
                                 options={statusOptions}
                             />
@@ -472,7 +487,12 @@ export const History: React.FC = () => {
                             </FilterGroup>
                         )}
                     </FilterSection>
-                    {visibleTransactions.length > 0 ? (
+                    {isError && (
+                        <ErrorMessage id="history-load-error">
+                            {HISTORY_UNAVAILABLE_ERROR}
+                        </ErrorMessage>
+                    )}
+                    {hasVisibleTransactions && (
                         <div className="transactions-table-wrapper">
                             <TransactionTable>
                                 <Table>
@@ -629,26 +649,42 @@ export const History: React.FC = () => {
                                     </TableBody>
                                 </Table>
                             </TransactionTable>
+                            {/* TODO: Restore transaction export once the SDK exposes a history download flow */}
                             <ExportButtonsWrapper>
                                 <ExportButton
+                                    id="history-export-csv-button"
                                     variant="secondary"
-                                    onClick={handleExportCSV}
+                                    disabled
                                 >
                                     <h3>Export CSV</h3>
                                     <DownloadIcon size={24} />
                                 </ExportButton>
                                 <ExportButton
+                                    id="history-export-json-button"
                                     variant="secondary"
-                                    onClick={handleExportJSON}
+                                    disabled
                                 >
                                     <h3>Export JSON</h3>
                                     <DownloadIcon size={24} />
                                 </ExportButton>
                             </ExportButtonsWrapper>
                         </div>
-                    ) : (
+                    )}
+                    {!hasVisibleTransactions && !isError && (
                         <EmptyState>
-                            {selectedAccount ? (
+                            {!selectedAccount && (
+                                <p>
+                                    Please select an account to view transaction
+                                    history.
+                                </p>
+                            )}
+                            {selectedAccount && isFetching && (
+                                <p>
+                                    Loading transaction history for{" "}
+                                    {selectedAccount.name}…
+                                </p>
+                            )}
+                            {selectedAccount && !isFetching && (
                                 <>
                                     <p>
                                         No transactions found for{" "}
@@ -660,11 +696,6 @@ export const History: React.FC = () => {
                                         contracts.
                                     </p>
                                 </>
-                            ) : (
-                                <p>
-                                    Please select an account to view transaction
-                                    history.
-                                </p>
                             )}
                         </EmptyState>
                     )}

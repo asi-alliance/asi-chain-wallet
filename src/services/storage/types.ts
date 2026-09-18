@@ -38,7 +38,6 @@ export interface SessionRecord {
   token: string;
   userId: string;
   isAuthenticated: boolean;
-  lastActivity: number;
   unlockedAccounts: string; // JSON-serialised Record<string, Account>
   updatedAt: number;
 }
