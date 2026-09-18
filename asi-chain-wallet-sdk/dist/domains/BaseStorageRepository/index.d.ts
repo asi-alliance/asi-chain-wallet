@@ -1,5 +1,5 @@
 import { ITableRecord, ITableService } from "@domains/TableService";
-import { IStorageFabricOptions } from "@fabrics/Storage";
+import { IStorageFabricOptions } from "@fabrics/storage";
 export declare abstract class BaseStorageRepository<T extends ITableRecord> {
     protected readonly tableName: string;
     protected storageInterface: ITableService<ITableRecord>;
@@ -14,6 +14,7 @@ export declare abstract class BaseStorageRepository<T extends ITableRecord> {
     protected insertManyRecords(records: T[]): Promise<void>;
     protected getRecordById(id: string): Promise<T | null>;
     protected getAllRecords(): Promise<T[]>;
+    protected getByFilter(predicate: (record: T) => boolean): Promise<T[]>;
     protected updateRecord(id: string, updates: Partial<T>): Promise<void>;
     protected deleteRecord(id: string): Promise<void>;
     protected deleteManyRecords(ids: string[]): Promise<void>;

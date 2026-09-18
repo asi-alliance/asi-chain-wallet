@@ -1,32 +1,51 @@
+import ItemManager from "@services/ItemManager";
 import { IDisposable } from "./../DisposableItemManager/index";
+import { NetworkId } from "@domains/Network";
 import { ITransactionReservation } from "@domains/Transaction";
 import { IDeployWatchCallbacks, IDeployWatchOptions } from "@services/DeployStatusPoller";
 export interface ITransactionReservationsManagerOptions {
+    onAdded?: (reservation: ITransactionReservation) => void;
+    onReplaced?: (reservation: ITransactionReservation) => void;
+    onRemoved?: (reservation: ITransactionReservation) => void;
     onConfirmed?: (reservation: ITransactionReservation) => void;
     onExpired?: (reservation: ITransactionReservation) => void;
     onFailed?: (reservation: ITransactionReservation, error: Error) => void;
     watchCallbacks?: IDeployWatchCallbacks;
     watchOptions?: IDeployWatchOptions;
 }
-export default class TransactionReservationsManager implements IDisposable {
-    private readonly reservations;
+export default class TransactionReservationsManager extends ItemManager<ITransactionReservation> implements IDisposable {
     private readonly watchers;
+    private readonly subscribers;
     private readonly expirationTimers;
+    private readonly exclusiveIds;
+    private readonly onAdded?;
+    private readonly onReplaced?;
+    private readonly onRemoved?;
     private readonly onConfirmed?;
     private readonly onExpired?;
     private readonly onFailed?;
     private readonly watchCallbacks?;
     private readonly watchOptions?;
     constructor(reservations: ITransactionReservation[], options?: ITransactionReservationsManagerOptions);
-    add(reservation: ITransactionReservation): void;
-    remove(id: string): boolean;
-    get(id: string): ITransactionReservation | null;
-    getAll(): ITransactionReservation[];
-    getByAccountId(accountId: string): ITransactionReservation[];
+    add(id: string, reservation: ITransactionReservation): void;
+    getKnown(id: string): ITransactionReservation;
+    replace(reservation: ITransactionReservation): void;
+    isExclusiveReservation(id: string): boolean;
+    runExclusive<T>(id: string, operation: () => Promise<T>): Promise<T>;
+    private untrack;
+    remove(id: string): ITransactionReservation;
+    getByNetworkId(networkId: NetworkId): ITransactionReservation[];
+    removeByNetworkId(networkId: NetworkId): ITransactionReservation[];
+    ensureUniqueDeployId(deployId: string, networkId: NetworkId, excludedReservationId?: string): void;
+    subscribe(reservationId: string, callbacks: IDeployWatchCallbacks): () => void;
+    getByAccountId(accountId: string, networkId: NetworkId): ITransactionReservation[];
     dispose(): void;
     private track;
     private watch;
+    private notify;
     private scheduleExpiration;
+    private rearm;
+    private cancelWatch;
     private stopWatch;
     private clearExpiration;
     private handleConfirmed;

@@ -20,6 +20,11 @@ export interface IHDSecretRecord extends ISeedCredentials {
 export interface IAccountHDData extends ISeedCredentials {
     path: string;
 }
+export interface IStoredPrivateKeySecret {
+    privateKey: unknown;
+}
+export type TStoredSecret = IHDSecretRecord | IStoredPrivateKeySecret;
+export type TDecryptedSecret = IPrivateKeyCredentials | IHDSecret;
 export type TSecretsProviderInterface = () => any;
 export default class SecretsProvider {
     #private;

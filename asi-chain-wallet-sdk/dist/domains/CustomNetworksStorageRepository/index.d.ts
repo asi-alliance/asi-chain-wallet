@@ -1,6 +1,6 @@
 import { INetworkConfig, NetworkId, NetworkName } from "@domains/Network";
 import { ITableRecord } from "@domains/TableService";
-import { IStorageFabricOptions } from "@fabrics/Storage";
+import { IStorageFabricOptions } from "@fabrics/storage";
 import { BaseStorageRepository } from "@domains/BaseStorageRepository";
 declare const CUSTOM_NETWORKS_DATA_KEY: string;
 export interface ICustomNetworkStorageRecord extends ITableRecord {

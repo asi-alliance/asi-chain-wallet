@@ -21,6 +21,7 @@ export default class NodeStorage implements ITableService<ITableRecord> {
     dropTable(tableName: string): Promise<void>;
     isInitialized(): boolean;
     getKeys(): Promise<string[]>;
+    getTableNames(): Promise<string[]>;
     tableExists(tableName: string): Promise<boolean>;
     close(): Promise<void>;
 }

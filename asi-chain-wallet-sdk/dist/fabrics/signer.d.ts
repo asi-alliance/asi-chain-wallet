@@ -1,5 +1,9 @@
-import SecretsProvider from "@domains/SecretsProvider";
+import SecretsProvider, { TDecryptedSecret } from "@domains/SecretsProvider";
 import Signer, { ISignerRecord, WalletTypes } from "@domains/Signer";
+export interface ICreateImportedSignerPayload {
+    secret: TDecryptedSecret;
+    passwordProvider: SecretsProvider;
+}
 export type TCreateSignerPayload = {
     id: string;
     type: WalletTypes.PRIVATE_KEY;
@@ -10,4 +14,5 @@ export type TCreateSignerPayload = {
     secretProvider: SecretsProvider;
 };
 export declare const createSigner: (payload: TCreateSignerPayload) => Promise<Signer>;
-export declare const restoreSigner: ({ id, type, encryptedData, encryptedDataKey, }: ISignerRecord) => Signer;
+export declare const createImportedSigner: ({ secret, passwordProvider, }: ICreateImportedSignerPayload) => Promise<Signer>;
+export declare const restoreSigner: ({ id, type, encryptedData, encryptedDataKey, fingerprint, }: ISignerRecord) => Signer;

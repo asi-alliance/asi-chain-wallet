@@ -6,6 +6,7 @@ export default class MnemonicService {
     static generateMnemonic(strength?: MnemonicStrength): string;
     static generateMnemonicArray(strength?: MnemonicStrength): string[];
     static isMnemonicValid(mnemonic: string): boolean;
+    static normalizeMnemonic(mnemonic: string): string;
     static mnemonicToWordArray(mnemonic: string): string[];
     static wordArrayToMnemonic(words: string[]): string;
     static mnemonicToSeed(mnemonic: string | string[], passphrase?: string): Promise<Uint8Array>;

@@ -1,4 +1,4 @@
-import { IStorageFabricOptions } from "@fabrics/Storage";
+import { IStorageFabricOptions } from "@fabrics/storage";
 import { BaseStorageRepository } from "@domains/BaseStorageRepository";
 import { EncryptedData } from "@services/Crypto";
 import { ITableRecord } from "@domains/TableService";
@@ -14,6 +14,8 @@ export interface IHDSignerEncryptedFields {
 export interface ISignerStorageRecord extends ITableRecord {
     type: WalletTypes;
     encryptedData: EncryptedData;
+    encryptedDataKey: EncryptedData;
+    fingerprint: string;
     createdAt: number;
     updatedAt?: number;
 }
@@ -21,8 +23,9 @@ export declare class SignersStorageRepository extends BaseStorageRepository<ISig
     private static instance;
     constructor(options?: IStorageFabricOptions);
     static getInstance(options?: IStorageFabricOptions): SignersStorageRepository;
-    saveSigner(signerId: string, type: WalletTypes, encryptedData: EncryptedData): Promise<void>;
+    saveSigner(signerId: string, type: WalletTypes, encryptedData: EncryptedData, encryptedDataKey: EncryptedData, fingerprint: string): Promise<void>;
     getSigner(id: string): Promise<ISignerStorageRecord | null>;
+    findSignerByFingerprint(fingerprint: string): Promise<ISignerStorageRecord | null>;
     getAllSigners(): Promise<ISignerStorageRecord[]>;
     updateSigner(signerId: string, updates: Partial<ISignerStorageRecord>): Promise<void>;
     deleteSigner(signerId: string): Promise<void>;

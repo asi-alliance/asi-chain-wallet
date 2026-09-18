@@ -20,6 +20,7 @@ export default class BrowserStorage implements ITableService<ITableRecord> {
     getVersion(): number;
     getDatabaseName(): string;
     getTableNamesList(): string[];
+    getTableNames(): Promise<string[]>;
     private executeTransaction;
     isInitialized(): boolean;
     close(): Promise<void>;

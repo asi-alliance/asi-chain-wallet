@@ -31,6 +31,7 @@ declare class Account {
     private readonly index;
     private readonly address;
     private readonly publicKey;
+    private readonly fingerprint;
     private name;
     private assets;
     private primaryAsset;
@@ -41,6 +42,7 @@ declare class Account {
     listAssets(): Asset[];
     getAddress(): Address;
     getPublicKey(): Uint8Array;
+    getFingerprint(): string;
     getAsset(id: Asset["id"]): Asset | null;
     registerAsset(asset: Asset): void;
     setPrimaryAsset(id: Asset["id"]): void;

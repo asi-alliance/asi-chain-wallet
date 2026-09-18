@@ -5,5 +5,6 @@ export interface IDisposable {
 export default class DisposableItemManager<T extends IDisposable> extends ItemManager<T> {
     add(id: string, item: T): void;
     remove(id: string): T;
+    removeByFilter(filter: (item: T) => boolean): T[];
     clear(): void;
 }

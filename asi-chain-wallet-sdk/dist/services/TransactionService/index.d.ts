@@ -1,6 +1,8 @@
 import Asset from "@domains/Asset";
+import NodeApiProvider from "@domains/NodeApiProvider";
 import SecretsProvider from "@domains/SecretsProvider";
 import { Address } from "@domains/Wallet";
+import { SignedResult } from "@services/Signer";
 import Account from "@domains/Account";
 import Signer, { WalletTypes } from "@domains/Signer";
 import DeployService from "@services/DeployService";
@@ -30,12 +32,16 @@ export interface IDeployPayload {
     shardId?: string;
     passwordProvider?: SecretsProvider;
 }
+export type TDeployDetails = Omit<IDeployPayload, "walletType" | "account" | "signer" | "passwordProvider">;
 export default class TransactionService {
     private readonly deployService;
     private readonly blockService;
-    constructor(deployService: DeployService, blockService: BlockService);
-    private signDeploy;
-    transfer({ walletType, account, signer, details, passwordProvider, }: ITransferPayload): Promise<string>;
-    deploy({ walletType, account, signer, term, phloLimit, phloPrice, shardId, passwordProvider, }: IDeployPayload): Promise<string>;
+    private readonly nodeApiProvider;
+    constructor(deployService: DeployService, blockService: BlockService, nodeApiProvider?: NodeApiProvider);
+    private get terms();
+    signDeploy({ walletType, account, signer, term, phloLimit, phloPrice, shardId, passwordProvider, }: IDeployPayload): Promise<SignedResult>;
+    private submitSignedDeploy;
     private signAndSubmit;
+    transfer({ walletType, account, signer, details, passwordProvider, }: ITransferPayload): Promise<string>;
+    deploy(payload: IDeployPayload): Promise<string>;
 }

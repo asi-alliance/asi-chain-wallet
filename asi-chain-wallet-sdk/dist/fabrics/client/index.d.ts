@@ -1,1 +1,1 @@
-export * from "./reservationAdapter";
+export * from "./eventDispatcherBridge";

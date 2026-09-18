@@ -25,7 +25,7 @@
         "test:security": "node scripts/security/run-security-tests.mjs",
         "test:unit": "node scripts/security/run-unit-tests.mjs",
         "check:secret-logs": "node scripts/security/check-secret-logs.mjs",
-        "security:gate": "npm run build && npm run test:security && npm run check:secret-logs && npm audit --omit=dev"
+        "gate": "npm run build && npm run test:unit && npm run test:security && npm run check:secret-logs && npm audit --omit=dev"
     },
     "devDependencies": {
         "@rollup/plugin-alias": "^5.0.0",

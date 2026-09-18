@@ -5,5 +5,6 @@ export default class KeyDerivationService {
     static derivePrivateKey(masterNode: BIP32Interface, path: Bip44Path): Uint8Array;
     static mnemonicToSeed(mnemonicWords: string[] | string, passphrase?: string): Promise<Uint8Array>;
     static seedToMasterNode(seed: any): BIP32Interface;
+    static compareIndexes(firstIndex: number | null, secondIndex: number | null): number;
     static deriveNextKeyFromMnemonic(mnemonicWords: string[], currentIndex: number, options?: Omit<IBip44PathOptions, "index">): Promise<Uint8Array>;
 }

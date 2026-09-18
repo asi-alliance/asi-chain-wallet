@@ -1,4 +1,4 @@
-import { IStorageFabricOptions } from "@fabrics/Storage";
+import { IStorageFabricOptions } from "@fabrics/storage";
 import { BaseStorageRepository } from "@domains/BaseStorageRepository";
 import { ITableRecord } from "@domains/TableService";
 import { EncryptedData } from "@services/Crypto";
@@ -22,6 +22,7 @@ export interface IAccountStorageRecord extends ITableRecord {
     signerId: string;
     name: string;
     index: number | null;
+    fingerprint: string;
     createdAt: number;
     updatedAt?: number;
 }
@@ -29,10 +30,12 @@ export declare class AccountsStorageRepository extends BaseStorageRepository<IAc
     private static instance;
     constructor(options?: IStorageFabricOptions);
     static getInstance(options?: IStorageFabricOptions): AccountsStorageRepository;
-    saveAccount(accountId: string, signerId: string, name: string, index: number | null): Promise<void>;
+    saveAccount(accountId: string, signerId: string, name: string, index: number | null, fingerprint: string): Promise<void>;
     saveAccounts(accounts: IAccountStorageRecord[]): Promise<void>;
     getAccount(id: string): Promise<IAccountStorageRecord | null>;
     getAllAccounts(): Promise<IAccountStorageRecord[]>;
+    getAccountsBySignerId(signerId: string): Promise<IAccountStorageRecord[]>;
+    findAccountByFingerprint(fingerprint: string): Promise<IAccountStorageRecord | null>;
     updateAccount(accountId: string, updates: Partial<IAccountStorageRecord>): Promise<void>;
     deleteAccount(accountId: string): Promise<void>;
     deleteMultipleAccounts(accountIds: string[]): Promise<void>;

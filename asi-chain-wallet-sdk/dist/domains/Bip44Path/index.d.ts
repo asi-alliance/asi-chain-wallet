@@ -6,6 +6,7 @@ export interface IBip44PathOptions {
 }
 export default class Bip44Path {
     private static readonly BIP44_PURPOSE;
+    private static readonly HARDENED_SUFFIX;
     private static readonly MIN_CHANGE;
     private static readonly MAX_CHANGE;
     private static readonly PATH_COMPONENTS_COUNT;
@@ -15,12 +16,14 @@ export default class Bip44Path {
     private static readonly CHANGE_INDEX;
     private static readonly INDEX_COMPONENT_INDEX;
     private static readonly DECIMAL_RADIX;
+    private static readonly MAX_COMPONENT_VALUE;
     private coinType;
     private account;
     private change;
     private index;
     constructor({ coinType, account, change, index, }: IBip44PathOptions);
     static parse(pathString: string): Bip44Path;
+    static isValid(pathString: string): boolean;
     toString(): string;
     getCoinType(): number;
     getAccount(): number;

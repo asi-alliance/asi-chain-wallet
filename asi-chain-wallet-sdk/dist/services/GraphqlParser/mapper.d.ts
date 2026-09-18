@@ -1,6 +1,3 @@
-/**
- * Anti-Corruption Layer (ACL)
- */
 import { NetworkId } from "@domains/Network";
 import { RawDeployment, RawTransfer } from ".";
 import { Transaction } from "@domains/Transaction";

@@ -2,7 +2,12 @@ export declare const NATIVE_TOKEN_DECIMALS_AMOUNT: number;
 export declare const DEFAULT_PHLO_LIMIT: number;
 export declare const DEFAULT_PHLO_PRICE: number;
 export declare const DEFAULT_NODE_STORAGE_DIR: string;
-export declare const ASI_WALLET_KEYFILE: string;
+export declare enum KeyfileTypes {
+    WALLET = "asi-wallet-keyfile",
+    ACCOUNT = "asi-account-keyfile"
+}
+export declare const CURRENT_STORAGE_VERSION: number;
+export declare const BASELINE_STORAGE_VERSION: number;
 export declare const ASI_WALLET_KEYFILE_VERSION: number;
 export declare const ExportFormat: {
     readonly JSON: "json";
@@ -16,9 +21,11 @@ export declare const GasFee: {
 };
 export declare const DEPLOY_STATUS_POLLING_TIMEOUT: number;
 export declare const RESERVATION_EXPIRATION_TIME: number;
+export declare const DEFAULT_REQUEST_TIMEOUT: number;
 export declare const RequirePassword: {
     readonly ONCE_PER_SESSION: "once-per-session";
     readonly EVERY_SIGNATURE: "every-signature";
 };
 export type RequirePassword = (typeof RequirePassword)[keyof typeof RequirePassword];
 export declare const DEFAULT_AUTO_LOCK_MS: number;
+export declare const DEFAULT_DRAIN_TIMEOUT_MS: number;

@@ -7,12 +7,13 @@ import TransactionService from "@services/TransactionService";
 import ApiClientManager from "@domains/ApiClientManager";
 export default class ApiServiceRegistry {
     private static instance;
+    private readonly apiClientManager;
     readonly deploy: DeployService;
     readonly blocks: BlockService;
     readonly accountData: AccountDataService;
     readonly assets: AssetsService;
     readonly transactions: TransactionService;
-    readonly poller: DeployStatusPoller;
+    get poller(): DeployStatusPoller;
     private constructor();
     static getInstance(apiClientManager?: ApiClientManager): ApiServiceRegistry;
 }

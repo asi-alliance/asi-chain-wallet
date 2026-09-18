@@ -6,13 +6,12 @@ export interface ICreatedAccountData {
     account: Account;
 }
 export default class AccountManager extends ItemManager<Account> {
-    private activeAccount;
-    constructor(accounts?: Map<string, Account>, activeAccount?: Account | null);
+    private static orderAccounts;
+    constructor(accounts?: Map<string, Account>);
+    private reorder;
     create(payload: TCreateAccountPayload, secretProvider: SecretsProvider): Promise<ICreatedAccountData>;
-    remove(id: string): Account;
+    addAccounts(accounts: Account[]): void;
     update(id: string, payload: TEditableAccountOptions): void;
-    setActiveAccount(id: string): void;
-    getActiveAccount(): Account | null;
     getAccounts(): Account[];
     getAccountsMap(): Map<string, Account>;
     getAccount(id: string): Account | null;

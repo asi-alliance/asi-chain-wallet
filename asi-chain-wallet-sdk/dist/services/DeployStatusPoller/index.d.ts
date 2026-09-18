@@ -1,4 +1,5 @@
-import DeployService, { IDeployStatusResult } from "@services/DeployService";
+import ApiWorker from "@domains/ApiWorker";
+import { IDeployStatusResult } from "@domains/Deploy";
 export interface IDeployConfirmedResult {
     deployId: string;
     blockHash?: string;
@@ -16,9 +17,7 @@ export interface IDeployWatchHandle {
     cancel: () => void;
     done: Promise<IDeployConfirmedResult>;
 }
-export default class DeployStatusPoller {
-    private readonly deployService;
-    constructor(deployService: DeployService);
+export default class DeployStatusPoller extends ApiWorker {
     watch(deployId: string, callbacks?: IDeployWatchCallbacks, { intervalMs, timeoutMs, }?: IDeployWatchOptions): IDeployWatchHandle;
     waitFor(deployId: string, options?: IDeployWatchOptions): Promise<IDeployConfirmedResult>;
 }

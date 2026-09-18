@@ -16,4 +16,5 @@ export default class ObserverClient extends BaseHttpClient {
     getDeploy(deployHash: string): Promise<unknown>;
     getBlock(blockHash: string): Promise<IBlockDto>;
     getBlocks(params?: IGetBlocksParams): Promise<IBlockDto[]>;
+    submitExploratoryDeploy(body: unknown): Promise<any>;
 }
