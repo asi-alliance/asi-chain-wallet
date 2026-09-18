@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import {
     DeployStatus,
+    getErrorMessage,
     isIntegerInRange,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
 } from "@asichain/asi-wallet-sdk";
@@ -18,8 +19,16 @@ import {
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { deployContract } from "store/WalletsStore/thunks";
-import { isWalletLockedError, SdkWalletService } from "sdk";
+import {
+    networkOperationFinished,
+    networkOperationStarted,
+} from "store/networkOperationSlice";
+import { SdkWalletService } from "sdk";
 import { IUnlockedAccountMeta } from "types/wallet";
+import {
+    IPasswordPromptProps,
+    useWalletSessionAction,
+} from "./useWalletSessionAction";
 
 const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
 
@@ -55,9 +64,19 @@ enum DeployConfirmationMods {
 }
 
 interface IPendingDeployRequest {
+    mode: DeployConfirmationMods.DEPLOY;
+    term: string;
+    fileName?: string;
+    phloLimit: number;
+}
+
+interface IPendingExploreRequest {
+    mode: DeployConfirmationMods.EXPLORE;
     term: string;
     fileName?: string;
 }
+
+type TPendingRequest = IPendingDeployRequest | IPendingExploreRequest;
 
 export interface IUseDeployContractOptions {
     phloLimit: string;
@@ -75,13 +94,11 @@ export interface IUseDeployContractResponse {
     isDeployConfirmed: boolean;
     isDeployConfirmationOpen: boolean;
     isExploreConfirmationOpen: boolean;
-    isPasswordModalOpen: boolean;
-    passwordError: string;
+    passwordPrompt: IPasswordPromptProps;
     requestDeploy: (term: string, fileName?: string) => void;
     requestExplore: (term: string, fileName?: string) => void;
     confirmDeploy: () => void;
     confirmExplore: () => void;
-    submitPassword: (password: string) => void;
     cancel: () => void;
 }
 
@@ -119,13 +136,13 @@ export const useDeployContract = ({
     const isBalanceReady = balance !== undefined && !isBalanceError;
 
     const [pendingRequest, setPendingRequest] =
-        useState<IPendingDeployRequest | null>(null);
-    const [confirmationMode, setConfirmationMode] =
-        useState<DeployConfirmationMods | null>(null);
-    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [passwordError, setPasswordError] = useState("");
-    const [isProcessing, setIsProcessing] = useState(false);
+        useState<TPendingRequest | null>(null);
+    const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+    const [isExploring, setIsExploring] = useState(false);
     const [submittedDeployId, setSubmittedDeployId] = useState("");
+
+    const isDeployPending =
+        pendingRequest?.mode === DeployConfirmationMods.DEPLOY;
 
     const deployWatch = useSelector((state: RootState) =>
         submittedDeployId ? selectDeployWatch(state, submittedDeployId) : null,
@@ -169,18 +186,73 @@ export const useDeployContract = ({
         }
     }, [deployWatch]);
 
-    const closeModals = (): void => {
-        setConfirmationMode(null);
-        setIsPasswordModalOpen(false);
-        setPasswordError("");
-    };
+    useEffect(() => {
+        if (!isDeployPending) {
+            return;
+        }
 
-    const cancel = (): void => {
-        closeModals();
-        setPendingRequest(null);
-    };
+        dispatch(networkOperationStarted());
+
+        return () => {
+            dispatch(networkOperationFinished());
+        };
+    }, [dispatch, isDeployPending]);
 
     const walletId = wallet?.id;
+
+    const clearDeployWatch = (): void => {
+        if (!submittedDeployId) {
+            return;
+        }
+
+        dispatch(deployWatchCleared(submittedDeployId));
+        setSubmittedDeployId("");
+    };
+
+    const deployAction = useWalletSessionAction({
+        walletId,
+        action: (password?: string) => {
+            if (
+                pendingRequest?.mode !== DeployConfirmationMods.DEPLOY ||
+                !walletId ||
+                !selectedAccountId
+            ) {
+                throw new Error("Deploy details are missing. Please retry.");
+            }
+
+            clearDeployWatch();
+            emit({
+                type: DeployEventTypes.DEPLOY_STARTED,
+                fileName: pendingRequest.fileName,
+            });
+
+            return dispatch(
+                deployContract({
+                    walletId,
+                    accountId: selectedAccountId,
+                    term: pendingRequest.term,
+                    phloLimit: pendingRequest.phloLimit,
+                    password,
+                }),
+            ).unwrap();
+        },
+        onSuccess: ({ deployId }) => {
+            setPendingRequest(null);
+            setSubmittedDeployId(deployId);
+            emit({ type: DeployEventTypes.DEPLOY_SUBMITTED, deployId });
+        },
+        onError: (message: string) => {
+            setPendingRequest(null);
+            emit({ type: DeployEventTypes.DEPLOY_FAILED, message });
+        },
+        errorFallback: "Deploy failed",
+    });
+
+    const cancel = (): void => {
+        setIsConfirmationOpen(false);
+        deployAction.passwordPrompt.onClose();
+        setPendingRequest(null);
+    };
 
     const requestDeploy = (term: string, fileName?: string): void => {
         if (!walletId || !selectedAccountId) {
@@ -192,38 +264,7 @@ export const useDeployContract = ({
             return;
         }
 
-        setPendingRequest({ term, fileName });
-
-        if (SdkWalletService.isWalletUnlocked(walletId)) {
-            setConfirmationMode(DeployConfirmationMods.DEPLOY);
-
-            return;
-        }
-
-        setIsPasswordModalOpen(true);
-    };
-
-    const requestExplore = (term: string, fileName?: string): void => {
-        setPendingRequest({ term, fileName });
-        setConfirmationMode(DeployConfirmationMods.EXPLORE);
-    };
-
-    const clearDeployWatch = (): void => {
-        if (!submittedDeployId) {
-            return;
-        }
-
-        dispatch(deployWatchCleared(submittedDeployId));
-        setSubmittedDeployId("");
-    };
-
-    const executeDeploy = async (password?: string): Promise<void> => {
-        if (!pendingRequest || !walletId || !selectedAccountId) {
-            return;
-        }
-
         if (!isBalanceReady) {
-            cancel();
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: account balance is unavailable",
@@ -235,7 +276,6 @@ export const useDeployContract = ({
         const phloLimitValue = parsePhloLimit(phloLimit);
 
         if (phloLimitValue === null) {
-            cancel();
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: invalid phlo limit",
@@ -249,7 +289,6 @@ export const useDeployContract = ({
         const availableBalance = Number(balance);
 
         if (availableBalance <= 0 || availableBalance < minGasCost) {
-            cancel();
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: insufficient balance",
@@ -258,72 +297,33 @@ export const useDeployContract = ({
             return;
         }
 
-        clearDeployWatch();
-        setPasswordError("");
-        setIsProcessing(true);
-        emit({
-            type: DeployEventTypes.DEPLOY_STARTED,
-            fileName: pendingRequest.fileName,
+        setPendingRequest({
+            mode: DeployConfirmationMods.DEPLOY,
+            term,
+            fileName,
+            phloLimit: phloLimitValue,
         });
+        setIsConfirmationOpen(true);
+    };
 
-        try {
-            const resultAction = await dispatch(
-                deployContract({
-                    walletId,
-                    accountId: selectedAccountId,
-                    term: pendingRequest.term,
-                    phloLimit: phloLimitValue,
-                    password,
-                }),
-            );
-
-            if (deployContract.fulfilled.match(resultAction)) {
-                cancel();
-                setSubmittedDeployId(resultAction.payload.deployId);
-                emit({
-                    type: DeployEventTypes.DEPLOY_SUBMITTED,
-                    deployId: resultAction.payload.deployId,
-                });
-
-                return;
-            }
-
-            const deployError = resultAction.error;
-
-            if (isWalletLockedError(deployError) && password === undefined) {
-                setConfirmationMode(null);
-                setIsPasswordModalOpen(true);
-
-                return;
-            }
-
-            if (password !== undefined) {
-                setPasswordError(
-                    deployError.message ||
-                        "Failed to deploy the contract. Check your password.",
-                );
-
-                return;
-            }
-
-            emit({
-                type: DeployEventTypes.DEPLOY_FAILED,
-                message: deployError.message || "Deploy failed",
-            });
-        } finally {
-            setIsProcessing(false);
-        }
+    const requestExplore = (term: string, fileName?: string): void => {
+        setPendingRequest({
+            mode: DeployConfirmationMods.EXPLORE,
+            term,
+            fileName,
+        });
+        setIsConfirmationOpen(true);
     };
 
     const executeExplore = async (): Promise<void> => {
-        if (!pendingRequest) {
+        if (pendingRequest?.mode !== DeployConfirmationMods.EXPLORE) {
             return;
         }
 
         const { term, fileName } = pendingRequest;
 
-        cancel();
-        setIsProcessing(true);
+        setPendingRequest(null);
+        setIsExploring(true);
         emit({ type: DeployEventTypes.EXPLORE_STARTED, fileName });
 
         try {
@@ -333,25 +333,23 @@ export const useDeployContract = ({
         } catch (exploreError: unknown) {
             emit({
                 type: DeployEventTypes.EXPLORE_FAILED,
-                message:
-                    (exploreError as Error)?.message || "Explore failed",
+                message: getErrorMessage(exploreError, "Explore failed"),
             });
         } finally {
-            setIsProcessing(false);
+            setIsExploring(false);
         }
     };
 
     const confirmDeploy = (): void => {
-        setConfirmationMode(null);
-        executeDeploy();
+        setIsConfirmationOpen(false);
+
+        void deployAction.run();
     };
 
     const confirmExplore = (): void => {
-        executeExplore();
-    };
+        setIsConfirmationOpen(false);
 
-    const submitPassword = (password: string): void => {
-        executeDeploy(password);
+        void executeExplore();
     };
 
     return {
@@ -359,20 +357,18 @@ export const useDeployContract = ({
         isBalanceReady,
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
-        isProcessing,
+        isProcessing: deployAction.isRunning || isExploring,
         isWaitingForConfirmation,
         isDeployConfirmed,
-        isDeployConfirmationOpen:
-            confirmationMode === DeployConfirmationMods.DEPLOY,
+        isDeployConfirmationOpen: isConfirmationOpen && isDeployPending,
         isExploreConfirmationOpen:
-            confirmationMode === DeployConfirmationMods.EXPLORE,
-        isPasswordModalOpen,
-        passwordError,
+            isConfirmationOpen &&
+            pendingRequest?.mode === DeployConfirmationMods.EXPLORE,
+        passwordPrompt: deployAction.passwordPrompt,
         requestDeploy,
         requestExplore,
         confirmDeploy,
         confirmExplore,
-        submitPassword,
         cancel,
     };
 };

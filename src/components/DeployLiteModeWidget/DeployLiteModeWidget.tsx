@@ -361,11 +361,9 @@ const DeployLiteModeBoard: React.FC = () => {
         isDeployConfirmed,
         isDeployConfirmationOpen,
         isExploreConfirmationOpen,
-        isPasswordModalOpen,
-        passwordError,
+        passwordPrompt,
         confirmDeploy,
         confirmExplore,
-        submitPassword,
         cancel,
         clearCode,
         handleDeployClick,
@@ -464,7 +462,12 @@ const DeployLiteModeBoard: React.FC = () => {
                         id="deploy-contract-button"
                         onClick={handleDeployClick}
                         loading={isProcessing}
-                        disabled={!code.trim() || !account || !isBalanceReady}
+                        disabled={
+                            isProcessing ||
+                            !code.trim() ||
+                            !account ||
+                            !isBalanceReady
+                        }
                     >
                         <h3>Deploy</h3>
                     </DeployButton>
@@ -472,7 +475,7 @@ const DeployLiteModeBoard: React.FC = () => {
                         variant="secondary"
                         onClick={handleExploreClick}
                         loading={isProcessing}
-                        disabled={!code.trim()}
+                        disabled={isProcessing || !code.trim()}
                     >
                         <h3>Explore</h3>
                         {!isLaptop && <PreviewIcon />}
@@ -533,13 +536,10 @@ const DeployLiteModeBoard: React.FC = () => {
             />
 
             <PasswordModal
-                isOpen={isPasswordModalOpen}
+                {...passwordPrompt}
                 onClose={cancel}
-                onConfirm={submitPassword}
                 title="Enter password to deploy"
                 description="Your wallet session has expired. Enter your password to sign and deploy this contract."
-                loading={isProcessing}
-                error={passwordError}
             />
         </>
     );
