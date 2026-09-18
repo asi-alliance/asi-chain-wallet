@@ -3,7 +3,7 @@
 # ASI Chain Wallet
 
 [![Status](https://img.shields.io/badge/Status-BETA-FFA500?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-wallet)
-[![Version](https://img.shields.io/badge/Version-2.2.0-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-wallet/releases)
+[![Version](https://img.shields.io/badge/Version-2.2.0--dappconnect-A8E6A3?style=for-the-badge)](https://github.com/asi-alliance/asi-chain-wallet/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-1A1A1A?style=for-the-badge)](LICENSE)
 [![Docs](https://img.shields.io/badge/Docs-Available-C4F0C1?style=for-the-badge)](https://docs.asichain.io)
 
@@ -73,7 +73,14 @@ The wallet follows the HD model of the SDK.
 - **Keyfile import** either registers a new wallet or, when the keyfile belongs to a wallet that already exists on the device, imports the selected accounts into it. The second case is an import, not a login: the Login page says so explicitly and offers to select the affected wallet.
 - **Private key import** remains available for wallets created before the HD model. It produces a wallet of type `PRIVATE_KEY` with exactly one account, and the Accounts page hides **Create Account** for it because nothing can be derived from a bare key.
 
-Entry points: the first-run widget on the Accounts page and the Login page both offer Create Wallet, Import Wallet (recovery phrase), Import Account by private key and Import Wallet from keyfile.
+Entry points: the first-run widget on the Accounts page and the Login page offer the same four actions under slightly different labels.
+
+| Action | Accounts page (first run) | Login page | Result |
+| --- | --- | --- | --- |
+| Create a wallet | Create Wallet | Create Wallet | New HD wallet from a generated recovery phrase |
+| Restore a wallet | Import Wallet | Import Wallet | HD wallet restored from a recovery phrase |
+| Reuse a bare key | Import Account by private key | Import Private Key | New wallet of type `PRIVATE_KEY` holding exactly one account, not an account added to an existing HD wallet |
+| Reuse a keyfile | Import Wallet from keyfile | Import from Keyfile | New wallet, or the selected accounts imported into the wallet the keyfile belongs to |
 
 ## Wallet Session and Auto-Lock
 
@@ -115,7 +122,7 @@ The SDK provides mnemonic generation and validation, wallet creation, opening an
 | CSV and JSON export of history | [src/pages/History/History.tsx](src/pages/History/History.tsx) | The SDK exposes a history download flow |
 | ETH address format on the Receive page | [src/pages/Receive/Receive.tsx](src/pages/Receive/Receive.tsx) | The SDK exposes the Ethereum address of an account |
 | Legacy balance and transaction polling services | [src/services/balancePolling.ts](src/services/balancePolling.ts), [src/services/transactionPolling.ts](src/services/transactionPolling.ts) | Nothing: they are replaced by the SDK deploy watcher plus 30-second RTK Query polling. They are kept disabled until that replacement is validated in production, then deleted |
-| App-level transaction status polling | [src/App.tsx](src/App.tsx) | The same validation. Deploy status is tracked per deploy by `watchDeploy` from the `sendTransaction`, `deployContract` and `bridgeLock` thunks |
+| App-level transaction status polling | [src/App.tsx](src/App.tsx) | The same validation. Deploy status is now tracked per deploy in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): `sendTransaction` and `deployContract` subscribe through the `subscribe` callback returned by the SDK `transfer` and `deploy` calls, while `bridgeLock`, which signs and submits its deploy itself, calls `SdkWalletService.watchDeploy` directly |
 
 ### Removed and Relocated Functionality
 
@@ -139,7 +146,7 @@ Transaction history is currently limited to a single window of 50 records, is no
 2. **Ordering mismatch at the window boundary.** The window is cut server side by `block_number` but sorted client side by `timestamp`. Deploy timestamps are supplied by the client rather than derived from the block, so the two orderings can disagree. When they do, a record that belongs in the visible window can be missing and the displayed order can be wrong on the first screen.
 3. **Missing enrichment at the window boundary.** Deduplication is keyed on `deploy_id`. When a transfer falls inside the top 50 transfers but its matching deployment falls outside the top 50 deployments, the row is rendered without its `blockHash`.
 4. **Unstable order inside a block.** Records sharing a `block_number` have no tiebreak, so their relative order can change between polling cycles.
-5. **Filtering over a truncated window.** The Type and Period filters operate on the already capped result set, so client side filtering cannot return a complete answer. They are disabled for that reason.
+5. **Filtering over a truncated window.** The Search, Type and Period filters operate on the already capped result set, so client side filtering cannot return a complete answer. They are disabled for that reason.
 
 **Why pagination is not implemented.** This is deliberate. The wallet never sends an offset today, so it does not currently hit the upstream paging defect. Adding pagination or a load more control would surface it immediately: records would be dropped between pages and repeated across pages, with the skew growing per page and with any imbalance between the transfers and deployments collections. Correcting the window on the client would require unbounded overfetching, so the fix belongs in the indexer, as a single root field returning the combined ordered timeline under one offset and limit, and in the SDK method built on top of it.
 
@@ -309,6 +316,8 @@ npm run deploy:gh      # publish build/ to GitHub Pages
 ## E2E Testing
 
 E2E tests use **WebdriverIO** with **LambdaTest** cloud execution. The repository currently contains the configuration and the page objects, but **no spec files**: both configs point at `./TestSuites/**/*.test.js` under `tests-automation/`, and that directory is not in the repository.
+
+It also cannot be committed as it stands: the root `.gitignore` excludes `*.test.*` and `*-test.*`, so spec files matching the configured pattern stay untracked. Bringing specs back means either adding an exception such as `!tests-automation/**/*.test.js` to `.gitignore`, or renaming the spec pattern (for example `*.e2e.js`) and updating `specs` in both configs. See [DEVELOPMENT.md](DEVELOPMENT.md#e2e-tests).
 
 ```
 tests-automation/

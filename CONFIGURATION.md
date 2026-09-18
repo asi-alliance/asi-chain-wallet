@@ -197,7 +197,7 @@ Polling intervals are constants, not environment variables. The earlier `REACT_A
 | Balance and history refresh on Dashboard and History | 30 s | `ACCOUNT_DATA_POLLING_INTERVAL_SECONDS` in [src/constants/polling.ts](src/constants/polling.ts) |
 | Network status check in the header | 60 s | [src/components/Layout/Layout.tsx](src/components/Layout/Layout.tsx) |
 | Signing session auto-lock | 15 s | `security.autoLockMs` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) |
-| Deploy status | Event driven | `watchDeploy` from the SDK, subscribed in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts) |
+| Deploy status | Event driven | The SDK deploy watcher, wired in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): the `subscribe` callback returned by `transfer` and `deploy` for transfers and contract deploys, and `SdkWalletService.watchDeploy` for bridge locks |
 
 ## Docker Configuration
 

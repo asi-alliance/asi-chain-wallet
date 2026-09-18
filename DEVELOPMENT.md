@@ -153,7 +153,7 @@ The service is named `asi-chain-wallet` and is published on `http://localhost:30
 
 ### Building An Image From This Repository
 
-Not supported as it stands. `Dockerfile` copies `package*.json` into `/app` and runs `npm install`, which tries to resolve `file:../asi-chain-wallet-sdk` outside the build context and fails. Building locally requires either vendoring the built SDK into the build context and pointing `package.json` at it, or publishing the SDK to a registry.
+Not supported as it stands. `Dockerfile` copies `package*.json` into `/app` and runs `npm install --legacy-peer-deps`, which tries to resolve `file:../asi-chain-wallet-sdk` outside the build context and fails. Building locally requires either vendoring the built SDK into the build context and pointing `package.json` at it, or publishing the SDK to a registry.
 
 `start-wallet.sh` predates this: it builds and looks for an `asi-wallet-v2` image and container, while `docker-compose.yml` now runs the published image under a different name, and its messages still mention decommissioned endpoints.
 
@@ -165,7 +165,7 @@ The entrypoint writes a `window._env_` block and runs `envsubst` over the nginx 
 
 ### Unit Tests
 
-There are none in the repository. `.gitignore` excludes `*.test.*`, so any test written locally stays untracked. The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
+There are none in the repository. `.gitignore` excludes `*.test.*` and `*-test.*`, so any test written locally stays untracked until that rule is changed or a different naming convention is agreed (see [E2E Tests](#e2e-tests)). The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
 
 ### E2E Tests
 
@@ -175,7 +175,16 @@ WebdriverIO against LambdaTest, under `tests-automation/`:
 - `wdio.mobile.conf.js` - mobile capabilities
 - `pages/` - page objects: `AccountsPage`, `BasePage`, `DashboardPage`, `DeployPage`, `HistoryPage`, `NavbarPage`, `NetworkPage`, `ReceivePage`, `TransactionsPage`
 
-Both configs resolve specs from `./TestSuites/**/*.test.js`, and that directory is not in the repository, so a run currently finds no specs. Credentials are loaded from the **repository root** `.env`:
+Both configs resolve specs from `./TestSuites/**/*.test.js`, and that directory is not in the repository, so a run currently finds no specs.
+
+Adding specs under that pattern is not enough, because the root `.gitignore` excludes `*.test.*` and `*-test.*`: the files would work locally and stay untracked. Pick one of these before writing them:
+
+- add an exception to `.gitignore`, for example `!tests-automation/**/*.test.js` after the existing rules;
+- or rename the spec pattern, for example `tests-automation/TestSuites/**/*.e2e.js`, and update `specs` in `wdio.web.conf.js` and `wdio.mobile.conf.js` accordingly.
+
+The same `.gitignore` rules are why no unit tests are tracked either, so whichever convention is chosen should cover both.
+
+Credentials are loaded from the **repository root** `.env`:
 
 ```ini
 LT_USER_NAME=your_username
