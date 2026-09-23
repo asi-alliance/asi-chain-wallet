@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import styled from "styled-components";
+import React, { useCallback, useEffect, useState } from "react";
+import styled, { useTheme } from "styled-components";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { RootState } from "store";
@@ -23,7 +23,7 @@ const Main = styled.main<{ $fullWidth?: boolean }>`
     margin: 0 auto;
     width: 100%;
 
-    @media (min-width: 769px) {
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.mobile} + 1px)) {
         padding: ${({ theme }) => theme.layout.gutterDesktop};
     }
 `;
@@ -34,6 +34,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const location = useLocation();
+    const theme = useTheme();
     const observerUrl = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork.observerUrl,
     );
@@ -44,6 +45,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const [networkStatus, setNetworkStatus] = useState<
         "connected" | "disconnected" | "checking"
     >("checking");
+
+    const openMobileMenu = useCallback(() => setMobileMenuOpen(true), []);
+    const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
 
     useEffect(() => {
         const checkNetwork = async () => {
@@ -73,11 +77,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         return () => clearInterval(interval);
     }, [observerUrl]);
 
+    // Desktop nav replaces the drawer above the navigation breakpoint; clear open state
+    // so body scroll lock and aria-expanded do not linger after a resize.
+    useEffect(() => {
+        const media = window.matchMedia(
+            `(max-width: ${theme.breakpoints.navigation})`,
+        );
+        const syncDrawerToViewport = () => {
+            if (!media.matches) {
+                setMobileMenuOpen(false);
+            }
+        };
+
+        syncDrawerToViewport();
+        media.addEventListener("change", syncDrawerToViewport);
+        return () => media.removeEventListener("change", syncDrawerToViewport);
+    }, [theme.breakpoints.navigation]);
+
     const navItems = useNavItems(accounts);
 
     return (
         <Container>
-            <HeaderBar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+            <HeaderBar
+                isMobileMenuOpen={mobileMenuOpen}
+                onMobileMenuToggle={openMobileMenu}
+            />
 
             <DesktopNavComponent
                 navItems={navItems}
@@ -88,7 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MobileNavDrawerComponent
                 isOpen={mobileMenuOpen}
                 navItems={navItems}
-                onClose={() => setMobileMenuOpen(false)}
+                onClose={closeMobileMenu}
             />
 
             <Main $fullWidth={location.pathname === "/deploy"}>{children}</Main>

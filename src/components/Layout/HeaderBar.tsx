@@ -23,10 +23,14 @@ const HeaderStyled = styled.header`
     background: ${({ theme }) => theme.card};
     border-bottom: 1px solid ${({ theme }) => theme.border};
     height: ${({ theme }) => theme.layout.headerHeight};
-    padding: 3px ${({ theme }) => theme.spacing.xl};
+    padding: 3px ${({ theme }) => theme.layout.gutterMobile};
     position: sticky;
     top: 0;
     z-index: ${({ theme }) => theme.zIndices.header};
+
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.mobile} + 1px)) {
+        padding: 3px ${({ theme }) => theme.layout.gutterDesktop};
+    }
 `;
 
 const HeaderTop = styled.div`
@@ -92,13 +96,13 @@ const IconButton = styled(Button).attrs({
 })``;
 
 const AsideMenuToggle = styled(IconButton)`
-    @media (min-width: 1251px) {
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.navigation} + 1px)) {
         display: none;
     }
 `;
 
 const DesktopButton = styled(IconButton)`
-    @media (max-width: 1024px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
         display: none;
     }
 `;
@@ -139,9 +143,13 @@ const LogoImage = ({ isDarkMode }: LogoImageProps) => {
 
 interface HeaderBarProps {
     onMobileMenuToggle: () => void;
+    isMobileMenuOpen?: boolean;
 }
 
-export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
+export const HeaderBar: React.FC<HeaderBarProps> = ({
+    onMobileMenuToggle,
+    isMobileMenuOpen = false,
+}) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { darkMode } = useSelector((state: RootState) => state.theme);
@@ -226,6 +234,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
                             onClick={onMobileMenuToggle}
                             title="Open navigation"
                             aria-label="Open navigation"
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="mobile-nav-drawer"
                         >
                             <MenuIcon size={20} />
                         </AsideMenuToggle>
