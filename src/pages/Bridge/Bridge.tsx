@@ -859,7 +859,9 @@ export const Bridge: React.FC = () => {
                             id="bridge-transaction-button"
                             onClick={handleLockClick}
                             loading={busy}
-                            disabled={lockDisabled}
+                            //TODO: Return disabling after Bridge full scenario e2e test
+                            disabled={true}
+                            // disabled={lockDisabled}
                         >
                             <h3>{lockLabel}</h3>
                         </LockButton>
