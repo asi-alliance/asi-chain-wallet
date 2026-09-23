@@ -1,4 +1,5 @@
-export const ASI_CHAIN_DECIMALS = 8;
+import { ASI_DECIMALS } from "@asichain/asi-wallet-sdk";
+
 export const CARDANO_TOKEN_DECIMALS = 8;
 export const DISPLAY_DECIMALS = 8;
 
@@ -11,7 +12,7 @@ const scaleFor = (decimals: number): bigint => {
 
 export const formatToken = (
     raw: bigint,
-    decimals = ASI_CHAIN_DECIMALS,
+    decimals = ASI_DECIMALS,
     displayDecimals = DISPLAY_DECIMALS,
 ): string => {
     const scale = scaleFor(decimals);
@@ -31,28 +32,9 @@ export const formatToken = (
     return `${sign}${whole}.${shownFrac.padEnd(displayDecimals, "0")}`;
 };
 
-export const parseTokenInput = (
-    str: string,
-    decimals = ASI_CHAIN_DECIMALS,
-    displayDecimals = DISPLAY_DECIMALS,
-): bigint => {
-    if (!str || str.trim() === "") return BigInt(0);
-
-    const scale = scaleFor(decimals);
-    const clean = str.replace(/[^\d.]/g, "");
-    const [whole = "0", frac = ""] = clean.split(".");
-    const fracDigits = Math.min(decimals, displayDecimals);
-    const fracBaseUnits =
-        fracDigits > 0
-            ? BigInt(frac.slice(0, fracDigits).padEnd(decimals, "0") || "0")
-            : BigInt(0);
-
-    return BigInt(whole || "0") * scale + fracBaseUnits;
-};
-
 export const formatTokenAmount = (
     value: string | number | bigint,
-    decimals = ASI_CHAIN_DECIMALS,
+    decimals = ASI_DECIMALS,
 ): string => {
     try {
         return formatToken(

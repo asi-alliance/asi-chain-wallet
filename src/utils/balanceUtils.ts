@@ -3,14 +3,17 @@ import { getGasFeeAsNumber } from "../constants/gas";
 
 export const BALANCE_PLACEHOLDER = "--";
 
-export const getMaxSendableAmount = (balance: string): number => {
+export const getMaxSendableAmount = (
+    balance: string,
+    gasFee: number = getGasFeeAsNumber(),
+): number => {
     const balanceNum = parseFloat(balance);
 
     if (isNaN(balanceNum)) {
         return 0;
     }
 
-    const maxSendable = Math.max(0, balanceNum - getGasFeeAsNumber());
+    const maxSendable = Math.max(0, balanceNum - gasFee);
 
     return Math.floor(maxSendable * 100000000) / 100000000;
 };
@@ -18,6 +21,7 @@ export const getMaxSendableAmount = (balance: string): number => {
 export const getAmountValidationError = (
     amount: string,
     balance: string,
+    gasFee: number = getGasFeeAsNumber(),
 ): string => {
     if (!amount.trim()) {
         return "";
@@ -37,14 +41,15 @@ export const getAmountValidationError = (
         )} ${getTokenDisplayName()}`;
     }
 
-    const totalRequired = amountValue + getGasFeeAsNumber();
+    const totalRequired = amountValue + gasFee;
 
     if (totalRequired > balanceNum) {
         return `Amount + fee (${totalRequired.toFixed(
             8,
-        )}) exceeds balance. Max: ${getMaxSendableAmount(balance).toFixed(
-            8,
-        )} ${getTokenDisplayName()}`;
+        )}) exceeds balance. Max: ${getMaxSendableAmount(
+            balance,
+            gasFee,
+        ).toFixed(8)} ${getTokenDisplayName()}`;
     }
 
     return "";

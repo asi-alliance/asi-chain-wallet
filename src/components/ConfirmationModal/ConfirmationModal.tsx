@@ -102,7 +102,8 @@ interface TransactionConfirmationProps {
     recipient: string;
     senderAddress: string;
     senderName: string;
-    estimatedFee?: string;
+    maxFee: number;
+    feeLabel: string;
     loading?: boolean;
     needsPassword?: boolean;
 }
@@ -117,6 +118,8 @@ export const TransactionConfirmationModal: React.FC<
     recipient,
     senderAddress,
     senderName,
+    maxFee,
+    feeLabel,
     loading = false,
     needsPassword = false,
 }) => {
@@ -129,7 +132,7 @@ export const TransactionConfirmationModal: React.FC<
         return `${address.substring(0, 12)}...${address.substring(address.length - 10)}`;
     };
 
-    const totalAmount = (parseFloat(amount) + 0.0025).toFixed(8); // Use max fee for total calculation
+    const totalAmount = (parseFloat(amount) + maxFee).toFixed(8);
 
     const handleClose = () => {
         if (!loading) {
@@ -195,7 +198,7 @@ export const TransactionConfirmationModal: React.FC<
                 <DetailRow>
                     <DetailLabel>Commission amount can be :</DetailLabel>
                     <DetailValue>
-                        ~0.0017-0.0025 {getTokenDisplayName()}
+                        {feeLabel} {getTokenDisplayName()}
                     </DetailValue>
                 </DetailRow>
 

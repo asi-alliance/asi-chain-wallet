@@ -8,9 +8,8 @@ import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
     deployWatchCleared,
-    selectAccountById,
     selectDeployWatch,
-    selectSelectedAccountId,
+    selectSelectedAccount,
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -31,9 +30,9 @@ import {
     TransactionConfirmationModal,
     PasswordModal,
 } from "components";
-import { isWalletLockedError, SdkWalletService } from "sdk";
+import { useWalletSessionAction } from "hooks";
 import { getTokenDisplayName } from "../../constants/token";
-import { generateRandomGasFee } from "../../constants/gas";
+import { getGasFeeAsNumber, getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
@@ -258,13 +257,10 @@ const AccountSelectorWithMarginBottom = styled(AccountSelector)`
 export const Send: React.FC = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const selectedAccountId = useSelector(selectSelectedAccountId);
-    const selectedAccount = useSelector((state: RootState) =>
-        selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
-    );
+    const selectedAccount = useSelector(selectSelectedAccount);
     const selectedWallet = useSelector((state: RootState) =>
-        selectedAccountId
-            ? selectWalletByAccountId(state, selectedAccountId)
+        selectedAccount
+            ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
@@ -273,8 +269,8 @@ export const Send: React.FC = () => {
         isFetching,
         isError: isBalanceError,
     } = useGetBalanceQuery(
-        selectedAccountId
-            ? { accountId: selectedAccountId, networkId }
+        selectedAccount
+            ? { accountId: selectedAccount.id, networkId }
             : skipToken,
         { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
@@ -293,12 +289,8 @@ export const Send: React.FC = () => {
     const [showQRScanner, setShowQRScanner] = useState(false);
     const [scanError, setScanError] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [pendingTransfer, setPendingTransfer] =
         useState<IPendingTransfer | null>(null);
-    const [passwordModalError, setPasswordModalError] = useState("");
-    const [passwordModalLoading, setPasswordModalLoading] = useState(false);
-    const [estimatedFee, setEstimatedFee] = useState(generateRandomGasFee());
     const [copied, setCopied] = useState(false);
 
     const deployWatch = useSelector((state: RootState) =>
@@ -310,6 +302,55 @@ export const Send: React.FC = () => {
     const unresolvedReason = deployWatch?.unresolvedReason ?? "";
     const isWaitingForConfirmation =
         !!deployWatch && !isTransactionConfirmed && !unresolvedReason;
+
+    const walletId = selectedWallet?.id;
+
+    const clearDeployWatch = (): void => {
+        if (!txHash) {
+            return;
+        }
+
+        dispatch(deployWatchCleared(txHash));
+        setTxHash("");
+    };
+
+    const sendAction = useWalletSessionAction({
+        walletId,
+        action: (password?: string) => {
+            if (!pendingTransfer) {
+                throw new Error("Transfer details are missing. Please retry.");
+            }
+
+            if (pendingTransfer.networkId !== networkId) {
+                throw new Error(NETWORK_CHANGED_ERROR);
+            }
+
+            clearDeployWatch();
+
+            return dispatch(
+                sendTransaction({
+                    walletId: pendingTransfer.walletId,
+                    accountId: pendingTransfer.accountId,
+                    to: pendingTransfer.to,
+                    amount: pendingTransfer.amount,
+                    password,
+                }),
+            ).unwrap();
+        },
+        onSuccess: ({ deployId }) => {
+            setPendingTransfer(null);
+            setTxHash(deployId);
+            setRecipient("");
+            setAmount("");
+        },
+        onError: (message: string) => {
+            setPendingTransfer(null);
+            setValidationError(message);
+        },
+        errorFallback: "Failed to send transaction",
+    });
+
+    const isSending = isLoading || sendAction.isRunning;
 
     useEffect(() => {
         if (!pendingTransfer) {
@@ -329,13 +370,8 @@ export const Send: React.FC = () => {
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const displayedError = validationError || balanceError || amountError;
 
-    const updateEstimatedFee = () => {
-        setEstimatedFee(generateRandomGasFee());
-    };
-
     const handleRecipientChange = (value: string) => {
         setRecipient(value);
-        updateEstimatedFee();
 
         if (!value.trim()) {
             setAddressError("");
@@ -357,7 +393,6 @@ export const Send: React.FC = () => {
 
     const handleAmountChange = (value: string) => {
         setAmount(value);
-        updateEstimatedFee();
         setValidationError("");
     };
 
@@ -559,8 +594,6 @@ export const Send: React.FC = () => {
         return true;
     };
 
-    const walletId = selectedWallet?.id;
-
     const handleSendClick = (): void => {
         if (!validateForm() || !selectedAccount) {
             return;
@@ -582,118 +615,18 @@ export const Send: React.FC = () => {
             amount,
         });
 
-        if (SdkWalletService.isWalletUnlocked(walletId)) {
-            setShowConfirmation(true);
-        } else {
-            setShowPasswordModal(true);
-        }
-    };
-
-    const clearDeployWatch = (): void => {
-        if (!txHash) {
-            return;
-        }
-
-        dispatch(deployWatchCleared(txHash));
-        setTxHash("");
-    };
-
-    const executeSend = async (password?: string): Promise<void> => {
-        if (!pendingTransfer) {
-            return;
-        }
-
-        if (pendingTransfer.networkId !== networkId) {
-            setShowConfirmation(false);
-            setShowPasswordModal(false);
-            setPasswordModalError("");
-            setPendingTransfer(null);
-            setValidationError(NETWORK_CHANGED_ERROR);
-
-            return;
-        }
-
-        clearDeployWatch();
-        setPasswordModalError("");
-
-        if (password !== undefined) {
-            setPasswordModalLoading(true);
-        }
-
-        try {
-            const resultAction = await dispatch(
-                sendTransaction({
-                    walletId: pendingTransfer.walletId,
-                    accountId: pendingTransfer.accountId,
-                    to: pendingTransfer.to,
-                    amount: pendingTransfer.amount,
-                    password,
-                }),
-            );
-
-            if (sendTransaction.fulfilled.match(resultAction)) {
-                setShowConfirmation(false);
-                setShowPasswordModal(false);
-                setPendingTransfer(null);
-
-                setTxHash(resultAction.payload.deployId);
-                setRecipient("");
-                setAmount("");
-
-                return;
-            }
-
-            const sendError = resultAction.error;
-
-            if (isWalletLockedError(sendError) && password === undefined) {
-                setShowConfirmation(false);
-                setShowPasswordModal(true);
-                return;
-            }
-
-            if (password !== undefined) {
-                setPasswordModalError(
-                    sendError.message ||
-                        "Failed to send transaction. Check your password.",
-                );
-                return;
-            }
-
-            setPendingTransfer(null);
-            setValidationError(
-                sendError.message || "Failed to send transaction",
-            );
-        } catch (err) {
-            console.error("Send failed:", err);
-
-            if (password !== undefined) {
-                setPasswordModalError(
-                    "Failed to send transaction. Check your password and try again.",
-                );
-            } else {
-                setPendingTransfer(null);
-                setValidationError("Failed to send transaction");
-            }
-        } finally {
-            if (password !== undefined) {
-                setPasswordModalLoading(false);
-            }
-        }
+        setShowConfirmation(true);
     };
 
     const handleConfirmSend = (): void => {
         setShowConfirmation(false);
-        executeSend();
-    };
 
-    const handlePasswordSubmit = (password: string): void => {
-        executeSend(password);
+        void sendAction.run();
     };
 
     const handleCancelTransfer = (): void => {
         setShowConfirmation(false);
-        setShowPasswordModal(false);
-        setPasswordModalError("");
+        sendAction.passwordPrompt.onClose();
         setPendingTransfer(null);
     };
 
@@ -705,7 +638,6 @@ export const Send: React.FC = () => {
         clearDeployWatch();
         setScanError("");
         setCopied(false);
-        setEstimatedFee(generateRandomGasFee());
         handleCancelTransfer();
     };
 
@@ -1007,8 +939,9 @@ export const Send: React.FC = () => {
                         <Button
                             id="send-transaction-button"
                             onClick={handleSendClick}
-                            loading={isLoading}
+                            loading={isSending}
                             disabled={
+                                isSending ||
                                 !recipient ||
                                 !amount ||
                                 !!displayedError ||
@@ -1088,19 +1021,17 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                estimatedFee={estimatedFee}
+                maxFee={getGasFeeAsNumber()}
+                feeLabel={getGasFeeRangeLabel()}
                 loading={isLoading}
             />
 
             {/* Password Modal (session expired — re-authenticate to sign) */}
             <PasswordModal
-                isOpen={showPasswordModal}
+                {...sendAction.passwordPrompt}
                 onClose={handleCancelTransfer}
-                onConfirm={handlePasswordSubmit}
                 title="Enter password to sign transaction"
                 description="Your wallet session has expired. Enter your password to sign and send this transaction."
-                loading={passwordModalLoading}
-                error={passwordModalError}
             />
         </SendContainer>
     );

@@ -3,11 +3,11 @@ import styled from "styled-components";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { RootState } from "store";
-import { selectAccounts } from "store/WalletsStore";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
 import { useNavItems } from "./useNavItems";
+import { selectAccounts } from "store/WalletsStore";
 
 const Container = styled.div`
     min-height: 100vh;

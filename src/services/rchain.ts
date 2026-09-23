@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { SignedResult } from "@asichain/asi-wallet-sdk";
 import { signDeploy } from "utils/crypto";
 
 // Global balance cache to prevent excessive API calls
@@ -20,6 +21,42 @@ export interface SignedDeploy extends Deploy {
     sig: string;
     sigAlgorithm: string;
 }
+
+export interface IDeploySignature {
+    deployer: string;
+    signature: string;
+    sigAlgorithm: string;
+}
+
+export type TDeploySigner = (deployData: Deploy) => Promise<IDeploySignature>;
+
+export interface IPreparedDeploy {
+    deployId: string;
+    term: string;
+    webDeploy: {
+        data: Deploy;
+        sigAlgorithm: string;
+        signature: string;
+        deployer: string;
+    };
+}
+
+export const createPrivateKeySigner =
+    (privateKey: string): TDeploySigner =>
+    async (deployData: Deploy): Promise<IDeploySignature> => {
+        const signedDeploy: SignedDeploy = signDeploy(deployData, privateKey);
+
+        return {
+            deployer: signedDeploy.deployer,
+            signature: signedDeploy.sig,
+            sigAlgorithm: signedDeploy.sigAlgorithm,
+        };
+    };
+
+export const BRIDGE_LOCK_PHLO_LIMIT: number = 5_000_000_000;
+export const BRIDGE_LOCK_PHLO_PRICE: number = 1;
+export const BRIDGE_LOCK_MAX_GAS_COST: bigint =
+    BigInt(BRIDGE_LOCK_PHLO_LIMIT) * BigInt(BRIDGE_LOCK_PHLO_PRICE);
 
 export class RChainService {
     private validatorClient: AxiosInstance;
@@ -285,20 +322,21 @@ export class RChainService {
       }
     `;
 
-        return await this.sendDeploy(transferRho, privateKey);
+        return await this.sendDeploy(
+            transferRho,
+            createPrivateKeySigner(privateKey),
+        );
     }
 
     // Lock tokens on the ASI bridge for cross-chain transfer.
     // fromAddr is derived on-chain from the signed deploy's deployer.
-    async bridgeLock(
+    buildBridgeLockTerm(
         amountBaseUnits: string,
         recipient: string,
         destChainId: number,
-        privateKey: string,
         bridgeUri: string,
-        phloLimit: number = 5_000_000_000,
-    ): Promise<string> {
-        const lockRho = `
+    ): string {
+        return `
       new deployId(\`rho:system:deployId\`),
           deployerId(\`rho:system:deployerId\`),
           rl(\`rho:registry:lookup\`),
@@ -316,53 +354,61 @@ export class RChainService {
         }
       }
     `;
+    }
 
-        return await this.sendDeploy(lockRho, privateKey, phloLimit);
+    async prepareDeploy(
+        rholangCode: string,
+        sign: TDeploySigner,
+        phloLimit: number = 500000,
+    ): Promise<IPreparedDeploy> {
+        // Get latest block number
+        const blocks = await this.rnodeHttp("blocks/1");
+        const blockNumber =
+            blocks && blocks.length > 0 ? blocks[0].blockNumber : 0;
+
+        // Create deploy data
+        const deployData: Deploy = {
+            term: rholangCode,
+            phloLimit,
+            phloPrice: 1,
+            validAfterBlockNumber: blockNumber,
+            timestamp: Date.now(),
+            shardId: this.shardId,
+        };
+
+        const signature = await sign(deployData);
+
+        return {
+            deployId: signature.signature,
+            term: rholangCode,
+            // Format for Web API (like f1r3wallet)
+            webDeploy: {
+                data: deployData,
+                sigAlgorithm: signature.sigAlgorithm,
+                signature: signature.signature,
+                deployer: signature.deployer,
+            },
+        };
     }
 
     // Send deploy (like F1R3FLY wallet)
     async sendDeploy(
         rholangCode: string,
-        privateKey: string,
+        sign: TDeploySigner,
         phloLimit: number = 500000,
     ): Promise<string> {
+        const prepared = await this.prepareDeploy(rholangCode, sign, phloLimit);
+
+        await this.submitDeploy(prepared.webDeploy);
+
+        return prepared.deployId;
+    }
+
+    async submitDeploy(signedDeploy: SignedResult): Promise<void> {
         try {
-            // Get latest block number
-            const blocks = await this.rnodeHttp("blocks/1");
-            const blockNumber =
-                blocks && blocks.length > 0 ? blocks[0].blockNumber : 0;
-
-            // Create deploy data
-            const deployData: Deploy = {
-                term: rholangCode,
-                phloLimit,
-                phloPrice: 1,
-                validAfterBlockNumber: blockNumber,
-                timestamp: Date.now(),
-                shardId: this.shardId,
-            };
-
-            // Sign the deploy
-            const signedDeploy = signDeploy(deployData, privateKey);
-
-            // Format for Web API (like f1r3wallet)
-            const webDeploy = {
-                data: {
-                    term: deployData.term,
-                    timestamp: deployData.timestamp,
-                    phloPrice: deployData.phloPrice,
-                    phloLimit: deployData.phloLimit,
-                    validAfterBlockNumber: deployData.validAfterBlockNumber,
-                    shardId: deployData.shardId,
-                },
-                sigAlgorithm: signedDeploy.sigAlgorithm,
-                signature: signedDeploy.sig,
-                deployer: signedDeploy.deployer,
-            };
-
             let result;
             try {
-                result = await this.rnodeHttp("deploy", webDeploy);
+                result = await this.rnodeHttp("deploy", signedDeploy);
             } catch (error: any) {
                 console.error("Deploy failed to send:", error);
 
@@ -386,31 +432,21 @@ export class RChainService {
 
             // The deploy result should contain a signature which is the deploy ID
             // The Web API returns the signature string, sometimes with a prefix
-            if (typeof result === "string") {
-                // Extract just the deploy ID if it has the "Success! DeployId is: " prefix
-                const deployIdMatch = result.match(
-                    /DeployId is:\s*([a-fA-F0-9]+)/,
-                );
-                if (deployIdMatch) {
-                    return deployIdMatch[1];
-                }
-                // If no prefix, assume the whole string is the deploy ID
-                return result;
-            }
+            const acknowledgedDeployId =
+                typeof result === "string"
+                    ? result
+                    : result?.signature || result?.deployId || result;
 
-            const deployId = result.signature || result.deployId || result;
-
-            // Validate that we got a valid deployId
+            // Validate that the node acknowledged the deploy
             if (
-                !deployId ||
-                (typeof deployId === "string" && deployId.trim().length === 0)
+                !acknowledgedDeployId ||
+                (typeof acknowledgedDeployId === "string" &&
+                    acknowledgedDeployId.trim().length === 0)
             ) {
                 throw new Error(
                     "Deploy failed: Server did not return a valid deploy ID. The deploy may not have been sent.",
                 );
             }
-
-            return deployId;
         } catch (error: any) {
             console.error("Deploy failed:", error);
             // Re-throw the error (it's already formatted above)
@@ -630,7 +666,6 @@ export class RChainService {
                         transfers: deploy.transfers,
                     };
                 }
-
             } catch (error: any) {
                 console.error(
                     `[GraphQL] Error checking indexer for deploy ${deployId}:`,
@@ -655,7 +690,6 @@ export class RChainService {
 
     // Fallback method using read-only node API (doesn't require GraphQL)
     private async waitForDeployResultFallback(deployId: string): Promise<any> {
-
         try {
             const blocksResult = await this.readOnlyClient.get(
                 "/api/blocks/10",
