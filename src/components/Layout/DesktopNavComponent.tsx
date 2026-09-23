@@ -1,13 +1,15 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
+import { VisuallyHidden } from "components/Foundation";
 import { NetworkSelector } from "components/NetworkSelector";
 
 const DesktopNavStyled = styled.nav`
-    height: 41px;
+    height: ${({ theme }) => theme.layout.navigationHeight};
+    align-items: center;
     background: ${({ theme }) => theme.surface};
     border-bottom: 1px solid ${({ theme }) => theme.border};
-    padding: 0 24px;
+    padding: 0 ${({ theme }) => theme.spacing["3xl"]};
     display: flex;
     gap: 24px;
     overflow-x: auto;
@@ -40,16 +42,21 @@ const NavLink = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
     gap: 5px;
+    height: 100%;
     padding: 8px 0;
     background: none;
     border: none;
-    border-bottom: 2px solid
+    border-bottom: 3px solid
         ${({ $active, theme }) => ($active ? theme.primary : "transparent")};
     color: ${({ $active, theme }) =>
         $active ? theme.primary : theme.text.secondary};
     font-weight: ${({ $active }) => ($active ? "600" : "400")};
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition:
+        color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        border-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
     white-space: nowrap;
     font-size: 14px;
 
@@ -212,8 +219,12 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
 
             <RightSection>
                 <StatusDot $connected={networkStatus === "connected"} />
+                <VisuallyHidden id="header-network-selector-label">
+                    Network
+                </VisuallyHidden>
                 <NetworkSelector
                     id="header-network-selector"
+                    aria-labelledby="header-network-selector-label"
                     style={{
                         width: "200px",
                         minWidth: "200px",

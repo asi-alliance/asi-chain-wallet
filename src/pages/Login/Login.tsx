@@ -549,6 +549,7 @@ export const Login: React.FC = () => {
                         {walletOptions.length > 1 && (
                             <FormGroup>
                                 <label
+                                    id="login-account-selector-label"
                                     style={{
                                         display: "block",
                                         marginBottom: "8px",
@@ -561,6 +562,7 @@ export const Login: React.FC = () => {
                                 </label>
                                 <Select
                                     id="login-account-selector"
+                                    aria-labelledby="login-account-selector-label"
                                     value={selectedSignerId}
                                     onChange={(value: string) =>
                                         setSelectedSignerId(value)

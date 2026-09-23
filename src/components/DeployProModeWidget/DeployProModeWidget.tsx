@@ -299,6 +299,13 @@ const DeploySettings = styled.div`
     display: flex;
     gap: 16px;
     align-items: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        #ide-deploy-button, #ide-explore-button {
+            height: ${({ theme }) => theme.sizes.control.medium};
+            min-height: ${({ theme }) => theme.sizes.control.medium};
+        }
+    }
 `;
 
 const ContextMenu = styled.div<{ $x: number; $y: number }>`
@@ -883,7 +890,7 @@ const DeployProModeActions: React.FC = () => {
     );
 
     return (
-        <ToolbarActions>
+        <ToolbarActions style={isTablet ? { flexDirection: "column", gap: 16 } : undefined}>
             <Button
                 id="ide-import-workspace-button"
                 style={defaultButtonStyle}

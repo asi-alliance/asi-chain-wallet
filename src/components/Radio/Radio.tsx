@@ -1,7 +1,7 @@
 import React, { ChangeEvent, ReactNode, useId } from "react";
 import styled from "styled-components";
 
-export interface CheckboxProps
+export interface RadioProps
     extends Omit<
         React.InputHTMLAttributes<HTMLInputElement>,
         "checked" | "onChange" | "type"
@@ -11,7 +11,7 @@ export interface CheckboxProps
     label?: ReactNode;
 }
 
-const CheckboxWrapper = styled.label<{ $disabled: boolean }>`
+const RadioWrapper = styled.label<{ $disabled: boolean }>`
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -20,39 +20,7 @@ const CheckboxWrapper = styled.label<{ $disabled: boolean }>`
     opacity: ${({ $disabled }) => ($disabled ? 0.5 : 1)};
 `;
 
-const CheckboxBox = styled.span`
-    position: relative;
-    width: ${({ theme }) => theme.sizes.checkbox};
-    height: ${({ theme }) => theme.sizes.checkbox};
-    flex-shrink: 0;
-    border: ${({ theme }) => theme.control.borderWidth} solid
-        ${({ theme }) => theme.control.fieldBorder};
-    border-radius: ${({ theme }) => theme.radii.xs};
-    background: ${({ theme }) => theme.control.fieldBackground};
-    transition:
-        border-color ${({ theme }) => theme.motion.fast}
-            ${({ theme }) => theme.motion.easing},
-        background-color ${({ theme }) => theme.motion.fast}
-            ${({ theme }) => theme.motion.easing},
-        box-shadow ${({ theme }) => theme.motion.fast}
-            ${({ theme }) => theme.motion.easing};
-
-    &::after {
-        content: "";
-        position: absolute;
-        top: 2px;
-        left: 5px;
-        width: 4px;
-        height: 8px;
-        border: solid ${({ theme }) => theme.text.inverse};
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg) scale(0);
-        transition: transform ${({ theme }) => theme.motion.fast}
-            ${({ theme }) => theme.motion.easing};
-    }
-`;
-
-const CheckboxInput = styled.input`
+const RadioInput = styled.input`
     position: absolute;
     width: 1px;
     height: 1px;
@@ -62,27 +30,53 @@ const CheckboxInput = styled.input`
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+`;
 
-    &:checked + ${CheckboxBox} {
-        border-color: ${({ theme }) => theme.primary};
+const RadioControl = styled.span`
+    position: relative;
+    width: ${({ theme }) => theme.sizes.checkbox};
+    height: ${({ theme }) => theme.sizes.checkbox};
+    flex-shrink: 0;
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme }) => theme.control.radioBorder};
+    border-radius: 50%;
+    background: ${({ theme }) => theme.control.fieldBackground};
+    transition:
+        border-color ${({ theme }) => theme.motion.fast}
+            ${({ theme }) => theme.motion.easing},
+        box-shadow ${({ theme }) => theme.motion.fast}
+            ${({ theme }) => theme.motion.easing};
+
+    &::after {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
         background: ${({ theme }) => theme.primary};
+        transform: scale(0);
+        transition: transform ${({ theme }) => theme.motion.fast}
+            ${({ theme }) => theme.motion.easing};
     }
 
-    &:checked + ${CheckboxBox}::after {
-        transform: rotate(45deg) scale(1);
+    ${RadioInput}:checked + & {
+        border-color: ${({ theme }) => theme.primary};
     }
 
-    &:focus-visible + ${CheckboxBox} {
+    ${RadioInput}:checked + &::after {
+        transform: scale(1);
+    }
+
+    ${RadioWrapper}:hover ${RadioInput}:not(:disabled) + & {
+        border-color: ${({ theme }) => theme.primary};
+    }
+
+    ${RadioInput}:focus-visible + & {
         border-color: ${({ theme }) => theme.primary};
         box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
-
-    ${CheckboxWrapper}:hover &:not(:disabled) + ${CheckboxBox} {
-        border-color: ${({ theme }) => theme.primary};
-    }
 `;
 
-const CheckboxLabel = styled.span`
+const RadioLabel = styled.span`
     color: ${({ theme }) => theme.text.primary};
     font-family: ${({ theme }) => theme.typography.controlFontFamily};
     font-size: ${({ theme }) => theme.typography.size.sm};
@@ -90,34 +84,34 @@ const CheckboxLabel = styled.span`
     line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
-export const Checkbox: React.FC<CheckboxProps> = ({
-    id,
+export const Radio: React.FC<RadioProps> = ({
     checked,
     onChange,
     disabled = false,
     label,
+    id,
     className,
     ...props
 }) => {
     const generatedId = useId();
-    const controlId = id ?? `checkbox-${generatedId}`;
+    const controlId = id ?? `radio-${generatedId}`;
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
         onChange(event.target.checked);
     };
 
     return (
-        <CheckboxWrapper className={className} $disabled={disabled}>
-            <CheckboxInput
+        <RadioWrapper className={className} $disabled={disabled}>
+            <RadioInput
                 {...props}
                 id={controlId}
-                type="checkbox"
+                type="radio"
                 checked={checked}
                 disabled={disabled}
                 onChange={handleChange}
             />
-            <CheckboxBox aria-hidden="true" />
-            {label && <CheckboxLabel>{label}</CheckboxLabel>}
-        </CheckboxWrapper>
+            <RadioControl aria-hidden="true" />
+            {label && <RadioLabel>{label}</RadioLabel>}
+        </RadioWrapper>
     );
 };

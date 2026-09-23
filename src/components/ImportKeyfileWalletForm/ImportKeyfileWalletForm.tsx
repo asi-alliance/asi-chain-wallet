@@ -6,7 +6,13 @@ import {
     KeyfileImportAccountStatus,
     WalletTypes,
 } from "@asichain/asi-wallet-sdk";
-import { Button, Checkbox, FileSelector, PasswordInput } from "components";
+import {
+    Button,
+    Checkbox,
+    FileSelector,
+    FormActions as ActionButtons,
+    PasswordInput,
+} from "components";
 import { useScreen } from "hooks/";
 import { useAppDispatch } from "store/hooks";
 import { SdkWalletService } from "sdk";
@@ -85,26 +91,11 @@ const ErrorMessage = styled.div`
     font-size: 14px;
 `;
 
-const ActionButtons = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 24px;
-
-    @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
-    }
-`;
-
 const AdaptiveButton = styled(Button)`
     min-width: 242px;
 
     @media (max-width: 768px) {
         min-width: auto;
-        margin-bottom: 16px;
     }
 `;
 

@@ -1,66 +1,75 @@
 import { ExpandIcon } from "components/Icons";
-import { FC, useState, CSSProperties, ReactNode } from "react";
+import { CSSProperties, FC, ReactNode, useId, useState } from "react";
 import styled from "styled-components";
 
-const PanelWrapper = styled.div<{ $disabled?: boolean }>`
+const PanelWrapper = styled.div<{ $disabled: boolean }>`
     position: relative;
     min-width: 150px;
-
-    ${({ $disabled, theme }) =>
-        $disabled &&
-        `
-        opacity: 0.4;
-        cursor: not-allowed;
-        background: ${theme.inputBg};
-    `}
+    opacity: ${({ $disabled }) => ($disabled ? 0.4 : 1)};
 `;
 
-const PanelButton = styled.div<{
-    $disabled?: boolean;
-    $hasAdditionalLabel?: boolean;
-    $isOpen?: boolean;
+const PanelButton = styled.button<{
+    $hasAdditionalLabel: boolean;
+    $isOpen: boolean;
 }>`
-    padding: 10px 20px;
-    height: 44px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-bottom: none;
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    font-size: 16px;
-    min-width: 150px;
-    cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    border-radius: ${({ $isOpen }) => ($isOpen ? "6px 6px 0 0" : "6px")};
-
-    ${({ $disabled, theme }) =>
-        $disabled &&
-        `
-         opacity: 0.4;
-        cursor: not-allowed;
-        background: ${theme.inputBg};
-
-    `}
+    justify-content: space-between;
+    width: 100%;
+    min-width: 150px;
+    height: ${({ theme }) => theme.sizes.control.field};
+    padding: ${({ theme }) =>
+        `${theme.spacing.md} ${theme.spacing["2xl"]}`};
+    gap: ${({ theme }) => theme.spacing.md};
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme }) => theme.control.fieldBorder};
+    border-bottom-color: ${({ $isOpen, theme }) =>
+        $isOpen ? "transparent" : theme.control.fieldBorder};
+    border-radius: ${({ $isOpen, theme }) =>
+        $isOpen
+            ? `${theme.radii.md} ${theme.radii.md} 0 0`
+            : theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
+    color: ${({ theme }) => theme.text.primary};
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+    cursor: pointer;
 
     &:hover:not(:disabled) {
-        background: ${({ theme }) => `${theme.text.primary}08`};
+        border-color: ${({ theme }) => theme.primary};
+        border-bottom-color: ${({ $isOpen, theme }) =>
+            $isOpen ? "transparent" : theme.primary};
+        background: ${({ theme }) => theme.hoverSurface};
     }
 
-    @media (max-width: 768px) {
-        height: ${({ $hasAdditionalLabel }) =>
-            $hasAdditionalLabel ? "auto" : "44px"};
+    &:focus-visible {
+        outline: none;
+        border-color: ${({ theme }) => theme.primary};
+        border-bottom-color: ${({ $isOpen, theme }) =>
+            $isOpen ? "transparent" : theme.primary};
+        box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 1;
+    }
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        height: ${({ $hasAdditionalLabel, theme }) =>
+            $hasAdditionalLabel ? "auto" : theme.sizes.control.field};
     }
 `;
 
-const PanelHeader = styled.div`
-    flex: 1;
+const PanelHeader = styled.span`
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 13px;
+    justify-content: space-between;
+    flex: 1;
+    min-width: 0;
+    gap: ${({ theme }) => theme.spacing.lg};
 `;
 
 const PanelTitle = styled.span`
@@ -71,28 +80,33 @@ const PanelTitle = styled.span`
 `;
 
 const PanelAdditionalLabel = styled.span`
-    @media (max-width: 768px) {
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         display: block;
     }
 `;
 
-const ArrowIconWrapper = styled.div<{ $isOpen: boolean }>`
+const ArrowIconWrapper = styled.span<{ $isOpen: boolean }>`
     display: flex;
     align-items: center;
-    transition: transform 0.2s ease;
+    flex-shrink: 0;
     transform: ${({ $isOpen }) =>
         $isOpen ? "rotate(180deg)" : "rotate(0deg)"};
+    transition: transform ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
 `;
 
-const PanelContent = styled.div<{ $isOpen: boolean }>`
-    border: 1px solid ${({ theme }) => theme.border};
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    background: ${({ theme }) => theme.surface};
-    padding: ${({ $isOpen }) => ($isOpen ? "16px" : "0")};
-    max-height: ${({ $isOpen }) => ($isOpen ? "auto" : "0")};
+const PanelContent = styled.div`
+    padding: ${({ theme }) => theme.spacing.xl};
     overflow: hidden;
-    transition: all 0.2s ease;
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme }) => theme.control.fieldBorder};
+    border-top: 0;
+    border-radius: 0 0 ${({ theme }) => theme.radii.md}
+        ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
 `;
 
 export interface IPanelOption {
@@ -126,18 +140,15 @@ export const Panel: FC<IPanelProps> = ({
     onToggle,
 }) => {
     const [isOpen, setIsOpen] = useState(defaultExpanded);
-
+    const generatedId = useId().replace(/:/g, "");
+    const contentId = `panel-${generatedId}-content`;
     const isControlled = controlledExpanded !== undefined;
     const isExpanded = isControlled ? controlledExpanded : isOpen;
 
-    const togglePanel = () => {
-        if (!disabled) {
-            const newExpandedState = !isExpanded;
-            if (!isControlled) {
-                setIsOpen(newExpandedState);
-            }
-            onToggle?.(newExpandedState);
-        }
+    const togglePanel = (): void => {
+        const nextExpanded = !isExpanded;
+        if (!isControlled) setIsOpen(nextExpanded);
+        onToggle?.(nextExpanded);
     };
 
     return (
@@ -147,57 +158,47 @@ export const Panel: FC<IPanelProps> = ({
             style={style}
         >
             <PanelButton
+                type="button"
+                disabled={disabled}
                 $hasAdditionalLabel={!!additionalLabel}
                 $isOpen={isExpanded}
+                aria-expanded={isExpanded}
+                aria-controls={contentId}
                 onClick={togglePanel}
-                $disabled={disabled}
             >
                 <PanelHeader>
-                    <PanelTitle className="text-ellipsis">{header}</PanelTitle>
+                    <PanelTitle>{header}</PanelTitle>
                     {additionalLabel && (
-                        <PanelAdditionalLabel className="text-4 text-light">
+                        <PanelAdditionalLabel>
                             {additionalLabel}
                         </PanelAdditionalLabel>
                     )}
                 </PanelHeader>
-                <ArrowIconWrapper $isOpen={isExpanded}>
+                <ArrowIconWrapper $isOpen={isExpanded} aria-hidden="true">
                     <ExpandIcon size={16} />
                 </ArrowIconWrapper>
             </PanelButton>
 
-            <PanelContent $isOpen={isExpanded}>{children}</PanelContent>
+            <PanelContent id={contentId} hidden={!isExpanded}>
+                {children}
+            </PanelContent>
         </PanelWrapper>
     );
 };
 
-export const AdaptivePanel: FC<IPanelProps> = (props) => {
-    return (
-        <AdaptivePanelWrapper className="adaptive-panel-wrapper">
-            <Panel {...props} />
-        </AdaptivePanelWrapper>
-    );
-};
+export const AdaptivePanel: FC<IPanelProps> = (props) => (
+    <AdaptivePanelWrapper className="adaptive-panel-wrapper">
+        <Panel {...props} />
+    </AdaptivePanelWrapper>
+);
 
 const AdaptivePanelWrapper = styled.div`
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         width: 100%;
 
         .panel-wrapper {
             width: 100%;
-            min-width: auto;
-        }
-
-        .panel-wrapper > div:first-child {
-            font-size: 12px !important;
-        }
-
-        .panel-wrapper > div:first-child > div:first-child {
-            font-size: 12px !important;
-        }
-
-        .panel-wrapper > div:first-child > div svg {
-            width: 14px !important;
-            height: 14px !important;
+            min-width: 0;
         }
     }
 `;

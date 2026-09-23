@@ -1,11 +1,23 @@
 import CopyButton, { IIconProps } from "components/CopyButton";
-import React, { useRef, useEffect, CSSProperties, RefObject, FC } from "react";
-import styled from "styled-components";
+import React, {
+    CSSProperties,
+    FC,
+    RefObject,
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from "react";
+import styled, { css } from "styled-components";
 import { DefaultTheme } from "styled-components/dist/types";
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+    extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
+    helperText?: React.ReactNode;
+    status?: "default" | "success";
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelStyle?: CSSProperties;
@@ -16,107 +28,139 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     copyable?: boolean;
     CustomCopyIcon?: FC<IIconProps>;
     withoutHoverUI?: boolean;
+    startAdornment?: React.ReactNode;
+    endAdornment?: React.ReactNode;
 }
 
 export const InputWrapper = styled.div<{ $fullWidth?: boolean }>`
     display: ${({ $fullWidth }) => ($fullWidth ? "block" : "inline-block")};
     width: ${({ $fullWidth }) => ($fullWidth ? "100%" : "auto")};
-    margin-bottom: 16px;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 export const Label = styled.label<{
     $themeColorSelector?: (theme: DefaultTheme) => string;
 }>`
     display: block;
-    font-size: 1rem;
-    line-height: 22px;
-    font-weight: 600;
+    margin-bottom: ${({ theme }) => theme.control.labelGap};
     color: ${({ theme, $themeColorSelector }) =>
-        !$themeColorSelector
-            ? theme.text.secondary
-            : $themeColorSelector(theme)};
-    margin-bottom: 8px;
-    letter-spacing: -0.01em;
-    transition: color 0.2s ease;
+        $themeColorSelector?.(theme) ?? theme.text.primary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.regular};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+    letter-spacing: 0;
+    transition: color ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
 
     ${InputWrapper}:focus-within & {
         color: ${({ theme }) => theme.text.primary};
     }
 `;
 
+export const RequiredMark = styled.span`
+    color: ${({ theme }) => theme.dangerText};
+`;
+
+const fieldStateStyles = css<{
+    $hasError?: boolean;
+    $status?: "default" | "success";
+    $withoutHoverUI?: boolean;
+}>`
+    ${({ $withoutHoverUI, $hasError, $status, theme }) => css`
+        --control-field-hover-border: ${$hasError
+            ? theme.danger
+            : $status === "success"
+              ? theme.success
+              : $withoutHoverUI
+                ? theme.control.fieldBorder
+                : theme.control.fieldHoverBorder};
+
+        &:hover:not(:disabled):not(:focus) {
+            border-color: var(--control-field-hover-border);
+        }
+
+        /* Focus must stay on even when hover UI is disabled (e.g. EditableLabel). */
+        &:focus {
+            border-color: ${$hasError
+                ? theme.danger
+                : $status === "success"
+                  ? theme.success
+                  : theme.primary};
+        }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px
+                ${$hasError ? theme.dangerFocusRing : theme.focusRing};
+        }
+    `}
+`;
+
 export const StyledInput = styled.input<{
     $hasError?: boolean;
+    $status?: "default" | "success";
     $copyable?: boolean;
+    $hasStartAdornment?: boolean;
     $withoutHoverUI?: boolean;
 }>`
     width: 100%;
-    padding: ${({ $copyable }) =>
-        $copyable ? "12px 40px 12px 20px" : "12px 20px"};
-    font-size: 1rem;
-    font-weight: 400;
-    // line-height: 24px;
-    min-height: 44px; /* Touch-friendly minimum */
-    height: 44px;
-    background: "transparent";
-    border: 2px solid
-        ${({ theme, $hasError }) =>
-            $hasError ? theme.danger : theme.colors.border};
-    border-radius: 8px;
+    height: ${({ theme }) => theme.sizes.control.field};
+    min-height: ${({ theme }) => theme.sizes.control.field};
+    padding: ${({ $copyable, $hasStartAdornment, theme }) =>
+        `${theme.control.fieldPadding} ${$copyable ? "var(--input-action-padding, 44px)" : theme.control.fieldPadding} ${theme.control.fieldPadding} ${$hasStartAdornment ? "44px" : theme.control.fieldPadding}`};
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme, $hasError, $status }) =>
+            $hasError
+                ? theme.danger
+                : $status === "success"
+                  ? theme.success
+                  : theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
     color: ${({ theme }) => theme.text.primary};
-    transition: all 0.2s ease;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.regular};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
     outline: none;
+    transition:
+        border-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        box-shadow ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        background-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
+    color-scheme: ${({ theme }) => theme.mode};
 
-    /* ASI Wallet elevation */
-    // box-shadow: ${({ theme }) => theme.shadow};
-
-    ${({ $withoutHoverUI, theme, $hasError }) =>
-        !$withoutHoverUI &&
-        `
-            &:hover:not(:disabled) {
-                border-color: ${$hasError ? theme.danger : `${theme.primary}`};
-            }
-
-            &:focus {
-                border-color: ${$hasError ? theme.danger : theme.primary};
-                outline: 2px solid
-                    ${$hasError ? theme.danger : theme.primary};
-                outline-offset: 2px;
-            }
-        `}
+    ${fieldStateStyles}
 
     &::placeholder {
-        color: ${({ theme }) => theme.text.primary};
-        opacity: 0.7;
+        color: ${({ theme }) => theme.text.tertiary};
+        opacity: 1;
     }
 
     &:disabled {
-        opacity: 0.4;
         cursor: not-allowed;
-        background: ${({ theme }) => theme.inputBg};
+        border-color: ${({ theme }) => theme.control.disabledBorder};
+        background: ${({ theme }) => theme.control.disabledBackground};
     }
-
-    color-scheme: ${({ theme }) => theme.mode};
 `;
 
 export const ErrorMessage = styled.span`
     display: block;
-    font-size: 13px;
-    line-height: 20px;
-    font-weight: 500;
-    color: ${({ theme }) => theme.danger};
-    margin-top: 6px;
-    animation: slideIn 0.2s ease;
+    margin-top: ${({ theme }) => theme.control.labelGap};
+    color: ${({ theme }) => theme.dangerText};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
+`;
 
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-2px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+export const HelperMessage = styled.span`
+    display: block;
+    margin-top: ${({ theme }) => theme.control.labelGap};
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    font-weight: ${({ theme }) => theme.typography.weight.regular};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
 `;
 
 export const InputContainer = styled.div`
@@ -124,72 +168,101 @@ export const InputContainer = styled.div`
     width: 100%;
 `;
 
-export const ActionButtonWrapper = styled.div`
+export const ActionButtonWrapper = styled.div<{ $disabled?: boolean }>`
     position: absolute;
-    right: 20px;
     top: 50%;
-    transform: translateY(-50%);
+    right: ${({ theme }) => theme.spacing.lg};
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    transform: translateY(-50%);
+    opacity: ${({ $disabled }) => ($disabled ? 0.55 : 1)};
+    pointer-events: ${({ $disabled }) => ($disabled ? "none" : "auto")};
+
+    ${({ $disabled }) =>
+        $disabled &&
+        css`
+            button:disabled {
+                opacity: 1;
+            }
+        `}
 `;
 
-const StyledTextArea = styled.textarea<{ $hasError?: boolean }>`
+export const StartAdornmentWrapper = styled.div<{ $disabled?: boolean }>`
+    position: absolute;
+    top: 50%;
+    left: ${({ theme }) => theme.spacing.lg};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    opacity: ${({ $disabled }) => ($disabled ? 0.55 : 1)};
+`;
+
+const StyledTextArea = styled.textarea<{
+    $hasError?: boolean;
+    $status?: "default" | "success";
+    $withoutHoverUI?: boolean;
+}>`
     width: 100%;
-    padding: 11.5px 22px;
-    font-size: 16px;
-    font-weight: 400;
-    background: ${({ theme }) => theme.inputBg};
-    border: 2px solid
-        ${({ theme, $hasError }) => ($hasError ? theme.danger : "transparent")};
-    border-radius: 8px;
-    color: ${({ theme }) => theme.text.primary};
-    transition: all 0.2s ease;
-    outline: none;
-    resize: vertical;
     min-height: 120px;
+    padding: ${({ theme }) => theme.spacing.lg};
+    resize: vertical;
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme, $hasError, $status }) =>
+            $hasError
+                ? theme.danger
+                : $status === "success"
+                  ? theme.success
+                  : theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
+    color: ${({ theme }) => theme.text.primary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.regular};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+    outline: none;
+    transition:
+        border-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        box-shadow ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
 
-    /* ASI Wallet elevation */
-    box-shadow: ${({ theme }) => theme.shadow};
-
-    &:hover:not(:disabled) {
-        border-color: ${
-            ({ theme, $hasError }) =>
-                $hasError
-                    ? theme.danger
-                    : `${theme.primary}33` /* 20% opacity */
-        };
-    }
-
-    &:focus {
-        border-color: ${({ theme, $hasError }) =>
-            $hasError ? theme.danger : theme.secondary};
-        outline: 2px solid
-            ${({ theme, $hasError }) =>
-                $hasError ? theme.danger : theme.secondary};
-        outline-offset: 2px;
-    }
+    ${fieldStateStyles}
 
     &::placeholder {
-        color: ${({ theme }) => theme.text.secondary};
-        opacity: 0.7;
+        color: ${({ theme }) => theme.text.tertiary};
+        opacity: 1;
     }
 
     &:disabled {
-        opacity: 0.4;
         cursor: not-allowed;
-        background: ${({ theme }) => theme.inputBg};
+        border-color: ${({ theme }) => theme.control.disabledBorder};
+        background: ${({ theme }) => theme.control.disabledBackground};
     }
 `;
+
+const useAutofocus = <T extends HTMLElement>(
+    autoFocus: boolean | undefined,
+    reference: RefObject<T>,
+): void => {
+    useEffect(() => {
+        if (!autoFocus) return;
+
+        const timer = window.setTimeout(() => reference.current?.focus(), 100);
+        return () => window.clearTimeout(timer);
+    }, [autoFocus, reference]);
+};
 
 export const Input: React.FC<InputProps> = ({
     label,
     error,
+    helperText,
+    status = "default",
     fullWidth = true,
     "data-testid": dataTestId,
     "data-cy": dataCy,
-    onChange,
-    onInput,
     autoFocus,
     wrapperStyle,
     labelStyle,
@@ -199,103 +272,133 @@ export const Input: React.FC<InputProps> = ({
     value,
     CustomCopyIcon,
     withoutHoverUI = false,
+    startAdornment,
+    endAdornment,
+    id,
+    "aria-describedby": ariaDescribedBy,
     ...props
 }) => {
     const defaultRef = useRef<HTMLInputElement>(null);
     const currentRef = inputRef || defaultRef;
+    const actionRef = useRef<HTMLDivElement>(null);
+    const [actionPadding, setActionPadding] = useState(44);
 
-    useEffect(() => {
-        if (autoFocus && currentRef.current) {
-            const timer = setTimeout(() => {
-                currentRef.current?.focus();
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [autoFocus, currentRef]);
+    useLayoutEffect(() => {
+        const action = actionRef.current;
+        if (!action) return;
+        action.inert = Boolean(props.disabled);
+        const updatePadding = () =>
+            setActionPadding(Math.max(44, Math.ceil(action.getBoundingClientRect().width) + 24));
+        updatePadding();
+        const observer = typeof ResizeObserver !== "undefined"
+            ? new ResizeObserver(updatePadding)
+            : undefined;
+        observer?.observe(action);
+        window.addEventListener("resize", updatePadding);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener("resize", updatePadding);
+        };
+    }, [copyable, endAdornment, props.disabled]);
+    const generatedId = useId();
+    const controlId = id ?? `input-${generatedId}`;
+    const errorId = `${controlId}-error`;
+    const helperId = `${controlId}-helper`;
+    const describedBy = [
+        ariaDescribedBy,
+        error ? errorId : undefined,
+        !error && helperText ? helperId : undefined,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (onChange) {
-            onChange(e);
-        }
-    };
+    useAutofocus(autoFocus, currentRef);
 
-    const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-        if (onInput) {
-            onInput(e);
-        }
-        if (onChange) {
-            const changeEvent = {
-                ...e,
-                target: e.currentTarget,
-                currentTarget: e.currentTarget,
-            } as React.ChangeEvent<HTMLInputElement>;
-            onChange(changeEvent);
-        }
-    };
-
-    const getValueToCopy = () => {
+    const getValueToCopy = (): string => {
         if (typeof value === "string" || typeof value === "number") {
             return String(value);
         }
-
-        if (currentRef.current) {
-            return currentRef.current.value;
-        }
-        return "";
+        return currentRef.current?.value ?? "";
     };
 
     return (
         <InputWrapper $fullWidth={fullWidth} style={wrapperStyle}>
-            <h4>
-                {label && (
-                    <Label
-                        $themeColorSelector={labelColorSelector}
-                        style={labelStyle}
-                    >
-                        {label}
-                    </Label>
+            {label && (
+                <Label
+                    htmlFor={controlId}
+                    $themeColorSelector={labelColorSelector}
+                    style={labelStyle}
+                >
+                    {label}
+                    {props.required && (
+                        <RequiredMark aria-hidden="true"> *</RequiredMark>
+                    )}
+                </Label>
+            )}
+            <InputContainer style={{ "--input-action-padding": `${actionPadding}px` } as CSSProperties}>
+                {startAdornment && (
+                    <StartAdornmentWrapper $disabled={props.disabled}>
+                        {startAdornment}
+                    </StartAdornmentWrapper>
                 )}
-            </h4>
-            <InputContainer>
                 <StyledInput
+                    {...props}
+                    id={controlId}
                     ref={currentRef}
-                    $hasError={!!error}
+                    value={value}
                     data-testid={dataTestId}
                     data-cy={dataCy}
-                    onChange={handleChange}
-                    onInput={handleInput}
-                    value={value}
-                    $copyable={copyable}
+                    aria-invalid={error ? true : props["aria-invalid"]}
+                    aria-describedby={describedBy || undefined}
+                    $hasError={!!error}
+                    $status={status}
+                    $copyable={copyable || !!endAdornment}
+                    $hasStartAdornment={!!startAdornment}
                     $withoutHoverUI={withoutHoverUI}
-                    {...props}
                 />
-                {copyable && (
-                    <ActionButtonWrapper>
-                        <CopyButton
-                            dataToCopy={getValueToCopy()}
-                            size={16}
-                            CustomCopyIcon={CustomCopyIcon}
-                            buttonStyle={{
-                                position: "static",
-                                top: "auto",
-                                right: "auto",
-                                transform: "none",
-                                display: "block",
-                                height: 16,
-                            }}
-                            disabled={!value}
-                        />
+                {(copyable || endAdornment) && (
+                    <ActionButtonWrapper
+                        ref={actionRef}
+                        $disabled={props.disabled}
+                    >
+                        {endAdornment}
+                        {copyable && (
+                            <CopyButton
+                                dataToCopy={getValueToCopy()}
+                                size={16}
+                                CustomCopyIcon={CustomCopyIcon}
+                                buttonStyle={{
+                                    position: "static",
+                                    top: "auto",
+                                    right: "auto",
+                                    transform: "none",
+                                    display: "block",
+                                    height: 16,
+                                }}
+                                disabled={props.disabled || !value}
+                            />
+                        )}
                     </ActionButtonWrapper>
                 )}
             </InputContainer>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {error && (
+                <ErrorMessage id={errorId} role="alert">
+                    {error}
+                </ErrorMessage>
+            )}
+            {!error && helperText && (
+                <HelperMessage id={helperId}>{helperText}</HelperMessage>
+            )}
         </InputWrapper>
     );
 };
 
-export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextAreaProps
+    extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     label?: string;
     error?: string;
+    helperText?: React.ReactNode;
+    status?: "default" | "success";
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelStyle?: CSSProperties;
@@ -303,11 +406,14 @@ export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextArea
     "data-testid"?: string;
     "data-cy"?: string;
     textareaRef?: RefObject<HTMLTextAreaElement>;
+    withoutHoverUI?: boolean;
 }
 
 export const TextArea: React.FC<TextAreaProps> = ({
     label,
     error,
+    helperText,
+    status = "default",
     fullWidth = true,
     wrapperStyle,
     labelStyle,
@@ -315,63 +421,62 @@ export const TextArea: React.FC<TextAreaProps> = ({
     "data-testid": dataTestId,
     "data-cy": dataCy,
     textareaRef,
-    onChange,
-    onInput,
     autoFocus,
+    withoutHoverUI = false,
+    id,
+    "aria-describedby": ariaDescribedBy,
     ...props
 }) => {
     const defaultRef = useRef<HTMLTextAreaElement>(null);
     const currentRef = textareaRef || defaultRef;
+    const generatedId = useId();
+    const controlId = id ?? `textarea-${generatedId}`;
+    const errorId = `${controlId}-error`;
+    const helperId = `${controlId}-helper`;
+    const describedBy = [
+        ariaDescribedBy,
+        error ? errorId : undefined,
+        !error && helperText ? helperId : undefined,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
-    useEffect(() => {
-        if (autoFocus && currentRef.current) {
-            const timer = setTimeout(() => {
-                currentRef.current?.focus();
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [autoFocus, currentRef]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        if (onChange) {
-            onChange(e);
-        }
-    };
-
-    const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-        if (onInput) {
-            onInput(e);
-        }
-        if (onChange) {
-            const changeEvent = {
-                ...e,
-                target: e.currentTarget,
-                currentTarget: e.currentTarget,
-            } as React.ChangeEvent<HTMLTextAreaElement>;
-            onChange(changeEvent);
-        }
-    };
+    useAutofocus(autoFocus, currentRef);
 
     return (
         <InputWrapper $fullWidth={fullWidth} style={wrapperStyle}>
             {label && (
                 <Label
+                    htmlFor={controlId}
                     $themeColorSelector={labelColorSelector}
                     style={labelStyle}
                 >
                     {label}
+                    {props.required && (
+                        <RequiredMark aria-hidden="true"> *</RequiredMark>
+                    )}
                 </Label>
             )}
             <StyledTextArea
+                {...props}
+                id={controlId}
                 ref={currentRef}
-                $hasError={!!error}
                 data-testid={dataTestId}
                 data-cy={dataCy}
-                onChange={handleChange}
-                onInput={handleInput}
-                {...props}
+                aria-invalid={error ? true : props["aria-invalid"]}
+                aria-describedby={describedBy || undefined}
+                $hasError={!!error}
+                $status={status}
+                $withoutHoverUI={withoutHoverUI}
             />
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {error && (
+                <ErrorMessage id={errorId} role="alert">
+                    {error}
+                </ErrorMessage>
+            )}
+            {!error && helperText && (
+                <HelperMessage id={helperId}>{helperText}</HelperMessage>
+            )}
         </InputWrapper>
     );
 };

@@ -271,11 +271,14 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
             </ConfigSection>
 
             <ConfigSection>
-                <ConfigTitle>Node API Profile</ConfigTitle>
+                <ConfigTitle id={`${idPrefix}-node-api-label`}>
+                    Node API Profile
+                </ConfigTitle>
 
                 <NodeApiSelectWrapper>
                     <AdaptiveSelect
                         id={`${idPrefix}-node-api-select`}
+                        aria-labelledby={`${idPrefix}-node-api-label`}
                         value={config.nodeApiProfile}
                         onChange={updateNodeApiProfile}
                         disabled={disabled}

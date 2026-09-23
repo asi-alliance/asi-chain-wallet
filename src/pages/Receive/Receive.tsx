@@ -214,11 +214,12 @@ export const Receive: React.FC = () => {
                     <SelectToolbar>
                         <AccountSelector wrapperStyle={accountSelectorStyle} />
                         <FilterGroup style={{ flex: 1 }}>
-                            <FilterLabel>
+                            <FilterLabel id="address-format-selector-label">
                                 <h4 className="light">Address Format</h4>
                             </FilterLabel>
                             <Select
                                 id="address-format-account-select"
+                                aria-labelledby="address-format-selector-label"
                                 value={addressFormat}
                                 onChange={(format) => {
                                     setAddressFormat(format as AddressFormats);

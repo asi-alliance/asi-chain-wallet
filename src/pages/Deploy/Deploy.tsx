@@ -136,12 +136,13 @@ export const Deploy: React.FC = () => {
                         <DeployHeader>
                             <FormRow>
                                 <FormGroup>
-                                    <Label>
+                                    <Label id="deploy-mode-selector-label">
                                         <h4 style={{ marginBottom: 8 }}>
                                             Mode
                                         </h4>
                                     </Label>
                                     <Select
+                                        aria-labelledby="deploy-mode-selector-label"
                                         value={selectedMode}
                                         onChange={(mode) =>
                                             setSelectedMode(

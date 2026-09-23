@@ -9,6 +9,8 @@ import { CloseIcon, DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { VisuallyHidden } from "components/Foundation";
+import { NetworkSelector } from "components/NetworkSelector";
 import { useDeleteActiveWallet } from "hooks";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
@@ -18,16 +20,17 @@ const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     width: 80%;
     max-width: 320px;
     height: 100vh;
+    visibility: ${({ $isOpen }) => ($isOpen ? "visible" : "hidden")};
     background: ${({ theme }) => theme.card};
     border-left: 1px solid ${({ theme }) => theme.border};
     transition: right 0.3s ease;
-    z-index: 1000;
+    z-index: ${({ theme }) => theme.zIndices.drawer};
     overflow-y: auto;
 
     display: flex;
     flex-direction: column;
 
-    @media (min-width: 1250px) {
+    @media (min-width: 1251px) {
         display: none;
     }
 `;
@@ -38,11 +41,11 @@ const MobileNavOverlayStyled = styled.div<{ $isOpen: boolean }>`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: ${({ theme }) => theme.overlay};
     display: ${({ $isOpen }) => ($isOpen ? "block" : "none")};
-    z-index: 999;
+    z-index: ${({ theme }) => theme.zIndices.drawer - 1};
 
-    @media (min-width: 1024px) {
+    @media (min-width: 1251px) {
         display: none;
     }
 `;
@@ -57,6 +60,11 @@ const MobileNavHeader = styled.div`
 
 const MobileNavContent = styled.div`
     padding: 16px;
+`;
+
+const MobileNetworkSection = styled.div`
+    width: 100%;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 const MobileNavSection = styled.div`
@@ -135,7 +143,7 @@ const IconButton = styled.button`
 
     &:hover {
         background: ${({ theme }) => theme.primary};
-        color: white;
+        color: ${({ theme }) => theme.text.inverse};
     }
 `;
 
@@ -199,15 +207,30 @@ export const MobileNavDrawerComponent: React.FC<
             <MobileNavDrawerStyled
                 className="mobile-nav-drawer-styled"
                 $isOpen={isOpen}
+                aria-hidden={!isOpen}
             >
                 <MobileNavHeader>
                     <h2 style={{ margin: 0, fontSize: "18px" }}>Menu</h2>
-                    <IconButton onClick={onClose}>
+                    <IconButton
+                        type="button"
+                        aria-label="Close navigation"
+                        onClick={onClose}
+                    >
                         <CloseIcon size={20} />
                     </IconButton>
                 </MobileNavHeader>
 
                 <MobileNavContent>
+                    <MobileNetworkSection>
+                        <VisuallyHidden id="mobile-network-selector-label">
+                            Network
+                        </VisuallyHidden>
+                        <NetworkSelector
+                            id="mobile-network-selector"
+                            aria-labelledby="mobile-network-selector-label"
+                            style={{ width: "100%", minWidth: 0 }}
+                        />
+                    </MobileNetworkSection>
                     <MobileNavSection>
                         {navItems.map((item) => (
                             <MobileNavLink

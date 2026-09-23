@@ -165,7 +165,15 @@ export const DeploymentConfirmationModal: React.FC<
     const estimatedCost = parseInt(phloLimit) * parseInt(phloPrice);
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="600px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="600px"
+            dismissible={!loading}
+            aria-label={
+                isExplore ? "Confirm exploration" : "Confirm deployment"
+            }
+        >
             <Title>
                 {isExplore ? "Confirm Exploration" : "Confirm Deployment"}
             </Title>

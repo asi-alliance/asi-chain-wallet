@@ -3,26 +3,12 @@ import styled from "styled-components";
 import { useScreen, useValidAccountUpdating } from "hooks/";
 import { importPrivateKeyWallet } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
-import { Input, Button } from "components";
+import { Input, Button, FormActions as ActionButtons } from "components";
 import { useAppDispatch } from "store/hooks";
 import { SdkWalletService } from "sdk";
 
 const FormGroup = styled.div`
     margin-bottom: 16px;
-`;
-
-const ActionButtons = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 24px;
-
-    @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
-    }
 `;
 
 const AdaptiveButton = styled(Button)`
@@ -225,9 +211,6 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
                     style={{
                         flexWrap: "nowrap",
                         whiteSpace: "nowrap",
-                        ...(isLaptop && {
-                            marginBottom: "16px",
-                        }),
                     }}
                 >
                     <h3>Import Private Key</h3>

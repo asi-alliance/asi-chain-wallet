@@ -146,7 +146,13 @@ export const TransactionConfirmationModal: React.FC<
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="500px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="500px"
+            dismissible={!loading}
+            aria-label="Confirm transaction"
+        >
             <Title>
                 <h1>Confirm Transaction</h1>
             </Title>

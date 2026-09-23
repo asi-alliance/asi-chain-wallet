@@ -87,7 +87,13 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="400px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="400px"
+            dismissible={!loading}
+            aria-label={title}
+        >
             <Title>{title}</Title>
             <Description>{description}</Description>
 

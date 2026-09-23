@@ -2,7 +2,8 @@ import React from "react";
 import styled, { css } from "styled-components";
 import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps
+    extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?:
         | "primary"
         | "secondary"
@@ -20,8 +21,10 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     secondaryHover?: boolean;
     withFadeHover?: boolean;
     withBorderColorHover?: boolean;
-    title?: string;
 }
+
+const isIconVariant = (variant?: ButtonProps["variant"]): boolean =>
+    variant?.startsWith("icon-button") ?? false;
 
 const ButtonBase = styled.button.withConfig(
     ignorePropsForDOMElement<ButtonProps>([
@@ -35,64 +38,108 @@ const ButtonBase = styled.button.withConfig(
         "withBorderColorHover",
     ]),
 )<ButtonProps>`
+    position: relative;
     display: inline-flex;
-    gap: 0.5rem;
     align-items: center;
     justify-content: center;
-    height: 44px;
-    font-weight: 500;
-    border-radius: 8px; /* ASI Wallet spec: 8px for buttons */
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    border: 2px solid ${({ theme }) => theme.primary};
-    outline: none;
-    text-transform: none;
-    letter-spacing: -0.01em;
+    flex-shrink: 0;
+    gap: ${({ theme }) => theme.spacing.md};
     min-width: 100px;
+    margin: 0;
+    overflow: hidden;
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme }) => theme.primary};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.primary};
+    color: ${({ theme }) => theme.text.inverse};
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+    transition:
+        background-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        border-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        box-shadow ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        transform ${({ theme }) => theme.motion.fast}
+            ${({ theme }) => theme.motion.easing};
 
-    /* ASI Wallet elevation system */
-    // box-shadow: ${({ theme }) => theme.shadow};
-
-    &:hover:not(:disabled) {
-        // box-shadow: ${({ theme }) => theme.shadowLarge};
+    > h1,
+    > h2,
+    > h3,
+    > h4,
+    > h5 {
+        margin: 0;
+        color: inherit;
+        font: inherit;
     }
 
-    &:focus-visible {
-        outline: 2px solid ${({ theme }) => theme.primary};
-        outline-offset: 2px;
+    > svg {
+        flex-shrink: 0;
     }
 
-    &:disabled {
-        cursor: not-allowed;
-        opacity: 0.4;
-    }
+    ${({ size, variant, theme }) => {
+        const iconButton = isIconVariant(variant);
 
-    ${({ size }) => {
-        switch (size) {
-            case "small":
-                return css`
-                    padding: 8px 6px;
-                    font-size: 12px;
-                    line-height: 22px;
-                    min-height: 40px; /* Touch-friendly minimum */
-                `;
-            case "large":
-                return css`
-                    padding: 12px 9px;
-                    font-size: 16px;
-                    line-height: 26px;
-                    min-height: 52px;
-                `;
-            default:
-                return css`
-                    padding: 10px 7px;
-                    font-size: 18px;
-                    line-height: 24px;
-                    min-height: 44px; /* Touch-friendly minimum */
-                `;
+        if (iconButton) {
+            const dimension = theme.sizes.iconButton[size ?? "large"];
+            return css`
+                width: ${dimension};
+                height: ${dimension};
+                min-width: ${dimension};
+                min-height: ${dimension};
+                padding: 0;
+                font-size: ${size === "small"
+                    ? "14px"
+                    : size === "medium"
+                      ? "16px"
+                      : "18px"};
+                line-height: 1;
+            `;
         }
+
+        if (!size) {
+            return css`
+                height: 44px;
+                min-height: 44px;
+                padding: 10px 7px;
+                font-size: 18px;
+                line-height: 24px;
+            `;
+        }
+
+        if (size === "small") {
+            return css`
+                height: ${theme.sizes.control.small};
+                min-height: ${theme.sizes.control.small};
+                padding: ${theme.control.buttonPadding.small};
+                font-size: ${theme.typography.size.sm};
+                line-height: ${theme.control.buttonLineHeight};
+            `;
+        }
+
+        if (size === "medium") {
+            return css`
+                height: ${theme.sizes.control.medium};
+                min-height: ${theme.sizes.control.medium};
+                padding: ${theme.control.buttonPadding.medium};
+                font-size: ${theme.typography.size.md};
+                line-height: ${theme.control.buttonLineHeight};
+            `;
+        }
+
+        return css`
+            height: ${theme.sizes.control.large};
+            min-height: ${theme.sizes.control.large};
+            padding: ${theme.control.buttonPadding.large};
+            font-size: ${theme.typography.size.lg};
+            line-height: ${theme.control.buttonLineHeight};
+        `;
     }}
 
     ${({ fullWidth }) =>
@@ -101,386 +148,207 @@ const ButtonBase = styled.button.withConfig(
             width: 100%;
         `}
 
-  ${({ variant, theme, withFadeHover, withBorderColorHover }) => {
+    ${({ variant, theme }) => {
         switch (variant) {
             case "secondary":
                 return css`
-                    background: transparent;
-                    color: ${theme.primary};
-                    border: 2px solid ${theme.primary};
-                    box-shadow: none;
+                    background: ${theme.surface};
+                    color: ${theme.control.neutralText};
+                    border-color: ${theme.control.neutralBorder};
 
                     &:hover:not(:disabled) {
-                        background: ${theme.primary}1F; /* 12% opacity as per brand guide */
-                        // transform: translateY(-1px);
-                    }
-
-                    &:active:not(:disabled) {
-                        // transform: translateY(0);
-                    }
-
-                    &:disabled {
-                        opacity: 0.3;
+                        color: ${theme.actionText};
+                        border-color: ${theme.primary};
                     }
                 `;
             case "danger":
                 return css`
-                    background: ${theme.danger};
-                    color: white;
-                    border: 0.5px solid ${theme.border};
-                    font-weight: 600;
+                    background: ${theme.surface};
+                    color: ${theme.dangerText};
+                    border-color: ${theme.danger};
 
                     &:hover:not(:disabled) {
-                        background: #e43a3c; /* Darkened as per brand guide */
-                        // transform: translateY(-1px);
-                    }
-
-                    &:active:not(:disabled) {
-                        // transform: translateY(0);
+                        background: ${theme.danger};
+                        color: ${theme.text.inverse};
                     }
                 `;
             case "ghost":
                 return css`
-                    background: transparent;
-                    color: ${theme.primary};
-                    border: 0.5px solid ${theme.border};
-                    box-shadow: none;
-                    padding: 7px;
                     min-width: auto;
-                    min-height: auto;
+                    background: transparent;
+                    color: ${theme.actionText};
+                    border-color: ${theme.border};
 
                     &:hover:not(:disabled) {
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
+                        background: ${theme.hoverSurface};
                     }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
                 `;
             case "full-ghost":
                 return css`
-                    background: transparent;
-                    color: ${theme.primary};
-                    border: none;
-                    box-shadow: none;
-                    padding: 7px;
                     min-width: auto;
-                    min-height: auto;
+                    background: transparent;
+                    color: ${theme.actionText};
+                    border-color: transparent;
 
                     &:hover:not(:disabled) {
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
+                        background: ${theme.primarySubtle};
                     }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
-                `;
-            case "icon-button":
-                return css`
-                    background: transparent;
-                    color: ${theme.primary};
-                    border: 0.5px solid ${theme.border};
-                    box-shadow: none;
-                    padding: 7px;
-                    min-width: auto;
-                    min-height: auto;
-                    height: auto;
-                    aspect-ratio: 1/1;
-
-                    &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.text.secondary};
-                        `}
-
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
-                    }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
                 `;
             case "icon-button-black":
                 return css`
                     background: transparent;
-                    color: ${theme.colors.text.primary};
-                    border: 0.5px solid ${theme.border};
-                    box-shadow: none;
-                    padding: 7px;
-                    min-width: auto;
-                    min-height: auto;
-                    height: auto;
-                    aspect-ratio: 1/1;
-
-                    &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.text.secondary};
-                        `}
-
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
-                    }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
+                    color: ${theme.text.primary};
+                    border-color: ${theme.border};
                 `;
             case "icon-button-secondary":
                 return css`
                     background: transparent;
-                    color: ${theme.colors.text.primary};
-                    border: 0.5px solid ${theme.primary};
-                    box-shadow: none;
-                    padding: 7px;
-                    min-width: auto;
-                    min-height: auto;
-                    height: auto;
-                    aspect-ratio: 1/1;
-
-                    &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.text.secondary};
-                        `}
-
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
-                    }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
+                    color: ${theme.text.primary};
+                    border-color: ${theme.primary};
                 `;
             case "icon-button-ghost":
                 return css`
                     background: transparent;
-                    color: ${theme.primary};
-                    border: none;
-                    box-shadow: none;
-                    padding: 7px;
-                    min-width: auto;
-                    min-height: auto;
-                    height: auto;
-                    aspect-ratio: 1/1;
-
-                    &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.text.secondary};
-                        `}
-
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
-                    }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
+                    color: ${theme.actionText};
+                    border-color: transparent;
                 `;
-            default: // Primary button - ASI Lime bg with Deep Space text
+            case "icon-button":
                 return css`
-                    background: ${theme.primary};
-                    color: ${theme.text.inverse};
-                    font-weight: 600;
-
+                    background: transparent;
+                    color: ${theme.actionText};
+                    border-color: ${theme.border};
+                `;
+            default:
+                return css`
                     &:hover:not(:disabled) {
-                        ${withBorderColorHover &&
-                        css`
-                            border-color: ${theme.primaryDark};
-                        `}
-
-                        ${withFadeHover &&
-                        css`
-                            transform: translateY(-1px);
-                        `}
+                        background: ${theme.primaryDark};
+                        border-color: ${theme.primaryDark};
                     }
-
-                    ${withFadeHover &&
-                    css`
-                        &:active:not(:disabled) {
-                            transform: translateY(0);
-                        }
-                    `}
                 `;
         }
     }}
 
-  ${({ loading, variant, theme }) =>
+    ${({ variant, dangerHover, theme }) =>
+        isIconVariant(variant) &&
+        !dangerHover &&
+        css`
+            &:hover:not(:disabled) {
+                background: ${theme.primarySubtle};
+            }
+        `}
+
+    ${({ withFadeHover }) =>
+        withFadeHover &&
+        css`
+            &:hover:not(:disabled) {
+                transform: translateY(-1px);
+            }
+        `}
+
+    ${({
+        withBorderColorHover,
+        dangerHover,
+        secondaryHover,
+        theme,
+    }) =>
+        withBorderColorHover &&
+        css`
+            &:hover:not(:disabled) {
+                ${dangerHover && `border-color: ${theme.danger};`}
+                ${secondaryHover && `border-color: ${theme.primary};`}
+            }
+        `}
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 4px
+            ${({ variant, dangerHover, theme }) =>
+                variant === "danger" || dangerHover
+                    ? theme.dangerFocusRing
+                    : theme.focusRing};
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        &:active:not(:disabled) {
+            transform: none;
+        }
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+        transform: none;
+    }
+
+    ${({ loading, variant, theme }) =>
         loading &&
         css`
+            /* Keep loading visually distinct from disabled (docs: distinguishable states). */
             color: transparent;
             pointer-events: none;
+
+            &:disabled {
+                opacity: 1;
+            }
 
             &::after {
                 content: "";
                 position: absolute;
-                width: 20px;
-                height: 20px;
-                margin: auto;
-                border: 3px solid transparent;
+                top: 50%;
+                left: 50%;
+                width: 18px;
+                height: 18px;
+                margin-top: -9px;
+                margin-left: -9px;
+                border: 2px solid transparent;
                 border-top-color: ${variant === "primary"
-                    ? theme.colors.background.secondary
-                    : theme.text.primary};
+                    ? theme.background
+                    : variant === "danger"
+                      ? theme.dangerText
+                      : theme.text.primary};
                 border-right-color: ${variant === "primary"
-                    ? theme.colors.background.secondary
-                    : theme.text.primary};
+                    ? theme.background
+                    : variant === "danger"
+                      ? theme.dangerText
+                      : theme.text.primary};
                 border-radius: 50%;
-                animation: spin 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)
-                    infinite;
-                filter: drop-shadow(0 0 2px rgba(177, 252, 171, 0.4));
+                animation: button-spin 600ms linear infinite;
             }
 
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-                100% {
+            @keyframes button-spin {
+                to {
                     transform: rotate(360deg);
                 }
             }
         `}
-
-${({ withBorderColorHover, dangerHover, secondaryHover, theme }) =>
-        withBorderColorHover &&
-        css`
-            ${dangerHover &&
-            css`
-                &:hover:not(:disabled) {
-                    border-color: ${theme.danger};
-                }
-            `}
-
-            ${secondaryHover &&
-            css`
-                &:hover:not(:disabled) {
-                    border-color: ${theme.primary};
-                }
-            `}
-        `}
-`;
-
-const RippleContainer = styled.span`
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    border-radius: inherit;
-    pointer-events: none;
-`;
-
-const Ripple = styled.span`
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(0);
-    animation: ripple 0.4s ease-out;
-
-    @keyframes ripple {
-        to {
-            transform: scale(4);
-            opacity: 0;
-        }
-    }
 `;
 
 export const Button: React.FC<ButtonProps> = ({
     children,
     variant = "primary",
-    size = "medium",
+    size,
     fullWidth = false,
     loading = false,
     disabled,
-    onClick,
     withFadeHover = false,
     withBorderColorHover = true,
-    title,
     ...props
-}) => {
-    const [ripples, setRipples] = React.useState<
-        Array<{ x: number; y: number; id: number }>
-    >([]);
-
-    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (!disabled && !loading) {
-            const button = e.currentTarget;
-            const rect = button.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const id = Date.now();
-
-            setRipples([...ripples, { x, y, id }]);
-
-            setTimeout(() => {
-                setRipples((prev) => prev.filter((r) => r.id !== id));
-            }, 600);
-        }
-
-        onClick?.(e);
-    };
-
-    return (
-        <ButtonBase
-            variant={variant}
-            size={size}
-            fullWidth={fullWidth}
-            loading={loading}
-            disabled={disabled || loading}
-            onClick={handleClick}
-            withFadeHover={withFadeHover}
-            withBorderColorHover={withBorderColorHover}
-            title={title}
-            {...props}
-        >
-            {children}
-            <RippleContainer>
-                {ripples.map(({ x, y, id }) => (
-                    <Ripple
-                        key={id}
-                        style={{
-                            left: x - 10,
-                            top: y - 10,
-                            width: 20,
-                            height: 20,
-                        }}
-                    />
-                ))}
-            </RippleContainer>
-        </ButtonBase>
-    );
-};
+}) => (
+    <ButtonBase
+        variant={variant}
+        size={size}
+        fullWidth={fullWidth}
+        loading={loading}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        withFadeHover={withFadeHover}
+        withBorderColorHover={withBorderColorHover}
+        {...props}
+    >
+        {children}
+    </ButtonBase>
+);

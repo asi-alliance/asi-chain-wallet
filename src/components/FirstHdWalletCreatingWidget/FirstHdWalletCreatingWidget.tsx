@@ -7,18 +7,19 @@ import {
     CardContent,
     Input,
     Button,
+    Alert,
+    PageContent,
 } from "components";
 import { CreateHdWalletForm } from "components/CreateHdWalletForm";
 import { ImportHdWalletForm } from "components/ImportHdWalletForm";
 import { DefaultTheme } from "styled-components/dist/types";
-import { useScreen } from "hooks/";
 import { ImportPkWalletForm } from "components/ImportPkWalletForm";
 import { ImportKeyfileWalletForm } from "components/ImportKeyfileWalletForm";
 
-const WidgetContainer = styled.div`
-    width: 100%;
-    max-width: 705px;
-    margin: 0 auto;
+const WidgetContainer = styled(PageContent)`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing["3xl"]};
 `;
 
 const FormContainer = styled.div`
@@ -40,8 +41,7 @@ const ActionsToolbar = styled.div`
     gap: 16px;
 
     @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
+        padding: 0;
     }
 `;
 
@@ -53,16 +53,20 @@ const WalletActions = styled.div`
     gap: 16px;
 
     @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
+        width: 100%;
+        flex-direction: column;
+        padding: 0;
     }
+`;
+
+const ResponsiveActionButton = styled(Button)`
+    height: auto;
+    white-space: normal;
 `;
 
 export const FirstHdWalletCreatingWidget: React.FC<
     FirstHdWalletCreatingWidgetProps
 > = ({ onSuccess }) => {
-    const { isLaptop } = useScreen();
-
     const [activeMode, setActiveMode] = useState<FormMode | null>(null);
     const [accountName, setAccountName] = useState("");
 
@@ -77,11 +81,13 @@ export const FirstHdWalletCreatingWidget: React.FC<
     if (!activeMode) {
         return (
             <WidgetContainer>
+                <Alert>
+                    Create or import your account to access the wallet
+                    functionality
+                </Alert>
                 <Card>
-                    <CardHeader style={{ marginBottom: "36px" }}>
-                        <CardTitle style={{ fontWeight: "500" }}>
-                            Welcome!
-                        </CardTitle>
+                    <CardHeader>
+                        <CardTitle>Welcome!</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <FormContainer>
@@ -114,9 +120,6 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                         style={{
                                             flexWrap: "nowrap",
                                             whiteSpace: "nowrap",
-                                            ...(isLaptop && {
-                                                marginBottom: "16px",
-                                            }),
                                         }}
                                     >
                                         <h3>Create Wallet</h3>
@@ -170,8 +173,8 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                         </svg>
                                     </Button>
                                 </WalletActions>
-                                <Button
-                                    id="import-account-button"
+                                <ResponsiveActionButton
+                                    id="import-private-key-account-button"
                                     variant="full-ghost"
                                     onClick={() =>
                                         setActiveMode("import_private_key")
@@ -180,7 +183,7 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                     fullWidth={true}
                                     style={{
                                         flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
+                                        whiteSpace: "normal",
                                     }}
                                 >
                                     <h3>Import Account by private key</h3>
@@ -207,8 +210,8 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                             </clipPath>
                                         </defs>
                                     </svg>
-                                </Button>
-                                <Button
+                                </ResponsiveActionButton>
+                                <ResponsiveActionButton
                                     id="import-keyfile-wallet-button"
                                     variant="full-ghost"
                                     onClick={() =>
@@ -217,7 +220,7 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                     fullWidth={true}
                                     style={{
                                         flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
+                                        whiteSpace: "normal",
                                     }}
                                 >
                                     <h3>Import Wallet from keyfile</h3>
@@ -244,7 +247,7 @@ export const FirstHdWalletCreatingWidget: React.FC<
                                             </clipPath>
                                         </defs>
                                     </svg>
-                                </Button>
+                                </ResponsiveActionButton>
                             </ActionsToolbar>
                         </FormContainer>
                     </CardContent>

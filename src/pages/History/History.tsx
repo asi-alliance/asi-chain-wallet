@@ -435,11 +435,12 @@ export const History: React.FC = () => {
                         </FilterGroup>
 
                         <FilterGroup>
-                            <FilterLabel>
+                            <FilterLabel id="history-filter-type-label">
                                 <h4 className="light">Type</h4>
                             </FilterLabel>
                             <AdaptiveSelect
                                 id="history-filter-type-select"
+                                aria-labelledby="history-filter-type-label"
                                 value={filter.type || "all"}
                                 onChange={(value) =>
                                     handleFilterChange("type", value)
@@ -450,11 +451,12 @@ export const History: React.FC = () => {
                         </FilterGroup>
 
                         <FilterGroup>
-                            <FilterLabel>
+                            <FilterLabel id="history-filter-status-label">
                                 <h4 className="light">Status</h4>
                             </FilterLabel>
                             <AdaptiveSelect
                                 id="history-filter-status-select"
+                                aria-labelledby="history-filter-status-label"
                                 value={filter.source || "all"}
                                 onChange={(value) =>
                                     handleFilterChange("source", value)
@@ -464,11 +466,12 @@ export const History: React.FC = () => {
                         </FilterGroup>
 
                         <FilterGroup>
-                            <FilterLabel>
+                            <FilterLabel id="history-filter-period-label">
                                 <h4 className="light">Period</h4>
                             </FilterLabel>
                             <AdaptiveSelect
                                 id="history-filter-week-select"
+                                aria-labelledby="history-filter-period-label"
                                 value="1 Week"
                                 onChange={() => {}}
                                 disabled

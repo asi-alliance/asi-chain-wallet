@@ -1,22 +1,32 @@
 import styled, { css } from "styled-components";
+import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
-interface CardProps {
+export interface CardProps {
     noPadding?: boolean;
     hoverable?: boolean;
     glass?: boolean;
 }
 
-export const Card = styled.div<CardProps>`
+export const Card = styled.div.withConfig(
+    ignorePropsForDOMElement<CardProps>(["noPadding", "hoverable", "glass"]),
+)<CardProps>`
     background: ${({ theme, glass }) =>
         glass
-            ? "rgba(27, 31, 33, 0.7)" /* Charcoal 700 with transparency */
+            ? theme.mode === "dark"
+                ? "rgba(27, 31, 33, 0.72)"
+                : "rgba(255, 255, 255, 0.82)"
             : theme.card};
-    border-radius: 8px; /* ASI Wallet spec: 8px for cards */
-    padding: ${({ noPadding }) => (noPadding ? "0" : "24px")};
+    border-radius: ${({ theme }) => theme.radii.md};
+    padding: ${({ noPadding, theme }) =>
+        noPadding ? "0" : theme.spacing["3xl"]};
     box-shadow: ${({ theme }) => theme.shadow};
     border: 1px solid
         ${({ theme, glass }) => (glass ? theme.borderLight : theme.border)};
-    transition: all 0.2s ease;
+    transition:
+        transform ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        box-shadow ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
     position: relative;
     overflow: hidden;
 
@@ -49,7 +59,7 @@ export const CardHeader = styled.div`
     align-items: center;
     justify-content: space-between;
     margin-bottom: 36px;
-    padding-bottom: 16px;
+    padding-bottom: ${({ theme }) => theme.spacing.xl};
     border-bottom: 1px solid ${({ theme }) => theme.border};
 
     @media (max-width: 1023px) {
@@ -59,11 +69,13 @@ export const CardHeader = styled.div`
 `;
 
 export const CardTitle = styled.h1`
-    font-size: 2rem;
-    line-height: 36px;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.display};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
+    line-height: ${({ theme }) => theme.typography.lineHeight.display};
     color: ${({ theme }) => theme.text.primary};
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
 `;
 
 export const CardContent = styled.div`

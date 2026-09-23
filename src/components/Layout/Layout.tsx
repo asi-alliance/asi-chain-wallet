@@ -17,13 +17,14 @@ const Container = styled.div`
 
 const Main = styled.main<{ $fullWidth?: boolean }>`
     flex: 1;
-    padding: ${({ $fullWidth }) => ($fullWidth ? "16px" : "16px")};
-    max-width: ${({ $fullWidth }) => ($fullWidth ? "none" : "1200px")};
+    padding: ${({ theme }) => theme.layout.gutterMobile};
+    max-width: ${({ $fullWidth, theme }) =>
+        $fullWidth ? "none" : theme.layout.contentWide};
     margin: 0 auto;
     width: 100%;
 
     @media (min-width: 769px) {
-        padding: ${({ $fullWidth }) => ($fullWidth ? "24px" : "24px")};
+        padding: ${({ theme }) => theme.layout.gutterDesktop};
     }
 `;
 
