@@ -9,9 +9,11 @@ import {
 import { Button, Checkbox, FileSelector, PasswordInput } from "components";
 import { useScreen } from "hooks/";
 import { useAppDispatch } from "store/hooks";
-import { SdkWalletService } from "sdk";
 import { importKeyfileWallet } from "store/Auth/thunks";
-import { importKeyfileAccounts } from "store/WalletsStore/thunks";
+import {
+    importKeyfileAccounts,
+    previewKeyfileImport,
+} from "store/WalletsStore/thunks";
 
 const FormGroup = styled.div`
     margin-bottom: 16px;
@@ -238,11 +240,12 @@ export const ImportKeyfileWalletForm: React.FC<
         setError("");
 
         try {
-            const keyfilePreview =
-                await SdkWalletService.previewWalletKeyfileImport(
-                    selectedKeyfile.content,
+            const keyfilePreview = await dispatch(
+                previewKeyfileImport({
+                    keyfile: selectedKeyfile.content,
                     password,
-                );
+                }),
+            );
 
             setPreview(keyfilePreview);
             setSelectedIndexes(getSelectableIndexes(keyfilePreview));

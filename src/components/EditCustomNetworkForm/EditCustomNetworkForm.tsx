@@ -4,11 +4,11 @@ import { Button } from "components";
 import { FileIcon } from "components/Icons";
 import { useScreen } from "hooks";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "store";
+import { AppDispatch, RootState } from "store";
 import { selectNetworks } from "store/WalletsStore";
 import { updateCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
-import { useIsNetworkBusy } from "sdk";
+import { selectIsNetworkBusy } from "store/NetworkActivity";
 import { getErrorMessage } from "utils/helpers";
 import {
     INetworkFormValues,
@@ -64,7 +64,9 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
     const dispatch = useDispatch<AppDispatch>();
 
     const networks = useSelector(selectNetworks);
-    const isNetworkBusy = useIsNetworkBusy(network.id);
+    const isNetworkBusy = useSelector((state: RootState) =>
+        selectIsNetworkBusy(state, network.id),
+    );
 
     const [values, setValues] = useState<INetworkFormValues>(
         toFormValues(network),

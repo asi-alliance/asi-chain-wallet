@@ -19,7 +19,7 @@ import { sendTransaction } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
-} from "store/networkOperationSlice";
+} from "store/NetworkActivity";
 import {
     Card,
     CardHeader,

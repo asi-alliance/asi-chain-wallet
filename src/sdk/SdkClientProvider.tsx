@@ -1,21 +1,5 @@
-import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
-import { setSdkClient } from "./client";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "store";
-import { initializeNetworks } from "store/WalletsStore/thunks";
-import {
-    Client,
-    ClientEvent,
-    INetworkRecord,
-    NetworkId,
-    TUnsubscribe,
-} from "@asichain/asi-wallet-sdk";
+import React, { useEffect } from "react";
+import { Client, INetworkRecord } from "@asichain/asi-wallet-sdk";
 import {
     getInitialNetwork,
     getNetworksEnvError,
@@ -43,161 +27,48 @@ const initSdkClient = (): Promise<Client> => {
                     console.info("SDK network changed:", network.id);
                 },
             },
-        }).then((client) => {
-            setSdkClient(client);
-
-            return client;
         });
     }
 
     return clientPromise;
 };
 
-interface ISdkClientContextValue {
-    client: Client | null;
-    isReady: boolean;
-    busyNetworkIds: NetworkId[];
+interface ISdkClientProviderProps {
+    onReady: (client: Client) => void;
+    onError: (message: string) => void;
+    children: React.ReactNode;
 }
 
-type TSdkClientReturnedValue = ISdkClientContextValue & {
-    client: Client;
-};
-
-const SdkClientContext = createContext<ISdkClientContextValue | null>(null);
-
-export const SdkClientProvider: React.FC<{
-    children: React.ReactNode;
-}> = ({ children }) => {
-    const dispatch = useDispatch<AppDispatch>();
-
-    const [client, setClient] = useState<Client | null>(null);
-    const [isReady, setIsReady] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [busyNetworkIds, setBusyNetworkIds] = useState<NetworkId[]>([]);
-
+export const SdkClientProvider: React.FC<ISdkClientProviderProps> = ({
+    onReady,
+    onError,
+    children,
+}) => {
     useEffect(() => {
         let cancelled = false;
 
         initSdkClient()
-            .then((client) => {
-                if (cancelled) {
-                    return;
+            .then((client: Client) => {
+                if (!cancelled) {
+                    onReady(client);
                 }
-
-                dispatch(initializeNetworks());
-
-                setClient(client);
-                setIsReady(true);
             })
             .catch((initError: unknown) => {
                 console.error("Failed to initialize SDK client:", initError);
 
-                if (cancelled) {
-                    return;
+                if (!cancelled) {
+                    onError(
+                        initError instanceof Error
+                            ? initError.message
+                            : "Failed to initialize wallet SDK",
+                    );
                 }
-
-                setError(
-                    initError instanceof Error
-                        ? initError.message
-                        : "Failed to initialize wallet SDK",
-                );
             });
 
         return () => {
             cancelled = true;
         };
-    }, [dispatch]);
+    }, [onReady, onError]);
 
-    useEffect(() => {
-        if (!client) {
-            return;
-        }
-
-        const eventBus = client.getEventBus();
-
-        const unsubscribes: TUnsubscribe[] = [
-            eventBus.on(
-                ClientEvent.NETWORK_BUSY_CHANGED,
-                (networkId: NetworkId, busy: boolean) => {
-                    setBusyNetworkIds((previousBusyNetworkIds: NetworkId[]) => {
-                        const isAlreadyBusy =
-                            previousBusyNetworkIds.includes(networkId);
-
-                        if (busy) {
-                            return isAlreadyBusy
-                                ? previousBusyNetworkIds
-                                : [...previousBusyNetworkIds, networkId];
-                        }
-
-                        return isAlreadyBusy
-                            ? previousBusyNetworkIds.filter(
-                                  (busyNetworkId: NetworkId) =>
-                                      busyNetworkId !== networkId,
-                              )
-                            : previousBusyNetworkIds;
-                    });
-                },
-            ),
-        ];
-
-        setBusyNetworkIds(
-            client
-                .getNetworks()
-                .filter(({ id }: INetworkRecord) => client.isNetworkBusy(id))
-                .map(({ id }: INetworkRecord) => id),
-        );
-
-        return () => {
-            for (const unsubscribe of unsubscribes) {
-                unsubscribe();
-            }
-        };
-    }, [client]);
-
-    const contextValue: ISdkClientContextValue = useMemo(
-        () => ({
-            client,
-            isReady,
-            busyNetworkIds,
-        }),
-        [client, isReady, busyNetworkIds],
-    );
-
-    if (error) {
-        return <div>{error}</div>;
-    }
-
-    if (!isReady) {
-        return null;
-    }
-
-    return (
-        <SdkClientContext.Provider value={contextValue}>
-            {children}
-        </SdkClientContext.Provider>
-    );
-};
-
-export const useSdkClient = (): TSdkClientReturnedValue => {
-    const context: ISdkClientContextValue | null = useContext(SdkClientContext);
-
-    if (!context || !context.client) {
-        throw new Error(
-            "useSdkClient must be used inside SdkClientProvider and after client initialization",
-        );
-    }
-
-    return context as TSdkClientReturnedValue;
-};
-
-export const useBusyNetworkIds = (): NetworkId[] => {
-    const { busyNetworkIds } = useSdkClient();
-
-    return busyNetworkIds;
-};
-
-export const useIsNetworkBusy = (networkId: NetworkId): boolean => {
-    const busyNetworkIds = useBusyNetworkIds();
-
-    return busyNetworkIds.includes(networkId);
+    return <>{children}</>;
 };

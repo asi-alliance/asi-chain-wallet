@@ -1,11 +1,13 @@
 import React, { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AdaptiveSelect, ISelectOption, ISelectProps } from "components/Select";
-import { useBusyNetworkIds } from "sdk";
 import { AppDispatch } from "store";
 import { selectNetworks, selectSelectedNetwork } from "store/WalletsStore";
 import { selectNetwork } from "store/WalletsStore/thunks";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import {
+    selectBusyNetworkIds,
+    selectIsNetworkOperationPending,
+} from "store/NetworkActivity";
 import { Network } from "types/wallet";
 
 type NetworkSelectorProps = Omit<
@@ -22,7 +24,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     const networks = useSelector(selectNetworks);
     const selectedNetwork = useSelector(selectSelectedNetwork);
 
-    const busyNetworkIds = useBusyNetworkIds();
+    const busyNetworkIds = useSelector(selectBusyNetworkIds);
     const isNetworkOperationPending = useSelector(
         selectIsNetworkOperationPending,
     );

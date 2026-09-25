@@ -8,6 +8,7 @@ import {
 import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
 import { useSelector, useDispatch } from "react-redux";
+import { Client } from "@asichain/asi-wallet-sdk";
 import { store, RootState, AppDispatch } from "store";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
@@ -35,6 +36,12 @@ import {
 } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
 import { useAppDispatch } from "store/hooks";
+import {
+    sdkClientFailed,
+    selectIsSdkClientReady,
+    selectSdkClientError,
+} from "store/SdkClient";
+import { connectSdkClient } from "store/SdkClient/thunks";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -62,6 +69,8 @@ const AppContent: React.FC = () => {
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
     const isInitialLoadComplete = useSelector(selectWalletsInitialLoadComplete);
+    const isSdkClientReady = useSelector(selectIsSdkClientReady);
+    const sdkClientError = useSelector(selectSdkClientError);
     const theme = darkMode ? darkTheme : lightTheme;
 
     const loadWallets = async (): Promise<void> => {
@@ -76,9 +85,13 @@ const AppContent: React.FC = () => {
     };
 
     useEffect(() => {
+        if (!isSdkClientReady) {
+            return;
+        }
+
         // dispatch(loadNetworksFromStorage());
         loadWallets();
-    }, [dispatch]);
+    }, [dispatch, isSdkClientReady]);
 
     //TODO: Removed legacy RChain polling. Deploy status is now tracked via the SDK DeployStatusPoller in the sendTransaction thunk.
     // useEffect(() => {
@@ -92,7 +105,11 @@ const AppContent: React.FC = () => {
     //     };
     // }, [isAuthenticated]);
 
-    if (!isInitialLoadComplete) {
+    if (sdkClientError) {
+        return <div>{sdkClientError}</div>;
+    }
+
+    if (!isSdkClientReady || !isInitialLoadComplete) {
         return (
             <ThemeProvider theme={theme}>
                 <GlobalStyles theme={theme} />
@@ -215,6 +232,14 @@ const AppContent: React.FC = () => {
     );
 };
 
+const handleSdkClientReady = (client: Client): void => {
+    store.dispatch(connectSdkClient(client));
+};
+
+const handleSdkClientError = (message: string): void => {
+    store.dispatch(sdkClientFailed(message));
+};
+
 const App: React.FC = () => {
     return (
         <Provider store={store}>
@@ -226,7 +251,10 @@ const App: React.FC = () => {
             >
                 <QueryProvider>
                     <EvmProvider>
-                        <SdkClientProvider>
+                        <SdkClientProvider
+                            onReady={handleSdkClientReady}
+                            onError={handleSdkClientError}
+                        >
                             <AppContent />
                         </SdkClientProvider>
                     </EvmProvider>

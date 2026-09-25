@@ -3,7 +3,7 @@ import {
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
-import { AnyAction, createAsyncThunk } from "@reduxjs/toolkit";
+import { AnyAction } from "@reduxjs/toolkit";
 import {
     BRIDGE_LOCK_MAX_GAS_COST,
     BRIDGE_LOCK_PHLO_LIMIT,
@@ -28,11 +28,14 @@ import {
     NetworkName,
     SignedResult,
     getErrorMessage,
+    IKeyfileImportPreview,
+    IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import { walletsApi, WalletsApiTags } from "./api";
 import {
     getUnlockedAccountFromWalletsMeta,
@@ -85,9 +88,9 @@ const buildDeployWatchCallbacks = ({
     },
 });
 
-export const loadWalletsFromStorage = createAsyncThunk(
+export const loadWalletsFromStorage = createAppAsyncThunk(
     "wallets-store/loadWalletsFromStorage",
-    () => SdkWalletService.loadWallets(),
+    (_, { extra: { walletService } }) => walletService.loadWallets(),
 );
 
 export interface IImportKeyfileAccountsPayload {
@@ -96,19 +99,22 @@ export interface IImportKeyfileAccountsPayload {
     accountIndexes?: number[];
 }
 
-export const importKeyfileAccounts = createAsyncThunk<
+export const importKeyfileAccounts = createAppAsyncThunk<
     IWalletMeta,
     IImportKeyfileAccountsPayload
 >(
     "wallets-store/importKeyfileAccounts",
-    async ({ keyfile, password, accountIndexes }) => {
-        const { signerId } = await SdkWalletService.importKeyfileAccounts(
+    async (
+        { keyfile, password, accountIndexes },
+        { extra: { walletService } },
+    ) => {
+        const { signerId } = await walletService.importKeyfileAccounts(
             keyfile,
             password,
             accountIndexes ? { accountIndexes } : undefined,
         );
 
-        return SdkWalletService.getWalletMetaBySignerId(signerId);
+        return walletService.getWalletMetaBySignerId(signerId);
     },
 );
 
@@ -164,10 +170,10 @@ export interface IInitializeNetworksResponse {
     selectedNetwork: TCustomNetwork | null;
 }
 
-export const selectAccount = createAsyncThunk<
+export const selectAccount = createAppAsyncThunk<
     string,
     string,
-    { state: RootState; rejectValue: string }
+    { rejectValue: string }
 >(
     "wallets-store/selectAccount",
     (accountId: string, { getState, rejectWithValue }) => {
@@ -193,11 +199,14 @@ export const selectAccount = createAsyncThunk<
     },
 );
 
-export const removeWallet = createAsyncThunk(
+export const removeWallet = createAppAsyncThunk(
     "walletsStore/removeWallet",
-    async ({ walletId }: { walletId: string }, { rejectWithValue }) => {
+    async (
+        { walletId }: { walletId: string },
+        { rejectWithValue, extra: { walletService } },
+    ) => {
         try {
-            const removedWallet = await SdkWalletService.removeWallet(walletId);
+            const removedWallet = await walletService.removeWallet(walletId);
             const removedSignerId = removedWallet.getSigner().getId();
 
             WalletPreferencesStorage.removeSigner(removedSignerId);
@@ -216,18 +225,17 @@ export interface IAccountRemoveResponse extends IAccountRemovePayload {
     selectedAccountId: string | null;
 }
 
-export const removeAccount = createAsyncThunk<
+export const removeAccount = createAppAsyncThunk<
     IAccountRemoveResponse,
-    IAccountRemovePayload,
-    { state: RootState }
+    IAccountRemovePayload
 >(
     "walletsStore/removeAccount",
     async (
         { walletId, accountId }: IAccountRemovePayload,
-        { getState, rejectWithValue },
+        { getState, rejectWithValue, extra: { walletService } },
     ) => {
         try {
-            await SdkWalletService.removeAccount(walletId, accountId);
+            await walletService.removeAccount(walletId, accountId);
 
             const { wallets, selectedAccountId } = getState().walletsStore;
 
@@ -274,17 +282,14 @@ export const removeAccount = createAsyncThunk<
     },
 );
 
-export const updateAccountName = createAsyncThunk<
+export const updateAccountName = createAppAsyncThunk<
     Omit<IAccountUpdateNamePayload, "walletId">,
-    IAccountUpdateNamePayload,
-    {
-        state: RootState;
-    }
+    IAccountUpdateNamePayload
 >(
     "walletsStore/updateAccountName",
     async (
         payload: IAccountUpdateNamePayload,
-        { rejectWithValue, getState },
+        { rejectWithValue, getState, extra: { walletService } },
     ) => {
         try {
             const { walletId, accountId, name } = payload;
@@ -301,7 +306,7 @@ export const updateAccountName = createAsyncThunk<
                 );
             }
 
-            await SdkWalletService.renameAccount(walletId, accountId, name);
+            await walletService.renameAccount(walletId, accountId, name);
 
             return {
                 accountId,
@@ -313,11 +318,11 @@ export const updateAccountName = createAsyncThunk<
     },
 );
 
-export const initializeNetworks = createAsyncThunk<IInitializeNetworksResponse>(
+export const initializeNetworks = createAppAsyncThunk<IInitializeNetworksResponse>(
     "walletsStore/initializeNetworks",
-    () => {
+    (_, { extra: { walletService } }) => {
         const customNetworks: TCustomNetwork[] =
-            SdkWalletService.getCustomNetworks();
+            walletService.getCustomNetworks();
 
         const persistedNetworkId =
             WalletPreferencesStorage.getSelectedNetworkId();
@@ -335,7 +340,7 @@ export const initializeNetworks = createAsyncThunk<IInitializeNetworksResponse>(
         }
 
         try {
-            SdkWalletService.setNetwork(persistedCustomNetwork.id);
+            walletService.setNetwork(persistedCustomNetwork.id);
         } catch (error) {
             console.error("Failed to restore selected network:", error);
 
@@ -352,15 +357,15 @@ export const initializeNetworks = createAsyncThunk<IInitializeNetworksResponse>(
     },
 );
 
-export const selectNetwork = createAsyncThunk<
+export const selectNetwork = createAppAsyncThunk<
     Network,
     ICustomNetworkDefaultGetFieldsPayload,
-    { state: RootState; rejectValue: string }
+    { rejectValue: string }
 >(
     "walletsStore/selectNetwork",
     (
         { id }: ICustomNetworkDefaultGetFieldsPayload,
-        { getState, rejectWithValue },
+        { getState, rejectWithValue, extra: { walletService } },
     ) => {
         const state: RootState = getState();
 
@@ -385,7 +390,7 @@ export const selectNetwork = createAsyncThunk<
         }
 
         try {
-            SdkWalletService.setNetwork(network.id);
+            walletService.setNetwork(network.id);
         } catch (error) {
             return rejectWithValue(
                 getErrorMessage(error, `Failed to switch to "${network.name}"`),
@@ -398,15 +403,18 @@ export const selectNetwork = createAsyncThunk<
     },
 );
 
-export const addCustomNetwork = createAsyncThunk<
+export const addCustomNetwork = createAppAsyncThunk<
     TCustomNetwork,
     IAddNetworkPayload,
     { rejectValue: string }
 >(
     "walletsStore/addCustomNetwork",
-    async ({ name, config }: IAddNetworkPayload, { rejectWithValue }) => {
+    async (
+        { name, config }: IAddNetworkPayload,
+        { rejectWithValue, extra: { walletService } },
+    ) => {
         try {
-            return await SdkWalletService.addCustomNetwork(name, config);
+            return await walletService.addCustomNetwork(name, config);
         } catch (error) {
             return rejectWithValue(
                 getErrorMessage(error, "Failed to create custom network"),
@@ -415,15 +423,18 @@ export const addCustomNetwork = createAsyncThunk<
     },
 );
 
-export const updateCustomNetwork = createAsyncThunk<
+export const updateCustomNetwork = createAppAsyncThunk<
     TCustomNetwork,
     IUpdateNetworkPayload,
     { rejectValue: string }
 >(
     "walletsStore/updateCustomNetwork",
-    async ({ id, update }: IUpdateNetworkPayload, { rejectWithValue }) => {
+    async (
+        { id, update }: IUpdateNetworkPayload,
+        { rejectWithValue, extra: { walletService } },
+    ) => {
         try {
-            return await SdkWalletService.updateCustomNetwork(id, update);
+            return await walletService.updateCustomNetwork(id, update);
         } catch (error) {
             return rejectWithValue(
                 getErrorMessage(error, "Failed to update custom network"),
@@ -432,7 +443,7 @@ export const updateCustomNetwork = createAsyncThunk<
     },
 );
 
-export const removeCustomNetwork = createAsyncThunk<
+export const removeCustomNetwork = createAppAsyncThunk<
     IRemoveNetworkResponse,
     ICustomNetworkDefaultGetFieldsPayload,
     { rejectValue: string }
@@ -440,13 +451,13 @@ export const removeCustomNetwork = createAsyncThunk<
     "walletsStore/removeCustomNetwork",
     async (
         { id }: ICustomNetworkDefaultGetFieldsPayload,
-        { rejectWithValue },
+        { rejectWithValue, extra: { walletService } },
     ) => {
         try {
-            await SdkWalletService.removeCustomNetwork(id);
+            await walletService.removeCustomNetwork(id);
 
             const selectedNetworkId: NetworkId =
-                SdkWalletService.getActiveNetworkId();
+                walletService.getActiveNetworkId();
 
             WalletPreferencesStorage.setSelectedNetworkId(selectedNetworkId);
 
@@ -462,15 +473,14 @@ export const removeCustomNetwork = createAsyncThunk<
     },
 );
 
-export const sendTransaction = createAsyncThunk<
+export const sendTransaction = createAppAsyncThunk<
     { deployId: string },
-    ITransferPayload,
-    { state: RootState }
+    ITransferPayload
 >(
     "wallets-store/sendTransaction",
     async (
         { walletId, accountId, to, amount, password }: ITransferPayload,
-        { getState, dispatch },
+        { getState, dispatch, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
             throw new Error("Sending to Ethereum addresses is not supported");
@@ -488,7 +498,7 @@ export const sendTransaction = createAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await SdkWalletService.transfer(
+        const { deployId, subscribe } = await walletService.transfer(
             {
                 walletId,
                 accountId,
@@ -531,10 +541,9 @@ export interface IDeployContractPayload {
     password?: string;
 }
 
-export const deployContract = createAsyncThunk<
+export const deployContract = createAppAsyncThunk<
     { deployId: string },
-    IDeployContractPayload,
-    { state: RootState }
+    IDeployContractPayload
 >(
     "wallets-store/deployContract",
     async (
@@ -545,7 +554,7 @@ export const deployContract = createAsyncThunk<
             phloLimit,
             password,
         }: IDeployContractPayload,
-        { getState, dispatch },
+        { getState, dispatch, extra: { walletService } },
     ) => {
         const deployerAccount: IUnlockedAccountMeta | null =
             getUnlockedAccountFromWalletsMeta(
@@ -559,7 +568,7 @@ export const deployContract = createAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await SdkWalletService.deploy(
+        const { deployId, subscribe } = await walletService.deploy(
             { walletId, accountId, term, phloLimit },
             password,
         );
@@ -600,7 +609,7 @@ export interface IBridgeLockPayload {
     network: Network;
 }
 
-export const bridgeLock = createAsyncThunk<
+export const bridgeLock = createAppAsyncThunk<
     { deployId: string },
     IBridgeLockPayload
 >(
@@ -616,7 +625,7 @@ export const bridgeLock = createAsyncThunk<
             password,
             network,
         }: IBridgeLockPayload,
-        { dispatch },
+        { dispatch, extra: { walletService } },
     ) => {
         const rchain = new RChainService(
             network.validatorUrl,
@@ -635,7 +644,7 @@ export const bridgeLock = createAsyncThunk<
             bridgeUri,
         );
 
-        const signedLock: SignedResult = await SdkWalletService.signDeploy(
+        const signedLock: SignedResult = await walletService.signDeploy(
             {
                 walletId,
                 accountId,
@@ -648,7 +657,7 @@ export const bridgeLock = createAsyncThunk<
 
         const deployId: string = signedLock.signature;
 
-        const reservation = await SdkWalletService.addTransactionReservation(
+        const reservation = await walletService.addTransactionReservation(
             {
                 walletId,
                 accountId,
@@ -666,7 +675,7 @@ export const bridgeLock = createAsyncThunk<
         try {
             await rchain.submitDeploy(signedLock);
         } catch (error: unknown) {
-            await SdkWalletService.removeTransactionReservation(
+            await walletService.removeTransactionReservation(
                 walletId,
                 reservation.id,
             ).catch((releaseError: unknown) =>
@@ -688,7 +697,7 @@ export const bridgeLock = createAsyncThunk<
             );
         };
 
-        SdkWalletService.watchDeploy(deployId, {
+        walletService.watchDeploy(deployId, {
             onConfirmed: invalidateAccountData,
             onError: invalidateAccountData,
         });
@@ -698,3 +707,41 @@ export const bridgeLock = createAsyncThunk<
         return { deployId };
     },
 );
+
+export interface IExportWalletKeyfilePayload {
+    walletId: string;
+    password: string;
+}
+
+export const exportWalletKeyfile =
+    ({
+        walletId,
+        password,
+    }: IExportWalletKeyfilePayload): TAppThunk<Promise<IWalletKeyfile>> =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.exportWalletKeyfile(walletId, password);
+
+export interface IPreviewKeyfileImportPayload {
+    keyfile: string;
+    password: string;
+}
+
+export const previewKeyfileImport =
+    ({
+        keyfile,
+        password,
+    }: IPreviewKeyfileImportPayload): TAppThunk<
+        Promise<IKeyfileImportPreview>
+    > =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.previewWalletKeyfileImport(keyfile, password);
+
+export const exploreDeploy =
+    (term: string): TAppThunk<Promise<unknown>> =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.exploreDeploy(term);
+
+export const checkWalletUnlocked =
+    (walletId: string): TAppThunk<boolean> =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.isWalletUnlocked(walletId);

@@ -1,5 +1,6 @@
 import React, { CSSProperties, useMemo } from "react";
 import { useSelector } from "react-redux";
+import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
     selectAccounts,
@@ -8,9 +9,11 @@ import {
 } from "store/WalletsStore";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import {
+    selectIsNetworkBusy,
+    selectIsNetworkOperationPending,
+} from "store/NetworkActivity";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
-import { useIsNetworkBusy } from "sdk";
 
 interface IASIAccountSwitcherProps {
     adaptive?: boolean;
@@ -27,7 +30,9 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const networkId = useSelector(selectSelectedNetworkId);
-    const isNetworkBusy = useIsNetworkBusy(networkId);
+    const isNetworkBusy = useSelector((state: RootState) =>
+        selectIsNetworkBusy(state, networkId),
+    );
     const isNetworkOperationPending = useSelector(
         selectIsNetworkOperationPending,
     );

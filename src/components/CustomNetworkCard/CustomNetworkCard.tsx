@@ -3,12 +3,12 @@ import styled from "styled-components";
 import { Button } from "components";
 import { Network } from "types/wallet";
 import { DeleteIcon, EditIcon } from "components/Icons";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { DeleteCustomNetworkModal } from "components/DeleteCustomNetworkModal";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
 import { removeCustomNetwork } from "store/WalletsStore/thunks";
-import { AppDispatch } from "store";
-import { useIsNetworkBusy } from "sdk";
+import { AppDispatch, RootState } from "store";
+import { selectIsNetworkBusy } from "store/NetworkActivity";
 import { getErrorMessage } from "utils/helpers";
 
 const NetworkItem = styled.div`
@@ -143,7 +143,9 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
 }) => {
     const dispatch = useDispatch<AppDispatch>();
 
-    const isNetworkBusy = useIsNetworkBusy(network.id);
+    const isNetworkBusy = useSelector((state: RootState) =>
+        selectIsNetworkBusy(state, network.id),
+    );
 
     const [isEditing, setIsEditing] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);

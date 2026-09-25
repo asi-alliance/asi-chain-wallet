@@ -43,7 +43,7 @@ import { bridgeLock } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
-} from "store/networkOperationSlice";
+} from "store/NetworkActivity";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { getGasFeeForBridgeAsNumber } from "constants/gas";
 import {

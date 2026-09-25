@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { ExportFormat, IWalletKeyfile } from "@asichain/asi-wallet-sdk";
 import { PasswordModal } from "components";
-import { SdkWalletService } from "sdk";
+import { useAppDispatch } from "store/hooks";
+import { exportWalletKeyfile } from "store/WalletsStore/thunks";
 import { downloadExport } from "utils/fileDownload";
 
 interface ExportWalletKeyfileModalProps {
@@ -13,6 +14,7 @@ interface ExportWalletKeyfileModalProps {
 export const ExportWalletKeyfileModal: React.FC<
     ExportWalletKeyfileModalProps
 > = ({ isOpen, walletId, onClose }) => {
+    const dispatch = useAppDispatch();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -26,8 +28,9 @@ export const ExportWalletKeyfileModal: React.FC<
         setError("");
 
         try {
-            const keyfile: IWalletKeyfile =
-                await SdkWalletService.exportWalletKeyfile(walletId, password);
+            const keyfile: IWalletKeyfile = await dispatch(
+                exportWalletKeyfile({ walletId, password }),
+            );
 
             downloadExport(
                 `asi-wallet-${walletId}`,

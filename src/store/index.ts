@@ -1,11 +1,18 @@
 import { configureStore } from "@reduxjs/toolkit";
+import { SdkWalletService } from "sdk";
 import walletReducer from "./WalletsStore";
 import { walletsApi } from "./WalletsStore/api";
 import themeReducer from "./themeSlice";
 import authReducer from "./Auth/";
 import hardwareWalletReducer from "./hardwareWalletSlice";
 import multisigReducer from "./multisigSlice";
-import networkOperationReducer from "./networkOperationSlice";
+import networkActivityReducer from "./NetworkActivity";
+import sdkClientReducer from "./SdkClient";
+import { IThunkExtraArgument } from "./appThunk";
+
+const thunkExtraArgument: IThunkExtraArgument = {
+    walletService: new SdkWalletService(),
+};
 
 export const store = configureStore({
     reducer: {
@@ -15,10 +22,14 @@ export const store = configureStore({
         auth: authReducer,
         hardwareWallet: hardwareWalletReducer,
         multisig: multisigReducer,
-        networkOperation: networkOperationReducer,
+        networkActivity: networkActivityReducer,
+        sdkClient: sdkClientReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
+            thunk: {
+                extraArgument: thunkExtraArgument,
+            },
             serializableCheck: {
                 ignoredActions: [
                     "hardwareWallet/sign/fulfilled",
