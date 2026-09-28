@@ -2,9 +2,11 @@ import {
     DEFAULT_NODE_API_PROFILE,
     INetworkEndpoints,
     isNodeApiProfile,
+    isSameNetworkConfig,
     NodeApiProfile,
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
+import { SdkWalletService } from "sdk/SdkWalletService";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { Network } from "types/wallet";
 import { isNotEmptyPlainObject } from "utils/guards";
@@ -140,6 +142,64 @@ const readNodeApiProfile = (
     return profile;
 };
 
+const isSameNetworkEndpoints = (first: Network, second: Network): boolean =>
+    isSameNetworkConfig(
+        SdkWalletService.toNetworkConfig(first),
+        SdkWalletService.toNetworkConfig(second),
+    );
+
+const isSameNetworkName = (first: Network, second: Network): boolean =>
+    first.name.toLowerCase() === second.name.toLowerCase();
+
+const findDuplicateNetworkGroups = (
+    networks: Network[],
+    isDuplicate: (first: Network, second: Network) => boolean,
+): Network[][] => {
+    const groups: Network[][] = [];
+
+    networks.forEach((network: Network) => {
+        const group = groups.find(([groupNetwork]: Network[]) =>
+            isDuplicate(groupNetwork, network),
+        );
+
+        if (group) {
+            group.push(network);
+
+            return;
+        }
+
+        groups.push([network]);
+    });
+
+    return groups.filter((group: Network[]) => group.length > 1);
+};
+
+const formatNetworkIds = (group: Network[]): string =>
+    group.map(({ id }: Network) => `"${id}"`).join(", ");
+
+const validateNetworksUniqueness = (
+    networks: Network[],
+    issues: INetworksEnvIssue[],
+): void => {
+    findDuplicateNetworkGroups(networks, isSameNetworkEndpoints).forEach(
+        (group: Network[]) => {
+            issues.push({
+                level: "error",
+                message: `NETWORKS contains networks with the same URLs and nodeApiProfile: ${formatNetworkIds(group)}`,
+            });
+        },
+    );
+
+    findDuplicateNetworkGroups(networks, isSameNetworkName).forEach(
+        (group: Network[]) => {
+            issues.push({
+                level: "error",
+                message: `NETWORKS contains networks with the same name "${group[0].name}": ${formatNetworkIds(group)}`,
+            });
+        },
+    );
+};
+
 const parseNetworksEnv = (): INetworksEnvParseResult => {
     const issues: INetworksEnvIssue[] = [];
     const rawEnv = process.env.NETWORKS?.trim();
@@ -250,6 +310,8 @@ const parseNetworksEnv = (): INetworksEnvParseResult => {
         });
     });
 
+    validateNetworksUniqueness(networks, issues);
+
     const hasCompleteNetwork = networks.some(
         (network: Network) =>
             network.validatorUrl && network.observerUrl && network.indexerUrl,
@@ -276,12 +338,7 @@ const buildNetworksConfig = (): TNetworksConfig => {
     const config: TNetworksConfig = {};
 
     NETWORKS.forEach((network: Network) => {
-        config[network.id] = {
-            ValidatorURL: network.validatorUrl,
-            ReadOnlyURL: network.observerUrl,
-            IndexerURL: network.indexerUrl,
-            nodeApiProfile: network.nodeApiProfile,
-        };
+        config[network.id] = SdkWalletService.toNetworkConfig(network);
     });
 
     return config;

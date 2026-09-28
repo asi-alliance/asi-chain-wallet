@@ -134,6 +134,8 @@ Errors are fatal: the SDK client is not created and the application shows the re
 - `NETWORKS` is not valid JSON (the parser message is included)
 - `NETWORKS` is not a non-empty JSON object mapping ids to configurations
 - **No entry is fully configured**: at least one network needs a valid `http(s)` `ValidatorURL`, `ReadOnlyURL` and `IndexerURL`
+- **Duplicate endpoints**: two or more loaded entries have the same `ValidatorURL`, `ReadOnlyURL`, `IndexerURL` and `nodeApiProfile` (compared after validation and fallbacks). The message lists the ids of the conflicting networks
+- **Duplicate names**: two or more loaded entries have the same display name (`name`, or the id when `name` is absent), compared ignoring case. The message lists the name and the ids of the conflicting networks
 
 Warnings keep the app running and are reported per network:
 

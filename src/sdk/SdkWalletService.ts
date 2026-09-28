@@ -99,6 +99,20 @@ export class SdkWalletService {
         };
     }
 
+    public static toNetworkConfig({
+        validatorUrl,
+        observerUrl,
+        indexerUrl,
+        nodeApiProfile,
+    }: Network): INetworkConfig {
+        return {
+            ValidatorURL: validatorUrl,
+            ReadOnlyURL: observerUrl,
+            IndexerURL: indexerUrl,
+            nodeApiProfile,
+        };
+    }
+
     static generateMnemonic(
         strength: MnemonicStrength = MnemonicStrength.TWELVE_WORDS,
     ): string {
