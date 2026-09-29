@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { MnemonicStrength } from "@asichain/asi-wallet-sdk";
 import { Alert, Input } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
-import { MnemonicDisplay } from "components/MnemonicDisplay";
-import { WordCountToggle, WordCount } from "components/WordCountToggle";
-import { createHdWallet } from "store/Auth/thunks";
+import { PrivateKeyDisplay } from "components/PrivateKeyDisplay";
+import { importPrivateKeyWallet } from "store/Auth/thunks";
 import { useAppDispatch } from "store/hooks";
 import { useValidAccountUpdating } from "hooks";
 import { SdkWalletService } from "sdk";
@@ -16,7 +14,7 @@ const FormContainer = styled.div`
     margin: 0 auto;
 `;
 
-interface CreateHdWalletFormProps {
+interface CreatePkWalletFormProps {
     onSuccess?: (accountName: string) => void;
     onCancel?: () => void;
     hideCancelButton?: boolean;
@@ -26,14 +24,9 @@ interface CreateHdWalletFormProps {
 
 type Step = "form" | "password";
 
-const strengthFromWordCount = (wordCount: WordCount): MnemonicStrength =>
-    wordCount === 24
-        ? MnemonicStrength.TWENTY_FOUR_WORDS
-        : MnemonicStrength.TWELVE_WORDS;
-
 const clearSecretString = (value: string): string => " ".repeat(value.length);
 
-export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
+export const CreatePkWalletForm: React.FC<CreatePkWalletFormProps> = ({
     onSuccess,
     onCancel,
     hideCancelButton = false,
@@ -49,27 +42,22 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
     const [step, setStep] = useState<Step>("form");
     const [accountName, setAccountName] = useState(customAccountName ?? "");
     const [accountNameError, setAccountNameError] = useState("");
-    const [wordCount, setWordCount] = useState<WordCount>(12);
     const [pendingAccountName, setPendingAccountName] = useState(
         customAccountName ?? "",
     );
-    const [mnemonic, setMnemonic] = useState("");
+    const [privateKeyHex, setPrivateKeyHex] = useState("");
     const [formError, setFormError] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         try {
-            setMnemonic(
-                SdkWalletService.generateMnemonic(
-                    strengthFromWordCount(wordCount),
-                ),
-            );
+            setPrivateKeyHex(SdkWalletService.generatePrivateKeyHex());
             setFormError("");
         } catch {
-            setMnemonic("");
-            setFormError("Failed to generate recovery phrase");
+            setPrivateKeyHex("");
+            setFormError("Failed to generate private key");
         }
-    }, [wordCount]);
+    }, []);
 
     const updateAccountName = (newName: string): void => {
         setAccountName(newName);
@@ -77,8 +65,8 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
     };
 
     const clearVisibleSecrets = (): void => {
-        setMnemonic((current) => clearSecretString(current));
-        setMnemonic("");
+        setPrivateKeyHex((current) => clearSecretString(current));
+        setPrivateKeyHex("");
         setPendingAccountName("");
     };
 
@@ -95,8 +83,8 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             return;
         }
 
-        if (!mnemonic.trim()) {
-            setFormError("Failed to generate recovery phrase");
+        if (!privateKeyHex) {
+            setFormError("Failed to generate private key");
             return;
         }
 
@@ -111,7 +99,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
     };
 
     const handlePasswordSet = async (password: string) => {
-        if (loading || submissionRef.current) {
+        if (loading || submissionRef.current || !privateKeyHex) {
             return;
         }
 
@@ -121,9 +109,9 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
 
         try {
             await dispatch(
-                createHdWallet({
+                importPrivateKeyWallet({
                     name: pendingAccountName,
-                    mnemonic,
+                    privateKeyHex,
                     password,
                 }),
             ).unwrap();
@@ -134,8 +122,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             setFormError(
                 (error as Error)?.message || "Failed to create wallet",
             );
-            // Keep the same mnemonic for retry — do not return to form
-            // where word-count changes would regenerate the phrase.
+            // Keep the same key for retry — do not force regenerate.
             setStep("password");
         } finally {
             setLoading(false);
@@ -181,12 +168,11 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
 
             {!customAccountName && (
                 <Input
-                    id="create-account-name-input"
+                    id="create-pk-account-name-input"
                     label="Account Name"
                     value={accountName}
                     onChange={(event) => {
                         updateAccountName(event.target.value);
-
                         if (accountNameError) {
                             setAccountNameError("");
                         }
@@ -200,14 +186,8 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
                 />
             )}
 
-            <WordCountToggle
-                value={wordCount}
-                onChange={setWordCount}
-                disabled={loading}
-            />
-
-            <MnemonicDisplay
-                mnemonic={mnemonic}
+            <PrivateKeyDisplay
+                privateKey={privateKeyHex}
                 accountName={customAccountName ?? accountName}
                 onContinue={handleProceedFromDisplay}
                 onBack={handleCancel}

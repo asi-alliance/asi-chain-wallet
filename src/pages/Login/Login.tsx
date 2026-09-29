@@ -39,6 +39,7 @@ import { ISelectOption } from "components/Select/Select";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { IWalletMeta, WalletActions } from "types/wallet";
 import { CreateHdWalletModal } from "components/CreateHdWalletModal";
+import { CreatePkWalletModal } from "components/CreatePkWalletModal";
 import { ImportHdWalletModal } from "components/ImportHdWalletModal";
 import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
@@ -183,7 +184,7 @@ const WalletActionsFooter = styled.div`
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: ${({ theme }) => theme.spacing.lg};
-    margin-top: ${({ theme }) => theme.spacing.xl};
+    margin-top: ${({ theme }) => theme.spacing.lg};
     margin-bottom: ${({ theme }) => theme.spacing.lg};
 
     @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
@@ -196,6 +197,15 @@ const InlineButton = styled(Button)`
     min-width: 0;
 `;
 
+const FieldLabel = styled.label`
+    display: block;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    color: ${({ theme }) => theme.text.primary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+`;
+
 const ATTEMPTS_WARNING_THRESHOLD = 3;
 
 type LoginWalletOption = {
@@ -203,6 +213,13 @@ type LoginWalletOption = {
     label: string;
     additionalLabel?: string;
 };
+
+type WalletKind = "hd" | "private_key";
+
+const WALLET_KIND_OPTIONS: ISelectOption[] = [
+    { value: "hd", label: "HD wallet" },
+    { value: "private_key", label: "Private key wallet" },
+];
 
 function formatCountdown(ms: number): string {
     const totalSeconds = Math.ceil(ms / 1_000);
@@ -277,9 +294,11 @@ export const Login: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(
         action === WalletActions.CREATE_WALLET,
     );
+    const [showCreatePkModal, setShowCreatePkModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [showImportPkModal, setShowImportPkModal] = useState(false);
     const [showImportKeyfileModal, setShowImportKeyfileModal] = useState(false);
+    const [walletKind, setWalletKind] = useState<WalletKind>("hd");
 
     const [keyfileImport, setKeyfileImport] =
         useState<IKeyfileAccountsImportOutcome | null>(null);
@@ -727,102 +746,144 @@ export const Login: React.FC = () => {
                             </UnlockForm>
 
                         <ActionsFooter>
+                            <FormGroup style={{ marginTop: "24px", marginBottom: 0 }}>
+                                <FieldLabel htmlFor="login-account-type-button">
+                                    Account Type
+                                </FieldLabel>
+                                <Select
+                                    id="login-account-type"
+                                    aria-label="Account Type"
+                                    value={walletKind}
+                                    onChange={(value: string) =>
+                                        setWalletKind(value as WalletKind)
+                                    }
+                                    options={WALLET_KIND_OPTIONS}
+                                    style={{ width: "100%" }}
+                                />
+                            </FormGroup>
                             <WalletActionsFooter>
-                                <InlineButton
-                                    id="create-wallet-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    variant="secondary"
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Wallet</h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                                <InlineButton
-                                    id="import-wallet-button"
-                                    variant="secondary"
-                                    onClick={() => setShowImportModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Import Wallet</h3>
-                                    <svg
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <g clipPath="url(#clip0_3_1930)">
-                                            <path
-                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                                fill="currentcolor"
-                                            />
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_3_1930">
-                                                <rect
-                                                    width="24"
-                                                    height="24"
+                                {walletKind === "hd" ? (
+                                    <>
+                                        <InlineButton
+                                            id="create-wallet-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            variant="secondary"
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Wallet</h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
                                                     fill="currentcolor"
                                                 />
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </InlineButton>
-                            </WalletActionsFooter>
-                            <InlineButton
-                                id="import-private-key-button"
-                                variant="full-ghost"
-                                onClick={() => setShowImportPkModal(true)}
-                                fullWidth={isLaptop}
-                                style={{
-                                    flexWrap: "nowrap",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                <h3>Import Private Key</h3>
-                                <svg
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <g clipPath="url(#clip0_3_1930)">
-                                        <path
-                                            d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                            fill="currentcolor"
-                                        />
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_3_1930">
-                                            <rect
+                                            </svg>
+                                        </InlineButton>
+                                        <InlineButton
+                                            id="import-wallet-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowImportModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Import Wallet</h3>
+                                            <svg
                                                 width="24"
                                                 height="24"
-                                                fill="currentcolor"
-                                            />
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                            </InlineButton>
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <g clipPath="url(#clip0_3_1930)">
+                                                    <path
+                                                        d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                        fill="currentcolor"
+                                                    />
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_3_1930">
+                                                        <rect
+                                                            width="24"
+                                                            height="24"
+                                                            fill="currentcolor"
+                                                        />
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </InlineButton>
+                                    </>
+                                ) : (
+                                    <>
+                                        <InlineButton
+                                            id="create-private-key-wallet-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowCreatePkModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Private Key Wallet</h3>
+                                        </InlineButton>
+                                        <InlineButton
+                                            id="import-private-key-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowImportPkModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Import Private Key</h3>
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <g clipPath="url(#clip0_3_1930)">
+                                                    <path
+                                                        d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                        fill="currentcolor"
+                                                    />
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_3_1930">
+                                                        <rect
+                                                            width="24"
+                                                            height="24"
+                                                            fill="currentcolor"
+                                                        />
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </InlineButton>
+                                    </>
+                                )}
+                            </WalletActionsFooter>
                             <InlineButton
                                 id="import-keyfile-wallet-button"
                                 variant="full-ghost"
@@ -833,7 +894,7 @@ export const Login: React.FC = () => {
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                <h3>Import from Keyfile</h3>
+                                <h3>Import Wallet from keyfile</h3>
                                 <svg
                                     width="24"
                                     height="24"
@@ -870,6 +931,14 @@ export const Login: React.FC = () => {
                     navigate("/login");
                 }}
                 onClose={() => setShowCreateModal(false)}
+                onSuccess={() => {
+                    navigate("/");
+                }}
+            />
+            <CreatePkWalletModal
+                isOpen={showCreatePkModal}
+                onCancel={() => setShowCreatePkModal(false)}
+                onClose={() => setShowCreatePkModal(false)}
                 onSuccess={() => {
                     navigate("/");
                 }}

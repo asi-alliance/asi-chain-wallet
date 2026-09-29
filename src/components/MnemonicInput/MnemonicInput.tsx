@@ -1,50 +1,73 @@
-import React, { ClipboardEvent, KeyboardEvent } from "react";
+import React, { ClipboardEvent, KeyboardEvent, useId } from "react";
 import styled from "styled-components";
+
+const Wrapper = styled.div`
+    width: 100%;
+`;
 
 const Grid = styled.div`
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.md};
 
-    @media (max-width: 768px) {
-        grid-template-columns: repeat(2, 1fr);
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 `;
 
 const WordWrapper = styled.div`
     display: flex;
     align-items: center;
-    gap: 6px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
-    padding: 4px 8px;
-    background: ${({ theme }) => theme.surface};
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-width: 0;
+    padding: ${({ theme }) => `calc((${theme.sizes.control.field} - ${theme.typography.lineHeight.sm}) / 2)`}
+        ${({ theme }) => theme.control.fieldPadding};
+    border: ${({ theme }) => theme.control.borderWidth} solid
+        ${({ theme }) => theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
+
+    &:hover:not(:focus-within) {
+        border-color: ${({ theme }) => theme.control.fieldHoverBorder};
+    }
 
     &:focus-within {
         border-color: ${({ theme }) => theme.primary};
+        box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
 `;
 
 const WordIndex = styled.span`
-    color: ${({ theme }) => theme.text.secondary};
-    font-size: 12px;
+    flex-shrink: 0;
     min-width: 18px;
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
 `;
 
 const WordField = styled.input`
     flex: 1;
     width: 100%;
+    min-width: 0;
     border: none;
     outline: none;
     background: transparent;
     color: ${({ theme }) => theme.text.primary};
-    font-size: 13px;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+
+    &:disabled {
+        cursor: not-allowed;
+        color: ${({ theme }) => theme.text.tertiary};
+    }
 `;
 
 const ErrorMessage = styled.div`
-    color: ${({ theme }) => theme.danger};
-    font-size: 14px;
-    margin-top: 8px;
+    margin-top: ${({ theme }) => theme.spacing.md};
+    color: ${({ theme }) => theme.dangerText};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 const sanitizeWord = (raw: string): string =>
@@ -59,6 +82,7 @@ interface MnemonicInputProps {
     onWordsChange: (words: string[]) => void;
     error?: string;
     disabled?: boolean;
+    "aria-label"?: string;
 }
 
 export const MnemonicInput: React.FC<MnemonicInputProps> = ({
@@ -67,7 +91,10 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
     onWordsChange,
     error,
     disabled = false,
+    "aria-label": ariaLabel = "Recovery phrase words",
 }) => {
+    const errorId = useId();
+
     const handleWordChange = (index: number, rawValue: string) => {
         const next = [...words];
         next[index] = sanitizeWord(rawValue);
@@ -75,7 +102,7 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
     };
 
     const handlePaste = (
-        _index: number,
+        index: number,
         event: ClipboardEvent<HTMLInputElement>,
     ) => {
         const text = event.clipboardData.getData("text");
@@ -87,10 +114,17 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
 
         event.preventDefault();
 
-        const next = Array.from({ length: wordCount }, () => "");
+        const next = Array.from(
+            { length: wordCount },
+            (_, wordIndex) => words[wordIndex] ?? "",
+        );
 
-        for (let i = 0; i < wordCount && i < parts.length; i += 1) {
-            next[i] = parts[i];
+        for (
+            let offset = 0;
+            offset < parts.length && index + offset < wordCount;
+            offset += 1
+        ) {
+            next[index + offset] = parts[offset];
         }
 
         onWordsChange(next);
@@ -103,17 +137,21 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
     };
 
     return (
-        <div>
-            <Grid>
+        <Wrapper>
+            <Grid role="group" aria-label={ariaLabel} aria-describedby={error ? errorId : undefined}>
                 {Array.from({ length: wordCount }, (_, index) => (
                     <WordWrapper key={index}>
-                        <WordIndex>{index + 1}.</WordIndex>
+                        <WordIndex aria-hidden="true">{index + 1}.</WordIndex>
                         <WordField
+                            id={`mnemonic-word-${index + 1}`}
                             type="text"
                             autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
                             spellCheck={false}
                             disabled={disabled}
                             value={words[index] ?? ""}
+                            aria-label={`Word ${index + 1}`}
                             onChange={(event) =>
                                 handleWordChange(index, event.target.value)
                             }
@@ -123,7 +161,11 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
                     </WordWrapper>
                 ))}
             </Grid>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-        </div>
+            {error && (
+                <ErrorMessage id={errorId} role="alert">
+                    {error}
+                </ErrorMessage>
+            )}
+        </Wrapper>
     );
 };

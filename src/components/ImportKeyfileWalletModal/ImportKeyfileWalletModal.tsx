@@ -19,7 +19,9 @@ export const ImportKeyfileWalletModal: React.FC<
     <ModalWindow
         isOpen={isOpen}
         onClose={onCancel}
-        title="Import Wallet from Keyfile"
+        title="Import Wallet from keyfile"
+        maxWidth="705px"
+        dismissible={false}
     >
         <ImportKeyfileWalletForm
             onWalletImported={() => {

@@ -1,15 +1,15 @@
 import React from "react";
 import { ModalWindow } from "components/ModalWindow";
-import { ImportHdWalletForm } from "components/ImportHdWalletForm";
+import { CreatePkWalletForm } from "components/CreatePkWalletForm";
 
-interface ImportHdWalletModalProps {
+interface CreatePkWalletModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCancel: () => void;
     onSuccess?: () => void;
 }
 
-export const ImportHdWalletModal: React.FC<ImportHdWalletModalProps> = ({
+export const CreatePkWalletModal: React.FC<CreatePkWalletModalProps> = ({
     isOpen,
     onClose,
     onCancel,
@@ -24,11 +24,11 @@ export const ImportHdWalletModal: React.FC<ImportHdWalletModalProps> = ({
         <ModalWindow
             isOpen={isOpen}
             onClose={onCancel}
-            title="Import Wallet"
+            title="Create Private Key Wallet"
             maxWidth="705px"
             dismissible={false}
         >
-            <ImportHdWalletForm onSuccess={handleSuccess} onCancel={onCancel} />
+            <CreatePkWalletForm onSuccess={handleSuccess} onCancel={onCancel} />
         </ModalWindow>
     );
 };

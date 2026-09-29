@@ -105,6 +105,10 @@ export class SdkWalletService {
         return requireSdkClient().generateMnemonic(strength);
     }
 
+    static generatePrivateKeyHex(): string {
+        return encodeBase16(requireSdkClient().generatePrivateKey());
+    }
+
     static isMnemonicValid(mnemonic: string): boolean {
         return Mnemonic.isMnemonicValid(mnemonic);
     }

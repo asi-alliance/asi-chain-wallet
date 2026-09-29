@@ -172,6 +172,6 @@ export const Alert: React.FC<AlertProps> = ({
         role={role ?? (tone === "danger" ? "alert" : "status")}
     >
         {icon && <AlertIcon aria-hidden="true">{icon}</AlertIcon>}
-        <span>{children}</span>
+        <div>{children}</div>
     </AlertRoot>
 );

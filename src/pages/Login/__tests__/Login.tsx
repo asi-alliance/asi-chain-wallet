@@ -31,6 +31,9 @@ jest.mock("components", () => ({
 jest.mock("components/CreateHdWalletModal", () => ({
     CreateHdWalletModal: () => null,
 }));
+jest.mock("components/CreatePkWalletModal", () => ({
+    CreatePkWalletModal: () => null,
+}));
 jest.mock("components/ImportHdWalletModal", () => ({
     ImportHdWalletModal: () => null,
 }));
