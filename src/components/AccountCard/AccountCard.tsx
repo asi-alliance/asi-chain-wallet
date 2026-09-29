@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import CopyButton from "components/CopyButton";
 import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
 import {
@@ -33,11 +33,39 @@ interface IAccountCardProps {
 
 export const ACCOUNT_CARD_WIDTH_PX = 462;
 
-const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
-    border: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? `1px solid ${theme.border}`
-            : `1px solid ${theme.primary}`};
+// Soft organic wash approximating Current Wallet card pattern (no separate asset in repo).
+const walletSurfacePattern = css`
+    background-color: ${({ theme }) => theme.card};
+    background-image:
+        radial-gradient(
+            ellipse 42% 36% at 12% 18%,
+            ${({ theme }) => theme.primarySubtle} 0%,
+            transparent 70%
+        ),
+        radial-gradient(
+            ellipse 48% 40% at 78% 22%,
+            ${({ theme }) => theme.primaryMuted} 0%,
+            transparent 72%
+        ),
+        radial-gradient(
+            ellipse 55% 45% at 40% 78%,
+            ${({ theme }) => theme.primarySubtle} 0%,
+            transparent 75%
+        ),
+        radial-gradient(
+            ellipse 36% 32% at 88% 72%,
+            ${({ theme }) => theme.primarySubtle} 0%,
+            transparent 70%
+        );
+`;
+
+const AccountCardWrapper = styled(Card)<{
+    $isSelected: boolean;
+    $fullMode: boolean;
+}>`
+    border: 1px solid
+        ${({ $isSelected, $fullMode, theme }) =>
+            !$fullMode || $isSelected ? theme.primary : theme.border};
     cursor: pointer;
     transition:
         border-color ${({ theme }) => theme.motion.normal}
@@ -46,12 +74,19 @@ const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
             ${({ theme }) => theme.motion.easing};
     padding: ${({ theme }) => theme.spacing["3xl"]}
         ${({ theme }) => theme.spacing.xl};
-    background-color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.colors.background.secondary : theme.primary};
     width: 100%;
     max-width: ${ACCOUNT_CARD_WIDTH_PX}px;
     overflow: visible;
     box-shadow: ${({ theme }) => theme.shadowDrop};
+
+    ${({ $fullMode, $isSelected, theme }) =>
+        $fullMode
+            ? css`
+                  background-color: ${!$isSelected
+                      ? theme.colors.background.secondary
+                      : theme.primary};
+              `
+            : walletSurfacePattern}
 
     &:hover {
         border-color: ${({ theme }) => theme.primary};
@@ -99,11 +134,20 @@ const DerivationIndex = styled.div<{ $isSelected: boolean }>`
         ${({ theme }) => theme.spacing.xl};
 `;
 
-const LabelSecond = styled.span<{ $isSelected: boolean }>`
+const LabelSecond = styled.span<{ $isSelected: boolean; $compact?: boolean }>`
     font-weight: 400;
     font-size: ${({ theme }) => theme.typography.size.xs};
     color: ${({ $isSelected, theme }) =>
         !$isSelected ? theme.text.primary : theme.colors.background.secondary};
+    ${({ $compact }) =>
+        $compact &&
+        css`
+            flex: 0 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `}
 `;
 
 const LabelThird = styled.div<{ $isSelected: boolean }>`
@@ -137,19 +181,60 @@ const ExportActionButton = styled(Button)`
     }
 `;
 
-const AccountAddress = styled.div<{ $isSelected: boolean }>`
+const AccountAddress = styled.div<{ $isSelected: boolean; $compact: boolean }>`
     font-family: ${({ theme }) => theme.typography.fontFamily};
     font-size: ${({ theme }) => theme.typography.size.xs};
     color: ${({ $isSelected, theme }) =>
         !$isSelected ? theme.text.primary : theme.colors.background.secondary};
-    word-break: break-all;
     min-width: 0;
+    flex: 1;
+
+    ${({ $compact }) =>
+        $compact
+            ? css`
+                  word-break: normal;
+              `
+            : css`
+                  word-break: break-all;
+              `}
 
     button {
         color: ${({ $isSelected, theme }) =>
             !$isSelected
                 ? theme.text.primary
                 : theme.colors.background.secondary};
+        flex-shrink: 0;
+    }
+`;
+
+const AddressValueRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-width: 0;
+`;
+
+const AddressCopyAction = styled.span`
+    display: inline-flex;
+    flex-shrink: 0;
+
+    .copy-container {
+        display: inline-flex;
+    }
+
+    .copy-button {
+        position: static;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 4px;
+        transform: none;
+    }
+
+    .copy-button:hover {
+        transform: none;
     }
 `;
 
@@ -205,6 +290,8 @@ export const AccountCard = ({
     };
 
     const isSelected = selectedAccountId === account.id;
+    // Filled green selection is Accounts-only; Wallet compact uses surface + border.
+    const filledSelection = fullMode && isSelected;
     const showDerivationIndex =
         fullMode &&
         ownerWallet?.type === WalletTypes.HD &&
@@ -217,6 +304,7 @@ export const AccountCard = ({
             id={`account-card-${account.id}`}
             data-testid={`account-card-${account.id}`}
             $isSelected={isSelected}
+            $fullMode={fullMode}
             className={className}
             role="group"
             tabIndex={0}
@@ -233,6 +321,7 @@ export const AccountCard = ({
                 <AccountNameEditor
                     disabled={!isUnlocked}
                     accountId={account.id}
+                    isSelected={filledSelection}
                 />
 
                 <HeaderActions onClick={stopCardActivation}>
@@ -247,7 +336,7 @@ export const AccountCard = ({
             </AccountHeader>
 
             {showDerivationIndex && (
-                <DerivationIndex $isSelected={isSelected}>
+                <DerivationIndex $isSelected={filledSelection}>
                     <span aria-hidden="true">
                         <FileCopyIcon size={14} color="currentColor" />
                     </span>
@@ -255,28 +344,41 @@ export const AccountCard = ({
                 </DerivationIndex>
             )}
 
-            <ASIAccountBalance account={account} isSelected={isSelected} />
+            <ASIAccountBalance
+                account={account}
+                isSelected={filledSelection}
+                neutralAmount={!fullMode}
+            />
 
             <AccountCardFooter>
-                <AccountAddress $isSelected={isSelected}>
-                    <LabelThird $isSelected={isSelected}>
+                <AccountAddress
+                    $isSelected={filledSelection}
+                    $compact={!fullMode}
+                >
+                    <LabelThird $isSelected={filledSelection}>
                         ASI Address
                     </LabelThird>
-                    <LabelSecond
-                        style={{ marginRight: 10, lineHeight: "27px" }}
-                        $isSelected={isSelected}
-                    >
-                        {formatAddress(account.address, {
-                            isFullMode: !fullMode,
-                        })}
-                    </LabelSecond>
-                    <span onClick={stopCardActivation}>
-                        <CopyButton
-                            dataToCopy={account.address}
-                            size={15}
-                            title={`Copy address, ${account.name}`}
-                        />
-                    </span>
+                    <AddressValueRow>
+                        <LabelSecond
+                            style={{ marginRight: 0, lineHeight: "27px" }}
+                            $isSelected={filledSelection}
+                            $compact={!fullMode}
+                            title={account.address}
+                        >
+                            {formatAddress(account.address, {
+                                // Compact Wallet: full string + CSS ellipsis (Current p26/p27).
+                                // Accounts: truncated middle form.
+                                isFullMode: !fullMode,
+                            })}
+                        </LabelSecond>
+                        <AddressCopyAction onClick={stopCardActivation}>
+                            <CopyButton
+                                dataToCopy={account.address}
+                                size={15}
+                                title={`Copy address, ${account.name}`}
+                            />
+                        </AddressCopyAction>
+                    </AddressValueRow>
                 </AccountAddress>
                 {fullMode && isUnlocked && onRequestExportWallet && (
                     <FooterActions onClick={stopCardActivation}>

@@ -9,6 +9,8 @@ interface IAccountBalanceProps {
     loading?: boolean;
     onRefresh?: () => void;
     isSelected?: boolean;
+    /** Dark amount text for surface cards (Wallet Current); default is brand green. */
+    neutralAmount?: boolean;
     style?: CSSProperties;
     refreshButtonId?: string;
     refreshAriaLabel?: string;
@@ -23,23 +25,42 @@ const AmountBalanceWrapper = styled.div`
     align-items: center;
 `;
 
-const AccountBalanceBlock = styled.span<{ $isSelected: boolean }>`
+const amountColor = ({
+    $isSelected,
+    $neutralAmount,
+    theme,
+}: {
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+    theme: {
+        colors: { primary: string; background: { secondary: string } };
+        text: { primary: string };
+    };
+}): string => {
+    if ($isSelected) {
+        return theme.colors.background.secondary;
+    }
+
+    return $neutralAmount ? theme.text.primary : theme.colors.primary;
+};
+
+const AccountBalanceBlock = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
     font-size: 3rem;
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
     margin-right: 4px;
 `;
 
-const AccountCurrency = styled.span<{ $isSelected: boolean }>`
+const AccountCurrency = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
     font-size: 1.5rem;
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
 `;
 
 const LabelFirst = styled.div<{ $isSelected: boolean }>`
@@ -58,6 +79,7 @@ export const AccountBalance = ({
     loading = false,
     onRefresh,
     isSelected = false,
+    neutralAmount = false,
     style,
     refreshButtonId,
     refreshAriaLabel = "Refresh Balance",
@@ -68,10 +90,16 @@ export const AccountBalance = ({
         <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
-                    <AccountBalanceBlock $isSelected={isSelected}>
+                    <AccountBalanceBlock
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
                         {balance === undefined ? BALANCE_PLACEHOLDER : amount}
                     </AccountBalanceBlock>
-                    <AccountCurrency $isSelected={isSelected}>
+                    <AccountCurrency
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
                         {currency}
                     </AccountCurrency>
                 </div>
@@ -80,6 +108,7 @@ export const AccountBalance = ({
                     title={refreshAriaLabel}
                     aria-label={refreshAriaLabel}
                     variant="icon-button-ghost"
+                    disabled={!onRefresh}
                     onClick={(e) => {
                         e.stopPropagation();
                         onRefresh?.();

@@ -49,6 +49,7 @@ const StyledEditableLabel = styled(EditableLabel)<{ $isSelected: boolean }>`
 
 export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     accountId,
+    isSelected: isSelectedProp,
     ...labelProps
 }) => {
     const dispatch = useAppDispatch();
@@ -94,7 +95,9 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
         }
     };
 
-    const isSelected: boolean = account.id === selectedAccountId;
+    // Wallet compact cards stay on a light surface; callers can suppress inverse text.
+    const isSelected: boolean =
+        isSelectedProp ?? account.id === selectedAccountId;
 
     return (
         <StyledEditableLabel

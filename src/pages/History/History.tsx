@@ -16,7 +16,6 @@ import { ContentPasteIcon, DownloadIcon } from "components/Icons";
 import { AdaptiveSelect } from "components/Select";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
-import { getTokenDisplayName } from "constants/token";
 import {
     ACCOUNT_DATA_POLLING_INTERVAL_MS,
     ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
@@ -24,6 +23,7 @@ import {
 import { DefaultTheme } from "styled-components/dist/types";
 import { useScreen } from "hooks";
 import { TransactionStatus, TransactionType } from "@asichain/asi-wallet-sdk";
+import { formatTransactionAmount } from "utils/transactionUtils";
 
 interface TransactionFilter {
     type?: TransactionType;
@@ -283,18 +283,6 @@ const formatAddress = (address: string): string => {
     return `${address.substring(0, 10)}...${address.substring(
         address.length - 8,
     )}`;
-};
-
-const formatAmount = (amount?: string): string => {
-    if (!amount) return "-";
-    try {
-        const amountNum = parseFloat(amount);
-        if (isNaN(amountNum)) return `${amount} ${getTokenDisplayName()}`;
-
-        return `${amountNum.toFixed(8)} ${getTokenDisplayName()}`;
-    } catch (error) {
-        return `${amount} ${getTokenDisplayName()}`;
-    }
 };
 
 const formatDate = (date: string | Date): string => {
@@ -603,7 +591,9 @@ export const History: React.FC = () => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {formatAmount(tx.amount)}
+                                                    {formatTransactionAmount(
+                                                        tx.amount,
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {tx.deployId && (

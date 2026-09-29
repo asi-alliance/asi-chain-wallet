@@ -8,6 +8,7 @@ import { IAccountMeta } from "types/wallet";
 interface IASIAccountBalanceProps {
     account: IAccountMeta;
     isSelected?: boolean;
+    neutralAmount?: boolean;
     style?: CSSProperties;
     onBalanceUpdate?: () => void;
 }
@@ -15,6 +16,7 @@ interface IASIAccountBalanceProps {
 export const ASIAccountBalance = ({
     account,
     isSelected = false,
+    neutralAmount = false,
     style,
     onBalanceUpdate,
 }: IASIAccountBalanceProps): ReactElement => {
@@ -36,6 +38,7 @@ export const ASIAccountBalance = ({
             loading={isFetching}
             onRefresh={handleRefresh}
             isSelected={isSelected}
+            neutralAmount={neutralAmount}
             style={style}
             refreshButtonId={`refresh-balance-account-${account.id}`}
             refreshAriaLabel={`Refresh balance, ${account.name}`}
