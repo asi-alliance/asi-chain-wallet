@@ -85,6 +85,9 @@ export const Search: React.FC<SearchProps> = ({
             return;
         }
 
+        // Prevent the Enter keyup from re-activating a focus-restored trigger.
+        event.preventDefault();
+        event.stopPropagation();
         onSearch(displayedValue);
     };
 

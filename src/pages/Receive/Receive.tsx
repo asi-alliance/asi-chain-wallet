@@ -471,6 +471,7 @@ export const Receive: React.FC = () => {
                             header={isQrExpanded ? "Hide QR Code" : "Show QR Code"}
                             expanded={isQrExpanded}
                             onToggle={setIsQrExpanded}
+                            inlineOnMobile
                         >
                             <QRCodeContainer>
                                 <QRCodeCanvas
