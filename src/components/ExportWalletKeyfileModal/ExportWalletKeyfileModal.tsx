@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ExportFormat, IWalletKeyfile, getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { PasswordModal } from "components";
-import { SdkWalletService } from "sdk";
+import { isInvalidPasswordError, SdkWalletService } from "sdk";
 import { downloadExport } from "utils/fileDownload";
 
 interface ExportWalletKeyfileModalProps {
@@ -14,10 +14,12 @@ export const ExportWalletKeyfileModal: React.FC<
     ExportWalletKeyfileModalProps
 > = ({ isOpen, walletId, onClose }) => {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [formError, setFormError] = useState("");
 
     const handleClose = (): void => {
-        setError("");
+        setPasswordError("");
+        setFormError("");
         onClose();
     };
 
@@ -27,7 +29,8 @@ export const ExportWalletKeyfileModal: React.FC<
         }
 
         setLoading(true);
-        setError("");
+        setPasswordError("");
+        setFormError("");
 
         try {
             const keyfile: IWalletKeyfile =
@@ -41,12 +44,16 @@ export const ExportWalletKeyfileModal: React.FC<
 
             handleClose();
         } catch (exportError: unknown) {
-            setError(
-                getErrorMessage(
-                    exportError,
-                    "Failed to export wallet keyfile",
-                ),
+            const message = getErrorMessage(
+                exportError,
+                "Failed to export wallet keyfile",
             );
+
+            if (isInvalidPasswordError(exportError)) {
+                setPasswordError(message);
+            } else {
+                setFormError(message);
+            }
         } finally {
             setLoading(false);
         }
@@ -60,7 +67,8 @@ export const ExportWalletKeyfileModal: React.FC<
             title="Export Wallet Keyfile"
             description="Enter your wallet password to export the keyfile. Anyone with this file and its password controls the wallet."
             loading={loading}
-            error={error}
+            error={passwordError}
+            formError={formError}
         />
     );
 };

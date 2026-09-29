@@ -22,7 +22,7 @@ const Actions = styled.div`
     margin-top: 24px;
 `;
 
-const ErrorMessage = styled.div`
+const FormError = styled.div`
     color: ${({ theme }) => theme.danger};
     font-size: 14px;
     margin-top: 8px;
@@ -34,8 +34,12 @@ interface PasswordModalProps {
     onConfirm: (password: string) => void;
     title?: string;
     description?: string;
+    confirmLabel?: string;
     loading?: boolean;
+    /** Field-linked credential error (marks the password input invalid). */
     error?: string;
+    /** Operation error unrelated to the password value itself. */
+    formError?: string;
 }
 
 export const PasswordModal: React.FC<PasswordModalProps> = ({
@@ -44,8 +48,10 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     onConfirm,
     title = "Enter Password",
     description = "Please enter your password to continue.",
+    confirmLabel = "Confirm",
     loading = false,
     error,
+    formError,
 }) => {
     const [password, setPassword] = useState("");
     const [localError, setLocalError] = useState("");
@@ -114,9 +120,11 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
 
             <PasswordInput
                 id="password-modal-input"
+                label="Wallet password"
                 data-testid="password-modal-input"
                 data-cy="password-modal-input"
                 value={password}
+                error={error || localError}
                 onChange={(e) => setPassword(e.target.value)}
                 onInput={(e) => {
                     const target = e.currentTarget;
@@ -131,8 +139,8 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                 disabled={loading}
             />
 
-            {(error || localError) && (
-                <ErrorMessage role="alert">{error || localError}</ErrorMessage>
+            {formError && (
+                <FormError role="alert">{formError}</FormError>
             )}
 
             <Actions>
@@ -144,7 +152,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                     Cancel
                 </Button>
                 <Button onClick={handleConfirm} loading={loading}>
-                    Confirm
+                    {confirmLabel}
                 </Button>
             </Actions>
         </ModalWindow>
