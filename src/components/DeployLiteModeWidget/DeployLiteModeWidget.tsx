@@ -18,18 +18,19 @@ import { stringifyWithBigInt } from "utils/helpers";
 const CodeEditor = styled.textarea`
     width: 100%;
     height: 300px;
-    padding: 16px;
-    font-size: 14px;
-    background: ${({ theme }) => theme.surface};
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
+    padding: ${({ theme }) => theme.spacing.xl};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    background: ${({ theme }) => theme.control.fieldBackground};
+    border: 1px solid ${({ theme }) => theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
     color: ${({ theme }) => theme.text.primary};
     resize: vertical;
-    margin-bottom: 36px;
+    margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
 
-    &:focus {
+    &:focus-visible {
         border-color: ${({ theme }) => theme.primary};
         outline: none;
+        box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
 
     &::placeholder {
@@ -59,8 +60,19 @@ const FormRow = styled.div`
 
 const BoardActions = styled.div`
     display: flex;
-    gap: 24px;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column;
+        align-items: stretch;
+
+        > button {
+            width: 100%;
+            min-height: ${({ theme }) => theme.sizes.control.field};
+        }
+    }
 `;
 
 const DeployButton = styled(Button)`
@@ -91,10 +103,11 @@ const ResultContent = styled.pre`
 `;
 
 const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger};
-    color: white;
+    background: ${({ theme }) => `${theme.danger}1F`};
+    color: ${({ theme }) => theme.dangerText};
     padding: 12px;
-    border-radius: 8px;
+    border: 1px solid ${({ theme }) => `${theme.danger}40`};
+    border-radius: ${({ theme }) => theme.radii.md};
     margin-bottom: 16px;
 `;
 
@@ -328,6 +341,7 @@ const CopyDeployIdButton: React.FC<{ deployId: string }> = ({ deployId }) => (
     <Button
         variant="secondary"
         size="small"
+        aria-label="Copy deploy hash"
         style={{
             flexShrink: 0,
             whiteSpace: "nowrap",
@@ -338,7 +352,7 @@ const CopyDeployIdButton: React.FC<{ deployId: string }> = ({ deployId }) => (
             } catch {}
         }}
     >
-        Copy
+        Copy hash
     </Button>
 );
 
@@ -346,6 +360,8 @@ const DeployLiteModeBoard: React.FC = () => {
     const {
         account,
         isBalanceReady,
+        isPhloLimitValid,
+        isBlockedByAnotherChainOperation,
         code,
         setCode,
         error,
@@ -372,11 +388,9 @@ const DeployLiteModeBoard: React.FC = () => {
 
     const { isLaptop } = useScreen();
 
-    const clearButtonVariant = !isLaptop ? "ghost" : "icon-button";
-
     return (
         <>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             {unresolvedReason && (
                 <WarningMessage>
                     <div>{DEPLOY_UNRESOLVED_TITLE}</div>
@@ -442,6 +456,7 @@ const DeployLiteModeBoard: React.FC = () => {
             )}
             <FormGroup>
                 <label
+                    htmlFor="deploy-rholang-code-editor"
                     style={{
                         display: "block",
                         marginBottom: "8px",
@@ -464,9 +479,11 @@ const DeployLiteModeBoard: React.FC = () => {
                         loading={isProcessing}
                         disabled={
                             isProcessing ||
+                            isBlockedByAnotherChainOperation ||
                             !code.trim() ||
                             !account ||
-                            !isBalanceReady
+                            !isBalanceReady ||
+                            !isPhloLimitValid
                         }
                     >
                         <h3>Deploy</h3>
@@ -475,28 +492,17 @@ const DeployLiteModeBoard: React.FC = () => {
                         variant="secondary"
                         onClick={handleExploreClick}
                         loading={isProcessing}
-                        disabled={isProcessing || !code.trim()}
+                        disabled={isProcessing || isBlockedByAnotherChainOperation || !code.trim()}
                     >
                         <h3>Explore</h3>
                         {!isLaptop && <PreviewIcon />}
                     </Button>
                     <Button
-                        title="Clear code editor"
-                        variant={clearButtonVariant}
+                        aria-label="Clear code editor"
+                        variant="danger"
                         onClick={clearCode}
-                        dangerHover
-                        style={{
-                            height: "30px",
-                        }}
                     >
-                        {!isLaptop && (
-                            <h3
-                                style={{ fontSize: "0.75rem" }}
-                                className="text-danger"
-                            >
-                                Clear
-                            </h3>
-                        )}
+                        <span>Clear</span>
                         <DeleteIcon />
                     </Button>
                 </BoardActions>
