@@ -26,6 +26,7 @@ export interface InputProps
     "data-cy"?: string;
     inputRef?: RefObject<HTMLInputElement>;
     copyable?: boolean;
+    copyTitle?: string;
     CustomCopyIcon?: FC<IIconProps>;
     withoutHoverUI?: boolean;
     startAdornment?: React.ReactNode;
@@ -269,6 +270,7 @@ export const Input: React.FC<InputProps> = ({
     labelColorSelector,
     inputRef,
     copyable = false,
+    copyTitle,
     value,
     CustomCopyIcon,
     withoutHoverUI = false,
@@ -365,6 +367,7 @@ export const Input: React.FC<InputProps> = ({
                         {copyable && (
                             <CopyButton
                                 dataToCopy={getValueToCopy()}
+                                title={copyTitle}
                                 size={16}
                                 CustomCopyIcon={CustomCopyIcon}
                                 buttonStyle={{
