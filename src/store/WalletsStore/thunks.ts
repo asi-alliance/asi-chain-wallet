@@ -418,12 +418,32 @@ export const addCustomNetwork = createAsyncThunk<
 export const updateCustomNetwork = createAsyncThunk<
     TCustomNetwork,
     IUpdateNetworkPayload,
-    { rejectValue: string }
+    { state: RootState; rejectValue: string }
 >(
     "walletsStore/updateCustomNetwork",
-    async ({ id, update }: IUpdateNetworkPayload, { rejectWithValue }) => {
+    async (
+        { id, update }: IUpdateNetworkPayload,
+        { dispatch, getState, rejectWithValue },
+    ) => {
         try {
-            return await SdkWalletService.updateCustomNetwork(id, update);
+            const updatedNetwork = await SdkWalletService.updateCustomNetwork(
+                id,
+                update,
+            );
+
+            if (
+                update.config &&
+                getState().walletsStore.selectedNetwork.id === id
+            ) {
+                dispatch(
+                    walletsApi.util.invalidateTags([
+                        WalletsApiTags.BALANCE,
+                        WalletsApiTags.HISTORY,
+                    ]),
+                );
+            }
+
+            return updatedNetwork;
         } catch (error) {
             return rejectWithValue(
                 getErrorMessage(error, "Failed to update custom network"),

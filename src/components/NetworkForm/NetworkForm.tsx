@@ -13,59 +13,65 @@ import {
 } from "@asichain/asi-wallet-sdk";
 
 const ConfigSection = styled.div`
-    margin-bottom: 36px;
+    margin-bottom: ${({ theme }) => theme.spacing["4xl"]};
 `;
 
 const ConfigTitle = styled.h2`
-    margin-bottom: 16px;
+    margin: 0 0 ${({ theme }) => theme.spacing.xl};
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.lg};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
+    line-height: ${({ theme }) => theme.typography.lineHeight.lg};
     color: ${({ theme }) => theme.text.primary};
 `;
 
 const FormRow = styled.div`
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: ${({ theme }) => theme.spacing.xl};
 `;
 
 const FormGroup = styled.div`
     display: flex;
     flex-direction: column;
-`;
-
-const Label = styled.label`
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 8px;
+    min-width: 0;
 `;
 
 const DirectLinks = styled.div`
-    padding: 16px 23px;
+    padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing["3xl"]};
     background: ${({ theme }) => theme.surface};
-    border-radius: 8px;
+    border-radius: ${({ theme }) => theme.radii.md};
     border: 1px solid ${({ theme }) => theme.border};
     max-width: 100%;
     box-sizing: border-box;
 
-    @media (max-width: 768px) {
-        padding: 14px 16px;
-    }
-
-    @media (max-width: 400px) {
-        padding: 12px;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     }
 `;
 
 const LinkTitle = styled.div`
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
     color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 10px;
-    line-height: 100%;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
 `;
 
-const Link = styled.div`
-    color: ${({ theme }) => theme.primary};
-    margin-bottom: 10px;
+const Link = styled.button`
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    color: ${({ theme }) => theme.actionText};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
     cursor: pointer;
-    line-height: 1.4;
     overflow-wrap: anywhere;
     word-break: break-word;
 
@@ -77,13 +83,28 @@ const Link = styled.div`
         margin-bottom: 0;
     }
 
-    @media (max-width: 400px) {
-        font-size: 14px;
+    &:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+        outline-offset: 2px;
+        border-radius: ${({ theme }) => theme.radii.xs};
+    }
+
+    &:disabled {
+        color: ${({ theme }) => theme.text.tertiary};
+        cursor: not-allowed;
+        text-decoration: none;
     }
 `;
 
+const EmptyEndpoints = styled.span`
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+    color: ${({ theme }) => theme.text.secondary};
+`;
+
 const InlineInput = styled(Input)`
-    height: 44px;
+    height: ${({ theme }) => theme.sizes.control.field};
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -92,18 +113,21 @@ const InlineInput = styled(Input)`
 const NodeApiSelectWrapper = styled.div`
     max-width: 300px;
 
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         max-width: none;
     }
 `;
 
 export const NetworkFormError = styled.div`
-    margin-top: 16px;
-    padding: 12px 16px;
-    border-radius: 6px;
-    color: ${({ theme }) => theme.error};
-    background: ${({ theme }) => `${theme.error}15`};
-    border: 1px solid ${({ theme }) => theme.error};
+    margin-top: ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+    border-radius: ${({ theme }) => theme.radii.sm};
+    color: ${({ theme }) => theme.dangerText};
+    background: ${({ theme }) => `${theme.danger}15`};
+    border: 1px solid ${({ theme }) => theme.danger};
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 export interface INetworkFormValues {
@@ -111,8 +135,19 @@ export interface INetworkFormValues {
     config: INetworkConfig;
 }
 
+export type TNetworkFormFieldKey =
+    | "name"
+    | keyof Pick<INetworkEndpoints, "ValidatorURL" | "ReadOnlyURL" | "IndexerURL">;
+
+export type TNetworkFormFieldErrors = Partial<
+    Record<TNetworkFormFieldKey, string>
+>;
+
 interface INetworkUrlField {
-    field: keyof INetworkEndpoints;
+    field: keyof Pick<
+        INetworkEndpoints,
+        "ValidatorURL" | "ReadOnlyURL" | "IndexerURL"
+    >;
     label: string;
     placeholder: string;
 }
@@ -167,34 +202,45 @@ export const normalizeNetworkFormValues = ({
     },
 });
 
-export const validateNetworkFormValues = (
+export const getNetworkFormFieldErrors = (
     values: INetworkFormValues,
     reservedNames: string[],
-): string | null => {
+): TNetworkFormFieldErrors => {
     const { name, config } = normalizeNetworkFormValues(values);
+    const fieldErrors: TNetworkFormFieldErrors = {};
 
     if (!name) {
-        return "Network name is required.";
-    }
+        fieldErrors.name = "Network name is required.";
+    } else {
+        const isNameReserved = reservedNames.some(
+            (reservedName: string) =>
+                reservedName.trim().toLowerCase() === name.toLowerCase(),
+        );
 
-    const isNameReserved = reservedNames.some(
-        (reservedName: string) =>
-            reservedName.trim().toLowerCase() === name.toLowerCase(),
-    );
-
-    if (isNameReserved) {
-        return `Network name "${name}" is already used by another network.`;
+        if (isNameReserved) {
+            fieldErrors.name = `Network name "${name}" is already used by another network.`;
+        }
     }
 
     for (const { field, label } of URL_FIELDS) {
         const { isValid, error } = validateUrl(config[field]);
 
         if (!isValid) {
-            return `${label}: ${error}`;
+            fieldErrors[field] = `${label}: ${error}`;
         }
     }
 
-    return null;
+    return fieldErrors;
+};
+
+export const validateNetworkFormValues = (
+    values: INetworkFormValues,
+    reservedNames: string[],
+): string | null => {
+    const fieldErrors = getNetworkFormFieldErrors(values, reservedNames);
+    const firstError = Object.values(fieldErrors).find(Boolean);
+
+    return firstError ?? null;
 };
 
 const openLink = (url: string): void => {
@@ -210,6 +256,7 @@ interface NetworkFormFieldsProps {
     values: INetworkFormValues;
     onChange: (values: INetworkFormValues) => void;
     disabled: boolean;
+    fieldErrors?: TNetworkFormFieldErrors;
 }
 
 export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
@@ -217,6 +264,7 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
     values,
     onChange,
     disabled,
+    fieldErrors = {},
 }) => {
     const { name, config } = values;
 
@@ -254,19 +302,17 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
     return (
         <Fragment>
             <ConfigSection>
-                <Label>
-                    <h4>Network Name</h4>
-                </Label>
-
                 <InlineInput
                     id={`${idPrefix}-name-input`}
-                    className="network-name-input text-2"
+                    className="network-name-input"
+                    label="Network Name"
                     value={name}
                     onChange={(event) =>
                         onChange({ ...values, name: event.target.value })
                     }
                     placeholder="Custom Network"
                     disabled={disabled}
+                    error={fieldErrors.name}
                 />
             </ConfigSection>
 
@@ -294,13 +340,9 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
                     {URL_FIELDS.map(
                         ({ field, label, placeholder }: INetworkUrlField) => (
                             <FormGroup key={field}>
-                                <Label>
-                                    <h4>{label}:</h4>
-                                </Label>
-
                                 <InlineInput
                                     id={`${idPrefix}-${field.toLowerCase()}-input`}
-                                    className="text-2"
+                                    label={label}
                                     value={config[field]}
                                     onChange={(event) =>
                                         updateEndpoint(
@@ -310,6 +352,7 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
                                     }
                                     placeholder={placeholder}
                                     disabled={disabled}
+                                    error={fieldErrors[field]}
                                 />
                             </FormGroup>
                         ),
@@ -324,14 +367,20 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
                     <LinkTitle>Available endpoints:</LinkTitle>
 
                     {!filledUrlFields.length && (
-                        <span className="text-2">No endpoints configured.</span>
+                        <EmptyEndpoints>
+                            No endpoints configured.
+                        </EmptyEndpoints>
                     )}
 
                     {filledUrlFields.map(
                         ({ field, label }: INetworkUrlField) => (
                             <Link
                                 key={field}
-                                className="text-2"
+                                type="button"
+                                disabled={
+                                    disabled ||
+                                    !validateUrl(config[field]).isValid
+                                }
                                 onClick={() => openLink(config[field])}
                             >
                                 {label}: {config[field]}

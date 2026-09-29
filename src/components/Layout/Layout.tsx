@@ -7,7 +7,7 @@ import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
 import { useNavItems } from "./useNavItems";
-import { selectAccounts } from "store/WalletsStore";
+import { selectAccounts, selectSelectedNetworkId } from "store/WalletsStore";
 
 const Container = styled.div`
     min-height: 100vh;
@@ -38,6 +38,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const observerUrl = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork.observerUrl,
     );
+    const selectedNetworkId = useSelector(selectSelectedNetworkId);
     const accounts = useSelector(selectAccounts);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -50,7 +51,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
 
     useEffect(() => {
+        let active = true;
+        let latestCheck = 0;
         const checkNetwork = async () => {
+            const checkId = ++latestCheck;
             if (!observerUrl) {
                 setNetworkStatus("disconnected");
                 return;
@@ -63,19 +67,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     headers: { Accept: "application/json" },
                     signal: AbortSignal.timeout(5000),
                 });
-                setNetworkStatus(response.ok ? "connected" : "disconnected");
+                if (active && checkId === latestCheck) {
+                    setNetworkStatus(response.ok ? "connected" : "disconnected");
+                }
             } catch {
-                setNetworkStatus("disconnected");
+                if (active && checkId === latestCheck) {
+                    setNetworkStatus("disconnected");
+                }
             } finally {
-                setLastRefresh(new Date());
+                if (active && checkId === latestCheck) {
+                    setLastRefresh(new Date());
+                }
             }
         };
 
         checkNetwork();
         const interval = setInterval(checkNetwork, 60000); // Check every minute
 
-        return () => clearInterval(interval);
-    }, [observerUrl]);
+        return () => {
+            active = false;
+            clearInterval(interval);
+        };
+    }, [observerUrl, selectedNetworkId]);
 
     // Desktop nav replaces the drawer above the navigation breakpoint; clear open state
     // so body scroll lock and aria-expanded do not linger after a resize.
