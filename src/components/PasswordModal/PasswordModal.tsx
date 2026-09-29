@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { PasswordInput, Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
@@ -49,6 +49,8 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
 }) => {
     const [password, setPassword] = useState("");
     const [localError, setLocalError] = useState("");
+    // Sync guard for double-click before parent re-renders with loading=true.
+    const submissionRef = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -57,19 +59,32 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
 
         setPassword("");
         setLocalError("");
+        submissionRef.current = false;
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!loading) {
+            submissionRef.current = false;
+        }
+    }, [loading]);
+
     const handleConfirm = () => {
+        if (loading || submissionRef.current) {
+            return;
+        }
+
         if (!password.trim()) {
             setLocalError("Password is required");
             return;
         }
+
         setLocalError("");
+        submissionRef.current = true;
         onConfirm(password);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (loading) {
+        if (loading || submissionRef.current) {
             return;
         }
 
@@ -79,7 +94,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     };
 
     const handleClose = () => {
-        if (loading) {
+        if (loading || submissionRef.current) {
             return;
         }
 
@@ -113,10 +128,11 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                 placeholder="Enter password"
                 autoFocus
                 autoComplete="current-password"
+                disabled={loading}
             />
 
             {(error || localError) && (
-                <ErrorMessage>{error || localError}</ErrorMessage>
+                <ErrorMessage role="alert">{error || localError}</ErrorMessage>
             )}
 
             <Actions>

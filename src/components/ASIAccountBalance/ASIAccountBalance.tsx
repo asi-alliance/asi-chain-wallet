@@ -38,6 +38,7 @@ export const ASIAccountBalance = ({
             isSelected={isSelected}
             style={style}
             refreshButtonId={`refresh-balance-account-${account.id}`}
+            refreshAriaLabel={`Refresh balance, ${account.name}`}
         />
     );
 };

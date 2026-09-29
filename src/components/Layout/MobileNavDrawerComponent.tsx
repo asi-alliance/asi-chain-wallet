@@ -456,6 +456,7 @@ export const MobileNavDrawerComponent: React.FC<
             <DeleteWalletModal
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
+                error={deleteWallet.error}
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
             />

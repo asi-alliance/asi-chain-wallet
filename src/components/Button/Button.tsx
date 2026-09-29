@@ -17,6 +17,7 @@ export interface ButtonProps
     size?: "small" | "medium" | "large";
     fullWidth?: boolean;
     loading?: boolean;
+    spinIconOnLoading?: boolean;
     dangerHover?: boolean;
     secondaryHover?: boolean;
     withFadeHover?: boolean;
@@ -32,6 +33,7 @@ const ButtonBase = styled.button.withConfig(
         "size",
         "fullWidth",
         "loading",
+        "spinIconOnLoading",
         "dangerHover",
         "secondaryHover",
         "withFadeHover",
@@ -284,40 +286,55 @@ const ButtonBase = styled.button.withConfig(
         transform: none;
     }
 
-    ${({ loading, variant, theme }) =>
+    ${({ loading, spinIconOnLoading, variant, theme }) =>
         loading &&
         css`
             /* Keep loading visually distinct from disabled (docs: distinguishable states). */
-            color: transparent;
             pointer-events: none;
 
             &:disabled {
                 opacity: 1;
             }
 
-            &::after {
-                content: "";
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 18px;
-                height: 18px;
-                margin-top: -9px;
-                margin-left: -9px;
-                border: 2px solid transparent;
-                border-top-color: ${variant === "primary"
-                    ? theme.background
-                    : variant === "danger"
-                      ? theme.dangerText
-                      : theme.text.primary};
-                border-right-color: ${variant === "primary"
-                    ? theme.background
-                    : variant === "danger"
-                      ? theme.dangerText
-                      : theme.text.primary};
-                border-radius: 50%;
-                animation: button-spin 600ms linear infinite;
-            }
+            ${spinIconOnLoading
+                ? css`
+                      > svg {
+                          animation: button-spin 600ms linear infinite;
+                      }
+
+                      @media (prefers-reduced-motion: reduce) {
+                          > svg {
+                              animation: none;
+                          }
+                      }
+                  `
+                : css`
+                      color: transparent;
+
+                      &::after {
+                          content: "";
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 18px;
+                          height: 18px;
+                          margin-top: -9px;
+                          margin-left: -9px;
+                          border: 2px solid transparent;
+                          border-top-color: ${variant === "primary"
+                              ? theme.background
+                              : variant === "danger"
+                                ? theme.dangerText
+                                : theme.text.primary};
+                          border-right-color: ${variant === "primary"
+                              ? theme.background
+                              : variant === "danger"
+                                ? theme.dangerText
+                                : theme.text.primary};
+                          border-radius: 50%;
+                          animation: button-spin 600ms linear infinite;
+                      }
+                  `}
 
             @keyframes button-spin {
                 to {
@@ -333,6 +350,7 @@ export const Button: React.FC<ButtonProps> = ({
     size,
     fullWidth = false,
     loading = false,
+    spinIconOnLoading = false,
     disabled,
     withFadeHover = false,
     withBorderColorHover = true,
@@ -343,6 +361,7 @@ export const Button: React.FC<ButtonProps> = ({
         size={size}
         fullWidth={fullWidth}
         loading={loading}
+        spinIconOnLoading={spinIconOnLoading}
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         withFadeHover={withFadeHover}

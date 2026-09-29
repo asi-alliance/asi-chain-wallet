@@ -245,6 +245,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <DeleteWalletModal
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
+                error={deleteWallet.error}
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
             />

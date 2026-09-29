@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ExportFormat, IWalletKeyfile } from "@asichain/asi-wallet-sdk";
+import { ExportFormat, IWalletKeyfile, getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { PasswordModal } from "components";
 import { SdkWalletService } from "sdk";
 import { downloadExport } from "utils/fileDownload";
@@ -22,6 +22,10 @@ export const ExportWalletKeyfileModal: React.FC<
     };
 
     const handleConfirm = async (password: string): Promise<void> => {
+        if (loading) {
+            return;
+        }
+
         setLoading(true);
         setError("");
 
@@ -38,8 +42,10 @@ export const ExportWalletKeyfileModal: React.FC<
             handleClose();
         } catch (exportError: unknown) {
             setError(
-                (exportError as Error)?.message ??
+                getErrorMessage(
+                    exportError,
                     "Failed to export wallet keyfile",
+                ),
             );
         } finally {
             setLoading(false);

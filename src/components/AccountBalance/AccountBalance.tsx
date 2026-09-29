@@ -11,6 +11,7 @@ interface IAccountBalanceProps {
     isSelected?: boolean;
     style?: CSSProperties;
     refreshButtonId?: string;
+    refreshAriaLabel?: string;
 }
 
 const AmountBalanceCard = styled.div`
@@ -59,6 +60,7 @@ export const AccountBalance = ({
     isSelected = false,
     style,
     refreshButtonId,
+    refreshAriaLabel = "Refresh Balance",
 }: IAccountBalanceProps): ReactElement => {
     const { amount, currency } = formatBalanceCard(balance ?? "0");
 
@@ -75,13 +77,15 @@ export const AccountBalance = ({
                 </div>
                 <Button
                     id={refreshButtonId}
-                    title="Refresh Balance"
+                    title={refreshAriaLabel}
+                    aria-label={refreshAriaLabel}
                     variant="icon-button-ghost"
                     onClick={(e) => {
                         e.stopPropagation();
                         onRefresh?.();
                     }}
                     loading={loading}
+                    spinIconOnLoading
                     withFadeHover
                 >
                     <CustomReloadIcon

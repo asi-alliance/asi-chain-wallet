@@ -124,6 +124,7 @@ const CopyButton = ({
                 onClick={runAction}
                 className="copy-button"
                 title={isCopied ? "Copied" : title || "Copy"}
+                aria-label={isCopied ? "Copied" : title || "Copy"}
                 style={buttonStyle}
                 disabled={disabled}
             >

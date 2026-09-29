@@ -84,8 +84,8 @@ type FormMode =
     | "import_keyfile";
 
 const WALLET_KIND_OPTIONS: ISelectOption[] = [
-    { value: "hd", label: "HD wallet" },
-    { value: "private_key", label: "Private key wallet" },
+    { id: "hd", value: "hd", label: "HD wallet" },
+    { id: "private_key", value: "private_key", label: "Private key wallet" },
 ];
 
 export const FirstHdWalletCreatingWidget: React.FC<
