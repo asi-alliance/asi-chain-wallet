@@ -49,6 +49,7 @@ import { getGasFeeForBridgeAsNumber } from "constants/gas";
 import {
     getAmountValidationError,
     getMaxSendableAmount,
+    isPositiveTokenAmount,
 } from "utils/balanceUtils";
 import { SdkWalletService } from "sdk";
 
@@ -511,7 +512,16 @@ export const Bridge: React.FC = () => {
                 bridgeGasFee,
             );
 
-            setAmount(max.toFixed(8));
+            if (!isPositiveTokenAmount(max)) {
+                setAmount("");
+                setLockError(
+                    "Insufficient balance to cover the estimated fee.",
+                );
+                return;
+            }
+
+            setAmount(max);
+            setLockError("");
         } else if (srcKind === "cardano") {
             setAmount(
                 formatToken(
@@ -653,6 +663,7 @@ export const Bridge: React.FC = () => {
 
     const handleAmountChange = (value: string) => {
         setAmount(value);
+        setLockError("");
     };
 
     const isAmountValid =

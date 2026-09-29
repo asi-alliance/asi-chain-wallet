@@ -199,8 +199,8 @@ const ButtonBase = styled.button.withConfig(
             case "icon-button-black":
                 return css`
                     background: transparent;
-                    color: ${theme.text.primary};
-                    border-color: ${theme.border};
+                    color: ${theme.control.neutralText};
+                    border-color: ${theme.control.neutralBorder};
                 `;
             case "icon-button-secondary":
                 return css`
@@ -211,14 +211,14 @@ const ButtonBase = styled.button.withConfig(
             case "icon-button-ghost":
                 return css`
                     background: transparent;
-                    color: ${theme.actionText};
+                    color: ${theme.control.neutralText};
                     border-color: transparent;
                 `;
             case "icon-button":
                 return css`
                     background: transparent;
-                    color: ${theme.actionText};
-                    border-color: ${theme.border};
+                    color: ${theme.control.neutralText};
+                    border-color: ${theme.control.neutralBorder};
                 `;
             default:
                 return css`

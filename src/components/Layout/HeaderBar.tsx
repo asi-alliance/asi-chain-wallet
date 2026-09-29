@@ -7,6 +7,7 @@ import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/Auth/thunks";
 import { selectHasWallets } from "store/WalletsStore";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
 import { useDeleteActiveWallet } from "hooks";
@@ -63,6 +64,11 @@ const LogoContainer = styled.button`
         outline: none;
         border-radius: ${({ theme }) => theme.radii.sm};
         box-shadow: inset 0 0 0 2px ${({ theme }) => theme.focusRing};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
     }
 `;
 
@@ -157,6 +163,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
 
     const deleteWallet = useDeleteActiveWallet();
 
@@ -165,6 +174,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     };
 
     const handleLogout = () => {
+        if (isNetworkOperationPending) return;
+
         dispatch(logout());
         navigate("/login");
     };
@@ -178,6 +189,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                             type="button"
                             aria-label="Go to wallet home"
                             onClick={() => navigate("/")}
+                            disabled={isNetworkOperationPending}
                         >
                             <LogoImage isDarkMode={darkMode} />
                             <LogoText>ASI:Chain Wallet</LogoText>
@@ -213,6 +225,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                                 onClick={handleLogout}
                                 title={"Logout"}
                                 aria-label="Logout"
+                                disabled={isNetworkOperationPending}
                             >
                                 <LogoutIcon size={20} />
                             </DesktopButton>
@@ -224,6 +237,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                                 onClick={deleteWallet.open}
                                 title={"Delete Wallet"}
                                 aria-label="Delete Wallet"
+                                disabled={isNetworkOperationPending}
                             >
                                 <DeleteIcon size={20} />
                             </DesktopButton>

@@ -11,6 +11,7 @@ interface IAccountBalanceProps {
     isSelected?: boolean;
     /** Dark amount text for surface cards (Wallet Current); default is brand green. */
     neutralAmount?: boolean;
+    compactLabel?: boolean;
     style?: CSSProperties;
     refreshButtonId?: string;
     refreshAriaLabel?: string;
@@ -63,8 +64,16 @@ const AccountCurrency = styled.span<{
     color: ${amountColor};
 `;
 
-const LabelFirst = styled.div<{ $isSelected: boolean }>`
-    font-weight: 400;
+const LabelFirst = styled.div<{
+    $isSelected: boolean;
+    $compact: boolean;
+}>`
+    font-size: ${({ $compact, theme }) =>
+        $compact ? theme.typography.size.xs : "inherit"};
+    line-height: ${({ $compact, theme }) =>
+        $compact ? theme.typography.lineHeight.xs : "inherit"};
+    font-weight: ${({ $compact, theme }) =>
+        $compact ? theme.typography.weight.bold : 400};
     color: ${({ $isSelected, theme }) =>
         !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
@@ -80,6 +89,7 @@ export const AccountBalance = ({
     onRefresh,
     isSelected = false,
     neutralAmount = false,
+    compactLabel = false,
     style,
     refreshButtonId,
     refreshAriaLabel = "Refresh Balance",
@@ -104,6 +114,7 @@ export const AccountBalance = ({
                     </AccountCurrency>
                 </div>
                 <Button
+                    type="button"
                     id={refreshButtonId}
                     title={refreshAriaLabel}
                     aria-label={refreshAriaLabel}
@@ -124,7 +135,9 @@ export const AccountBalance = ({
                 </Button>
             </AmountBalanceWrapper>
 
-            <LabelFirst $isSelected={isSelected}>Balance</LabelFirst>
+            <LabelFirst $isSelected={isSelected} $compact={compactLabel}>
+                Balance
+            </LabelFirst>
         </AmountBalanceCard>
     );
 };

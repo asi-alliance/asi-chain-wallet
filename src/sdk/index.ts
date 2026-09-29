@@ -1,5 +1,5 @@
 export { getSdkClient, requireSdkClient, setSdkClient } from "./client";
-export { isWalletLockedError } from "./errors";
+export { isInvalidPasswordError, isWalletLockedError } from "./errors";
 export {
     SdkClientProvider,
     useBusyNetworkIds,

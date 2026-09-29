@@ -34,12 +34,14 @@ interface IAccountSelectorProps extends TSelectAdditionalProps {
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelMode?: AccountSelectorLabelMods;
+    label?: string;
 }
 
 export const AccountSelector = ({
     fullWidth = false,
     wrapperStyle,
     labelMode,
+    label = "Account",
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
     const dispatch = useAppDispatch();
@@ -79,7 +81,7 @@ export const AccountSelector = ({
     return (
         <FilterGroup style={{ ...fullWidthStyle, ...wrapperStyle }}>
             <FilterLabel id={labelId}>
-                <h4 className="light">Account</h4>
+                <h4 className="light">{label}</h4>
             </FilterLabel>
             <Select
                 id="history-filter-account-select"

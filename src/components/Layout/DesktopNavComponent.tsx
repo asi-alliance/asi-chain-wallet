@@ -1,8 +1,10 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { VisuallyHidden } from "components/Foundation";
 import { NetworkSelector } from "components/NetworkSelector";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 
 const DesktopNavStyled = styled.nav`
     height: ${({ theme }) => theme.layout.navigationHeight};
@@ -66,6 +68,11 @@ const NavLink = styled.button<{ $active: boolean }>`
 
     &:hover {
         color: ${({ theme }) => theme.primary};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
     }
 
     &:focus-visible {
@@ -202,6 +209,9 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
 
     return (
         <DesktopNavStyled aria-label="Secondary navigation">
@@ -216,6 +226,7 @@ export const DesktopNavComponent: React.FC<DesktopNavComponentProps> = ({
                             location.pathname === item.path ? "page" : undefined
                         }
                         onClick={() => navigate(item.path)}
+                        disabled={isNetworkOperationPending}
                     >
                         {item.label}
                     </NavLink>
