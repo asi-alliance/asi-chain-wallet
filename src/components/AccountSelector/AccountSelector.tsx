@@ -14,8 +14,9 @@ const FilterGroup = styled.div`
     gap: 8px;
 `;
 
-const FilterLabel = styled.label`
-    // font-size: 14px;
+const FilterLabel = styled.span`
+    font-size: ${({ theme }) => theme.typography.size.md};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
 `;
@@ -81,7 +82,7 @@ export const AccountSelector = ({
     return (
         <FilterGroup style={{ ...fullWidthStyle, ...wrapperStyle }}>
             <FilterLabel id={labelId}>
-                <h4 className="light">{label}</h4>
+                {label}
             </FilterLabel>
             <Select
                 id="history-filter-account-select"
