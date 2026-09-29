@@ -25,20 +25,59 @@ export const clearActiveSession = (state: AuthState): void => {
     state.isAuthenticated = false;
 };
 
+function getErrorName(err: unknown): string {
+    if (
+        typeof err === "object" &&
+        err !== null &&
+        "name" in err &&
+        typeof (err as { name: unknown }).name === "string"
+    ) {
+        return (err as { name: string }).name;
+    }
+
+    return "";
+}
+
+function getErrorMessage(err: unknown): string {
+    if (err instanceof Error) {
+        return err.message.toLowerCase();
+    }
+
+    if (
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof (err as { message: unknown }).message === "string"
+    ) {
+        return (err as { message: string }).message.toLowerCase();
+    }
+
+    return "";
+}
+
 export function classifyLoginError(err: unknown): FailureReason {
-    if (err instanceof DOMException) {
-        if (err.name === "AbortError") return FailureReason.Cancelled;
-        if (err.name === "TimeoutError") return FailureReason.Timeout;
+    const name = getErrorName(err);
+    const message = getErrorMessage(err);
+
+    if (name === "AbortError") {
+        return FailureReason.Cancelled;
     }
-    if (err instanceof TypeError) {
-        const message = err.message.toLowerCase();
-        if (
-            message.includes("network") ||
-            message.includes("failed to fetch")
-        ) {
-            return FailureReason.NetworkError;
-        }
+
+    if (
+        name === "TimeoutError" ||
+        message.includes("timeout") ||
+        message.includes("timed out")
+    ) {
+        return FailureReason.Timeout;
     }
+
+    if (
+        message.includes("network") ||
+        message.includes("failed to fetch")
+    ) {
+        return FailureReason.NetworkError;
+    }
+
     return FailureReason.Unknown;
 }
 

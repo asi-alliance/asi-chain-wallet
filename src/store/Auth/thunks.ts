@@ -135,7 +135,11 @@ export const loginWithPassword = createAsyncThunk<
 
                 return wallet;
             } catch (err) {
-                failureReason = FailureReason.WrongPassword;
+                const classified = classifyLoginError(err);
+                failureReason =
+                    classified === FailureReason.Unknown
+                        ? FailureReason.WrongPassword
+                        : classified;
                 throw err;
             }
         });
@@ -144,8 +148,6 @@ export const loginWithPassword = createAsyncThunk<
 
         return toActiveWalletSession(unlockedWallet);
     } catch (err: unknown) {
-        console.log("AuthSlice.loginWithPassword: ", err);
-
         if (!failureReason) {
             failureReason = classifyLoginError(err);
         }
