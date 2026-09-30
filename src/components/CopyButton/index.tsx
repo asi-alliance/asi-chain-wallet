@@ -70,6 +70,12 @@ const CopiedIcon = ({ size = 24 }: IIconProps): ReactElement => {
 
 const ThemeButton = styled.button`
     color: ${({ theme }) => theme.text.primary};
+
+    &:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+        outline-offset: 4px;
+        border-radius: ${({ theme }) => theme.radii.xs};
+    }
 `;
 
 const CopyButton = ({
@@ -124,6 +130,7 @@ const CopyButton = ({
                 onClick={runAction}
                 className="copy-button"
                 title={isCopied ? "Copied" : title || "Copy"}
+                aria-label={isCopied ? "Copied" : title || "Copy"}
                 style={buttonStyle}
                 disabled={disabled}
             >

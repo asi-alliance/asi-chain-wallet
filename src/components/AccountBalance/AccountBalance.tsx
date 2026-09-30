@@ -9,8 +9,12 @@ interface IAccountBalanceProps {
     loading?: boolean;
     onRefresh?: () => void;
     isSelected?: boolean;
+    /** Dark amount text for surface cards (Wallet Current); default is brand green. */
+    neutralAmount?: boolean;
+    compactLabel?: boolean;
     style?: CSSProperties;
     refreshButtonId?: string;
+    refreshAriaLabel?: string;
 }
 
 const AmountBalanceCard = styled.div`
@@ -22,27 +26,54 @@ const AmountBalanceWrapper = styled.div`
     align-items: center;
 `;
 
-const AccountBalanceBlock = styled.span<{ $isSelected: boolean }>`
+const amountColor = ({
+    $isSelected,
+    $neutralAmount,
+    theme,
+}: {
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+    theme: {
+        colors: { primary: string; background: { secondary: string } };
+        text: { primary: string };
+    };
+}): string => {
+    if ($isSelected) {
+        return theme.colors.background.secondary;
+    }
+
+    return $neutralAmount ? theme.text.primary : theme.colors.primary;
+};
+
+const AccountBalanceBlock = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
     font-size: 3rem;
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
     margin-right: 4px;
 `;
 
-const AccountCurrency = styled.span<{ $isSelected: boolean }>`
+const AccountCurrency = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
     font-size: 1.5rem;
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
 `;
 
-const LabelFirst = styled.div<{ $isSelected: boolean }>`
-    font-weight: 400;
+const LabelFirst = styled.div<{
+    $isSelected: boolean;
+    $compact: boolean;
+}>`
+    font-size: ${({ $compact, theme }) =>
+        $compact ? theme.typography.size.xs : "inherit"};
+    line-height: ${({ $compact, theme }) =>
+        $compact ? theme.typography.lineHeight.xs : "inherit"};
+    font-weight: ${({ $compact, theme }) =>
+        $compact ? theme.typography.weight.bold : 400};
     color: ${({ $isSelected, theme }) =>
         !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
@@ -57,8 +88,11 @@ export const AccountBalance = ({
     loading = false,
     onRefresh,
     isSelected = false,
+    neutralAmount = false,
+    compactLabel = false,
     style,
     refreshButtonId,
+    refreshAriaLabel = "Refresh Balance",
 }: IAccountBalanceProps): ReactElement => {
     const { amount, currency } = formatBalanceCard(balance ?? "0");
 
@@ -66,22 +100,32 @@ export const AccountBalance = ({
         <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
-                    <AccountBalanceBlock $isSelected={isSelected}>
+                    <AccountBalanceBlock
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
                         {balance === undefined ? BALANCE_PLACEHOLDER : amount}
                     </AccountBalanceBlock>
-                    <AccountCurrency $isSelected={isSelected}>
+                    <AccountCurrency
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
                         {currency}
                     </AccountCurrency>
                 </div>
                 <Button
+                    type="button"
                     id={refreshButtonId}
-                    title="Refresh Balance"
+                    title={refreshAriaLabel}
+                    aria-label={refreshAriaLabel}
                     variant="icon-button-ghost"
+                    disabled={!onRefresh}
                     onClick={(e) => {
                         e.stopPropagation();
                         onRefresh?.();
                     }}
                     loading={loading}
+                    spinIconOnLoading
                     withFadeHover
                 >
                     <CustomReloadIcon
@@ -91,7 +135,9 @@ export const AccountBalance = ({
                 </Button>
             </AmountBalanceWrapper>
 
-            <LabelFirst $isSelected={isSelected}>Balance</LabelFirst>
+            <LabelFirst $isSelected={isSelected} $compact={compactLabel}>
+                Balance
+            </LabelFirst>
         </AmountBalanceCard>
     );
 };

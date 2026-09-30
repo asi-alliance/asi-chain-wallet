@@ -721,6 +721,29 @@ export const SearchIcon: React.FC<IconProps> = ({
     </svg>
 );
 
+export const FilterIcon: React.FC<IconProps> = ({
+    size = 16,
+    color = "currentColor",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        aria-hidden="true"
+    >
+        <path
+            d="M2.5 3.5h11l-4 4.75V12.5L6.5 13.5V8.25L2.5 3.5Z"
+            stroke={color}
+            strokeWidth="1.25"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
 export const CopyIcon: React.FC<IconProps> = ({
     size = 16,
     color = "#3A3A3A",

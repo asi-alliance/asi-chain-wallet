@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { MnemonicStrength } from "@asichain/asi-wallet-sdk";
-import { Input } from "components";
+import { Alert, Input } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { MnemonicDisplay } from "components/MnemonicDisplay";
 import { WordCountToggle, WordCount } from "components/WordCountToggle";
@@ -12,6 +12,8 @@ import { SdkWalletService } from "sdk";
 
 const FormContainer = styled.div`
     width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
+    margin: 0 auto;
 `;
 
 interface CreateHdWalletFormProps {
@@ -29,6 +31,8 @@ const strengthFromWordCount = (wordCount: WordCount): MnemonicStrength =>
         ? MnemonicStrength.TWENTY_FOUR_WORDS
         : MnemonicStrength.TWELVE_WORDS;
 
+const clearSecretString = (value: string): string => " ".repeat(value.length);
+
 export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
     onSuccess,
     onCancel,
@@ -37,6 +41,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
     firstAccount = false,
 }) => {
     const dispatch = useAppDispatch();
+    const submissionRef = useRef(false);
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
         useValidAccountUpdating(undefined, { firstAccount });
@@ -49,12 +54,21 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
         customAccountName ?? "",
     );
     const [mnemonic, setMnemonic] = useState("");
+    const [formError, setFormError] = useState("");
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        setMnemonic(
-            SdkWalletService.generateMnemonic(strengthFromWordCount(wordCount)),
-        );
+        try {
+            setMnemonic(
+                SdkWalletService.generateMnemonic(
+                    strengthFromWordCount(wordCount),
+                ),
+            );
+            setFormError("");
+        } catch {
+            setMnemonic("");
+            setFormError("Failed to generate recovery phrase");
+        }
     }, [wordCount]);
 
     const updateAccountName = (newName: string): void => {
@@ -62,7 +76,13 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
         updateAccountField("name", newName);
     };
 
-    const handleProceed = () => {
+    const clearVisibleSecrets = (): void => {
+        setMnemonic((current) => clearSecretString(current));
+        setMnemonic("");
+        setPendingAccountName("");
+    };
+
+    const handleProceedFromDisplay = () => {
         const trimmedName = (customAccountName ?? accountName).trim();
 
         if (!trimmedName) {
@@ -75,17 +95,29 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             return;
         }
 
+        if (!mnemonic.trim()) {
+            setFormError("Failed to generate recovery phrase");
+            return;
+        }
+
         if (!customAccountName && !isNameUpdateValid) {
             return;
         }
 
         setAccountNameError("");
+        setFormError("");
         setPendingAccountName(trimmedName);
         setStep("password");
     };
 
     const handlePasswordSet = async (password: string) => {
+        if (loading || submissionRef.current) {
+            return;
+        }
+
+        submissionRef.current = true;
         setLoading(true);
+        setFormError("");
 
         try {
             await dispatch(
@@ -96,22 +128,27 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
                 }),
             ).unwrap();
 
+            clearVisibleSecrets();
             onSuccess?.(pendingAccountName);
         } catch (error) {
-            setAccountNameError(
+            setFormError(
                 (error as Error)?.message || "Failed to create wallet",
             );
-            setStep("form");
+            // Keep the same mnemonic for retry — do not return to form
+            // where word-count changes would regenerate the phrase.
+            setStep("password");
         } finally {
             setLoading(false);
+            submissionRef.current = false;
         }
     };
 
     const handleCancel = () => {
+        clearVisibleSecrets();
         setStep("form");
         updateAccountName("");
         setAccountNameError("");
-        setPendingAccountName("");
+        setFormError("");
         onCancel?.();
     };
 
@@ -120,14 +157,28 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             <PasswordSetup
                 title="Set Password for New Wallet"
                 loading={loading}
+                error={formError}
                 onPasswordSet={handlePasswordSet}
-                onCancel={() => setStep("form")}
+                onCancel={() => {
+                    setFormError("");
+                    setStep("form");
+                }}
             />
         );
     }
 
     return (
         <FormContainer>
+            {formError && (
+                <Alert
+                    tone="danger"
+                    icon="⚠️"
+                    style={{ marginBottom: "16px" }}
+                >
+                    {formError}
+                </Alert>
+            )}
+
             {!customAccountName && (
                 <Input
                     id="create-account-name-input"
@@ -144,6 +195,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
                     error={accountNameError || nameErrorMessage}
                     maxLength={30}
                     disabled={loading}
+                    autoComplete="off"
                     wrapperStyle={{ marginBottom: "24px" }}
                 />
             )}
@@ -157,7 +209,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             <MnemonicDisplay
                 mnemonic={mnemonic}
                 accountName={customAccountName ?? accountName}
-                onContinue={handleProceed}
+                onContinue={handleProceedFromDisplay}
                 onBack={handleCancel}
                 showBackButton={!hideCancelButton}
             />

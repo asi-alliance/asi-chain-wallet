@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAppDispatch } from "store/hooks";
 import { removeAccount } from "store/WalletsStore/thunks";
 
@@ -8,8 +8,10 @@ export interface IUseDeleteAccount {
     isDeleting: boolean;
     error: string;
     open: () => void;
-    close: () => void;
-    confirm: () => Promise<void>;
+    /** Returns false when close is ignored because a delete is in flight. */
+    close: () => boolean;
+    /** Returns true when the account was removed. */
+    confirm: () => Promise<boolean>;
 }
 
 const FALLBACK_REMOVE_ACCOUNT_ERROR_MESSAGE: string =
@@ -24,21 +26,37 @@ export const useDeleteAccount = (
     const [isOpen, setIsOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState("");
+    // Sync guard for double-click before React re-renders with isDeleting.
+    const isDeletingRef = useRef(false);
 
     const open = () => {
         setError("");
         setIsOpen(true);
     };
 
-    const close = () => setIsOpen(false);
+    const close = (): boolean => {
+        if (isDeletingRef.current) {
+            return false;
+        }
 
-    const confirm = async () => {
+        setIsOpen(false);
+        setError("");
+
+        return true;
+    };
+
+    const confirm = async (): Promise<boolean> => {
+        if (isDeletingRef.current) {
+            return false;
+        }
+
         if (!walletId) {
             setError("Unlock the wallet before removing its accounts");
 
-            return;
+            return false;
         }
 
+        isDeletingRef.current = true;
         setIsDeleting(true);
         setError("");
 
@@ -46,6 +64,8 @@ export const useDeleteAccount = (
             await dispatch(removeAccount({ walletId, accountId })).unwrap();
 
             setIsOpen(false);
+
+            return true;
         } catch (removeError: unknown) {
             setError(
                 getErrorMessage(
@@ -53,7 +73,10 @@ export const useDeleteAccount = (
                     FALLBACK_REMOVE_ACCOUNT_ERROR_MESSAGE,
                 ),
             );
+
+            return false;
         } finally {
+            isDeletingRef.current = false;
             setIsDeleting(false);
         }
     };

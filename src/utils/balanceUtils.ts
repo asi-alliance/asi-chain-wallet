@@ -2,54 +2,139 @@ import { getTokenDisplayName } from "../constants/token";
 import { getGasFeeAsNumber } from "../constants/gas";
 
 export const BALANCE_PLACEHOLDER = "--";
+export const TOKEN_DECIMAL_PLACES = 8;
+
+const DECIMAL_AMOUNT_PATTERN = /^\d+(?:\.\d+)?$/;
+
+const toAtomicAmount = (
+    value: string,
+    decimalPlaces: number = TOKEN_DECIMAL_PLACES,
+): bigint | null => {
+    const normalized = value.trim();
+
+    if (!DECIMAL_AMOUNT_PATTERN.test(normalized)) {
+        return null;
+    }
+
+    const [integerPart, fractionPart = ""] = normalized.split(".");
+
+    if (fractionPart.length > decimalPlaces) {
+        return null;
+    }
+
+    return BigInt(
+        `${integerPart}${fractionPart.padEnd(decimalPlaces, "0")}`,
+    );
+};
+
+const fromAtomicAmount = (
+    value: bigint,
+    decimalPlaces: number = TOKEN_DECIMAL_PLACES,
+): string => {
+    const divisor = 10n ** BigInt(decimalPlaces);
+    const integerPart = value / divisor;
+    const fractionPart = (value % divisor)
+        .toString()
+        .padStart(decimalPlaces, "0");
+
+    return `${integerPart}.${fractionPart}`;
+};
 
 export const getMaxSendableAmount = (
     balance: string,
     gasFee: number = getGasFeeAsNumber(),
-): number => {
-    const balanceNum = parseFloat(balance);
+): string => {
+    const balanceAtomic = toAtomicAmount(balance);
+    const gasAtomic = toAtomicAmount(
+        gasFee.toFixed(TOKEN_DECIMAL_PLACES),
+    );
 
-    if (isNaN(balanceNum)) {
-        return 0;
+    if (balanceAtomic === null || gasAtomic === null) {
+        return fromAtomicAmount(0n);
     }
 
-    const maxSendable = Math.max(0, balanceNum - gasFee);
+    const maxSendableAtomic = balanceAtomic - gasAtomic;
 
-    return Math.floor(maxSendable * 100000000) / 100000000;
+    if (maxSendableAtomic <= 0n) {
+        return fromAtomicAmount(0n);
+    }
+
+    return fromAtomicAmount(maxSendableAtomic);
+};
+
+export const getTokenAmountWithFee = (
+    amount: string,
+    gasFee: number = getGasFeeAsNumber(),
+): string | null => {
+    const amountAtomic = toAtomicAmount(amount);
+    const gasAtomic = toAtomicAmount(
+        gasFee.toFixed(TOKEN_DECIMAL_PLACES),
+    );
+
+    if (amountAtomic === null || gasAtomic === null) {
+        return null;
+    }
+
+    return fromAtomicAmount(amountAtomic + gasAtomic);
+};
+
+export const isPositiveTokenAmount = (amount: string): boolean => {
+    const amountAtomic = toAtomicAmount(amount);
+
+    return amountAtomic !== null && amountAtomic > 0n;
 };
 
 export const getAmountValidationError = (
     amount: string,
     balance: string,
     gasFee: number = getGasFeeAsNumber(),
+    validateInput: boolean = false,
 ): string => {
-    if (!amount.trim()) {
+    const normalizedAmount = amount.trim();
+
+    if (!normalizedAmount) {
         return "";
     }
 
-    const amountValue = parseFloat(amount);
+    if (!DECIMAL_AMOUNT_PATTERN.test(normalizedAmount)) {
+        return validateInput ? "Enter a valid amount" : "";
+    }
 
-    if (isNaN(amountValue) || amountValue <= 0) {
+    const fractionPart = normalizedAmount.split(".")[1] ?? "";
+
+    if (fractionPart.length > TOKEN_DECIMAL_PLACES) {
+        return validateInput
+            ? `Amount supports up to ${TOKEN_DECIMAL_PLACES} decimal places`
+            : "";
+    }
+
+    const amountAtomic = toAtomicAmount(normalizedAmount);
+
+    if (amountAtomic === null || amountAtomic <= 0n) {
+        return validateInput ? "Amount must be greater than zero" : "";
+    }
+
+    const balanceAtomic = toAtomicAmount(balance);
+
+    if (balanceAtomic === null) {
         return "";
     }
 
-    const balanceNum = parseFloat(balance);
-
-    if (amountValue > balanceNum) {
-        return `Insufficient balance. You have ${balanceNum.toFixed(
-            8,
+    if (amountAtomic > balanceAtomic) {
+        return `Insufficient balance. You have ${fromAtomicAmount(
+            balanceAtomic,
         )} ${getTokenDisplayName()}`;
     }
 
-    const totalRequired = amountValue + gasFee;
+    const gasAtomic = toAtomicAmount(gasFee.toFixed(TOKEN_DECIMAL_PLACES));
 
-    if (totalRequired > balanceNum) {
-        return `Amount + fee (${totalRequired.toFixed(
-            8,
-        )}) exceeds balance. Max: ${getMaxSendableAmount(
+    if (gasAtomic !== null && amountAtomic + gasAtomic > balanceAtomic) {
+        const totalRequired = fromAtomicAmount(amountAtomic + gasAtomic);
+
+        return `Amount + fee (${totalRequired}) exceeds balance. Max: ${getMaxSendableAmount(
             balance,
             gasFee,
-        ).toFixed(8)} ${getTokenDisplayName()}`;
+        )} ${getTokenDisplayName()}`;
     }
 
     return "";

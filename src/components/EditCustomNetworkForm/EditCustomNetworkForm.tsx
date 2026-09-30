@@ -1,8 +1,7 @@
-import React, { type CSSProperties, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { Button } from "components";
 import { FileIcon } from "components/Icons";
-import { useScreen } from "hooks";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "store";
 import { selectNetworks } from "store/WalletsStore";
@@ -11,31 +10,47 @@ import { Network } from "types/wallet";
 import { SdkWalletService, useIsNetworkBusy } from "sdk";
 import { getErrorMessage } from "utils/helpers";
 import {
+    getNetworkFormFieldErrors,
     INetworkFormValues,
     NetworkFormError,
     NetworkFormFields,
     normalizeNetworkFormValues,
-    validateNetworkFormValues,
+    TNetworkFormFieldErrors,
 } from "components/NetworkForm";
 
 const InlineButton = styled(Button)`
-    height: 44px;
+    height: ${({ theme }) => theme.sizes.control.field};
+    flex: 1;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        width: 100%;
+    }
+`;
+
+const SaveButton = styled(InlineButton)`
+    min-width: 252px;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        min-width: 0;
+    }
+`;
+
+const NetworkBusyStatus = styled(NetworkFormError)`
+    color: ${({ theme }) => theme.warningText};
+    background: ${({ theme }) => `${theme.warning}15`};
+    border-color: ${({ theme }) => theme.warning};
 `;
 
 const CustomNetworkActionsButtons = styled.div`
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0 60px;
-    gap: 25px;
+    justify-content: flex-end;
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-top: ${({ theme }) => theme.spacing["3xl"]};
 
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         flex-direction: column;
-        padding: 0 30px;
-    }
-
-    @media (max-width: 400px) {
-        padding: 0 10px;
+        align-items: stretch;
     }
 `;
 
@@ -46,16 +61,17 @@ const toFormValues = (network: Network): INetworkFormValues => ({
 
 interface EditCustomNetworkFormProps {
     network: Network;
+    isSaving: boolean;
     onSuccess: () => void;
-    onCancel: () => void;
+    onSavingChange: (isSaving: boolean) => void;
 }
 
 export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
     network,
+    isSaving,
     onSuccess,
-    onCancel,
+    onSavingChange,
 }) => {
-    const { isLaptop } = useScreen();
     const dispatch = useDispatch<AppDispatch>();
 
     const networks = useSelector(selectNetworks);
@@ -64,32 +80,66 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
     const [values, setValues] = useState<INetworkFormValues>(
         toFormValues(network),
     );
-    const [error, setError] = useState<string | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<TNetworkFormFieldErrors>({});
+    const [connectionError, setConnectionError] = useState<string | null>(null);
 
     useEffect(() => {
         setValues(toFormValues(network));
-        setError(null);
+        setFieldErrors({});
+        setConnectionError(null);
     }, [network]);
 
+    const handleValuesChange = (nextValues: INetworkFormValues): void => {
+        setValues(nextValues);
+        setFieldErrors((currentErrors) =>
+            Object.keys(currentErrors).length
+                ? getNetworkFormFieldErrors(
+                      nextValues,
+                      networks
+                          .filter(
+                              (networkMeta: Network) =>
+                                  networkMeta.id !== network.id,
+                          )
+                          .map((networkMeta: Network) => networkMeta.name),
+                  )
+                : currentErrors,
+        );
+
+        if (connectionError) {
+            setConnectionError(null);
+        }
+    };
+
+    const handleRestore = (): void => {
+        setValues(toFormValues(network));
+        setFieldErrors({});
+        setConnectionError(null);
+    };
+
     const handleSave = async (): Promise<void> => {
+        if (isSaving || isNetworkBusy) {
+            return;
+        }
+
         const reservedNames = networks
             .filter((networkMeta: Network) => networkMeta.id !== network.id)
             .map((networkMeta: Network) => networkMeta.name);
 
-        const validationError = validateNetworkFormValues(
+        const nextFieldErrors = getNetworkFormFieldErrors(
             values,
             reservedNames,
         );
 
-        if (validationError) {
-            setError(validationError);
+        if (Object.keys(nextFieldErrors).length) {
+            setFieldErrors(nextFieldErrors);
+            setConnectionError(null);
 
             return;
         }
 
-        setError(null);
-        setIsSaving(true);
+        setFieldErrors({});
+        setConnectionError(null);
+        onSavingChange(true);
 
         const { name, config } = normalizeNetworkFormValues(values);
 
@@ -106,64 +156,58 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
 
             onSuccess();
         } catch (updateError) {
-            setError(
+            setConnectionError(
                 getErrorMessage(updateError, "Failed to update custom network"),
             );
         } finally {
-            setIsSaving(false);
+            onSavingChange(false);
         }
     };
 
     const isDisabled = isSaving || isNetworkBusy;
-
-    const saveButtonStyle: CSSProperties = !isLaptop
-        ? {
-              minWidth: "252px",
-              flex: "1",
-          }
-        : {
-              flex: "1",
-          };
 
     return (
         <>
             <NetworkFormFields
                 idPrefix="edit-network"
                 values={values}
-                onChange={setValues}
+                onChange={handleValuesChange}
                 disabled={isDisabled}
+                fieldErrors={fieldErrors}
             />
 
-            {error && <NetworkFormError>{error}</NetworkFormError>}
+            {connectionError && (
+                <NetworkFormError role="alert">{connectionError}</NetworkFormError>
+            )}
 
-            {isNetworkBusy && !error && (
-                <NetworkFormError>
+            {isNetworkBusy && !connectionError && (
+                <NetworkBusyStatus>
                     This network is busy with a running operation. Wait until it
                     finishes before saving changes.
-                </NetworkFormError>
+                </NetworkBusyStatus>
             )}
 
             <CustomNetworkActionsButtons>
-                <InlineButton
+                <SaveButton
                     id="edit-network-save-button"
                     variant="primary"
                     onClick={handleSave}
                     loading={isSaving}
                     disabled={isDisabled}
-                    style={saveButtonStyle}
                 >
+                    <span aria-hidden="true" style={{ display: "inline-flex" }}>
+                        <FileIcon size={16} />
+                    </span>
                     Save Custom Network
-                    <FileIcon />
-                </InlineButton>
+                </SaveButton>
 
                 <InlineButton
-                    id="edit-network-cancel-button"
+                    id="edit-network-restore-button"
                     variant="secondary"
-                    onClick={onCancel}
+                    onClick={handleRestore}
                     disabled={isSaving}
-                    style={{ flex: "1" }}
                 >
-                    Cancel
+                    Restore to default
                 </InlineButton>
             </CustomNetworkActionsButtons>
         </>

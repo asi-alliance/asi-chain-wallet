@@ -1,6 +1,6 @@
 import { Select } from "components/Select";
 import { ISelectOption, ISelectProps } from "components/Select/Select";
-import { CSSProperties, ReactElement, useMemo } from "react";
+import { CSSProperties, ReactElement, useId, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "store/hooks";
 import { selectAccounts, selectSelectedAccountId } from "store/WalletsStore";
@@ -14,8 +14,9 @@ const FilterGroup = styled.div`
     gap: 8px;
 `;
 
-const FilterLabel = styled.label`
-    // font-size: 14px;
+const FilterLabel = styled.span`
+    font-size: ${({ theme }) => theme.typography.size.md};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
     font-weight: 500;
     color: ${({ theme }) => theme.text.secondary};
 `;
@@ -34,17 +35,20 @@ interface IAccountSelectorProps extends TSelectAdditionalProps {
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelMode?: AccountSelectorLabelMods;
+    label?: string;
 }
 
 export const AccountSelector = ({
     fullWidth = false,
     wrapperStyle,
     labelMode,
+    label = "Account",
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
+    const labelId = `account-selector-label-${useId().replace(/:/g, "")}`;
 
     const accountOptions = useMemo(
         () =>
@@ -69,12 +73,16 @@ export const AccountSelector = ({
 
     const fullWidthStyle: CSSProperties = !fullWidth ? {} : { width: "100%" };
 
-    const { style, ...otherSelectProps } = selectProps;
+    const {
+        style,
+        "aria-labelledby": ariaLabelledBy,
+        ...otherSelectProps
+    } = selectProps;
 
     return (
         <FilterGroup style={{ ...fullWidthStyle, ...wrapperStyle }}>
-            <FilterLabel>
-                <h4 className="light">Account</h4>
+            <FilterLabel id={labelId}>
+                {label}
             </FilterLabel>
             <Select
                 id="history-filter-account-select"
@@ -87,6 +95,7 @@ export const AccountSelector = ({
                     ...fullWidthStyle,
                 }}
                 {...otherSelectProps}
+                aria-labelledby={ariaLabelledBy ?? labelId}
             />
         </FilterGroup>
     );

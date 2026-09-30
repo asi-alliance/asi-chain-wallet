@@ -75,6 +75,7 @@ const CodeContent = styled.pre`
 
 const Actions = styled.div`
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     justify-content: center;
 `;
@@ -165,7 +166,15 @@ export const DeploymentConfirmationModal: React.FC<
     const estimatedCost = parseInt(phloLimit) * parseInt(phloPrice);
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="600px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="600px"
+            dismissible={!loading}
+            aria-label={
+                isExplore ? "Confirm exploration" : "Confirm deployment"
+            }
+        >
             <Title>
                 {isExplore ? "Confirm Exploration" : "Confirm Deployment"}
             </Title>

@@ -1,4 +1,4 @@
-import React, { Fragment } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -9,7 +9,10 @@ import { CloseIcon, DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { VisuallyHidden } from "components/Foundation";
+import { NetworkSelector } from "components/NetworkSelector";
 import { useDeleteActiveWallet } from "hooks";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;
@@ -18,16 +21,19 @@ const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     width: 80%;
     max-width: 320px;
     height: 100vh;
+    visibility: ${({ $isOpen }) => ($isOpen ? "visible" : "hidden")};
     background: ${({ theme }) => theme.card};
     border-left: 1px solid ${({ theme }) => theme.border};
-    transition: right 0.3s ease;
-    z-index: 1000;
+    transition: right ${({ theme }) => theme.motion.slow}
+        ${({ theme }) => theme.motion.easing};
+    z-index: ${({ theme }) => theme.zIndices.drawer};
     overflow-y: auto;
+    outline: none;
 
     display: flex;
     flex-direction: column;
 
-    @media (min-width: 1250px) {
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.navigation} + 1px)) {
         display: none;
     }
 `;
@@ -38,17 +44,17 @@ const MobileNavOverlayStyled = styled.div<{ $isOpen: boolean }>`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: ${({ theme }) => theme.overlay};
     display: ${({ $isOpen }) => ($isOpen ? "block" : "none")};
-    z-index: 999;
+    z-index: ${({ theme }) => theme.zIndices.drawer - 1};
 
-    @media (min-width: 1024px) {
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.navigation} + 1px)) {
         display: none;
     }
 `;
 
 const MobileNavHeader = styled.div`
-    padding: 16px;
+    padding: ${({ theme }) => theme.spacing.xl};
     border-bottom: 1px solid ${({ theme }) => theme.border};
     display: flex;
     justify-content: space-between;
@@ -56,21 +62,25 @@ const MobileNavHeader = styled.div`
 `;
 
 const MobileNavContent = styled.div`
-    padding: 16px;
+    padding: ${({ theme }) => theme.spacing.xl};
 `;
 
-const MobileNavSection = styled.div`
-    /* margin-bottom: 24px; */
+const MobileNetworkSection = styled.div`
+    width: 100%;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
+
+const MobileNavSection = styled.div``;
 
 const MobileNavFooter = styled.div`
-    padding: 25px;
+    padding: ${({ theme }) => theme.spacing["3xl"]};
     margin-top: auto;
 `;
 
 const MobileNavLink = styled.button<{ $active: boolean }>`
     width: 100%;
-    padding: 12px 16px;
+    padding: ${({ theme }) => theme.spacing.lg}
+        ${({ theme }) => theme.spacing.xl};
     background: ${({ $active, theme }) =>
         $active ? theme.primary + "20" : "transparent"};
     border: none;
@@ -80,15 +90,29 @@ const MobileNavLink = styled.button<{ $active: boolean }>`
         $active ? theme.primary : theme.text.secondary};
     font-weight: ${({ $active }) => ($active ? "600" : "400")};
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition:
+        color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        background ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
     text-align: left;
-    font-size: 14px;
-    margin-bottom: 4px;
-    border-radius: 4px;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    margin-bottom: ${({ theme }) => theme.spacing.xs};
+    border-radius: ${({ theme }) => theme.radii.xs};
 
     &:hover {
         background: ${({ theme }) => theme.surface};
         color: ${({ theme }) => theme.primary};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: inset 0 0 0 2px ${({ theme }) => theme.focusRing};
     }
 `;
 
@@ -103,7 +127,7 @@ const DelimiterLine = styled.div`
     width: 100%;
     height: 1px;
     background: ${({ theme }) => theme.border};
-    margin: 16px auto;
+    margin: ${({ theme }) => theme.spacing.xl} auto;
 `;
 
 const DangerButton = styled(Button)`
@@ -116,17 +140,21 @@ const DangerButton = styled(Button)`
 `;
 
 const LogoutButton = styled(DangerButton)`
-    margin-bottom: 12px;
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
 const IconButton = styled.button`
-    padding: 8px;
+    padding: ${({ theme }) => theme.spacing.md};
     border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     background: ${({ theme }) => theme.surface};
     color: ${({ theme }) => theme.text.primary};
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition:
+        background ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
     display: flex;
     align-items: center;
     justify-content: center;
@@ -135,7 +163,12 @@ const IconButton = styled.button`
 
     &:hover {
         background: ${({ theme }) => theme.primary};
-        color: white;
+        color: ${({ theme }) => theme.text.inverse};
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px ${({ theme }) => theme.focusRing};
     }
 `;
 
@@ -146,6 +179,7 @@ const ExternalIcon = () => (
         viewBox="0 0 12 12"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
     >
         <path
             d="M10.6667 10.6667H1.33333V1.33333H6V0H1.33333C0.593333 0 0 0.6 0 1.33333V10.6667C0 11.4 0.593333 12 1.33333 12H10.6667C11.4 12 12 11.4 12 10.6667V6H10.6667V10.6667ZM7.33333 0V1.33333H9.72667L3.17333 7.88667L4.11333 8.82667L10.6667 2.27333V4.66667H12V0H7.33333Z"
@@ -158,6 +192,19 @@ const externalLinksSet = [
     { path: `${process.env.REACT_APP_EXPLORER_URL}`, label: "Explorer" },
     { path: `${process.env.REACT_APP_FAUCET_URL}`, label: "Faucet" },
 ];
+
+const openExternalLink = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const FOCUSABLE_ELEMENTS = [
+    'a[href]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+    'button:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+    'textarea:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+    'input:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+    'select:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+    '[tabindex]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
+].join(",");
 
 interface NavItem {
     path: string;
@@ -179,41 +226,179 @@ export const MobileNavDrawerComponent: React.FC<
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
+    const drawerRef = useRef<HTMLDivElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const previousActiveElementRef = useRef<HTMLElement | null>(null);
+    const wasOpenRef = useRef(false);
+    const titleId = useId().replace(/:/g, "");
 
     const deleteWallet = useDeleteActiveWallet();
+    const deleteWalletOpenRef = useRef(deleteWallet.isOpen);
+    deleteWalletOpenRef.current = deleteWallet.isOpen;
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
+    if (isOpen && !wasOpenRef.current) {
+        previousActiveElementRef.current =
+            document.activeElement as HTMLElement | null;
+    }
+    wasOpenRef.current = isOpen;
+
+    // Depend only on isOpen: parent re-renders (e.g. network lastRefresh) must not
+    // re-run this effect or keyboard focus inside the drawer is reset.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const focusTimer = window.setTimeout(() => {
+            closeButtonRef.current?.focus();
+        }, 0);
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        const getFocusable = (drawer: HTMLElement): HTMLElement[] =>
+            Array.from(
+                drawer.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENTS),
+            );
+
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (deleteWalletOpenRef.current) return;
+
+            if (event.key === "Escape") {
+                event.preventDefault();
+                onCloseRef.current();
+                return;
+            }
+
+            if (event.key !== "Tab" || !drawerRef.current) return;
+
+            const focusable = getFocusable(drawerRef.current);
+            if (!focusable.length) {
+                event.preventDefault();
+                drawerRef.current.focus();
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        // Match ModalWindow: Tab wrap alone does not cover focus that leaves the
+        // dialog (e.g. header theme toggle). Pull it back on focusin.
+        const handleFocusIn = (event: FocusEvent): void => {
+            if (deleteWalletOpenRef.current) return;
+
+            const drawer = drawerRef.current;
+            if (!drawer || drawer.contains(event.target as Node)) {
+                return;
+            }
+
+            const focusable = getFocusable(drawer);
+            (focusable[0] ?? drawer).focus();
+        };
+
+        document.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("focusin", handleFocusIn);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+            document.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("focusin", handleFocusIn);
+            document.body.style.overflow = previousOverflow;
+            previousActiveElementRef.current?.focus?.();
+        };
+    }, [isOpen]);
 
     const handleNavigation = (path: string) => {
+        if (isNetworkOperationPending) return;
+
         navigate(path);
-        onClose();
+        onCloseRef.current();
+    };
+
+    const handleExternalNavigation = (url: string) => {
+        openExternalLink(url);
+        onCloseRef.current();
     };
 
     const handleLogout = () => {
+        if (isNetworkOperationPending) return;
+
         dispatch(logout());
         navigate("/login");
-        onClose();
+        onCloseRef.current();
     };
 
     return (
         <>
-            <MobileNavOverlayStyled $isOpen={isOpen} onClick={onClose} />
-            <MobileNavDrawerStyled
-                className="mobile-nav-drawer-styled"
+            <MobileNavOverlayStyled
                 $isOpen={isOpen}
+                onClick={onClose}
+                aria-hidden="true"
+            />
+            <MobileNavDrawerStyled
+                id="mobile-nav-drawer"
+                className="mobile-nav-drawer-styled"
+                ref={drawerRef}
+                $isOpen={isOpen}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`mobile-nav-title-${titleId}`}
+                aria-hidden={!isOpen}
+                tabIndex={-1}
+                data-modal-overlay
             >
                 <MobileNavHeader>
-                    <h2 style={{ margin: 0, fontSize: "18px" }}>Menu</h2>
-                    <IconButton onClick={onClose}>
+                    <h2
+                        id={`mobile-nav-title-${titleId}`}
+                        style={{ margin: 0, fontSize: "18px" }}
+                    >
+                        Menu
+                    </h2>
+                    <IconButton
+                        ref={closeButtonRef}
+                        type="button"
+                        aria-label="Close navigation"
+                        onClick={onClose}
+                    >
                         <CloseIcon size={20} />
                     </IconButton>
                 </MobileNavHeader>
 
                 <MobileNavContent>
+                    <MobileNetworkSection>
+                        <VisuallyHidden id="mobile-network-selector-label">
+                            Network
+                        </VisuallyHidden>
+                        <NetworkSelector
+                            id="mobile-network-selector"
+                            aria-labelledby="mobile-network-selector-label"
+                            style={{ width: "100%", minWidth: 0 }}
+                        />
+                    </MobileNetworkSection>
                     <MobileNavSection>
                         {navItems.map((item) => (
                             <MobileNavLink
                                 key={item.path}
+                                type="button"
                                 $active={location.pathname === item.path}
+                                aria-current={
+                                    location.pathname === item.path
+                                        ? "page"
+                                        : undefined
+                                }
                                 onClick={() => handleNavigation(item.path)}
+                                disabled={isNetworkOperationPending}
                             >
                                 {item.label}
                             </MobileNavLink>
@@ -223,8 +408,12 @@ export const MobileNavDrawerComponent: React.FC<
                             <ExternalNavLinkMobile
                                 $active={false}
                                 key={item.path}
+                                type="button"
                                 className="text-1"
-                                onClick={() => window.open(item.path, "_blank")}
+                                aria-label={`${item.label} (opens in a new tab)`}
+                                onClick={() =>
+                                    handleExternalNavigation(item.path)
+                                }
                             >
                                 {item.label}
                                 <ExternalIcon />
@@ -245,6 +434,7 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={handleLogout}
+                            disabled={isNetworkOperationPending}
                         >
                             Logout
                             <svg
@@ -253,6 +443,7 @@ export const MobileNavDrawerComponent: React.FC<
                                 viewBox="0 0 20 18"
                                 fill="none"
                                 xmlns="http://www.w3.org/2000/svg"
+                                aria-hidden="true"
                             >
                                 <path
                                     d="M2 2L10 2L10 0L2 6.99382e-07C0.899998 7.95547e-07 -1.49493e-06 0.9 -1.39876e-06 2L-1.74846e-07 16C-7.86805e-08 17.1 0.9 18 2 18L10 18L10 16L2 16L2 2Z"
@@ -270,6 +461,7 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={deleteWallet.open}
+                            disabled={isNetworkOperationPending}
                         >
                             Delete Wallet
                             <DeleteIcon size={20} />
@@ -280,6 +472,7 @@ export const MobileNavDrawerComponent: React.FC<
             <DeleteWalletModal
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
+                error={deleteWallet.error}
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
             />

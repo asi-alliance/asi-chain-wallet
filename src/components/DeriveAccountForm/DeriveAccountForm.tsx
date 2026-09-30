@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import styled from "styled-components";
 import { Input, Button } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { deriveHdAccount } from "store/Auth/thunks";
 import { useAppDispatch } from "store/hooks";
 import { useScreen, useValidAccountUpdating } from "hooks";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 const ActionButtons = styled.div`
     display: flex;
@@ -58,6 +59,8 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
     const [pendingAccountName, setPendingAccountName] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
+    // Sync guard for Cancel/submit before PasswordSetup re-renders with loading.
+    const loadingRef = useRef(false);
 
     const updateAccountName = (newName: string): void => {
         setAccountName(newName);
@@ -83,6 +86,11 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
     };
 
     const handlePasswordSet = async (password: string) => {
+        if (loadingRef.current) {
+            return;
+        }
+
+        loadingRef.current = true;
         setLoading(true);
         setPasswordError("");
 
@@ -91,25 +99,45 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
                 deriveHdAccount({ name: pendingAccountName, password }),
             ).unwrap();
 
+            setStep("form");
+            updateAccountName("");
+            setAccountNameError("");
+            setPasswordError("");
+            setPendingAccountName("");
             onSuccess?.(pendingAccountName);
-            handleCancel();
         } catch (error) {
             setPasswordError(
-                (error as Error)?.message ||
-                    "Incorrect wallet password. Please try again.",
+                getErrorMessage(
+                    error,
+                    "Failed to create account. Please try again.",
+                ),
             );
         } finally {
+            loadingRef.current = false;
             setLoading(false);
         }
     };
 
     const handleCancel = () => {
+        if (loadingRef.current) {
+            return;
+        }
+
         setStep("form");
         updateAccountName("");
         setAccountNameError("");
         setPasswordError("");
         setPendingAccountName("");
         onCancel?.();
+    };
+
+    const handlePasswordStepCancel = () => {
+        if (loadingRef.current) {
+            return;
+        }
+
+        setPasswordError("");
+        setStep("form");
     };
 
     if (step === "password") {
@@ -122,10 +150,7 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
                 error={passwordError}
                 loading={loading}
                 onPasswordSet={handlePasswordSet}
-                onCancel={() => {
-                    setPasswordError("");
-                    setStep("form");
-                }}
+                onCancel={handlePasswordStepCancel}
             />
         );
     }
@@ -151,7 +176,7 @@ export const DeriveAccountForm: React.FC<DeriveAccountFormProps> = ({
 
             <ActionButtons>
                 <AdaptiveButton
-                    id="create-account-button"
+                    id="derive-account-submit-button"
                     onClick={handleFormSubmit}
                     disabled={
                         !accountName.trim() || loading || !isNameUpdateValid

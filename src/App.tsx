@@ -7,8 +7,8 @@ import {
 } from "react-router-dom";
 import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
-import { store, RootState, AppDispatch } from "store";
+import { useSelector } from "react-redux";
+import { store, RootState } from "store";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
 import { Layout, Loader } from "components";
@@ -29,33 +29,12 @@ import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
-import {
-    selectHasWallets,
-    selectWalletsInitialLoadComplete,
-} from "store/WalletsStore";
+import { selectWalletsInitialLoadComplete } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
 import { useAppDispatch } from "store/hooks";
+import { ProtectedRoute } from "components/ProtectedRoute";
 
 import "@rainbow-me/rainbowkit/styles.css";
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
-    const isAuthenticated = useSelector(
-        (state: RootState) => state.auth.isAuthenticated,
-    );
-    const hasWallets = useSelector(selectHasWallets);
-
-    if (!hasWallets) {
-        return <Navigate to="/accounts" replace />;
-    }
-
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
-
-    return <>{children}</>;
-};
 
 const AppContent: React.FC = () => {
     const dispatch = useAppDispatch();

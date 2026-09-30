@@ -15,6 +15,7 @@ type NetworkSelectorProps = Omit<
 
 export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     disabled = false,
+    "aria-labelledby": ariaLabelledBy,
     ...props
 }) => {
     const dispatch = useDispatch<AppDispatch>();
@@ -65,6 +66,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     return (
         <AdaptiveSelect
             {...props}
+            aria-labelledby={ariaLabelledBy}
             value={selectedNetwork.id}
             onChange={handleNetworkChange}
             disabled={disabled}

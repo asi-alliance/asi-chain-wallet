@@ -38,7 +38,7 @@ const encodeBase58 = (hex: string): string => {
 export const generateKeyPair = (): KeyPair => {
   try {
     const keyPair = secp256k1.genKeyPair();
-    const privateKey = keyPair.getPrivate('hex');
+    const privateKey = keyPair.getPrivate('hex').padStart(64, '0');
     const publicKey = keyPair.getPublic('hex');
     const ethAddress = deriveEthAddress(publicKey);
     const revAddress = deriveRevAddress(ethAddress);
@@ -50,8 +50,7 @@ export const generateKeyPair = (): KeyPair => {
       revAddress
     };
   } catch (error) {
-    console.error('Error generating key pair:', error);
-    throw new Error(`Failed to generate key pair: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error('Failed to generate key pair');
   }
 };
 

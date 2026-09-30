@@ -1,122 +1,84 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import { Button } from "components/Button";
-import { Card, CardContent } from "components/Card";
+import { Alert, Button, FormActions } from "components";
 
 const Container = styled.div`
-    max-width: 600px;
+    width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
     margin: 0 auto;
 `;
 
-const SecurityWarning = styled.div`
-    background: ${({ theme }) => `${theme.error}15`};
-    border: 2px solid ${({ theme }) => theme.error};
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-    text-align: center;
+const WarningTitle = styled.div`
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    font-weight: ${({ theme }) => theme.typography.weight.bold};
 `;
 
-const WarningIcon = styled.div`
-    font-size: 48px;
-    margin-bottom: 16px;
+const InfoTitle = styled.div`
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
 `;
 
-const WarningTitle = styled.h3`
-    color: ${({ theme }) => theme.error};
-    margin: 0 0 12px 0;
-    // font-size: 20px;
-    font-weight: 700;
-`;
-
-const WarningText = styled.p`
-    color: ${({ theme }) => theme.text.primary};
-    margin: 0 0 16px 0;
-    line-height: 1.5;
-    // font-size: 14px;
+const AccountLabel = styled.p`
+    margin: 0 0 ${({ theme }) => theme.spacing.lg};
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 const KeySection = styled.div`
-    margin-bottom: 24px;
+    margin: ${({ theme }) => theme.spacing["3xl"]} 0;
 `;
 
-const KeyLabel = styled.label`
-    display: block;
-    font-weight: 600;
-    margin-bottom: 8px;
+const KeyLabel = styled.h3`
+    margin: 0 0 ${({ theme }) => theme.spacing.lg};
     color: ${({ theme }) => theme.text.primary};
-    // font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.size.md};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
 `;
 
 const KeyContainer = styled.div`
     position: relative;
+    min-height: ${({ theme }) => theme.sizes.control.large};
+    padding: ${({ theme }) => theme.spacing.xl};
+    padding-right: 88px;
+    border: 1px solid ${({ theme }) => theme.border};
+    border-radius: ${({ theme }) => theme.radii.md};
     background: ${({ theme }) => theme.surface};
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
-    padding: 16px;
-    font-size: 12px;
-    line-height: 1.4;
-    word-break: break-all;
-    color: ${({ theme }) => theme.text.primary};
-    min-height: 60px;
-    display: flex;
-    align-items: center;
 `;
 
 const KeyValue = styled.div<{ $isVisible: boolean }>`
-    flex: 1;
+    color: ${({ theme }) => theme.text.primary};
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    word-break: break-all;
     filter: ${({ $isVisible }) => ($isVisible ? "none" : "blur(8px)")};
-    transition: filter 0.3s ease;
+    transition: filter ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
     user-select: ${({ $isVisible }) => ($isVisible ? "text" : "none")};
-    padding-right: 60px;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
 `;
 
 const ToggleButton = styled(Button)`
     position: absolute;
-    top: 8px;
-    right: 8px;
-    padding: 4px 8px;
-    // font-size: 11px;
-    min-width: auto;
-`;
-
-const CopyButton = styled(Button)`
-    margin-top: 12px;
-    width: 100%;
-`;
-
-const ActionButtons = styled.div`
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-    align-items: center;
-`;
-
-const InfoBox = styled.div`
-    background: ${({ theme }) => `${theme.primary}10`};
-    border: 1px solid ${({ theme }) => `${theme.primary}30`};
-    border-radius: 8px;
-    padding: 8px 8px 8px 16px;
-    margin-bottom: 24px;
-`;
-
-const InfoTitle = styled.h4`
-    color: ${({ theme }) => theme.primary};
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    font-weight: 600;
+    top: ${({ theme }) => theme.spacing.md};
+    right: ${({ theme }) => theme.spacing.md};
 `;
 
 const InfoList = styled.ul`
-    margin: 0;
-    padding-left: 20px;
+    margin: ${({ theme }) => theme.spacing.md} 0 0;
+    padding-left: ${({ theme }) => theme.spacing["2xl"]};
     color: ${({ theme }) => theme.text.secondary};
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
 `;
 
 const InfoItem = styled.li`
-    margin-bottom: 4px;
+    margin-bottom: ${({ theme }) => theme.spacing.xs};
 `;
 
 interface PrivateKeyDisplayProps {
@@ -125,6 +87,7 @@ interface PrivateKeyDisplayProps {
     onContinue: () => void;
     onBack?: () => void;
     showBackButton?: boolean;
+    continueLabel?: string;
 }
 
 export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
@@ -133,6 +96,7 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
     onContinue,
     onBack,
     showBackButton = false,
+    continueLabel = "I've Saved My Private Key",
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -141,10 +105,8 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
         try {
             await navigator.clipboard.writeText(privateKey);
             setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch (error) {
-            console.error("Failed to copy private key:", error);
-            // Fallback for older browsers
+            window.setTimeout(() => setCopied(false), 2000);
+        } catch {
             const textArea = document.createElement("textarea");
             textArea.value = privateKey;
             document.body.appendChild(textArea);
@@ -152,93 +114,99 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
             document.execCommand("copy");
             document.body.removeChild(textArea);
             setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            window.setTimeout(() => setCopied(false), 2000);
         }
-    };
-
-    const handleToggleVisibility = () => {
-        setIsVisible(!isVisible);
     };
 
     return (
         <Container>
-            <SecurityWarning>
-                <WarningIcon>🔐</WarningIcon>
+            <Alert
+                tone="danger"
+                icon="🔐"
+                style={{ alignItems: "flex-start" }}
+            >
                 <WarningTitle>IMPORTANT: Save Your Private Key</WarningTitle>
-                <WarningText>
-                    <span className="text-2">
-                        This is the only time you'll see your private key in
-                        plain text.
-                        <strong> Save it somewhere safe!</strong> If you lose
-                        this key, you'll lose access to your account forever.
-                    </span>
-                </WarningText>
-            </SecurityWarning>
+                This is the only time you will see your private key in plain
+                text. Save it somewhere safe! If you lose this key, you lose
+                access to the account forever.
+            </Alert>
 
-            <Card>
-                <CardContent>
-                    <KeySection>
-                        <KeyLabel>
-                            <h3>Account: {accountName}</h3>
-                        </KeyLabel>
-                        <KeyContainer>
-                            <KeyValue $isVisible={isVisible}>
-                                <h3>{privateKey}</h3>
-                            </KeyValue>
-                            <ToggleButton
-                                variant="ghost"
-                                size="small"
-                                onClick={handleToggleVisibility}
-                            >
-                                <h3>{isVisible ? "Hide" : "Show"}</h3>
-                            </ToggleButton>
-                        </KeyContainer>
-                        <CopyButton
-                            variant="secondary"
-                            onClick={handleCopy}
-                            disabled={!isVisible}
-                        >
-                            <h3>{copied ? "✓ Copied!" : "Copy Private Key"}</h3>
-                        </CopyButton>
-                    </KeySection>
+            <KeySection>
+                <AccountLabel>Account: {accountName || "—"}</AccountLabel>
+                <KeyLabel id="private-key-label">Private key</KeyLabel>
+                <KeyContainer>
+                    <KeyValue
+                        $isVisible={isVisible}
+                        aria-labelledby="private-key-label"
+                        aria-hidden={!isVisible}
+                    >
+                        {privateKey}
+                    </KeyValue>
+                    <ToggleButton
+                        type="button"
+                        variant="ghost"
+                        size="small"
+                        onClick={() => setIsVisible((prev) => !prev)}
+                        aria-pressed={isVisible}
+                        aria-label={
+                            isVisible ? "Hide private key" : "Show private key"
+                        }
+                    >
+                        {isVisible ? "Hide" : "Show"}
+                    </ToggleButton>
+                </KeyContainer>
 
-                    <InfoBox>
-                        <InfoTitle>What to do with your private key:</InfoTitle>
-                        <InfoList>
-                            <InfoItem>
-                                Write it down on paper and store it safely
-                            </InfoItem>
-                            <InfoItem>Never share it with anyone</InfoItem>
-                            <InfoItem>
-                                Don't store it in screenshots or unencrypted
-                                files
-                            </InfoItem>
-                            <InfoItem>
-                                Use it to import your wallet in other browsers
-                            </InfoItem>
-                            <InfoItem>Keep it offline when possible</InfoItem>
-                        </InfoList>
-                    </InfoBox>
+                <FormActions>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleCopy}
+                        disabled={!isVisible}
+                        aria-label="Copy private key"
+                        fullWidth
+                    >
+                        {copied ? "Copied" : "Copy Private Key"}
+                    </Button>
+                </FormActions>
+            </KeySection>
 
-                    <ActionButtons>
-                        <Button
-                            onClick={onContinue}
-                            style={{ flex: 1, height: "auto" }}
-                        >
-                            <h3>I've Saved My Private Key</h3>
-                        </Button>
-                        {showBackButton && onBack && (
-                            <Button
-                                variant="secondary"
-                                onClick={onBack}
-                                style={{ flex: 1 }}
-                            >
-                                <h3>Back</h3>
-                            </Button>
-                        )}
-                    </ActionButtons>
-                </CardContent>
-            </Card>
+            <Alert tone="info" icon="ℹ️" style={{ alignItems: "flex-start" }}>
+                <InfoTitle>What to do with your private key:</InfoTitle>
+                <InfoList>
+                    <InfoItem>
+                        Write it down on paper and store it safely
+                    </InfoItem>
+                    <InfoItem>Never share it with anyone</InfoItem>
+                    <InfoItem>
+                        Don&apos;t store it in screenshots or unencrypted files
+                    </InfoItem>
+                    <InfoItem>
+                        Use it to import your wallet in other browsers
+                    </InfoItem>
+                    <InfoItem>Keep it offline when possible</InfoItem>
+                </InfoList>
+            </Alert>
+
+            <FormActions>
+                <Button
+                    type="button"
+                    onClick={onContinue}
+                    disabled={!isVisible}
+                    fullWidth
+                >
+                    {continueLabel}
+                </Button>
+                {showBackButton && onBack && (
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={onBack}
+                        fullWidth
+                    >
+                        Back
+                    </Button>
+                )}
+            </FormActions>
         </Container>
     );
 };
