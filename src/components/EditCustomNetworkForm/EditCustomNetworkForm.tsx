@@ -8,7 +8,7 @@ import { AppDispatch } from "store";
 import { selectNetworks } from "store/WalletsStore";
 import { updateCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
-import { useIsNetworkBusy } from "sdk";
+import { SdkWalletService, useIsNetworkBusy } from "sdk";
 import { getErrorMessage } from "utils/helpers";
 import {
     INetworkFormValues,
@@ -41,12 +41,7 @@ const CustomNetworkActionsButtons = styled.div`
 
 const toFormValues = (network: Network): INetworkFormValues => ({
     name: network.name,
-    config: {
-        ValidatorURL: network.validatorUrl,
-        ReadOnlyURL: network.observerUrl,
-        IndexerURL: network.indexerUrl,
-        nodeApiProfile: network.nodeApiProfile,
-    },
+    config: SdkWalletService.toNetworkConfig(network),
 });
 
 interface EditCustomNetworkFormProps {

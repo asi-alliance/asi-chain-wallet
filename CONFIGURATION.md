@@ -25,6 +25,8 @@ All configuration is **build time**. The application reads `process.env` only, a
 
 Startup logs from that step are prefixed with `[config-overrides]` and report whether `NETWORKS` was found, its length and the network ids it contains.
 
+`config-overrides.js` also validates `NETWORKS` with the same rules the application applies at startup (see [Validation Rules](#validation-rules)). Warnings are logged, and any error aborts both `npm start` and `npm run build` before webpack compiles anything, so a bundle with an invalid or duplicated network configuration is never produced or deployed.
+
 > **There is no runtime configuration.** `docker-entrypoint.sh` still writes a `window._env_` object into `index.html`, and `src/utils/env.ts` still reads it, but nothing in the application imports that helper any more. Changing environment variables requires a rebuild.
 
 `.env.example` lists exactly the variables described below and is the template to copy.
@@ -98,7 +100,9 @@ Route ids for these two chains are not configurable: they come from `sepolia.id`
 
 ## Network Management
 
-`process.env.NETWORKS` is read in exactly one place, [src/constants/networks.ts](src/constants/networks.ts). It parses and validates the variable once at startup and exports everything the app needs:
+Parsing and validation live in [src/config/networksEnv.ts](src/config/networksEnv.ts). The module takes the raw string and has no browser dependencies, so the same code runs in the browser and in `config-overrides.js`, which loads it through `ts-node`. See [DEVELOPMENT.md](DEVELOPMENT.md#build-time-modules-in-srcconfig) for the rules every module in `src/config/` follows.
+
+In the application, `process.env.NETWORKS` is read in exactly one place, [src/constants/networks.ts](src/constants/networks.ts). It passes the variable to `parseNetworksEnv` once at startup and exports everything the app needs:
 
 | Export | Used by |
 | --- | --- |
@@ -128,12 +132,14 @@ An entry may also carry `name`; without it the id is used as the display name. `
 
 ### Validation Rules
 
-Errors are fatal: the SDK client is not created and the application shows the reason instead of failing deep inside the SDK.
+Errors are fatal: `npm start` and `npm run build` stop in `config-overrides.js`, and if a bundle was built without that check, the SDK client is not created and the application shows the reason instead of failing deep inside the SDK.
 
 - `NETWORKS` is missing or empty
 - `NETWORKS` is not valid JSON (the parser message is included)
 - `NETWORKS` is not a non-empty JSON object mapping ids to configurations
 - **No entry is fully configured**: at least one network needs a valid `http(s)` `ValidatorURL`, `ReadOnlyURL` and `IndexerURL`
+- **Duplicate endpoints**: two or more loaded entries have the same `ValidatorURL`, `ReadOnlyURL`, `IndexerURL` and `nodeApiProfile` (compared after validation and fallbacks). The message lists the ids of the conflicting networks
+- **Duplicate names**: two or more loaded entries have the same display name (`name`, or the id when `name` is absent), compared ignoring case. The message lists the name and the ids of the conflicting networks
 
 Warnings keep the app running and are reported per network:
 
