@@ -20,9 +20,7 @@ import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
 import { DeleteAccountModal } from "components/DeleteAccountModal";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
-import {
-    IDeleteAccountRequest,
-} from "components/RemoveAccountButton";
+import { IDeleteAccountRequest } from "components/RemoveAccountButton";
 import {
     useDeleteAccount,
     useDeleteActiveWallet,
@@ -287,7 +285,6 @@ export const Accounts: React.FC = () => {
                                         onRequestDeleteAccount={
                                             handleRequestDeleteAccount
                                         }
-                                        onRequestExportWallet={handleOpenExport}
                                     />
                                 </AccountsGrid>
                             )}
@@ -307,9 +304,6 @@ export const Accounts: React.FC = () => {
                                                     }
                                                     onRequestDeleteAccount={
                                                         handleRequestDeleteAccount
-                                                    }
-                                                    onRequestExportWallet={
-                                                        handleOpenExport
                                                     }
                                                 />
                                             ))}
@@ -357,7 +351,9 @@ export const Accounts: React.FC = () => {
                                     <InlineButton
                                         id="accounts-import-private-key-button"
                                         variant="secondary"
-                                        onClick={() => setImportMode("private-key")}
+                                        onClick={() =>
+                                            setImportMode("private-key")
+                                        }
                                     >
                                         Import Private Key
                                     </InlineButton>

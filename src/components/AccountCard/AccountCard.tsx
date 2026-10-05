@@ -13,14 +13,13 @@ import {
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { Card } from "components/Card";
-import { Button } from "components/Button";
 import { IUnlockedAccountMeta } from "types/wallet";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { KeyboardEvent, MouseEvent, ReactElement } from "react";
 import { RootState } from "store";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { useAppDispatch } from "store/hooks";
-import { DownloadIcon, FileCopyIcon } from "components/Icons";
+import { FileCopyIcon } from "components/Icons";
 
 interface IAccountCardProps {
     account: IUnlockedAccountMeta;
@@ -28,7 +27,6 @@ interface IAccountCardProps {
     className?: string;
     onRequestDeleteWallet?: (message: string) => void;
     onRequestDeleteAccount?: (request: IDeleteAccountRequest) => void;
-    onRequestExportWallet?: () => void;
 }
 
 export const ACCOUNT_CARD_WIDTH_PX = 462;
@@ -129,7 +127,9 @@ const DerivationIndex = styled.div<{ $isSelected: boolean }>`
     font-size: ${({ theme }) => theme.typography.size.xs};
     line-height: ${({ theme }) => theme.typography.lineHeight.xs};
     color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.secondary : theme.colors.background.secondary};
+        !$isSelected
+            ? theme.text.secondary
+            : theme.colors.background.secondary};
     margin: -${({ theme }) => theme.spacing.lg} 0
         ${({ theme }) => theme.spacing.xl};
 `;
@@ -154,31 +154,16 @@ const LabelThird = styled.div<{ $isSelected: boolean }>`
     font-weight: 400;
     font-size: ${({ theme }) => theme.typography.size.xs};
     color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.secondary : theme.colors.background.secondary};
+        !$isSelected
+            ? theme.text.secondary
+            : theme.colors.background.secondary};
 `;
 
 const AccountCardFooter = styled.div`
     display: flex;
     width: 100%;
-    justify-content: space-between;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.lg};
-`;
-
-const FooterActions = styled.div`
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-`;
-
-const ExportActionButton = styled(Button)`
-    background: ${({ theme }) => theme.card};
-    color: ${({ theme }) => theme.text.primary};
-    border-color: ${({ theme }) => theme.border};
-
-    &:hover:not(:disabled) {
-        background: ${({ theme }) => theme.hoverSurface};
-    }
 `;
 
 const AccountAddress = styled.div<{ $isSelected: boolean; $compact: boolean }>`
@@ -248,7 +233,6 @@ export const AccountCard = ({
     className = "",
     onRequestDeleteWallet,
     onRequestDeleteAccount,
-    onRequestExportWallet,
 }: IAccountCardProps): ReactElement => {
     const dispatch = useAppDispatch();
 
@@ -380,18 +364,6 @@ export const AccountCard = ({
                         </AddressCopyAction>
                     </AddressValueRow>
                 </AccountAddress>
-                {fullMode && isUnlocked && onRequestExportWallet && (
-                    <FooterActions onClick={stopCardActivation}>
-                        <ExportActionButton
-                            variant="icon-button"
-                            title={`Export wallet keyfile, ${account.name}`}
-                            aria-label={`Export wallet keyfile, ${account.name}`}
-                            onClick={onRequestExportWallet}
-                        >
-                            <DownloadIcon />
-                        </ExportActionButton>
-                    </FooterActions>
-                )}
             </AccountCardFooter>
         </AccountCardWrapper>
     );
