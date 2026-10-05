@@ -194,6 +194,7 @@ export const Accounts: React.FC = () => {
     const subAccounts = canDeriveAccount
         ? accounts.filter((account) => account.id !== primaryAccount?.id)
         : [];
+    const hasSubAccounts: boolean = !!subAccounts.length;
 
     useEffect(() => {
         if (canDeriveAccount || !showCreateModal) {
@@ -288,27 +289,25 @@ export const Accounts: React.FC = () => {
                                     />
                                 </AccountsGrid>
                             )}
-                            {canDeriveAccount && (
+                            {hasSubAccounts && (
                                 <AccountSection aria-label="Your sub-accounts">
                                     <AccountSectionHeading>
                                         Your sub-accounts ({subAccounts.length})
                                     </AccountSectionHeading>
-                                    {subAccounts.length > 0 && (
-                                        <AccountsGrid className="accounts-grid">
-                                            {subAccounts.map((account) => (
-                                                <AccountCard
-                                                    key={account.id}
-                                                    account={account}
-                                                    onRequestDeleteWallet={
-                                                        handleRequestDeleteWallet
-                                                    }
-                                                    onRequestDeleteAccount={
-                                                        handleRequestDeleteAccount
-                                                    }
-                                                />
-                                            ))}
-                                        </AccountsGrid>
-                                    )}
+                                    <AccountsGrid className="accounts-grid">
+                                        {subAccounts.map((account) => (
+                                            <AccountCard
+                                                key={account.id}
+                                                account={account}
+                                                onRequestDeleteWallet={
+                                                    handleRequestDeleteWallet
+                                                }
+                                                onRequestDeleteAccount={
+                                                    handleRequestDeleteAccount
+                                                }
+                                            />
+                                        ))}
+                                    </AccountsGrid>
                                 </AccountSection>
                             )}
                             {!!activeWallet && (
