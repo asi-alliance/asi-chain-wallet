@@ -106,15 +106,10 @@ const InlineButton = styled(Button)`
 const BackupAction = styled.div`
     grid-column: 1 / -1;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: ${({ theme }) => theme.spacing.xl};
+    flex-direction: column;
+    align-items: stretch;
+    gap: ${({ theme }) => theme.spacing.sm};
     padding-top: ${({ theme }) => theme.spacing.md};
-
-    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-        flex-direction: column;
-        align-items: stretch;
-    }
 `;
 
 const BackupLabel = styled.span`
