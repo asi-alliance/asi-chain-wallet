@@ -387,11 +387,6 @@ export const ImportKeyfileWalletForm: React.FC<
             ) {
                 setFileError(message);
                 backToKeyfileStep();
-            } else if (
-                code === CustomErrorCode.DUPLICATE_WALLET ||
-                code === CustomErrorCode.DUPLICATE_ACCOUNT
-            ) {
-                setFormError(message);
             } else {
                 setFormError(message);
             }
