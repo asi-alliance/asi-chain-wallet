@@ -6,7 +6,7 @@ import { RootState } from "store";
 import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
-import { useNavItems } from "./useNavItems";
+import { getNavItems } from "./navItems";
 import { selectAccounts, selectSelectedNetworkId } from "store/WalletsStore";
 
 const Container = styled.div`
@@ -39,7 +39,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         (state: RootState) => state.walletsStore.selectedNetwork.observerUrl,
     );
     const selectedNetworkId = useSelector(selectSelectedNetworkId);
-    const accounts = useSelector(selectAccounts);
+    const hasAccounts = useSelector(
+        (state: RootState) => selectAccounts(state).length > 0,
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -107,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         return () => media.removeEventListener("change", syncDrawerToViewport);
     }, [theme.breakpoints.navigation]);
 
-    const navItems = useNavItems(accounts);
+    const navItems = getNavItems(hasAccounts);
 
     return (
         <Container>
