@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
+import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -41,7 +41,7 @@ import {
 } from "components/Icons";
 import { ModalWindow } from "components/ModalWindow";
 import { useWalletSessionAction } from "hooks";
-import { getGasFeeAsNumber, getGasFeeRangeLabel } from "../../constants/gas";
+import { getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
@@ -358,9 +358,8 @@ export const Send: React.FC = () => {
 
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
-    const estimatedFee = getGasFeeAsNumber();
     const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance, estimatedFee, true)
+        ? getAmountValidationError(amount, balance, GasFee.MAX, true)
         : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
 
@@ -985,7 +984,7 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                maxFee={estimatedFee}
+                maxFee={GasFee.MAX}
                 feeLabel={getGasFeeRangeLabel()}
                 loading={isSending}
             />

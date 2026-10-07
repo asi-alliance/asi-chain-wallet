@@ -50,7 +50,8 @@ import {
     networkOperationStarted,
 } from "store/networkOperationSlice";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
-import { getGasFeeForBridgeAsNumber } from "constants/gas";
+import { ASI_DECIMALS, fromAtomicAmount } from "@asichain/asi-wallet-sdk";
+import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";
 import {
     getAmountValidationError,
     getMaxSendableAmount,
@@ -459,7 +460,6 @@ export const Bridge: React.FC = () => {
         ? parseAtomicAmount(amount)
         : BigInt(0);
     const atomicAmount: bigint = parsedAmount ?? BigInt(0);
-    const bridgeGasFee: number = getGasFeeForBridgeAsNumber();
 
     const needsEvmApproval =
         srcKind === "evm" &&
@@ -492,7 +492,7 @@ export const Bridge: React.FC = () => {
         const validationError = getAmountValidationError(
             amount,
             selectedASIAccountBalance,
-            bridgeGasFee,
+            BRIDGE_LOCK_MAX_GAS_COST,
             true,
         );
 
@@ -574,7 +574,7 @@ export const Bridge: React.FC = () => {
         if (srcKind === "asi") {
             const max = getMaxSendableAmount(
                 selectedASIAccountBalance,
-                bridgeGasFee,
+                BRIDGE_LOCK_MAX_GAS_COST,
             );
 
             if (!isPositiveTokenAmount(max)) {
@@ -976,8 +976,11 @@ export const Bridge: React.FC = () => {
                 recipient={pendingLock?.recipient ?? ""}
                 senderAddress={pendingLock?.accountAddress ?? ""}
                 senderName={pendingLock?.accountName ?? ""}
-                maxFee={bridgeGasFee}
-                feeLabel={`up to ${bridgeGasFee.toFixed(8)}`}
+                maxFee={BRIDGE_LOCK_MAX_GAS_COST}
+                feeLabel={`up to ${fromAtomicAmount(
+                    BRIDGE_LOCK_MAX_GAS_COST,
+                    ASI_DECIMALS,
+                )}`}
                 feeDetailLabel="Estimated maximum fee"
                 totalLabel="Maximum total"
                 loading={asiLock.isRunning}

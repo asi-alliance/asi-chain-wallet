@@ -106,7 +106,7 @@ interface TransactionConfirmationProps {
     recipient: string;
     senderAddress: string;
     senderName: string;
-    maxFee: number;
+    maxFee: bigint;
     feeLabel: string;
     feeDetailLabel?: string;
     totalLabel?: string;
