@@ -3,33 +3,26 @@ import { selectAccountById, selectWalletByAccountId } from "store/WalletsStore";
 import { useSelector } from "react-redux";
 import { DeleteIcon } from "components/Icons";
 import { Button } from "components/Button";
-import { DeleteAccountModal } from "components/DeleteAccountModal";
 import { IAccountMeta, IWalletMeta } from "types/wallet";
-import { Fragment, MouseEvent, ReactElement } from "react";
-import { ButtonProps } from "components/Button/Button";
+import { MouseEvent, ReactElement } from "react";
 import { RootState } from "store";
-import { useDeleteAccount } from "hooks";
+import { IAccountDeleteTarget } from "hooks";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 
-export interface IDeleteAccountRequest {
-    walletId: string;
-    accountId: string;
-    accountName: string;
-}
+export type TRemoveAccountRequest =
+    | { type: "account"; target: IAccountDeleteTarget }
+    | { type: "wallet"; message: string };
 
-interface IRemoveAccountButtonProps extends ButtonProps {
+interface IRemoveAccountButtonProps {
     accountId: string;
-    /** Required for last-account / PK delete so the modal survives removeWallet. */
-    onRequestDeleteWallet?: (message: string) => void;
-    /** Preferred host for non-last account delete so the modal survives removeAccount. */
-    onRequestDeleteAccount?: (request: IDeleteAccountRequest) => void;
+    onRequestDelete: (request: TRemoveAccountRequest) => void;
 }
 
 const RemoveButton = styled(Button)`
     background: ${({ theme }) => theme.colors.background.secondary};
 `;
 
-export const getWalletDeleteMessage = (
+const getWalletDeleteMessage = (
     wallet: IWalletMeta,
     accountName: string,
 ): string => {
@@ -42,8 +35,7 @@ export const getWalletDeleteMessage = (
 
 export const RemoveAccountButton = ({
     accountId,
-    onRequestDeleteWallet,
-    onRequestDeleteAccount,
+    onRequestDelete,
 }: IRemoveAccountButtonProps): ReactElement => {
     const wallet: IWalletMeta | null = useSelector((state: RootState) =>
         selectWalletByAccountId(state, accountId),
@@ -52,18 +44,9 @@ export const RemoveAccountButton = ({
         selectAccountById(state, accountId),
     );
 
-    const isLastAccount: boolean = (wallet?.accounts.length ?? 0) <= 1;
     const deletesWallet: boolean =
-        wallet?.type === WalletTypes.PRIVATE_KEY || isLastAccount;
-    const hostsWalletDeleteExternally =
-        typeof onRequestDeleteWallet === "function";
-    const hostsAccountDeleteExternally =
-        typeof onRequestDeleteAccount === "function";
-
-    const deleteAccount = useDeleteAccount(wallet?.id, accountId);
-
-    const isDisabled: boolean =
-        !wallet?.id || (deletesWallet && !hostsWalletDeleteExternally);
+        wallet?.type === WalletTypes.PRIVATE_KEY ||
+        (wallet?.accounts.length ?? 0) <= 1;
     const accountName = account?.name ?? "";
     const actionLabel = deletesWallet
         ? `Delete wallet, ${accountName}`
@@ -72,53 +55,36 @@ export const RemoveAccountButton = ({
     const handleClick = (event: MouseEvent<HTMLButtonElement>): void => {
         event.stopPropagation();
 
-        if (deletesWallet) {
-            if (!wallet || !onRequestDeleteWallet) {
-                return;
-            }
-
-            onRequestDeleteWallet(getWalletDeleteMessage(wallet, accountName));
-
+        if (!wallet?.id) {
             return;
         }
 
-        if (hostsAccountDeleteExternally && wallet?.id) {
-            onRequestDeleteAccount({
-                walletId: wallet.id,
-                accountId,
-                accountName,
+        if (deletesWallet) {
+            onRequestDelete({
+                type: "wallet",
+                message: getWalletDeleteMessage(wallet, accountName),
             });
 
             return;
         }
 
-        deleteAccount.open();
+        onRequestDelete({
+            type: "account",
+            target: { walletId: wallet.id, accountId, accountName },
+        });
     };
 
     return (
-        <Fragment>
-            <RemoveButton
-                title={actionLabel}
-                aria-label={actionLabel}
-                id={`remove-account-${accountId}`}
-                variant="icon-button"
-                disabled={isDisabled}
-                onClick={handleClick}
-                dangerHover
-            >
-                <DeleteIcon />
-            </RemoveButton>
-
-            {!hostsAccountDeleteExternally && (
-                <DeleteAccountModal
-                    isOpen={deleteAccount.isOpen}
-                    accountName={accountName}
-                    isDeleting={deleteAccount.isDeleting}
-                    error={deleteAccount.error}
-                    onConfirm={deleteAccount.confirm}
-                    onCancel={deleteAccount.close}
-                />
-            )}
-        </Fragment>
+        <RemoveButton
+            title={actionLabel}
+            aria-label={actionLabel}
+            id={`remove-account-${accountId}`}
+            variant="icon-button"
+            disabled={!wallet?.id}
+            onClick={handleClick}
+            dangerHover
+        >
+            <DeleteIcon />
+        </RemoveButton>
     );
 };

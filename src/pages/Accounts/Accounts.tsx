@@ -20,7 +20,7 @@ import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
 import { DeleteAccountModal } from "components/DeleteAccountModal";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
-import { IDeleteAccountRequest } from "components/RemoveAccountButton";
+import { TRemoveAccountRequest } from "components/RemoveAccountButton";
 import {
     useDeleteAccount,
     useDeleteActiveWallet,
@@ -117,43 +117,6 @@ const BackupLabel = styled.span`
     font-size: ${({ theme }) => theme.typography.size.sm};
 `;
 
-/** Page-level host so DeleteAccountModal survives the removed account card. */
-const AccountDeleteHost: React.FC<{
-    request: IDeleteAccountRequest;
-    onClosed: () => void;
-}> = ({ request, onClosed }) => {
-    const deleteAccount = useDeleteAccount(request.walletId, request.accountId);
-
-    useEffect(() => {
-        deleteAccount.open();
-        // Open once when this host mounts for a concrete account.
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only open
-    }, []);
-
-    return (
-        <DeleteAccountModal
-            isOpen={deleteAccount.isOpen}
-            accountName={request.accountName}
-            isDeleting={deleteAccount.isDeleting}
-            error={deleteAccount.error}
-            onConfirm={async () => {
-                const removed = await deleteAccount.confirm();
-
-                if (removed) {
-                    onClosed();
-                }
-            }}
-            onCancel={() => {
-                if (!deleteAccount.close()) {
-                    return;
-                }
-
-                onClosed();
-            }}
-        />
-    );
-};
-
 export const Accounts: React.FC = () => {
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
@@ -161,6 +124,7 @@ export const Accounts: React.FC = () => {
         useSelector(selectActiveWallet);
     const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
     const deleteWallet = useDeleteActiveWallet();
+    const deleteAccount = useDeleteAccount();
     // Covers this page, HeaderBar, and MobileNav Delete Wallet instances.
     const isWalletDeleteInProgress = useIsAnyWalletDeleteInProgress();
 
@@ -178,8 +142,6 @@ export const Accounts: React.FC = () => {
     const [deleteWalletMessage, setDeleteWalletMessage] = useState<
         string | undefined
     >();
-    const [accountDeleteRequest, setAccountDeleteRequest] =
-        useState<IDeleteAccountRequest | null>(null);
 
     const canDeriveAccount =
         !!activeWallet && activeWallet.type !== WalletTypes.PRIVATE_KEY;
@@ -210,9 +172,15 @@ export const Accounts: React.FC = () => {
         );
     };
 
-    const handleRequestDeleteWallet = (message: string): void => {
-        setDeleteWalletMessage(message);
-        deleteWallet.open();
+    const handleRequestDelete = (request: TRemoveAccountRequest): void => {
+        if (request.type === "wallet") {
+            setDeleteWalletMessage(request.message);
+            deleteWallet.open();
+
+            return;
+        }
+
+        deleteAccount.open(request.target);
     };
 
     const handleCloseDeleteWallet = (): void => {
@@ -221,12 +189,6 @@ export const Accounts: React.FC = () => {
         }
 
         setDeleteWalletMessage(undefined);
-    };
-
-    const handleRequestDeleteAccount = (
-        request: IDeleteAccountRequest,
-    ): void => {
-        setAccountDeleteRequest(request);
     };
 
     const handleOpenExport = (): void => {
@@ -275,12 +237,7 @@ export const Accounts: React.FC = () => {
                                     <AccountCard
                                         key={primaryAccount.id}
                                         account={primaryAccount}
-                                        onRequestDeleteWallet={
-                                            handleRequestDeleteWallet
-                                        }
-                                        onRequestDeleteAccount={
-                                            handleRequestDeleteAccount
-                                        }
+                                        onRequestDelete={handleRequestDelete}
                                     />
                                 </AccountsGrid>
                             )}
@@ -294,11 +251,8 @@ export const Accounts: React.FC = () => {
                                             <AccountCard
                                                 key={account.id}
                                                 account={account}
-                                                onRequestDeleteWallet={
-                                                    handleRequestDeleteWallet
-                                                }
-                                                onRequestDeleteAccount={
-                                                    handleRequestDeleteAccount
+                                                onRequestDelete={
+                                                    handleRequestDelete
                                                 }
                                             />
                                         ))}
@@ -414,12 +368,14 @@ export const Accounts: React.FC = () => {
                     onClose={handleCloseExport}
                 />
             )}
-            {accountDeleteRequest && (
-                <AccountDeleteHost
-                    request={accountDeleteRequest}
-                    onClosed={() => setAccountDeleteRequest(null)}
-                />
-            )}
+            <DeleteAccountModal
+                isOpen={deleteAccount.isOpen}
+                accountName={deleteAccount.target?.accountName ?? ""}
+                isDeleting={deleteAccount.isDeleting}
+                error={deleteAccount.error}
+                onConfirm={deleteAccount.confirm}
+                onCancel={deleteAccount.close}
+            />
             <DeleteWalletModal
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}

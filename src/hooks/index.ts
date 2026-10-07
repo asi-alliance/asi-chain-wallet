@@ -9,6 +9,7 @@ export {
 } from "./useDeleteWallet";
 export { useDeleteActiveWallet } from "./useDeleteActiveWallet";
 export { useDeleteAccount } from "./useDeleteAccount";
+export type { IAccountDeleteTarget } from "./useDeleteAccount";
 export { useDisposableAsync } from "./useDisposableAsync";
 export { useWalletSessionAction } from "./useWalletSessionAction";
 export { useDeployContract, DeployEventTypes } from "./useDeployContract";

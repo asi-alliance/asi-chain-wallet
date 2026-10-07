@@ -2,8 +2,8 @@ import styled, { css } from "styled-components";
 import CopyButton from "components/CopyButton";
 import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
 import {
-    IDeleteAccountRequest,
     RemoveAccountButton,
+    TRemoveAccountRequest,
 } from "components/RemoveAccountButton";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useSelector } from "react-redux";
@@ -25,8 +25,7 @@ interface IAccountCardProps {
     account: IUnlockedAccountMeta;
     fullMode?: boolean;
     className?: string;
-    onRequestDeleteWallet?: (message: string) => void;
-    onRequestDeleteAccount?: (request: IDeleteAccountRequest) => void;
+    onRequestDelete?: (request: TRemoveAccountRequest) => void;
 }
 
 export const ACCOUNT_CARD_WIDTH_PX = 462;
@@ -231,8 +230,7 @@ export const AccountCard = ({
     account,
     fullMode = true,
     className = "",
-    onRequestDeleteWallet,
-    onRequestDeleteAccount,
+    onRequestDelete,
 }: IAccountCardProps): ReactElement => {
     const dispatch = useAppDispatch();
 
@@ -309,11 +307,10 @@ export const AccountCard = ({
                 />
 
                 <HeaderActions onClick={stopCardActivation}>
-                    {fullMode && isUnlocked && (
+                    {fullMode && isUnlocked && onRequestDelete && (
                         <RemoveAccountButton
                             accountId={account.id}
-                            onRequestDeleteWallet={onRequestDeleteWallet}
-                            onRequestDeleteAccount={onRequestDeleteAccount}
+                            onRequestDelete={onRequestDelete}
                         />
                     )}
                 </HeaderActions>

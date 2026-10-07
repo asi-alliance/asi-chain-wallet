@@ -1,5 +1,2 @@
-export {
-    RemoveAccountButton,
-    getWalletDeleteMessage,
-} from "./RemoveAccountButton";
-export type { IDeleteAccountRequest } from "./RemoveAccountButton";
+export { RemoveAccountButton } from "./RemoveAccountButton";
+export type { TRemoveAccountRequest } from "./RemoveAccountButton";
