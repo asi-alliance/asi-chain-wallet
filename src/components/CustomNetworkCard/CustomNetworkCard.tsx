@@ -9,7 +9,7 @@ import { AppDispatch } from "store";
 import { removeCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
 import { useIsNetworkBusy } from "sdk";
-import { getErrorMessage } from "utils/helpers";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 const NetworkItem = styled.div`
     border: 1px solid ${({ theme }) => theme.border};

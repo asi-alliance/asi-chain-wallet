@@ -8,7 +8,7 @@ import { selectNetworks } from "store/WalletsStore";
 import { updateCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
 import { useIsNetworkBusy } from "sdk";
-import { getErrorMessage } from "utils/helpers";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import {
     getNetworkFormFieldErrors,
     INetworkFormValues,

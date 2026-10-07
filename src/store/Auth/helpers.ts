@@ -9,6 +9,8 @@ import {
     SuspiciousFlag,
 } from "services/loginAuditLog";
 import { recordFailedAttempt, resetRateLimit } from "services/loginRateLimit";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
+import { getErrorName } from "utils/errors";
 
 export const setActiveSession = (
     state: AuthState,
@@ -25,39 +27,9 @@ export const clearActiveSession = (state: AuthState): void => {
     state.isAuthenticated = false;
 };
 
-function getErrorName(err: unknown): string {
-    if (
-        typeof err === "object" &&
-        err !== null &&
-        "name" in err &&
-        typeof (err as { name: unknown }).name === "string"
-    ) {
-        return (err as { name: string }).name;
-    }
-
-    return "";
-}
-
-function getErrorMessage(err: unknown): string {
-    if (err instanceof Error) {
-        return err.message.toLowerCase();
-    }
-
-    if (
-        typeof err === "object" &&
-        err !== null &&
-        "message" in err &&
-        typeof (err as { message: unknown }).message === "string"
-    ) {
-        return (err as { message: string }).message.toLowerCase();
-    }
-
-    return "";
-}
-
 export function classifyLoginError(err: unknown): FailureReason {
     const name = getErrorName(err);
-    const message = getErrorMessage(err);
+    const message = getErrorMessage(err, "").toLowerCase();
 
     if (name === "AbortError") {
         return FailureReason.Cancelled;

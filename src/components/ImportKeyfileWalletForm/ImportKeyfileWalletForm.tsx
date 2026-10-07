@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import {
     CustomErrorCode,
+    getErrorMessage,
     IKeyfileImportAccountPreview,
     IKeyfileImportPreview,
     KeyfileImportAccountStatus,
@@ -19,6 +20,7 @@ import { useAppDispatch } from "store/hooks";
 import { SdkWalletService } from "sdk";
 import { importKeyfileWallet } from "store/Auth/thunks";
 import { importKeyfileAccounts } from "store/WalletsStore/thunks";
+import { getErrorCode } from "utils/errors";
 
 const FormContainer = styled.div`
     width: 100%;
@@ -139,31 +141,6 @@ const hasImportableAccounts = (preview: IKeyfileImportPreview): boolean =>
         (account: IKeyfileImportAccountPreview) =>
             account.status === KeyfileImportAccountStatus.NEW,
     );
-
-const getErrorCode = (error: unknown): string | undefined => {
-    if (typeof error !== "object" || error === null) {
-        return undefined;
-    }
-
-    const code = (error as { code?: unknown }).code;
-    return typeof code === "string" ? code : undefined;
-};
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-
-    if (
-        typeof error === "object" &&
-        error !== null &&
-        typeof (error as { message?: unknown }).message === "string"
-    ) {
-        return (error as { message: string }).message;
-    }
-
-    return fallback;
-};
 
 export interface IKeyfileAccountsImportOutcome {
     signerId: string;

@@ -6,7 +6,7 @@ import { AppDispatch } from "store";
 import { selectCustomNetworks, selectNetworks } from "store/WalletsStore";
 import { addCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
-import { getErrorMessage } from "utils/helpers";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import {
     createEmptyNetworkFormValues,
     getNetworkFormFieldErrors,
