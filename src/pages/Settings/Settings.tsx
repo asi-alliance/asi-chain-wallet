@@ -208,7 +208,7 @@ export const Settings = (): ReactElement => {
                             onClick={resetForm}
                             disabled={isCreating}
                         >
-                            Restore to default
+                            Clear form
                         </InlineButton>
                     </ActionButtons>
                 </CardContent>

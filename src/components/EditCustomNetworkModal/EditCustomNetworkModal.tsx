@@ -28,6 +28,7 @@ export const EditCustomNetworkModal: React.FC<EditCustomNetworkModalProps> = ({
                 network={network}
                 isSaving={isSaving}
                 onSuccess={onClose}
+                onCancel={onClose}
                 onSavingChange={setIsSaving}
             />
         </ModalWindow>

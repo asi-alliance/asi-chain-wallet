@@ -68,6 +68,7 @@ interface EditCustomNetworkFormProps {
     network: Network;
     isSaving: boolean;
     onSuccess: () => void;
+    onCancel: () => void;
     onSavingChange: (isSaving: boolean) => void;
 }
 
@@ -75,6 +76,7 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
     network,
     isSaving,
     onSuccess,
+    onCancel,
     onSavingChange,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
@@ -113,12 +115,6 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
         if (connectionError) {
             setConnectionError(null);
         }
-    };
-
-    const handleRestore = (): void => {
-        setValues(toFormValues(network));
-        setFieldErrors({});
-        setConnectionError(null);
     };
 
     const handleSave = async (): Promise<void> => {
@@ -207,12 +203,12 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
                 </SaveButton>
 
                 <InlineButton
-                    id="edit-network-restore-button"
+                    id="edit-network-cancel-button"
                     variant="secondary"
-                    onClick={handleRestore}
+                    onClick={onCancel}
                     disabled={isSaving}
                 >
-                    Restore to default
+                    Cancel
                 </InlineButton>
             </CustomNetworkActionsButtons>
         </>
