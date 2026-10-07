@@ -11,6 +11,7 @@ import {
 import { recordFailedAttempt, resetRateLimit } from "services/loginRateLimit";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { getErrorName } from "utils/errors";
+import { isPlainObject } from "utils/guards";
 
 export const setActiveSession = (
     state: AuthState,
@@ -26,6 +27,19 @@ export const clearActiveSession = (state: AuthState): void => {
     state.activeSignerId = null;
     state.isAuthenticated = false;
 };
+
+export interface ILoginRejection {
+    reason: FailureReason;
+    message: string;
+}
+
+const FAILURE_REASONS: string[] = Object.values(FailureReason);
+
+export const isLoginRejection = (error: unknown): error is ILoginRejection =>
+    isPlainObject(error) &&
+    typeof error.reason === "string" &&
+    FAILURE_REASONS.includes(error.reason) &&
+    typeof error.message === "string";
 
 export function classifyLoginError(err: unknown): FailureReason {
     const name = getErrorName(err);

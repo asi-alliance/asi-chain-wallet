@@ -15,6 +15,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { loginWithPassword } from "store/Auth/thunks";
+import { isLoginRejection } from "store/Auth/helpers";
 import { RootState, AppDispatch } from "store";
 import {
     Card,
@@ -32,6 +33,7 @@ import {
 } from "services/loginRateLimit";
 import {
     analyzeRecentActivity,
+    FailureReason,
     SuspiciousActivityReport,
 } from "services/loginAuditLog";
 import { Select } from "components/Select";
@@ -228,23 +230,17 @@ function formatCountdown(ms: number): string {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-/** RTK unwrap() rejects with SerializedError, not Error instances. */
-function getRejectField(error: unknown, field: "message" | "name"): string {
-    if (error instanceof Error) {
-        return field === "message" ? error.message : error.name;
-    }
+const WRONG_PASSWORD_MESSAGE =
+    "Unable to unlock. Check your password and try again.";
 
-    if (
-        typeof error === "object" &&
-        error !== null &&
-        field in error &&
-        typeof (error as Record<string, unknown>)[field] === "string"
-    ) {
-        return (error as Record<string, string>)[field];
-    }
-
-    return "";
-}
+const LOGIN_FAILURE_STATUS_MESSAGES: Partial<Record<FailureReason, string>> = {
+    [FailureReason.NetworkError]:
+        "Unable to unlock. Check your connection and try again.",
+    [FailureReason.Timeout]:
+        "Unable to unlock. The request timed out. Please try again.",
+    [FailureReason.Cancelled]:
+        "Unable to unlock. The request was cancelled. Please try again.",
+};
 
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -443,6 +439,27 @@ export const Login: React.FC = () => {
 
     const isPending = isLoading || isSubmitting;
 
+    const showLoginFailure = (error: unknown): void => {
+        const rejection = isLoginRejection(error) ? error : null;
+
+        if (rejection?.reason === FailureReason.RateLimited) {
+            setStatusError(rejection.message);
+
+            return;
+        }
+
+        const statusMessage =
+            rejection && LOGIN_FAILURE_STATUS_MESSAGES[rejection.reason];
+
+        if (statusMessage) {
+            setStatusError(statusMessage);
+
+            return;
+        }
+
+        setPasswordError(WRONG_PASSWORD_MESSAGE);
+    };
+
     const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (
@@ -471,43 +488,11 @@ export const Login: React.FC = () => {
         } catch (error: unknown) {
             setSecurityWarningDismissed(false);
 
-            const message = getRejectField(error, "message").toLowerCase();
-            const name = getRejectField(error, "name");
-            const isRateLimitedMessage = message.includes(
-                "too many failed attempts",
-            );
-            const isNetworkMessage =
-                message.includes("network") ||
-                message.includes("failed to fetch");
-            const isTimeoutMessage =
-                name === "TimeoutError" ||
-                message.includes("timeout") ||
-                message.includes("timed out");
-            const isCancelledMessage = name === "AbortError";
-
             // Surface the unlock outcome before side-effect refreshes so a
             // failed rate-limit/audit read cannot swallow feedback.
             // Credential failures attach to the password field; other failures
             // use a status banner so the input is not marked invalid.
-            if (isRateLimitedMessage) {
-                setStatusError(getRejectField(error, "message"));
-            } else if (isNetworkMessage) {
-                setStatusError(
-                    "Unable to unlock. Check your connection and try again.",
-                );
-            } else if (isTimeoutMessage) {
-                setStatusError(
-                    "Unable to unlock. The request timed out. Please try again.",
-                );
-            } else if (isCancelledMessage) {
-                setStatusError(
-                    "Unable to unlock. The request was cancelled. Please try again.",
-                );
-            } else {
-                setPasswordError(
-                    "Unable to unlock. Check your password and try again.",
-                );
-            }
+            showLoginFailure(error);
 
             try {
                 const info = await refreshRateLimitInfo();

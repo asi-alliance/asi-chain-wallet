@@ -1,4 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "sdk";
 import { FailureReason, LoginType } from "services/loginAuditLog";
 import { withLoginLock } from "services/loginLock";
@@ -11,7 +12,11 @@ import { RootState } from "store";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { toActiveWalletSession } from "store/WalletsStore/helpers";
 import { IActiveWalletSession } from "types/wallet";
-import { classifyLoginError, handleLoginOutcome } from "./helpers";
+import {
+    classifyLoginError,
+    handleLoginOutcome,
+    ILoginRejection,
+} from "./helpers";
 
 type CreateHdWalletPayload = {
     name: string;
@@ -97,8 +102,9 @@ const LOCK_WAIT_THRESHOLD_MS = 500;
 
 export const loginWithPassword = createAsyncThunk<
     IActiveWalletSession,
-    { signerId: string; password: string }
->("auth/loginWithPassword", async ({ signerId, password }) => {
+    { signerId: string; password: string },
+    { rejectValue: ILoginRejection }
+>("auth/loginWithPassword", async ({ signerId, password }, { rejectWithValue }) => {
     const loginType = LoginType.ByName;
     const contextKey = buildContextKey(signerId);
     let failureReason: FailureReason | undefined;
@@ -148,10 +154,13 @@ export const loginWithPassword = createAsyncThunk<
 
         return toActiveWalletSession(unlockedWallet);
     } catch (err: unknown) {
-        if (!failureReason) {
-            failureReason = classifyLoginError(err);
-        }
-        throw err;
+        const reason: FailureReason = failureReason ?? classifyLoginError(err);
+        failureReason = reason;
+
+        return rejectWithValue({
+            reason,
+            message: getErrorMessage(err, ""),
+        });
     } finally {
         await handleLoginOutcome(
             succeeded,
