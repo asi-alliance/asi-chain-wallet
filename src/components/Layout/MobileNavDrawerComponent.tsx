@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from "react";
+import React, { useId, useRef } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -11,7 +11,11 @@ import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
 import { VisuallyHidden } from "components/Foundation";
 import { NetworkSelector } from "components/NetworkSelector";
-import { useDeleteActiveWallet } from "hooks";
+import {
+    useBodyScrollLock,
+    useDeleteActiveWallet,
+    useFocusTrap,
+} from "hooks";
 import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
@@ -197,15 +201,6 @@ const openExternalLink = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
 };
 
-const FOCUSABLE_ELEMENTS = [
-    'a[href]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'button:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'textarea:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'input:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'select:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    '[tabindex]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-].join(",");
-
 interface NavItem {
     path: string;
     label: string;
@@ -231,104 +226,29 @@ export const MobileNavDrawerComponent: React.FC<
     );
     const drawerRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
-    const previousActiveElementRef = useRef<HTMLElement | null>(null);
-    const wasOpenRef = useRef(false);
     const titleId = useId().replace(/:/g, "");
 
     const deleteWallet = useDeleteActiveWallet();
-    const deleteWalletOpenRef = useRef(deleteWallet.isOpen);
-    deleteWalletOpenRef.current = deleteWallet.isOpen;
-    const onCloseRef = useRef(onClose);
-    onCloseRef.current = onClose;
 
-    if (isOpen && !wasOpenRef.current) {
-        previousActiveElementRef.current =
-            document.activeElement as HTMLElement | null;
-    }
-    wasOpenRef.current = isOpen;
-
-    // Depend only on isOpen: parent re-renders (e.g. network lastRefresh) must not
-    // re-run this effect or keyboard focus inside the drawer is reset.
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const focusTimer = window.setTimeout(() => {
-            closeButtonRef.current?.focus();
-        }, 0);
-
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-
-        const getFocusable = (drawer: HTMLElement): HTMLElement[] =>
-            Array.from(
-                drawer.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENTS),
-            );
-
-        const handleKeyDown = (event: KeyboardEvent): void => {
-            if (deleteWalletOpenRef.current) return;
-
-            if (event.key === "Escape") {
-                event.preventDefault();
-                onCloseRef.current();
-                return;
-            }
-
-            if (event.key !== "Tab" || !drawerRef.current) return;
-
-            const focusable = getFocusable(drawerRef.current);
-            if (!focusable.length) {
-                event.preventDefault();
-                drawerRef.current.focus();
-                return;
-            }
-
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-
-        // Match ModalWindow: Tab wrap alone does not cover focus that leaves the
-        // dialog (e.g. header theme toggle). Pull it back on focusin.
-        const handleFocusIn = (event: FocusEvent): void => {
-            if (deleteWalletOpenRef.current) return;
-
-            const drawer = drawerRef.current;
-            if (!drawer || drawer.contains(event.target as Node)) {
-                return;
-            }
-
-            const focusable = getFocusable(drawer);
-            (focusable[0] ?? drawer).focus();
-        };
-
-        document.addEventListener("keydown", handleKeyDown);
-        document.addEventListener("focusin", handleFocusIn);
-
-        return () => {
-            window.clearTimeout(focusTimer);
-            document.removeEventListener("keydown", handleKeyDown);
-            document.removeEventListener("focusin", handleFocusIn);
-            document.body.style.overflow = previousOverflow;
-            previousActiveElementRef.current?.focus?.();
-        };
-    }, [isOpen]);
+    useBodyScrollLock(isOpen);
+    useFocusTrap(drawerRef, {
+        active: isOpen,
+        initialFocusRef: closeButtonRef,
+        onEscape: onClose,
+        isPaused: () => deleteWallet.isOpen,
+        restoreFocus: true,
+    });
 
     const handleNavigation = (path: string) => {
         if (isNetworkOperationPending) return;
 
         navigate(path);
-        onCloseRef.current();
+        onClose();
     };
 
     const handleExternalNavigation = (url: string) => {
         openExternalLink(url);
-        onCloseRef.current();
+        onClose();
     };
 
     const handleLogout = () => {
@@ -336,7 +256,7 @@ export const MobileNavDrawerComponent: React.FC<
 
         dispatch(logout());
         navigate("/login");
-        onCloseRef.current();
+        onClose();
     };
 
     return (

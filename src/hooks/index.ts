@@ -1,5 +1,7 @@
 export { useScreen } from "./useScreen";
 export { useMediaQuery } from "./useMediaQuery";
+export { useBodyScrollLock } from "./useBodyScrollLock";
+export { useFocusTrap } from "./useFocusTrap";
 export { useValidAccountUpdating } from "./useValidAccountUpdating";
 export {
     useDeleteWallet,

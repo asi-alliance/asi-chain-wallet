@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "components/Card";
 import React, { createContext, useContext, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
+import { useBodyScrollLock, useFocusTrap } from "hooks";
+import { getFocusableElements, isAvailableForFocus } from "utils/focus";
 
 const Overlay = styled.div`
     position: fixed;
@@ -104,45 +106,6 @@ const StyledCardContent = styled(CardContent)`
     border: 0;
 `;
 
-const FOCUSABLE_ELEMENTS = [
-    'a[href]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'button:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'textarea:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'input:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    'select:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-    '[tabindex]:not([tabindex="-1"]):not([aria-hidden="true"]):not([hidden])',
-].join(",");
-
-const isAvailableForFocus = (element: HTMLElement): boolean => {
-    if (
-        !element.isConnected ||
-        element.matches(':disabled, input[type="hidden"]') ||
-        element.closest('[hidden], [inert], [aria-hidden="true"]')
-    ) {
-        return false;
-    }
-    for (
-        let ancestor: HTMLElement | null = element;
-        ancestor;
-        ancestor = ancestor.parentElement
-    ) {
-        const style = window.getComputedStyle(ancestor);
-        if (
-            style.display === "none" ||
-            style.visibility === "hidden" ||
-            style.visibility === "collapse"
-        ) {
-            return false;
-        }
-    }
-    return true;
-};
-
-const getFocusableElements = (container: HTMLElement): HTMLElement[] =>
-    Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENTS)).filter(
-        isAvailableForFocus,
-    );
-
 const modalStack: string[] = [];
 const modalParents = new Map<string, string | null>();
 const ModalParentContext = createContext<string | null>(null);
@@ -166,7 +129,6 @@ const syncModalLayers = (): void => {
         overlay.style.zIndex = `calc(var(--modal-z-index) + ${index})`;
     });
 };
-let previousBodyOverflow = "";
 let backgroundRoot: HTMLElement | null = null;
 let backgroundWasInert = false;
 let initialModalOpener: HTMLElement | null = null;
@@ -208,7 +170,6 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
     const modalId = `modal-${generatedId}`;
     const titleId = `modal-title-${generatedId}`;
     const onCloseRef = useRef(onClose);
-    const dismissibleRef = useRef(dismissible);
     const previousActiveElementRef = useRef<HTMLElement | null>(null);
     const wasOpenRef = useRef(false);
     // Capture before committing children: native autoFocus runs before effects.
@@ -217,78 +178,21 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
     }
     wasOpenRef.current = isOpen;
     onCloseRef.current = onClose;
-    dismissibleRef.current = dismissible;
 
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const focusTimer = window.setTimeout(() => {
-            if (!isTopModal(modalId)) return;
-            const firstFocusable =
-                modalRef.current && getFocusableElements(modalRef.current)[0];
-            (firstFocusable ?? modalRef.current)?.focus();
-        }, 0);
-
-        const handleKeyDown = (event: KeyboardEvent): void => {
-            if (!isTopModal(modalId)) return;
-
-            if (event.key === "Escape" && dismissibleRef.current) {
-                event.preventDefault();
-                event.stopPropagation();
-                onCloseRef.current();
-                return;
-            }
-
-            if (event.key !== "Tab" || !modalRef.current) return;
-
-            const focusableElements = getFocusableElements(modalRef.current);
-            if (!focusableElements.length) {
-                event.preventDefault();
-                modalRef.current.focus();
-                return;
-            }
-
-            const first = focusableElements[0];
-            const last = focusableElements[focusableElements.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-
-        const handleFocusIn = (event: FocusEvent): void => {
-            const modal = modalRef.current;
-            if (
-                !modal ||
-                !isTopModal(modalId) ||
-                modal.contains(event.target as Node) ||
-                isOwnedPortal(modal, event.target as Node)
-            ) {
-                return;
-            }
-            const firstFocusable = getFocusableElements(modal)[0];
-            (firstFocusable ?? modal).focus();
-        };
-
-        document.addEventListener("keydown", handleKeyDown);
-        document.addEventListener("focusin", handleFocusIn);
-        return () => {
-            window.clearTimeout(focusTimer);
-            document.removeEventListener("keydown", handleKeyDown);
-            document.removeEventListener("focusin", handleFocusIn);
-        };
-    }, [isOpen, modalId]);
+    useBodyScrollLock(isOpen);
+    useFocusTrap(modalRef, {
+        active: isOpen,
+        onEscape: dismissible ? onClose : undefined,
+        isPaused: () => !isTopModal(modalId),
+        isAllowedOutsideTarget: (target: Node) =>
+            !!modalRef.current && isOwnedPortal(modalRef.current, target),
+    });
 
     useEffect(() => {
         if (!isOpen) return;
 
         if (modalStack.length === 0) {
             initialModalOpener = previousActiveElementRef.current;
-            previousBodyOverflow = document.body.style.overflow;
-            document.body.style.overflow = "hidden";
             backgroundRoot = document.getElementById("root");
             backgroundWasInert = backgroundRoot?.inert ?? false;
             if (backgroundRoot) backgroundRoot.inert = true;
@@ -313,7 +217,6 @@ export const ModalWindow: React.FC<ModalWindowProps> = ({
                 portalObserver = null;
                 backgroundPortals.forEach((wasInert, portal) => portal.toggleAttribute("inert", wasInert));
                 backgroundPortals.clear();
-                document.body.style.overflow = previousBodyOverflow;
                 if (backgroundRoot) backgroundRoot.inert = backgroundWasInert;
                 backgroundRoot = null;
                 const opener = previousActiveElementRef.current;
