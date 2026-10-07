@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { Alert, Input } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { PrivateKeyDisplay } from "components/PrivateKeyDisplay";
@@ -120,7 +121,7 @@ export const CreatePkWalletForm: React.FC<CreatePkWalletFormProps> = ({
             onSuccess?.(pendingAccountName);
         } catch (error) {
             setFormError(
-                (error as Error)?.message || "Failed to create wallet",
+                getErrorMessage(error, "Failed to create wallet"),
             );
             // Keep the same key for retry — do not force regenerate.
             setStep("password");

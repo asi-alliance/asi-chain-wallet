@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { useValidAccountUpdating } from "hooks/";
 import { importHdWallet } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
@@ -168,7 +169,7 @@ export const ImportHdWalletForm: React.FC<ImportHdWalletFormProps> = ({
             handleCancel();
         } catch (error) {
             setFormError(
-                (error as Error)?.message || "Failed to import wallet",
+                getErrorMessage(error, "Failed to import wallet"),
             );
             setStep("password");
         } finally {

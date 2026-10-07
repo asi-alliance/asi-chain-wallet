@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { useValidAccountUpdating } from "hooks/";
 import { importPrivateKeyWallet } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
@@ -151,7 +152,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
             handleCancel();
         } catch (error) {
             setFormError(
-                (error as Error)?.message || "Failed to import wallet",
+                getErrorMessage(error, "Failed to import wallet"),
             );
             setStep("password");
         } finally {

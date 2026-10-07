@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { MnemonicStrength } from "@asichain/asi-wallet-sdk";
+import { getErrorMessage, MnemonicStrength } from "@asichain/asi-wallet-sdk";
 import { Alert, Input } from "components";
 import { PasswordSetup } from "components/PasswordSetup";
 import { MnemonicDisplay } from "components/MnemonicDisplay";
@@ -132,7 +132,7 @@ export const CreateHdWalletForm: React.FC<CreateHdWalletFormProps> = ({
             onSuccess?.(pendingAccountName);
         } catch (error) {
             setFormError(
-                (error as Error)?.message || "Failed to create wallet",
+                getErrorMessage(error, "Failed to create wallet"),
             );
             // Keep the same mnemonic for retry — do not return to form
             // where word-count changes would regenerate the phrase.

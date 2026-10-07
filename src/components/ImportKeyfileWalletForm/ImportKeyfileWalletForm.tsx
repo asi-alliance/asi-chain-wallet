@@ -142,6 +142,21 @@ const hasImportableAccounts = (preview: IKeyfileImportPreview): boolean =>
             account.status === KeyfileImportAccountStatus.NEW,
     );
 
+type KeyfileErrorField = "password" | "file" | "form";
+
+const getKeyfileErrorField = (error: unknown): KeyfileErrorField => {
+    switch (getErrorCode(error)) {
+        case CustomErrorCode.INVALID_KEYFILE_PASSWORD:
+        case CustomErrorCode.INVALID_PASSWORD:
+            return "password";
+        case CustomErrorCode.INVALID_KEYFILE:
+        case CustomErrorCode.CORRUPTED_DATA:
+            return "file";
+        default:
+            return "form";
+    }
+};
+
 export interface IKeyfileAccountsImportOutcome {
     signerId: string;
     importedAccountsCount: number;
@@ -183,6 +198,25 @@ export const ImportKeyfileWalletForm: React.FC<
                 (right.index ?? Number.MAX_SAFE_INTEGER),
         );
     }, [preview]);
+
+    const showKeyfileError = (
+        error: unknown,
+        fallback: string,
+    ): KeyfileErrorField => {
+        const field = getKeyfileErrorField(error);
+        const setFieldError: Record<
+            KeyfileErrorField,
+            (message: string) => void
+        > = {
+            password: setPasswordError,
+            file: setFileError,
+            form: setFormError,
+        };
+
+        setFieldError[field](getErrorMessage(error, fallback));
+
+        return field;
+    };
 
     const clearSensitiveState = (): void => {
         setPassword((current) => " ".repeat(current.length));
@@ -254,25 +288,7 @@ export const ImportKeyfileWalletForm: React.FC<
             setPreview(keyfilePreview);
             setSelectedIndexes(getSelectableIndexes(keyfilePreview));
         } catch (previewError: unknown) {
-            const code = getErrorCode(previewError);
-            const message = getErrorMessage(
-                previewError,
-                "Keyfile cannot be read.",
-            );
-
-            if (
-                code === CustomErrorCode.INVALID_KEYFILE_PASSWORD ||
-                code === CustomErrorCode.INVALID_PASSWORD
-            ) {
-                setPasswordError(message);
-            } else if (
-                code === CustomErrorCode.INVALID_KEYFILE ||
-                code === CustomErrorCode.CORRUPTED_DATA
-            ) {
-                setFileError(message);
-            } else {
-                setFormError(message);
-            }
+            showKeyfileError(previewError, "Keyfile cannot be read.");
         } finally {
             setLoading(false);
             submissionRef.current = false;
@@ -346,26 +362,13 @@ export const ImportKeyfileWalletForm: React.FC<
             clearSensitiveState();
             onWalletImported?.();
         } catch (importError: unknown) {
-            const code = getErrorCode(importError);
-            const message = getErrorMessage(
+            const field = showKeyfileError(
                 importError,
                 "Failed to import keyfile.",
             );
 
-            if (
-                code === CustomErrorCode.INVALID_KEYFILE_PASSWORD ||
-                code === CustomErrorCode.INVALID_PASSWORD
-            ) {
-                setPasswordError(message);
+            if (field !== "form") {
                 backToKeyfileStep();
-            } else if (
-                code === CustomErrorCode.INVALID_KEYFILE ||
-                code === CustomErrorCode.CORRUPTED_DATA
-            ) {
-                setFileError(message);
-                backToKeyfileStep();
-            } else {
-                setFormError(message);
             }
         } finally {
             setLoading(false);
