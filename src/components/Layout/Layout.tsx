@@ -7,6 +7,7 @@ import { HeaderBar } from "./HeaderBar";
 import { DesktopNavComponent } from "./DesktopNavComponent";
 import { MobileNavDrawerComponent } from "./MobileNavDrawerComponent";
 import { getNavItems } from "./navItems";
+import { useMediaQuery } from "hooks";
 import { selectAccounts, selectSelectedNetworkId } from "store/WalletsStore";
 
 const Container = styled.div`
@@ -92,29 +93,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         };
     }, [observerUrl, selectedNetworkId]);
 
-    // Desktop nav replaces the drawer above the navigation breakpoint; clear open state
-    // so body scroll lock and aria-expanded do not linger after a resize.
-    useEffect(() => {
-        const media = window.matchMedia(
-            `(max-width: ${theme.breakpoints.navigation})`,
-        );
-        const syncDrawerToViewport = () => {
-            if (!media.matches) {
-                setMobileMenuOpen(false);
-            }
-        };
-
-        syncDrawerToViewport();
-        media.addEventListener("change", syncDrawerToViewport);
-        return () => media.removeEventListener("change", syncDrawerToViewport);
-    }, [theme.breakpoints.navigation]);
-
+    const isNavCollapsed = useMediaQuery(
+        `(max-width: ${theme.breakpoints.navigation})`,
+    );
+    const isMobileMenuVisible = mobileMenuOpen && isNavCollapsed;
     const navItems = getNavItems(hasAccounts);
 
     return (
         <Container>
             <HeaderBar
-                isMobileMenuOpen={mobileMenuOpen}
+                isMobileMenuOpen={isMobileMenuVisible}
                 onMobileMenuToggle={openMobileMenu}
             />
 
@@ -125,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             />
 
             <MobileNavDrawerComponent
-                isOpen={mobileMenuOpen}
+                isOpen={isMobileMenuVisible}
                 navItems={navItems}
                 onClose={closeMobileMenu}
             />

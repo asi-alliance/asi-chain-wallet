@@ -1,4 +1,5 @@
 export { useScreen } from "./useScreen";
+export { useMediaQuery } from "./useMediaQuery";
 export { useValidAccountUpdating } from "./useValidAccountUpdating";
 export {
     useDeleteWallet,

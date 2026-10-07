@@ -40,7 +40,7 @@ import {
     ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
 } from "constants/polling";
 import { getTokenDisplayName } from "constants/token";
-import { useScreen } from "hooks";
+import { useMediaQuery, useScreen } from "hooks";
 import { formatTransactionAmount } from "utils/transactionUtils";
 
 const HistoryContainer = styled.div`
@@ -624,8 +624,8 @@ export const History: React.FC = () => {
             : false,
     );
     const theme = useTheme();
-    const { width, isTablet } = useScreen();
-    const isMobile = width <= Number.parseInt(theme.breakpoints.mobile, 10);
+    const { isTablet } = useScreen();
+    const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.mobile})`);
 
     const [appliedFilters, setAppliedFilters] = useState<IPanelFilters>(
         createEmptyPanelFilters,
