@@ -24,7 +24,7 @@ import {
     HistoryIcon,
     QRIconSecond,
 } from "components/Icons";
-import { Panel } from "components/Panel";
+import { Disclosure } from "components/Disclosure";
 import { useCopyToClipboard } from "hooks";
 
 const ReceiveContainer = styled.div`
@@ -358,11 +358,10 @@ export const Receive: React.FC = () => {
                             the field or click the Paste button
                         </TextSecondaryBlock>
 
-                        <Panel
+                        <Disclosure
                             header={isQrExpanded ? "Hide QR Code" : "Show QR Code"}
                             expanded={isQrExpanded}
                             onToggle={setIsQrExpanded}
-                            inlineOnMobile
                         >
                             <QRCodeContainer>
                                 <QRCodeCanvas
@@ -377,7 +376,7 @@ export const Receive: React.FC = () => {
                                     aria-label={`QR code for ${address}`}
                                 />
                             </QRCodeContainer>
-                        </Panel>
+                        </Disclosure>
                     </AddressContainer>
 
                     <InfoBox>

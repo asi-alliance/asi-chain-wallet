@@ -32,7 +32,7 @@ import {
 import { Transaction } from "types/transactions";
 import { DownloadIcon } from "components/Icons";
 import CopyButton from "components/CopyButton";
-import { AdaptivePanel } from "components/Panel";
+import { FilterPopover } from "components/FilterPopover";
 import { Search } from "components/Search";
 import { AccountSelector } from "components/AccountSelector";
 import {
@@ -866,9 +866,8 @@ export const History: React.FC = () => {
     ): string => (applied ? `${label} ${applied}` : label);
 
     const renderTypeFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-type-panel"
-            variant="column"
             dialogTitle="Type"
             header="Type"
             active={Boolean(appliedFilters.type)}
@@ -910,13 +909,12 @@ export const History: React.FC = () => {
                     </PresetButton>
                 ))}
             </OptionList>
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderStatusFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-status-panel"
-            variant="column"
             dialogTitle="Status"
             header="Status"
             active={Boolean(appliedFilters.status)}
@@ -958,13 +956,12 @@ export const History: React.FC = () => {
                     </PresetButton>
                 ))}
             </OptionList>
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderDateFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-date-panel"
-            variant="column"
             dialogTitle="Date"
             header="Date"
             active={hasRangeValue(appliedFilters.date)}
@@ -1037,13 +1034,12 @@ export const History: React.FC = () => {
                 wrapperStyle={{ marginBottom: theme.spacing.xl }}
             />
             {renderPanelActions("date", Boolean(dateError))}
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderFromFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-from-panel"
-            variant="column"
             dialogTitle="From"
             header="From"
             active={Boolean(appliedFilters.from.trim())}
@@ -1068,13 +1064,12 @@ export const History: React.FC = () => {
                 wrapperStyle={{ marginBottom: theme.spacing.xl }}
             />
             {renderPanelActions("from")}
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderToFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-to-panel"
-            variant="column"
             dialogTitle="To"
             header="To"
             active={Boolean(appliedFilters.to.trim())}
@@ -1099,13 +1094,12 @@ export const History: React.FC = () => {
                 wrapperStyle={{ marginBottom: theme.spacing.xl }}
             />
             {renderPanelActions("to")}
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderAmountFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-amount-panel"
-            variant="column"
             dialogTitle="Amount"
             header="Amount"
             active={hasRangeValue(appliedFilters.amount)}
@@ -1185,13 +1179,12 @@ export const History: React.FC = () => {
                 wrapperStyle={{ marginBottom: theme.spacing.xl }}
             />
             {renderPanelActions("amount", amountError)}
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const renderDetailsFilter = (): React.ReactElement => (
-        <AdaptivePanel
+        <FilterPopover
             id="history-filter-details-panel"
-            variant="column"
             dialogTitle="Details"
             header="Details"
             active={Boolean(appliedFilters.details.trim())}
@@ -1223,7 +1216,7 @@ export const History: React.FC = () => {
                 wrapperStyle={{ marginBottom: theme.spacing.xl }}
             />
             {renderPanelActions("details")}
-        </AdaptivePanel>
+        </FilterPopover>
     );
 
     const hasVisibleTransactions = visibleTransactions.length > 0;
