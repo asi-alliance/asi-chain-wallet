@@ -10,7 +10,8 @@ import {
 import { createPortal } from "react-dom";
 import styled, { useTheme } from "styled-components";
 import { FilterIcon } from "components/Icons";
-import { useBodyScrollLock, useFocusTrap, useMediaQuery } from "hooks";
+import { BottomSheet } from "components/BottomSheet";
+import { useMediaQuery } from "hooks";
 
 const FilterPopoverWrapper = styled.div`
     position: relative;
@@ -82,72 +83,6 @@ const DropdownContent = styled.div`
     box-shadow: ${({ theme }) => theme.shadowLarge};
 `;
 
-const SheetOverlay = styled.div`
-    position: fixed;
-    inset: 0;
-    z-index: ${({ theme }) => theme.zIndices.modal};
-    background: ${({ theme }) => theme.overlay};
-`;
-
-const Sheet = styled.div`
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: ${({ theme }) => theme.zIndices.modal};
-    display: flex;
-    flex-direction: column;
-    max-height: min(85vh, 100%);
-    overflow: hidden;
-    border: ${({ theme }) => theme.control.borderWidth} solid
-        ${({ theme }) => theme.control.fieldBorder};
-    border-bottom: 0;
-    border-radius: ${({ theme }) =>
-        `${theme.radii.lg} ${theme.radii.lg} 0 0`};
-    background: ${({ theme }) => theme.surface};
-    box-shadow: ${({ theme }) => theme.shadowLarge};
-    outline: none;
-`;
-
-const SheetHeader = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: ${({ theme }) => theme.spacing.lg};
-    padding: ${({ theme }) => theme.spacing.xl};
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-`;
-
-const SheetTitle = styled.span`
-    color: ${({ theme }) => theme.text.primary};
-    font-family: ${({ theme }) => theme.typography.controlFontFamily};
-    font-size: ${({ theme }) => theme.typography.size.md};
-    font-weight: ${({ theme }) => theme.typography.weight.medium};
-    line-height: ${({ theme }) => theme.typography.lineHeight.md};
-`;
-
-const SheetCloseButton = styled.button`
-    flex: none;
-    width: ${({ theme }) => theme.sizes.iconButton.medium};
-    height: ${({ theme }) => theme.sizes.iconButton.medium};
-    border: 0;
-    border-radius: ${({ theme }) => theme.radii.md};
-    background: transparent;
-    color: ${({ theme }) => theme.text.primary};
-    font-size: ${({ theme }) => theme.typography.size.xl};
-    cursor: pointer;
-
-    &:focus-visible {
-        outline: 2px solid ${({ theme }) => theme.primary};
-        outline-offset: 2px;
-    }
-`;
-
-const SheetBody = styled.div`
-    padding: ${({ theme }) => theme.spacing.xl};
-    overflow-y: auto;
-`;
-
 interface IDropdownPosition {
     top: number;
     left?: number;
@@ -192,13 +127,10 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
     children,
 }) => {
     const theme = useTheme();
-    const generatedId = useId().replace(/:/g, "");
-    const contentId = `filter-popover-${generatedId}-content`;
-    const sheetTitleId = `filter-popover-${generatedId}-sheet-title`;
+    const contentId = `filter-popover-${useId().replace(/:/g, "")}-content`;
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const sheetRef = useRef<HTMLDivElement>(null);
     const onToggleRef = useRef(onToggle);
     const wasExpandedRef = useRef(expanded);
     const forceFocusRestoreRef = useRef(false);
@@ -212,12 +144,6 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
 
     useLayoutEffect(() => {
         onToggleRef.current = onToggle;
-    });
-
-    useBodyScrollLock(isSheetOpen);
-    useFocusTrap(sheetRef, {
-        active: isSheetOpen,
-        initialFocusRef: sheetRef,
     });
 
     const closeWithFocusRestore = (): void => {
@@ -273,7 +199,7 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
     }, [isDropdownOpen]);
 
     useEffect(() => {
-        if (!expanded) {
+        if (!isDropdownOpen) {
             return;
         }
 
@@ -291,7 +217,7 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
         document.addEventListener("keydown", handleKeyDown);
 
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [expanded]);
+    }, [isDropdownOpen]);
 
     // Restore focus to the trigger when the panel dismisses (Apply, Escape, overlay).
     // Defer past the closing key's keyup so Enter from Search/Apply does not re-open.
@@ -314,7 +240,6 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
             activeElement instanceof HTMLElement &&
             activeElement !== document.body &&
             !wrapperRef.current?.contains(activeElement) &&
-            !sheetRef.current?.contains(activeElement) &&
             !dropdownRef.current?.contains(activeElement);
         const shouldRestoreFocus =
             forceFocusRestoreRef.current || !focusMovedElsewhere;
@@ -330,38 +255,6 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
 
         return () => window.clearTimeout(focusTimer);
     }, [expanded]);
-
-    const sheet =
-        isSheetOpen &&
-        createPortal(
-            <>
-                <SheetOverlay
-                    data-testid={`${id}-overlay`}
-                    onClick={closeWithFocusRestore}
-                />
-                <Sheet
-                    ref={sheetRef}
-                    id={contentId}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby={sheetTitleId}
-                    tabIndex={-1}
-                >
-                    <SheetHeader>
-                        <SheetTitle id={sheetTitleId}>{dialogTitle}</SheetTitle>
-                        <SheetCloseButton
-                            type="button"
-                            aria-label={`Close ${dialogTitle}`}
-                            onClick={closeWithFocusRestore}
-                        >
-                            ×
-                        </SheetCloseButton>
-                    </SheetHeader>
-                    <SheetBody>{children}</SheetBody>
-                </Sheet>
-            </>,
-            document.body,
-        );
 
     const dropdown =
         isDropdownOpen &&
@@ -405,7 +298,15 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
                 </FilterIconWrapper>
             </TriggerButton>
             {dropdown}
-            {sheet}
+            <BottomSheet
+                isOpen={isSheetOpen}
+                title={dialogTitle}
+                onClose={closeWithFocusRestore}
+                id={contentId}
+                overlayTestId={`${id}-overlay`}
+            >
+                {children}
+            </BottomSheet>
         </FilterPopoverWrapper>
     );
 };

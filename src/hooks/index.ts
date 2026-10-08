@@ -3,6 +3,8 @@ export { useMediaQuery } from "./useMediaQuery";
 export { useBodyScrollLock } from "./useBodyScrollLock";
 export { useFocusTrap } from "./useFocusTrap";
 export { useCopyToClipboard } from "./useCopyToClipboard";
+export { useHistoryFilters } from "./useHistoryFilters";
+export type { IUseHistoryFilters } from "./useHistoryFilters";
 export { useValidAccountUpdating } from "./useValidAccountUpdating";
 export {
     useDeleteWallet,
