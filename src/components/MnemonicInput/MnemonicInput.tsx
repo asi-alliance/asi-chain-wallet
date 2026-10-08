@@ -62,6 +62,10 @@ const WordField = styled.input`
     font-size: ${({ theme }) => theme.typography.size.sm};
     line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 
+    &:focus-visible {
+        box-shadow: none;
+    }
+
     &:disabled {
         cursor: not-allowed;
         color: ${({ theme }) => theme.text.tertiary};
