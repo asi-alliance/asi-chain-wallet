@@ -1,4 +1,9 @@
-import React, { ClipboardEvent, KeyboardEvent, useId } from "react";
+import React, {
+    ChangeEvent,
+    ClipboardEvent,
+    KeyboardEvent,
+    useId,
+} from "react";
 import styled from "styled-components";
 
 const Wrapper = styled.div`
@@ -76,10 +81,24 @@ const sanitizeWord = (raw: string): string =>
         .toLowerCase()
         .replace(/[^a-z]/g, "");
 
+const NON_LATIN_LETTER_REGEX = /[^\P{L}a-zA-Z]/u;
+
+const NON_LATIN_WORDS_ERROR =
+    "Recovery phrase words use Latin letters (a-z) only. Check your keyboard layout.";
+
+const splitWords = (raw: string): string[] =>
+    raw.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+
+const isKeyboardTyping = (nativeEvent: Event): boolean =>
+    nativeEvent instanceof InputEvent &&
+    nativeEvent.inputType === "insertText" &&
+    (nativeEvent.data ?? "").length <= 1;
+
 interface MnemonicInputProps {
     words: string[];
     wordCount: number;
     onWordsChange: (words: string[]) => void;
+    onError: (message: string) => void;
     error?: string;
     disabled?: boolean;
     "aria-label"?: string;
@@ -89,13 +108,65 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
     words,
     wordCount,
     onWordsChange,
+    onError,
     error,
     disabled = false,
     "aria-label": ariaLabel = "Recovery phrase words",
 }) => {
     const errorId = useId();
 
-    const handleWordChange = (index: number, rawValue: string) => {
+    const placeWords = (index: number, parts: string[]): void => {
+        if (parts.length > wordCount) {
+            onError(
+                `The recovery phrase has ${parts.length} words, but ${wordCount} are expected.`,
+            );
+
+            return;
+        }
+
+        const startIndex = parts.length === wordCount ? 0 : index;
+        const freeFieldsCount = wordCount - startIndex;
+
+        if (parts.length > freeFieldsCount) {
+            onError(
+                `${parts.length} words do not fit: only ${freeFieldsCount} fields are left starting from word ${startIndex + 1}.`,
+            );
+
+            return;
+        }
+
+        const next = Array.from(
+            { length: wordCount },
+            (_, wordIndex) => words[wordIndex] ?? "",
+        );
+
+        parts.forEach((part: string, offset: number) => {
+            next[startIndex + offset] = part;
+        });
+
+        onWordsChange(next);
+    };
+
+    const handleWordChange = (
+        index: number,
+        event: ChangeEvent<HTMLInputElement>,
+    ) => {
+        const rawValue = event.target.value;
+
+        if (NON_LATIN_LETTER_REGEX.test(rawValue)) {
+            onError(NON_LATIN_WORDS_ERROR);
+
+            return;
+        }
+
+        const parts = splitWords(rawValue);
+
+        if (parts.length > 1 && !isKeyboardTyping(event.nativeEvent)) {
+            placeWords(index, parts);
+
+            return;
+        }
+
         const next = [...words];
         next[index] = sanitizeWord(rawValue);
         onWordsChange(next);
@@ -106,28 +177,27 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
         event: ClipboardEvent<HTMLInputElement>,
     ) => {
         const text = event.clipboardData.getData("text");
-        const parts = text.split(/\s+/).map(sanitizeWord).filter(Boolean);
 
-        if (parts.length <= 1) {
+        if (NON_LATIN_LETTER_REGEX.test(text)) {
+            event.preventDefault();
+            onError(NON_LATIN_WORDS_ERROR);
+
+            return;
+        }
+
+        const parts = splitWords(text);
+
+        if (parts.length === 1) {
             return;
         }
 
         event.preventDefault();
 
-        const next = Array.from(
-            { length: wordCount },
-            (_, wordIndex) => words[wordIndex] ?? "",
-        );
-
-        for (
-            let offset = 0;
-            offset < parts.length && index + offset < wordCount;
-            offset += 1
-        ) {
-            next[index + offset] = parts[offset];
+        if (!parts.length) {
+            return;
         }
 
-        onWordsChange(next);
+        placeWords(index, parts);
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -153,7 +223,7 @@ export const MnemonicInput: React.FC<MnemonicInputProps> = ({
                             value={words[index] ?? ""}
                             aria-label={`Word ${index + 1}`}
                             onChange={(event) =>
-                                handleWordChange(index, event.target.value)
+                                handleWordChange(index, event)
                             }
                             onPaste={(event) => handlePaste(index, event)}
                             onKeyDown={handleKeyDown}

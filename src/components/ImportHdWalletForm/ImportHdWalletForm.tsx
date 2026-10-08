@@ -237,6 +237,7 @@ export const ImportHdWalletForm: React.FC<ImportHdWalletFormProps> = ({
                     words={words}
                     wordCount={wordCount}
                     onWordsChange={handleWordsChange}
+                    onError={setMnemonicError}
                     error={mnemonicError}
                     disabled={loading}
                 />
