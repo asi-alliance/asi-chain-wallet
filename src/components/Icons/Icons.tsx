@@ -1087,3 +1087,57 @@ export const ExternalIcon: React.FC<IconProps> = ({
         />
     </svg>
 );
+
+export const OutwardIcon: React.FC<IconProps> = ({
+    size = 24,
+    color = "currentColor",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <g clipPath="url(#clip0_5_1831)">
+            <path
+                d="M9 5V7H15.59L4 18.59L5.41 20L17 8.41V15H19V5H9Z"
+                fill={color}
+            />
+        </g>
+        <defs>
+            <clipPath id="clip0_5_1831">
+                <rect width="24" height="24" fill="white" />
+            </clipPath>
+        </defs>
+    </svg>
+);
+
+export const InwardIcon: React.FC<IconProps> = ({
+    size = 24,
+    color = "currentColor",
+    className,
+}) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <g clipPath="url(#clip0_5_1850)">
+            <path
+                d="M15 19V17H8.41L20 5.41L18.59 4L7 15.59V9H5V19H15Z"
+                fill={color}
+            />
+        </g>
+        <defs>
+            <clipPath id="clip0_5_1850">
+                <rect width="24" height="24" fill="white" />
+            </clipPath>
+        </defs>
+    </svg>
+);

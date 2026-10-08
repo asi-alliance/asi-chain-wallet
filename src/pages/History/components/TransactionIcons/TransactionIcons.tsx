@@ -5,9 +5,9 @@ import {
     CheckIcon,
     ContractIcon,
     ErrorIcon,
+    InwardIcon,
+    OutwardIcon,
     PendingIcon,
-    ReceiveIcon,
-    SendIcon,
 } from "components/Icons";
 import { describeStatusFilter, describeTypeFilter } from "utils/historyFilters";
 
@@ -20,8 +20,8 @@ const IconWrapper = styled.span<{ $color: (theme: DefaultTheme) => string }>`
 `;
 
 const TYPE_ICONS: Record<TransactionType, FC<{ size?: number; color?: string }>> = {
-    send: SendIcon,
-    receive: ReceiveIcon,
+    send: OutwardIcon,
+    receive: InwardIcon,
     deploy: ContractIcon,
 };
 
