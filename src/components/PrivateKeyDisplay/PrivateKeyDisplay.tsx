@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useCopyToClipboard } from "hooks";
 import styled from "styled-components";
 import { Alert, Button, FormActions } from "components";
 
@@ -99,23 +100,13 @@ export const PrivateKeyDisplay: React.FC<PrivateKeyDisplayProps> = ({
     continueLabel = "I've Saved My Private Key",
 }) => {
     const [isVisible, setIsVisible] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const clipboard = useCopyToClipboard();
+    const copied =
+        clipboard.result?.status === "copied" &&
+        clipboard.result.value === privateKey;
 
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(privateKey);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-        } catch {
-            const textArea = document.createElement("textarea");
-            textArea.value = privateKey;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textArea);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-        }
+    const handleCopy = (): void => {
+        clipboard.copy(privateKey);
     };
 
     return (

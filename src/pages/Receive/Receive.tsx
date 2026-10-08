@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -25,6 +25,7 @@ import {
     QRIconSecond,
 } from "components/Icons";
 import { Panel } from "components/Panel";
+import { useCopyToClipboard } from "hooks";
 
 const ReceiveContainer = styled.div`
     width: 100%;
@@ -241,131 +242,21 @@ const formatOptions: ISelectOption[] = [
     // },
 ];
 
-interface CopyRequest {
-    address: string;
-    generation: number;
-    completed: boolean;
-    repairInFlight: boolean;
-    repairAgain: boolean;
-}
-
 export const Receive: React.FC = () => {
     const navigate = useNavigate();
     const selectedAccount = useSelector(selectSelectedAccount);
     const selectedNetwork = useSelector(selectSelectedNetwork);
     const address = selectedAccount?.address ?? "";
     const addressLabel = getAddressLabel();
-    const contextKey = JSON.stringify([
-        selectedAccount?.id ?? null,
-        selectedNetwork.id,
-        address,
-    ]);
     const [addressFormat, setAddressFormat] = useState<AddressFormats>(AddressFormats.ASI);
     const [isQrExpanded, setIsQrExpanded] = useState(false);
-    const [copySuccess, setCopySuccess] = useState<{ address: string } | null>(
-        null,
-    );
-    const [copyError, setCopyError] = useState("");
-    const [isCopying, setIsCopying] = useState(false);
     const qrCanvasRef = useRef<HTMLCanvasElement>(null);
-    const copyGenerationRef = useRef(0);
-    const copyingRef = useRef(false);
-    const latestCopyRef = useRef<CopyRequest | null>(null);
-
-    useLayoutEffect(() => {
-        copyGenerationRef.current += 1;
-        copyingRef.current = false;
-        latestCopyRef.current = null;
-        setIsCopying(false);
-        setCopySuccess(null);
-        setCopyError("");
-
-        return () => {
-            copyGenerationRef.current += 1;
-            copyingRef.current = false;
-            latestCopyRef.current = null;
-        };
-    }, [contextKey]);
-
-    useEffect(() => {
-        if (!copySuccess) return undefined;
-
-        const timeoutId = window.setTimeout(() => setCopySuccess(null), 2000);
-        return () => window.clearTimeout(timeoutId);
-    }, [copySuccess]);
-
-    function repairClipboard(request: CopyRequest): void {
-        if (request.repairInFlight) {
-            request.repairAgain = true;
-            return;
-        }
-        request.repairInFlight = true;
-        copyingRef.current = true;
-        setIsCopying(true);
-        setCopySuccess(null);
-        void writeAddress(request, true);
-    }
-
-    async function writeAddress(
-        request: CopyRequest,
-        isRepair = false,
-    ): Promise<void> {
-        let succeeded = false;
-        try {
-            // Call writeText before the first await so the click's user activation is available.
-            await navigator.clipboard.writeText(request.address);
-            succeeded = true;
-            if (request !== latestCopyRef.current) {
-                const latest = latestCopyRef.current;
-                if (latest?.completed && latest.generation === copyGenerationRef.current) {
-                    // An older write may have replaced the new address after it succeeded.
-                    repairClipboard(latest);
-                }
-            } else if (request.generation === copyGenerationRef.current) {
-                request.completed = true;
-            }
-        } catch {
-            // The current request reports this failure below; stale failures are ignored.
-        } finally {
-            if (isRepair) request.repairInFlight = false;
-            if (
-                request === latestCopyRef.current &&
-                request.generation === copyGenerationRef.current
-            ) {
-                if (isRepair && request.repairAgain) {
-                    request.repairAgain = false;
-                    repairClipboard(request);
-                    return;
-                }
-                if (succeeded) {
-                    setCopySuccess({ address: request.address });
-                    setCopyError("");
-                } else {
-                    setCopySuccess(null);
-                    setCopyError("Could not copy the address.");
-                }
-                copyingRef.current = false;
-                setIsCopying(false);
-            }
-        }
-    }
+    const clipboard = useCopyToClipboard();
+    const copyStatus =
+        clipboard.result?.value === address ? clipboard.result.status : null;
 
     const copyAddress = (): void => {
-        if (!address || copyingRef.current) return;
-
-        const request: CopyRequest = {
-            address,
-            generation: copyGenerationRef.current,
-            completed: false,
-            repairInFlight: false,
-            repairAgain: false,
-        };
-        latestCopyRef.current = request;
-        copyingRef.current = true;
-        setIsCopying(true);
-        setCopySuccess(null);
-        setCopyError("");
-        void writeAddress(request);
+        clipboard.copy(address);
     };
 
     const downloadQr = (): void => {
@@ -450,7 +341,7 @@ export const Receive: React.FC = () => {
                                     title={`Copy ${addressLabel} from field`}
                                     aria-label={`Copy ${addressLabel} from field`}
                                     onClick={copyAddress}
-                                    disabled={isCopying}
+                                    disabled={clipboard.isCopying}
                                 >
                                     <FileCopyIcon size={16} color="currentColor" />
                                 </AddressCopyButton>
@@ -509,15 +400,19 @@ export const Receive: React.FC = () => {
                     </InfoBox>
 
                     <CopyStatus role="status" aria-live="polite">
-                        {copySuccess?.address === address ? "Copied" : ""}
+                        {copyStatus === "copied" ? "Copied" : ""}
                     </CopyStatus>
-                    <CopyError role="alert">{copyError}</CopyError>
+                    <CopyError role="alert">
+                        {copyStatus === "failed"
+                            ? "Could not copy the address."
+                            : ""}
+                    </CopyError>
                     <ActionsToolbar>
                         <Button
                             type="button"
                             variant="primary"
                             fullWidth
-                            loading={isCopying}
+                            loading={clipboard.isCopying}
                             onClick={copyAddress}
                             aria-label={`Copy ${addressLabel}`}
                         >

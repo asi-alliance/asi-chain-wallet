@@ -1,17 +1,9 @@
 import styled from "styled-components";
-import {
-    type ReactElement,
-    useState,
-    useRef,
-    useEffect,
-    FC,
-    CSSProperties,
-    MouseEvent,
-} from "react";
+import { type ReactElement, FC, CSSProperties, MouseEvent } from "react";
+import { useCopyToClipboard } from "hooks";
 import "./style.css";
 
 export interface ICopyButtonProps {
-    action?: () => Promise<void>;
     title?: string;
     dataToCopy?: string;
     size?: number;
@@ -78,56 +70,37 @@ const ThemeButton = styled.button`
     }
 `;
 
+const COPIED_ICON_DURATION_MS: number = 3000;
+
 const CopyButton = ({
-    action,
-    dataToCopy,
+    dataToCopy = "",
     size,
     CustomCopyIcon,
     buttonStyle,
     title,
     disabled = false,
 }: ICopyButtonProps) => {
-    const [isCopied, setIsCopied] = useState<boolean>(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const clipboard = useCopyToClipboard(COPIED_ICON_DURATION_MS);
+    const isCopied =
+        clipboard.result?.status === "copied" &&
+        clipboard.result.value === dataToCopy;
 
-    const runAction = async (event: MouseEvent<HTMLButtonElement>) => {
+    const handleClick = (event: MouseEvent<HTMLButtonElement>): void => {
         event.stopPropagation();
 
-        try {
-            if (isCopied) {
-                return;
-            }
-
-            if (action) {
-                await action();
-            } else {
-                await navigator.clipboard.writeText(dataToCopy ?? "");
-            }
-
-            setIsCopied(true);
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-            timeoutRef.current = setTimeout(() => setIsCopied(false), 3000);
-        } catch (error) {
-            console.error(error);
+        if (isCopied) {
+            return;
         }
-    };
 
-    useEffect(() => {
-        return () => {
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-        };
-    }, []);
+        clipboard.copy(dataToCopy);
+    };
 
     const CurrentCopyIcon = CustomCopyIcon ?? CopyIcon;
 
     return (
         <span className="copy-container">
             <ThemeButton
-                onClick={runAction}
+                onClick={handleClick}
                 className="copy-button"
                 title={isCopied ? "Copied" : title || "Copy"}
                 aria-label={isCopied ? "Copied" : title || "Copy"}

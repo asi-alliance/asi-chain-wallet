@@ -35,7 +35,7 @@ import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
-import { useWalletSessionAction } from "hooks";
+import { useCopyToClipboard, useWalletSessionAction } from "hooks";
 import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
@@ -354,10 +354,10 @@ export const Bridge: React.FC = () => {
 
     const [amount, setAmount] = useState("");
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const txHashClipboard = useCopyToClipboard(1500);
     const [pendingLock, setPendingLock] = useState<IPendingBridgeLock | null>(
         null,
     );
-    const [copied, setCopied] = useState(false);
 
     const srcChainKey: BridgeChainKey = "asi";
     const [dstChainKey, setDstChainKey] = useState<BridgeChainKey>(() =>
@@ -760,15 +760,9 @@ export const Bridge: React.FC = () => {
         return `Lock on ${srcChain.label}`;
     })();
 
-    const copyTxHash = async (): Promise<void> => {
-        try {
-            await navigator.clipboard.writeText(shownTxHash);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-        } catch {
-            /* clipboard unavailable */
-        }
-    };
+    const isTxHashCopied =
+        txHashClipboard.result?.status === "copied" &&
+        txHashClipboard.result.value === shownTxHash;
 
     if (!selectedAccount) {
         return (
@@ -806,9 +800,9 @@ export const Bridge: React.FC = () => {
                             <Button
                                 variant="secondary"
                                 size="small"
-                                onClick={copyTxHash}
+                                onClick={() => txHashClipboard.copy(shownTxHash)}
                             >
-                                {copied
+                                {isTxHashCopied
                                     ? "Copied!"
                                     : srcKind === "asi"
                                       ? "Copy deploy ID"

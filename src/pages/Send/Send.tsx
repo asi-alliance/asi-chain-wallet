@@ -40,7 +40,7 @@ import {
     VectorIcon,
 } from "components/Icons";
 import { ModalWindow } from "components/ModalWindow";
-import { useWalletSessionAction } from "hooks";
+import { useCopyToClipboard, useWalletSessionAction } from "hooks";
 import { getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
@@ -289,8 +289,6 @@ export const Send: React.FC = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [pendingTransfer, setPendingTransfer] =
         useState<ITransferDetails | null>(null);
-    const [copied, setCopied] = useState(false);
-    const [copyError, setCopyError] = useState("");
     const videoRef = useRef<HTMLVideoElement>(null);
     const qrScannerRef = useRef<QrScanner | null>(null);
     const confirmationInFlightRef = useRef(false);
@@ -307,14 +305,17 @@ export const Send: React.FC = () => {
     const isWaitingForConfirmation =
         !!txHash && !isTransactionConfirmed && !unresolvedReason;
     const walletId = selectedWallet?.id;
+    const txHashClipboard = useCopyToClipboard(1500);
+    const txHashCopyStatus =
+        txHashClipboard.result?.value === txHash
+            ? txHashClipboard.result.status
+            : null;
 
     const clearDeployWatch = (): void => {
         if (txHash) {
             dispatch(deployWatchCleared(txHash));
         }
         setTxHash("");
-        setCopied(false);
-        setCopyError("");
     };
 
     const sendAction = useWalletSessionAction({
@@ -703,17 +704,6 @@ export const Send: React.FC = () => {
         }
     };
 
-    const copyHash = async (): Promise<void> => {
-        setCopyError("");
-
-        try {
-            await navigator.clipboard.writeText(txHash);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
-        } catch {
-            setCopyError("Could not copy the transaction hash.");
-        }
-    };
 
     const statusTone = isTransactionConfirmed
         ? "success"
@@ -751,9 +741,9 @@ export const Send: React.FC = () => {
                             {unresolvedReason && (
                                 <StatusText>{unresolvedReason}</StatusText>
                             )}
-                            {copyError && (
+                            {txHashCopyStatus === "failed" && (
                                 <FormError role="alert">
-                                    {copyError}
+                                    Could not copy the transaction hash.
                                 </FormError>
                             )}
                             <StatusActions>
@@ -761,10 +751,12 @@ export const Send: React.FC = () => {
                                     type="button"
                                     variant="secondary"
                                     size="small"
-                                    onClick={() => void copyHash()}
+                                    onClick={() => txHashClipboard.copy(txHash)}
                                     aria-label="Copy transaction hash"
                                 >
-                                    {copied ? "Hash copied" : "Copy hash"}
+                                    {txHashCopyStatus === "copied"
+                                        ? "Hash copied"
+                                        : "Copy hash"}
                                 </Button>
                             </StatusActions>
                         </StatusBanner>
