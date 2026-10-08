@@ -80,15 +80,13 @@ const MobileFilterGrid = styled.div`
     gap: ${({ theme }) => theme.spacing.md};
 `;
 
+const DESKTOP_TABLE_MIN_WIDTH = "920px";
+
 const TransactionTable = styled.div`
     overflow-x: auto;
     margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: ${({ theme }) => theme.radii.md};
-
-    @media (min-width: 1025px) {
-        overflow-x: hidden;
-    }
 `;
 
 const Table = styled.table`
@@ -97,12 +95,13 @@ const Table = styled.table`
     table-layout: fixed;
 
     @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
-        table-layout: auto;
+        min-width: ${DESKTOP_TABLE_MIN_WIDTH};
     }
 
     @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         width: max-content;
         min-width: 100%;
+        table-layout: auto;
     }
 `;
 
