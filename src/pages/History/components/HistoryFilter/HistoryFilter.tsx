@@ -14,6 +14,7 @@ import {
     DURATION_PRESETS,
     getAmountFieldErrors,
     hasRangeValue,
+    HISTORY_FILTER_LABELS,
     IPanelFilters,
     isAmountRangeInvalid,
     isDateRangeInvalid,
@@ -25,16 +26,6 @@ import { FilterPanelActions } from "../FilterPanelActions";
 import { OptionFilterPanel } from "../OptionFilterPanel";
 import { RangeFilterPanel } from "../RangeFilterPanel";
 import { TextFilterPanel } from "../TextFilterPanel";
-
-const FILTER_LABELS: Record<TPanelFilterKey, string> = {
-    type: "Type",
-    status: "Status",
-    date: "Date",
-    from: "From",
-    to: "To",
-    amount: "Amount",
-    details: "Details",
-};
 
 const FILTER_ACTION_LABELS: Record<TPanelFilterKey, string> = {
     type: "type",
@@ -94,7 +85,7 @@ export const HistoryFilter: FC<IHistoryFilterProps> = ({
 }) => {
     const theme = useTheme();
     const { appliedFilters, draftFilters } = filters;
-    const label = FILTER_LABELS[filterKey];
+    const label = HISTORY_FILTER_LABELS[filterKey];
     const appliedDescription = describeAppliedFilter(filterKey, appliedFilters);
 
     const renderActions = (applyDisabled = false): ReactElement => (

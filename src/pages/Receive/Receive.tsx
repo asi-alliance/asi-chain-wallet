@@ -13,7 +13,7 @@ import {
     Input,
 } from "components";
 import { getAddressLabel, getTokenDisplayName } from "../../constants/token";
-import { TextSecondaryBlock } from "styles/sharedStyledComponents";
+import { FilterLabel, TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountSelector } from "components/AccountSelector";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
@@ -156,13 +156,6 @@ const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-`;
-
-const FilterLabel = styled.span`
-    font-size: ${({ theme }) => theme.typography.size.md};
-    line-height: ${({ theme }) => theme.typography.lineHeight.md};
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
 `;
 
 const BalanceInfo = styled.div`

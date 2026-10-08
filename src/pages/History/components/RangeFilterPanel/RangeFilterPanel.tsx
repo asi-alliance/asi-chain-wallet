@@ -1,5 +1,5 @@
 import { FC, ReactNode } from "react";
-import { useTheme } from "styled-components";
+import styled from "styled-components";
 import { Input } from "components";
 import { IRangeFilter } from "utils/historyFilters";
 import {
@@ -7,6 +7,17 @@ import {
     PresetButton,
     PresetGrid,
 } from "../filterPanelStyles";
+
+const CustomRangeFields = styled.div`
+    display: grid;
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: ${({ theme }) => theme.spacing.md};
+    }
+`;
 
 interface IRangePreset {
     id: string;
@@ -44,7 +55,6 @@ export const RangeFilterPanel: FC<IRangeFilterPanelProps> = ({
     onChange,
     actions,
 }) => {
-    const theme = useTheme();
     const numberInputProps =
         inputType === "number" ? { min: "0", step: "any" } : {};
 
@@ -75,30 +85,32 @@ export const RangeFilterPanel: FC<IRangeFilterPanelProps> = ({
                 ))}
             </PresetGrid>
             <FilterPanelTitle>{customTitle}</FilterPanelTitle>
-            <Input
-                id={fromField.id}
-                type={inputType}
-                {...numberInputProps}
-                label={fromField.label}
-                value={value.from}
-                onChange={(event) =>
-                    onChange({ from: event.target.value, preset: "" })
-                }
-                error={fromField.error}
-                wrapperStyle={{ marginBottom: theme.spacing.lg }}
-            />
-            <Input
-                id={toField.id}
-                type={inputType}
-                {...numberInputProps}
-                label={toField.label}
-                value={value.to}
-                onChange={(event) =>
-                    onChange({ to: event.target.value, preset: "" })
-                }
-                error={toField.error}
-                wrapperStyle={{ marginBottom: theme.spacing.xl }}
-            />
+            <CustomRangeFields>
+                <Input
+                    id={fromField.id}
+                    type={inputType}
+                    {...numberInputProps}
+                    label={fromField.label}
+                    value={value.from}
+                    onChange={(event) =>
+                        onChange({ from: event.target.value, preset: "" })
+                    }
+                    error={fromField.error}
+                    wrapperStyle={{ marginBottom: 0 }}
+                />
+                <Input
+                    id={toField.id}
+                    type={inputType}
+                    {...numberInputProps}
+                    label={toField.label}
+                    value={value.to}
+                    onChange={(event) =>
+                        onChange({ to: event.target.value, preset: "" })
+                    }
+                    error={toField.error}
+                    wrapperStyle={{ marginBottom: 0 }}
+                />
+            </CustomRangeFields>
             {actions}
         </>
     );

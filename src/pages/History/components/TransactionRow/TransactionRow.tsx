@@ -1,6 +1,5 @@
 import { FC } from "react";
 import styled from "styled-components";
-import { Button } from "components";
 import { Transaction } from "types/transactions";
 import { formatTransactionAmount } from "utils/transactionUtils";
 import { formatDateParts } from "utils/formatDateParts";
@@ -40,22 +39,11 @@ const TimeValue = styled.time`
     line-height: ${({ theme }) => theme.typography.lineHeight.xs};
 `;
 
-const RowActionButton = styled(Button)`
-    min-width: 0;
-    padding-inline: ${({ theme }) => theme.spacing.md};
-`;
-
 interface ITransactionRowProps {
     transaction: Transaction;
-    isMobile: boolean;
-    onViewDetails: (transactionId: string) => void;
 }
 
-export const TransactionRow: FC<ITransactionRowProps> = ({
-    transaction,
-    isMobile,
-    onViewDetails,
-}) => {
+export const TransactionRow: FC<ITransactionRowProps> = ({ transaction }) => {
     const { dateTime, date, time } = formatDateParts(transaction.timestamp);
 
     return (
@@ -72,48 +60,29 @@ export const TransactionRow: FC<ITransactionRowProps> = ({
                     {transaction.status}
                 </StatusBadge>
             </TableCell>
-            {isMobile ? (
-                <TableCell>
-                    <RowActionButton
-                        id={`history-transaction-details-${transaction.id}`}
-                        type="button"
-                        size="small"
-                        variant="ghost"
-                        aria-label={`View details for ${transaction.type} transaction`}
-                        onClick={() => onViewDetails(transaction.id)}
-                    >
-                        View
-                    </RowActionButton>
-                </TableCell>
-            ) : (
-                <>
-                    <TableCell>
-                        <TransactionField
-                            value={transaction.from}
-                            copyTitle="Copy sender address"
-                        />
-                    </TableCell>
-                    <TableCell>
-                        <TransactionField
-                            value={transaction.to}
-                            copyTitle="Copy recipient address"
-                        />
-                    </TableCell>
-                    <TableCell>
-                        {formatTransactionAmount(transaction.amount)}
-                    </TableCell>
-                    <TableCell>
-                        {transaction.deployId ? (
-                            <TransactionField
-                                value={transaction.deployId}
-                                copyTitle="Copy Deploy ID"
-                            />
-                        ) : (
-                            "—"
-                        )}
-                    </TableCell>
-                </>
-            )}
+            <TableCell>
+                <TransactionField
+                    value={transaction.from}
+                    copyTitle="Copy sender address"
+                />
+            </TableCell>
+            <TableCell>
+                <TransactionField
+                    value={transaction.to}
+                    copyTitle="Copy recipient address"
+                />
+            </TableCell>
+            <TableCell>{formatTransactionAmount(transaction.amount)}</TableCell>
+            <TableCell>
+                {transaction.deployId ? (
+                    <TransactionField
+                        value={transaction.deployId}
+                        copyTitle="Copy Deploy ID"
+                    />
+                ) : (
+                    "—"
+                )}
+            </TableCell>
         </TableRow>
     );
 };

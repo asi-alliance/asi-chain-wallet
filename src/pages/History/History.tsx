@@ -28,13 +28,17 @@ import {
     ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
 } from "constants/polling";
 import { useHistoryFilters, useMediaQuery, useScreen } from "hooks";
+import { FilterLabel } from "styles/sharedStyledComponents";
 import { HistoryFilter } from "./components/HistoryFilter";
+import { MobileTransactionRow } from "./components/MobileTransactionRow";
 import { TransactionDetailsModal } from "./components/TransactionDetailsModal";
 import { TransactionRow } from "./components/TransactionRow";
 import {
     filterTransactions,
     getNextDatePresetBoundary,
     hasActiveFilters,
+    HISTORY_FILTER_KEYS,
+    HISTORY_FILTER_LABELS,
     TPanelFilterKey,
 } from "utils/historyFilters";
 
@@ -63,11 +67,17 @@ const AccountBarActions = styled.div`
     padding-bottom: 1px;
 `;
 
-const MobileFilterBar = styled.div`
+const MobileFilterSection = styled.section`
     display: flex;
-    flex-wrap: wrap;
-    gap: ${({ theme }) => theme.spacing.lg};
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
     margin-bottom: ${({ theme }) => theme.spacing.xl};
+`;
+
+const MobileFilterGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const TransactionTable = styled.div`
@@ -89,6 +99,11 @@ const Table = styled.table`
     @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
         table-layout: auto;
     }
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        width: max-content;
+        min-width: 100%;
+    }
 `;
 
 const TableHeader = styled.thead`
@@ -106,6 +121,12 @@ const TableHeaderCell = styled.th`
     line-height: ${({ theme }) => theme.typography.lineHeight.sm};
     text-align: left;
     vertical-align: bottom;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        font-size: ${({ theme }) => theme.typography.size.xs};
+        line-height: ${({ theme }) => theme.typography.lineHeight.xs};
+        white-space: nowrap;
+    }
 `;
 
 const EmptyState = styled.div`
@@ -169,6 +190,16 @@ const ExportButton = styled(Button)`
     padding: 10px 24px;
     width: 100%;
 `;
+
+const DESKTOP_COLUMN_WIDTHS: Record<TPanelFilterKey, string> = {
+    date: "11%",
+    type: "8%",
+    status: "10%",
+    from: "18%",
+    to: "18%",
+    amount: "20%",
+    details: "15%",
+};
 
 const EMPTY_TRANSACTIONS: Transaction[] = [];
 
@@ -252,14 +283,6 @@ export const History: React.FC = () => {
             (transaction) => transaction.id === selectedTransactionId,
         ) ?? null;
 
-    const renderPlainHeader = (label: string): React.ReactElement => (
-        <span>{label}</span>
-    );
-
-    const renderFilter = (filterKey: TPanelFilterKey): React.ReactElement => (
-        <HistoryFilter filterKey={filterKey} filters={filters} />
-    );
-
     return (
         <HistoryContainer>
             <Card>
@@ -299,15 +322,20 @@ export const History: React.FC = () => {
                     </AccountBar>
 
                     {isMobile && showTransactionTable && (
-                        <MobileFilterBar aria-label="Transaction filters">
-                            {renderFilter("date")}
-                            {renderFilter("type")}
-                            {renderFilter("status")}
-                            {renderFilter("from")}
-                            {renderFilter("to")}
-                            {renderFilter("amount")}
-                            {renderFilter("details")}
-                        </MobileFilterBar>
+                        <MobileFilterSection aria-labelledby="history-mobile-filters-label">
+                            <FilterLabel id="history-mobile-filters-label">
+                                Filter
+                            </FilterLabel>
+                            <MobileFilterGrid>
+                                {HISTORY_FILTER_KEYS.map((filterKey) => (
+                                    <HistoryFilter
+                                        key={filterKey}
+                                        filterKey={filterKey}
+                                        filters={filters}
+                                    />
+                                ))}
+                            </MobileFilterGrid>
+                        </MobileFilterSection>
                     )}
 
                     {hasLoadError && (
@@ -330,82 +358,52 @@ export const History: React.FC = () => {
                                 </VisuallyHidden>
                                 <TableHeader>
                                     <tr>
-                                        <TableHeaderCell
-                                            scope="col"
-                                            style={{
-                                                width: isMobile ? "34%" : "11%",
-                                            }}
-                                        >
-                                            {isMobile
-                                                ? renderPlainHeader("Date")
-                                                : renderFilter("date")}
-                                        </TableHeaderCell>
-                                        <TableHeaderCell
-                                            scope="col"
-                                            style={{
-                                                width: isMobile ? "22%" : "8%",
-                                            }}
-                                        >
-                                            {isMobile
-                                                ? renderPlainHeader("Type")
-                                                : renderFilter("type")}
-                                        </TableHeaderCell>
-                                        <TableHeaderCell
-                                            scope="col"
-                                            style={{
-                                                width: isMobile ? "22%" : "10%",
-                                            }}
-                                        >
-                                            {isMobile
-                                                ? renderPlainHeader("Status")
-                                                : renderFilter("status")}
-                                        </TableHeaderCell>
-                                        {isMobile ? (
+                                        {HISTORY_FILTER_KEYS.map((filterKey) => (
                                             <TableHeaderCell
+                                                key={filterKey}
                                                 scope="col"
-                                                style={{ width: "22%" }}
+                                                style={
+                                                    isMobile
+                                                        ? undefined
+                                                        : {
+                                                              width: DESKTOP_COLUMN_WIDTHS[
+                                                                  filterKey
+                                                              ],
+                                                          }
+                                                }
                                             >
-                                                {renderPlainHeader("Details")}
+                                                {isMobile ? (
+                                                    HISTORY_FILTER_LABELS[filterKey]
+                                                ) : (
+                                                    <HistoryFilter
+                                                        filterKey={filterKey}
+                                                        filters={filters}
+                                                    />
+                                                )}
                                             </TableHeaderCell>
-                                        ) : (
-                                            <>
-                                                <TableHeaderCell
-                                                    scope="col"
-                                                    style={{ width: "18%" }}
-                                                >
-                                                    {renderFilter("from")}
-                                                </TableHeaderCell>
-                                                <TableHeaderCell
-                                                    scope="col"
-                                                    style={{ width: "18%" }}
-                                                >
-                                                    {renderFilter("to")}
-                                                </TableHeaderCell>
-                                                <TableHeaderCell
-                                                    scope="col"
-                                                    style={{ width: "20%" }}
-                                                >
-                                                    {renderFilter("amount")}
-                                                </TableHeaderCell>
-                                                <TableHeaderCell
-                                                    scope="col"
-                                                    style={{ width: "15%" }}
-                                                >
-                                                    {renderFilter("details")}
-                                                </TableHeaderCell>
-                                            </>
+                                        ))}
+                                        {isMobile && (
+                                            <TableHeaderCell scope="col">
+                                                <VisuallyHidden>Actions</VisuallyHidden>
+                                            </TableHeaderCell>
                                         )}
                                     </tr>
                                 </TableHeader>
                                 <TableBody>
-                                    {visibleTransactions.map((transaction) => (
-                                        <TransactionRow
-                                            key={transaction.id}
-                                            transaction={transaction}
-                                            isMobile={isMobile}
-                                            onViewDetails={setSelectedTransactionId}
-                                        />
-                                    ))}
+                                    {visibleTransactions.map((transaction) =>
+                                        isMobile ? (
+                                            <MobileTransactionRow
+                                                key={transaction.id}
+                                                transaction={transaction}
+                                                onViewDetails={setSelectedTransactionId}
+                                            />
+                                        ) : (
+                                            <TransactionRow
+                                                key={transaction.id}
+                                                transaction={transaction}
+                                            />
+                                        ),
+                                    )}
                                 </TableBody>
                             </Table>
                         </TransactionTable>

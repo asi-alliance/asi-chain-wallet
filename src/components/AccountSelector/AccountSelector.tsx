@@ -7,18 +7,12 @@ import { selectAccounts, selectSelectedAccountId } from "store/WalletsStore";
 import { selectAccount } from "store/WalletsStore/thunks";
 import styled from "styled-components";
 import { IUnlockedAccountMeta } from "types/wallet";
+import { FilterLabel } from "styles/sharedStyledComponents";
 
 const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-`;
-
-const FilterLabel = styled.span`
-    font-size: ${({ theme }) => theme.typography.size.md};
-    line-height: ${({ theme }) => theme.typography.lineHeight.md};
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
 `;
 
 type TSelectAdditionalProps = Omit<

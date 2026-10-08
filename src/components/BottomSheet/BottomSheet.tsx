@@ -94,6 +94,7 @@ export const BottomSheet: FC<IBottomSheetProps> = ({
         active: isOpen,
         initialFocusRef: sheetRef,
         onEscape: onClose,
+        restoreFocus: true,
     });
 
     if (!isOpen) {

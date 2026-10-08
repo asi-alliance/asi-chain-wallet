@@ -51,6 +51,31 @@ const TriggerButton = styled.button<{ $active: boolean }>`
         outline: none;
         box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        justify-content: center;
+        width: 100%;
+        height: ${({ theme }) => theme.sizes.control.medium};
+        padding: ${({ theme }) => `0 ${theme.spacing.md}`};
+        border: ${({ $active, theme }) =>
+            `${theme.control.borderWidth} solid ${
+                $active ? theme.primary : theme.control.neutralBorder
+            }`};
+        border-radius: ${({ theme }) => theme.radii.md};
+        background: ${({ $active, theme }) =>
+            $active ? theme.primary : theme.surface};
+        color: ${({ $active, theme }) =>
+            $active ? theme.text.inverse : theme.control.neutralText};
+
+        &:hover {
+            border-color: ${({ $active, theme }) =>
+                $active ? theme.primaryDark : theme.primary};
+            background: ${({ $active, theme }) =>
+                $active ? theme.primaryDark : theme.surface};
+            color: ${({ $active, theme }) =>
+                $active ? theme.text.inverse : theme.actionText};
+        }
+    }
 `;
 
 const TriggerTitle = styled.span`
@@ -67,6 +92,10 @@ const FilterIconWrapper = styled.span<{ $highlighted: boolean }>`
     flex-shrink: 0;
     color: ${({ $highlighted, theme }) =>
         $highlighted ? theme.actionText : theme.text.secondary};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        display: none;
+    }
 `;
 
 const DropdownContent = styled.div`

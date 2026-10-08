@@ -85,6 +85,26 @@ export interface IPanelFilters {
 
 export type TPanelFilterKey = keyof IPanelFilters;
 
+export const HISTORY_FILTER_KEYS: TPanelFilterKey[] = [
+    "date",
+    "type",
+    "status",
+    "from",
+    "to",
+    "amount",
+    "details",
+];
+
+export const HISTORY_FILTER_LABELS: Record<TPanelFilterKey, string> = {
+    type: "Type",
+    status: "Status",
+    date: "Date",
+    from: "From",
+    to: "To",
+    amount: "Amount",
+    details: "Details",
+};
+
 const createEmptyRange = (): IRangeFilter => ({
     preset: "",
     from: "",

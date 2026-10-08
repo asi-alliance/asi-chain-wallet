@@ -16,6 +16,10 @@ export const PresetGrid = styled.div`
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: ${({ theme }) => theme.spacing.md};
     margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 `;
 
 export const PresetButton = styled(Button)`
