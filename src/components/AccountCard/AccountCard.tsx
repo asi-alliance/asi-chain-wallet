@@ -19,7 +19,7 @@ import { KeyboardEvent, MouseEvent, ReactElement } from "react";
 import { RootState } from "store";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { useAppDispatch } from "store/hooks";
-import { FileCopyIcon } from "components/Icons";
+import { AccountCardBackground, FileCopyIcon } from "components/Icons";
 
 interface IAccountCardProps {
     account: IUnlockedAccountMeta;
@@ -30,39 +30,9 @@ interface IAccountCardProps {
 
 export const ACCOUNT_CARD_WIDTH_PX = 462;
 
-// Soft organic wash approximating Current Wallet card pattern (no separate asset in repo).
-const walletSurfacePattern = css`
-    background-color: ${({ theme }) => theme.card};
-    background-image:
-        radial-gradient(
-            ellipse 42% 36% at 12% 18%,
-            ${({ theme }) => theme.primarySubtle} 0%,
-            transparent 70%
-        ),
-        radial-gradient(
-            ellipse 48% 40% at 78% 22%,
-            ${({ theme }) => theme.primaryMuted} 0%,
-            transparent 72%
-        ),
-        radial-gradient(
-            ellipse 55% 45% at 40% 78%,
-            ${({ theme }) => theme.primarySubtle} 0%,
-            transparent 75%
-        ),
-        radial-gradient(
-            ellipse 36% 32% at 88% 72%,
-            ${({ theme }) => theme.primarySubtle} 0%,
-            transparent 70%
-        );
-`;
-
-const AccountCardWrapper = styled(Card)<{
-    $isSelected: boolean;
-    $fullMode: boolean;
-}>`
-    border: 1px solid
-        ${({ $isSelected, $fullMode, theme }) =>
-            !$fullMode || $isSelected ? theme.primary : theme.border};
+const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
+    border: ${({ $isSelected }) => ($isSelected ? "3px" : "1px")} solid
+        ${({ theme }) => theme.primary};
     cursor: pointer;
     transition:
         border-color ${({ theme }) => theme.motion.normal}
@@ -75,15 +45,8 @@ const AccountCardWrapper = styled(Card)<{
     max-width: ${ACCOUNT_CARD_WIDTH_PX}px;
     overflow: visible;
     box-shadow: ${({ theme }) => theme.shadowDrop};
-
-    ${({ $fullMode, $isSelected, theme }) =>
-        $fullMode
-            ? css`
-                  background-color: ${!$isSelected
-                      ? theme.colors.background.secondary
-                      : theme.primary};
-              `
-            : walletSurfacePattern}
+    background-color: ${({ theme }) => theme.card};
+    isolation: isolate;
 
     &:hover {
         border-color: ${({ theme }) => theme.primary};
@@ -92,6 +55,18 @@ const AccountCardWrapper = styled(Card)<{
     @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         max-width: none;
     }
+`;
+
+const CardBackground = styled(AccountCardBackground)<{ $isSelected: boolean }>`
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    color: ${({ $isSelected, theme }) =>
+        $isSelected ? theme.primaryMuted : theme.primarySubtle};
+    transition: color ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
+    pointer-events: none;
 `;
 
 const AccountHeader = styled.div<{ $fullMode: boolean }>`
@@ -118,26 +93,22 @@ const HeaderActions = styled.div`
     flex-shrink: 0;
 `;
 
-const DerivationIndex = styled.div<{ $isSelected: boolean }>`
+const DerivationIndex = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing.sm};
     font-family: ${({ theme }) => theme.typography.fontFamily};
     font-size: ${({ theme }) => theme.typography.size.xs};
     line-height: ${({ theme }) => theme.typography.lineHeight.xs};
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.text.secondary
-            : theme.colors.background.secondary};
+    color: ${({ theme }) => theme.control.neutralText};
     margin: -${({ theme }) => theme.spacing.lg} 0
         ${({ theme }) => theme.spacing.xl};
 `;
 
-const LabelSecond = styled.span<{ $isSelected: boolean; $compact?: boolean }>`
+const LabelSecond = styled.span<{ $compact?: boolean }>`
     font-weight: 400;
     font-size: ${({ theme }) => theme.typography.size.xs};
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ theme }) => theme.text.primary};
     ${({ $compact }) =>
         $compact &&
         css`
@@ -149,13 +120,10 @@ const LabelSecond = styled.span<{ $isSelected: boolean; $compact?: boolean }>`
         `}
 `;
 
-const LabelThird = styled.div<{ $isSelected: boolean }>`
+const LabelThird = styled.div`
     font-weight: 400;
     font-size: ${({ theme }) => theme.typography.size.xs};
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.text.secondary
-            : theme.colors.background.secondary};
+    color: ${({ theme }) => theme.control.neutralText};
 `;
 
 const AccountCardFooter = styled.div`
@@ -165,11 +133,10 @@ const AccountCardFooter = styled.div`
     gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const AccountAddress = styled.div<{ $isSelected: boolean; $compact: boolean }>`
+const AccountAddress = styled.div<{ $compact: boolean }>`
     font-family: ${({ theme }) => theme.typography.fontFamily};
     font-size: ${({ theme }) => theme.typography.size.xs};
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
+    color: ${({ theme }) => theme.text.primary};
     min-width: 0;
     flex: 1;
 
@@ -183,10 +150,7 @@ const AccountAddress = styled.div<{ $isSelected: boolean; $compact: boolean }>`
               `}
 
     button {
-        color: ${({ $isSelected, theme }) =>
-            !$isSelected
-                ? theme.text.primary
-                : theme.colors.background.secondary};
+        color: ${({ theme }) => theme.text.primary};
         flex-shrink: 0;
     }
 `;
@@ -272,8 +236,6 @@ export const AccountCard = ({
     };
 
     const isSelected = selectedAccountId === account.id;
-    // Filled green selection is Accounts-only; Wallet compact uses surface + border.
-    const filledSelection = fullMode && isSelected;
     const showDerivationIndex =
         fullMode &&
         ownerWallet?.type === WalletTypes.HD &&
@@ -286,7 +248,6 @@ export const AccountCard = ({
             id={`account-card-${account.id}`}
             data-testid={`account-card-${account.id}`}
             $isSelected={isSelected}
-            $fullMode={fullMode}
             className={className}
             role="group"
             tabIndex={0}
@@ -299,11 +260,12 @@ export const AccountCard = ({
             onKeyDown={handleCardKeyDown}
             aria-current={isSelected ? "true" : undefined}
         >
+            <CardBackground $isSelected={isSelected} />
             <AccountHeader $fullMode={fullMode}>
                 <AccountNameEditor
                     disabled={!isUnlocked}
                     accountId={account.id}
-                    isSelected={filledSelection}
+                    isSelected={false}
                 />
 
                 <HeaderActions onClick={stopCardActivation}>
@@ -317,7 +279,7 @@ export const AccountCard = ({
             </AccountHeader>
 
             {showDerivationIndex && (
-                <DerivationIndex $isSelected={filledSelection}>
+                <DerivationIndex>
                     <span aria-hidden="true">
                         <FileCopyIcon size={14} color="currentColor" />
                     </span>
@@ -325,24 +287,14 @@ export const AccountCard = ({
                 </DerivationIndex>
             )}
 
-            <ASIAccountBalance
-                account={account}
-                isSelected={filledSelection}
-                neutralAmount={!fullMode}
-            />
+            <ASIAccountBalance account={account} neutralAmount={!fullMode} />
 
             <AccountCardFooter>
-                <AccountAddress
-                    $isSelected={filledSelection}
-                    $compact={!fullMode}
-                >
-                    <LabelThird $isSelected={filledSelection}>
-                        ASI Address
-                    </LabelThird>
+                <AccountAddress $compact={!fullMode}>
+                    <LabelThird>ASI Address</LabelThird>
                     <AddressValueRow>
                         <LabelSecond
                             style={{ marginRight: 0, lineHeight: "27px" }}
-                            $isSelected={filledSelection}
                             $compact={!fullMode}
                             title={account.address}
                         >
