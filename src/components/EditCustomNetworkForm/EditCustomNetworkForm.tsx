@@ -7,7 +7,7 @@ import { AppDispatch } from "store";
 import { selectNetworks } from "store/WalletsStore";
 import { updateCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
-import { useIsNetworkBusy } from "sdk";
+import { useIsNetworkBusy, SdkWalletService } from "sdk";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import {
     getNetworkFormFieldErrors,
@@ -56,12 +56,7 @@ const CustomNetworkActionsButtons = styled.div`
 
 const toFormValues = (network: Network): INetworkFormValues => ({
     name: network.name,
-    config: {
-        ValidatorURL: network.validatorUrl,
-        ReadOnlyURL: network.observerUrl,
-        IndexerURL: network.indexerUrl,
-        nodeApiProfile: network.nodeApiProfile,
-    },
+    config: SdkWalletService.toNetworkConfig(network),
 });
 
 interface EditCustomNetworkFormProps {
@@ -178,7 +173,9 @@ export const EditCustomNetworkForm: React.FC<EditCustomNetworkFormProps> = ({
             />
 
             {connectionError && (
-                <NetworkFormError role="alert">{connectionError}</NetworkFormError>
+                <NetworkFormError role="alert">
+                    {connectionError}
+                </NetworkFormError>
             )}
 
             {isNetworkBusy && !connectionError && (
