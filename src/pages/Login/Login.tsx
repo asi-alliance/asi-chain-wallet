@@ -15,6 +15,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { loginWithPassword } from "store/Auth/thunks";
+import { isLoginRejection } from "store/Auth/helpers";
 import { RootState, AppDispatch } from "store";
 import {
     Card,
@@ -32,6 +33,7 @@ import {
 } from "services/loginRateLimit";
 import {
     analyzeRecentActivity,
+    FailureReason,
     SuspiciousActivityReport,
 } from "services/loginAuditLog";
 import { Select } from "components/Select";
@@ -39,28 +41,36 @@ import { ISelectOption } from "components/Select/Select";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
 import { IWalletMeta, WalletActions } from "types/wallet";
 import { CreateHdWalletModal } from "components/CreateHdWalletModal";
+import { CreatePkWalletModal } from "components/CreatePkWalletModal";
 import { ImportHdWalletModal } from "components/ImportHdWalletModal";
 import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
 import { IKeyfileAccountsImportOutcome } from "components/ImportKeyfileWalletForm";
 import { useScreen } from "hooks/";
 
+const LoginPage = styled.div`
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0 ${({ theme }) => theme.layout.gutterMobile};
+
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.mobile} + 1px)) {
+        padding: 0 ${({ theme }) => theme.layout.gutterDesktop};
+    }
+`;
+
 const LoginContainer = styled.div`
-    max-width: 705px;
-    margin: 100px auto;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
+    margin: clamp(24px, 8vh, 100px) auto;
+`;
+
+const UnlockForm = styled.form`
+    width: 100%;
 `;
 
 const FormGroup = styled.div`
-    margin-bottom: 24px;
-`;
-
-const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger};
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 14px;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 const WarningBanner = styled.div`
@@ -71,6 +81,18 @@ const WarningBanner = styled.div`
     border-radius: 8px;
     margin-bottom: 16px;
     font-size: 14px;
+    line-height: 1.4;
+`;
+
+/** Non-credential unlock failures — not attached to the password field. */
+const StatusBanner = styled.div`
+    background: ${({ theme }) => `${theme.danger}18`};
+    border: 1px solid ${({ theme }) => `${theme.danger}40`};
+    color: ${({ theme }) => theme.danger};
+    padding: 12px;
+    border-radius: ${({ theme }) => theme.radii.md};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+    font-size: ${({ theme }) => theme.typography.size.sm};
     line-height: 1.4;
 `;
 
@@ -150,15 +172,7 @@ const DismissLink = styled.button`
 `;
 
 const ActionButtons = styled.div`
-    margin-top: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    & button {
-        display: block;
-        width: 242px;
-    }
+    margin-top: ${({ theme }) => theme.spacing.xl};
 `;
 
 const ActionsFooter = styled.div`
@@ -169,32 +183,29 @@ const ActionsFooter = styled.div`
 
 const WalletActionsFooter = styled.div`
     width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 24px;
-    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-top: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
 
-    @media (max-width: 768px) {
-        flex-direction: column;
-        padding: 0 3rem;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: 1fr;
     }
 `;
 
 const InlineButton = styled(Button)`
-    height: 44px;
-    min-width: 242px;
-
-    @media (max-width: 768px) {
-        min-width: auto;
-        width: 100%;
-    }
+    width: 100%;
+    min-width: 0;
 `;
 
-const InfoText = styled.p`
-    font-size: 12px;
-    color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 16px;
+const FieldLabel = styled.label`
+    display: block;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    color: ${({ theme }) => theme.text.primary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 const ATTEMPTS_WARNING_THRESHOLD = 3;
@@ -205,12 +216,31 @@ type LoginWalletOption = {
     additionalLabel?: string;
 };
 
+type WalletKind = "hd" | "private_key";
+
+const WALLET_KIND_OPTIONS: ISelectOption[] = [
+    { id: "hd", value: "hd", label: "HD wallet" },
+    { id: "private_key", value: "private_key", label: "Private key wallet" },
+];
+
 function formatCountdown(ms: number): string {
     const totalSeconds = Math.ceil(ms / 1_000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
+
+const WRONG_PASSWORD_MESSAGE =
+    "Unable to unlock. Check your password and try again.";
+
+const LOGIN_FAILURE_STATUS_MESSAGES: Partial<Record<FailureReason, string>> = {
+    [FailureReason.NetworkError]:
+        "Unable to unlock. Check your connection and try again.",
+    [FailureReason.Timeout]:
+        "Unable to unlock. The request timed out. Please try again.",
+    [FailureReason.Cancelled]:
+        "Unable to unlock. The request was cancelled. Please try again.",
+};
 
 export const Login: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
@@ -235,16 +265,36 @@ export const Login: React.FC = () => {
     );
 
     const [password, setPassword] = useState("");
-    const [selectedSignerId, setSelectedSignerId] = useState<string>("");
-    const [loginError, setLoginError] = useState<string>("");
-    const [showError, setShowError] = useState(false);
+    // Match walletOptions order (HD first), not wallets[] insertion order.
+    const [selectedSignerId, setSelectedSignerId] = useState<string>(() => {
+        if (loginWallet?.signerId) {
+            return loginWallet.signerId;
+        }
+
+        const firstHdWallet = wallets.find(
+            (walletMeta) => walletMeta.type !== WalletTypes.PRIVATE_KEY,
+        );
+
+        return firstHdWallet?.signerId ?? wallets[0]?.signerId ?? "";
+    });
+    const [passwordError, setPasswordError] = useState<string>("");
+    const [statusError, setStatusError] = useState<string>("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const submissionRef = useRef(false);
+
+    const clearUnlockErrors = (): void => {
+        setPasswordError("");
+        setStatusError("");
+    };
 
     const [showCreateModal, setShowCreateModal] = useState(
         action === WalletActions.CREATE_WALLET,
     );
+    const [showCreatePkModal, setShowCreatePkModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [showImportPkModal, setShowImportPkModal] = useState(false);
     const [showImportKeyfileModal, setShowImportKeyfileModal] = useState(false);
+    const [walletKind, setWalletKind] = useState<WalletKind>("hd");
 
     const [keyfileImport, setKeyfileImport] =
         useState<IKeyfileAccountsImportOutcome | null>(null);
@@ -298,7 +348,7 @@ export const Login: React.FC = () => {
 
     // ── Rate limit polling ──────────────────────────────────────────────────
 
-    const refreshRateLimitInfo = useCallback(async () => {
+    const refreshRateLimitInfo = useCallback(async (): Promise<RateLimitInfo> => {
         const contextKey = buildContextKey(selectedSignerId || undefined);
         const info = await getRateLimitInfo(contextKey);
         setRateLimitInfo(info);
@@ -308,6 +358,8 @@ export const Login: React.FC = () => {
         } else {
             setCountdownMs(0);
         }
+
+        return info;
     }, [selectedSignerId]);
 
     // Analyze audit log for security warnings (3+ consecutive failures, account switching)
@@ -376,22 +428,6 @@ export const Login: React.FC = () => {
     }, [walletOptions, selectedSignerId, loginWallet]);
 
     useEffect(() => {
-        if (!!selectedSignerId || !wallets.length) {
-            return;
-        }
-
-        setSelectedSignerId(wallets[0].signerId);
-    }, [wallets]);
-
-    useEffect(() => {
-        if (loginError) {
-            setShowError(true);
-            const timer = setTimeout(() => setShowError(false), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [loginError]);
-
-    useEffect(() => {
         if (action === WalletActions.CREATE_WALLET) {
             setShowCreateModal(true);
 
@@ -401,8 +437,42 @@ export const Login: React.FC = () => {
 
     // ── Handlers ────────────────────────────────────────────────────────────
 
-    const handleLogin = async () => {
-        if (!password.trim() || !selectedSignerId || isLockedOut) return;
+    const isPending = isLoading || isSubmitting;
+
+    const showLoginFailure = (error: unknown): void => {
+        const rejection = isLoginRejection(error) ? error : null;
+
+        if (rejection?.reason === FailureReason.RateLimited) {
+            setStatusError(rejection.message);
+
+            return;
+        }
+
+        const statusMessage =
+            rejection && LOGIN_FAILURE_STATUS_MESSAGES[rejection.reason];
+
+        if (statusMessage) {
+            setStatusError(statusMessage);
+
+            return;
+        }
+
+        setPasswordError(WRONG_PASSWORD_MESSAGE);
+    };
+
+    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (
+            submissionRef.current ||
+            isPending ||
+            !password.trim() ||
+            !selectedSignerId ||
+            isLockedOut
+        ) return;
+
+        submissionRef.current = true;
+        setIsSubmitting(true);
+        clearUnlockErrors();
 
         try {
             await dispatch(
@@ -412,20 +482,33 @@ export const Login: React.FC = () => {
                 }),
             ).unwrap();
 
-            setLoginError("");
+            clearUnlockErrors();
 
             navigate(specificRedirectUrl ?? "/");
         } catch (error: unknown) {
-            setLoginError((error as Error).message || "Login failed");
             setSecurityWarningDismissed(false);
-            await refreshRateLimitInfo();
-            await refreshActivity();
-        }
-    };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && password.trim() && !isLockedOut && !isLoading) {
-            handleLogin();
+            // Surface the unlock outcome before side-effect refreshes so a
+            // failed rate-limit/audit read cannot swallow feedback.
+            // Credential failures attach to the password field; other failures
+            // use a status banner so the input is not marked invalid.
+            showLoginFailure(error);
+
+            try {
+                const info = await refreshRateLimitInfo();
+                await refreshActivity();
+
+                // Lockout banner owns rate-limit messaging once state is available.
+                if (info.locked && info.remainingMs > 0) {
+                    setStatusError("");
+                    setPasswordError("");
+                }
+            } catch {
+                // Rate-limit / audit refresh must not block unlock error UI.
+            }
+        } finally {
+            submissionRef.current = false;
+            setIsSubmitting(false);
         }
     };
 
@@ -446,6 +529,8 @@ export const Login: React.FC = () => {
         }
 
         setSelectedSignerId(keyfileImport.signerId);
+        setPassword("");
+        clearUnlockErrors();
         passwordInputRef.current?.focus();
     };
 
@@ -460,262 +545,330 @@ export const Login: React.FC = () => {
 
     return (
         <Fragment>
-            <LoginContainer>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Unlock Wallet</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {isLockedOut && (
-                            <LockoutBanner>
-                                {formatLockoutMessage(countdownMs)}
-                                <br />
-                                <CountdownText>
-                                    {formatCountdown(countdownMs)}
-                                </CountdownText>
-                            </LockoutBanner>
-                        )}
+            <LoginPage>
+                <LoginContainer>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Unlock Wallet</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {isLockedOut && (
+                                <LockoutBanner>
+                                    {formatLockoutMessage(countdownMs)}
+                                    <br />
+                                    <CountdownText>
+                                        {formatCountdown(countdownMs)}
+                                    </CountdownText>
+                                </LockoutBanner>
+                            )}
 
-                        {showAttemptsWarning && (
-                            <WarningBanner>
-                                {remainingAttempts === 1
-                                    ? "Last attempt before temporary lockout."
-                                    : `${remainingAttempts} attempts remaining before temporary lockout.`}
-                            </WarningBanner>
-                        )}
+                            {showAttemptsWarning && (
+                                <WarningBanner>
+                                    {remainingAttempts === 1
+                                        ? "Last attempt before temporary lockout."
+                                        : `${remainingAttempts} attempts remaining before temporary lockout.`}
+                                </WarningBanner>
+                            )}
 
-                        {showSecurityWarning && (
-                            <SecurityWarningBanner>
-                                <SecurityWarningTitle>
-                                    Security notice
-                                </SecurityWarningTitle>
-                                We noticed several failed login attempts on this
-                                wallet. If it wasn&apos;t you, consider changing
-                                your password after logging in.
-                                {activityReport?.accountNameChanged && (
-                                    <>
-                                        <br />
-                                        Attempts were made with different
-                                        account names.
-                                    </>
-                                )}
-                                <br />
-                                <DismissLink
-                                    onClick={() =>
-                                        setSecurityWarningDismissed(true)
-                                    }
-                                >
-                                    Dismiss
-                                </DismissLink>
-                            </SecurityWarningBanner>
-                        )}
-
-                        {showError && loginError && !isLockedOut && (
-                            <ErrorMessage>{loginError}</ErrorMessage>
-                        )}
-
-                        {keyfileImport && (
-                            <ImportNoticeBanner>
-                                <ImportNoticeTitle>
-                                    Accounts imported, you are not signed in yet
-                                </ImportNoticeTitle>
-                                {keyfileImport.importedAccountsCount === 1
-                                    ? "1 account was added to "
-                                    : `${keyfileImport.importedAccountsCount} accounts were added to `}
-                                <strong>{importedWalletLabel}</strong>. This was
-                                an import into an existing wallet, not a login.
-                                Unlock that wallet to see the imported accounts.
-                                <ImportNoticeActions>
-                                    {selectedSignerId !==
-                                        keyfileImport.signerId && (
-                                        <Button
-                                            id="select-imported-wallet-button"
-                                            size="small"
-                                            variant="secondary"
-                                            onClick={handleSelectImportedWallet}
-                                        >
-                                            Select this wallet
-                                        </Button>
+                            {showSecurityWarning && (
+                                <SecurityWarningBanner>
+                                    <SecurityWarningTitle>
+                                        Security notice
+                                    </SecurityWarningTitle>
+                                    We noticed several failed login attempts on
+                                    this wallet. If it wasn&apos;t you, consider
+                                    changing your password after logging in.
+                                    {activityReport?.accountNameChanged && (
+                                        <>
+                                            <br />
+                                            Attempts were made with different
+                                            account names.
+                                        </>
                                     )}
+                                    <br />
                                     <DismissLink
-                                        onClick={() => setKeyfileImport(null)}
+                                        onClick={() =>
+                                            setSecurityWarningDismissed(true)
+                                        }
                                     >
                                         Dismiss
                                     </DismissLink>
-                                </ImportNoticeActions>
-                            </ImportNoticeBanner>
-                        )}
+                                </SecurityWarningBanner>
+                            )}
 
-                        {walletOptions.length > 1 && (
-                            <FormGroup>
-                                <label
-                                    style={{
-                                        display: "block",
-                                        marginBottom: "8px",
-                                        fontSize: "14px",
-                                        fontWeight: 500,
-                                        color: "inherit",
-                                    }}
-                                >
-                                    Select Wallet
-                                </label>
-                                <Select
-                                    id="login-account-selector"
-                                    value={selectedSignerId}
-                                    onChange={(value: string) =>
-                                        setSelectedSignerId(value)
-                                    }
-                                    options={selectWalletOptions}
-                                />
-                                <InfoText>
-                                    Different wallets can have the same
-                                    password. Select the wallet you want to
-                                    unlock.
-                                </InfoText>
-                            </FormGroup>
-                        )}
+                            {statusError && !isLockedOut && (
+                                <StatusBanner role="alert">
+                                    {statusError}
+                                </StatusBanner>
+                            )}
 
-                        <FormGroup>
-                            <PasswordInput
-                                id="login-password-input"
-                                data-testid="login-password-input"
-                                data-cy="login-password-input"
-                                label="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                onInput={(e) => {
-                                    const target = e.currentTarget;
-                                    if (target.value !== password) {
-                                        setPassword(target.value);
-                                    }
-                                }}
-                                onKeyPress={handleKeyPress}
-                                placeholder={
-                                    isLockedOut
-                                        ? "Temporarily locked"
-                                        : "Enter your password"
-                                }
-                                autoFocus={
-                                    walletOptions.length <= 1 && !isLockedOut
-                                }
-                                autoComplete="current-password"
-                                disabled={isLockedOut}
-                                inputRef={passwordInputRef}
-                            />
-                        </FormGroup>
+                            {keyfileImport && (
+                                <ImportNoticeBanner>
+                                    <ImportNoticeTitle>
+                                        Accounts imported, you are not signed in
+                                        yet
+                                    </ImportNoticeTitle>
+                                    {keyfileImport.importedAccountsCount === 1
+                                        ? "1 account was added to "
+                                        : `${keyfileImport.importedAccountsCount} accounts were added to `}
+                                    <strong>{importedWalletLabel}</strong>. This
+                                    was an import into an existing wallet, not a
+                                    login. Unlock that wallet to see the imported
+                                    accounts.
+                                    <ImportNoticeActions>
+                                        {selectedSignerId !==
+                                            keyfileImport.signerId && (
+                                            <Button
+                                                id="select-imported-wallet-button"
+                                                size="small"
+                                                variant="secondary"
+                                                onClick={
+                                                    handleSelectImportedWallet
+                                                }
+                                            >
+                                                Select this wallet
+                                            </Button>
+                                        )}
+                                        <DismissLink
+                                            onClick={() =>
+                                                setKeyfileImport(null)
+                                            }
+                                        >
+                                            Dismiss
+                                        </DismissLink>
+                                    </ImportNoticeActions>
+                                </ImportNoticeBanner>
+                            )}
 
-                        <ActionButtons>
-                            <Button
-                                id="login-unlock-button"
-                                onClick={handleLogin}
-                                loading={isLoading}
-                                disabled={
-                                    !password.trim() ||
-                                    !selectedSignerId ||
-                                    isLockedOut
-                                }
+                            <UnlockForm
+                                aria-label="Unlock wallet"
+                                onSubmit={handleLogin}
                             >
-                                {isLockedOut ? "Locked" : "Unlock"}
-                            </Button>
-                        </ActionButtons>
+                                {walletOptions.length > 1 && (
+                                    <FormGroup>
+                                        <label
+                                            id="login-account-selector-label"
+                                            style={{
+                                                display: "block",
+                                                marginBottom: "8px",
+                                                fontSize: "14px",
+                                                fontWeight: 500,
+                                                color: "inherit",
+                                            }}
+                                        >
+                                            Select Wallet
+                                        </label>
+                                        <Select
+                                            id="login-account-selector"
+                                            aria-labelledby="login-account-selector-label"
+                                            value={selectedSignerId}
+                                            disabled={isPending}
+                                            onChange={(value: string) => {
+                                                setSelectedSignerId(value);
+                                                setPassword("");
+                                                clearUnlockErrors();
+                                            }}
+                                            options={selectWalletOptions}
+                                        />
+                                    </FormGroup>
+                                )}
+
+                                <FormGroup>
+                                    <PasswordInput
+                                        id="login-password-input"
+                                        data-testid="login-password-input"
+                                        data-cy="login-password-input"
+                                        label="Password"
+                                        value={password}
+                                        error={
+                                            !isLockedOut
+                                                ? passwordError || undefined
+                                                : undefined
+                                        }
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            clearUnlockErrors();
+                                        }}
+                                        onInput={(e) => {
+                                            const nextPassword =
+                                                e.currentTarget.value;
+                                            if (nextPassword !== password) {
+                                                setPassword(nextPassword);
+                                                clearUnlockErrors();
+                                            }
+                                        }}
+                                        placeholder={
+                                            isLockedOut
+                                                ? "Temporarily locked"
+                                                : "Enter your password"
+                                        }
+                                        autoFocus={
+                                            walletOptions.length <= 1 &&
+                                            !isLockedOut
+                                        }
+                                        autoComplete="current-password"
+                                        disabled={isLockedOut || isPending}
+                                        inputRef={passwordInputRef}
+                                    />
+                                </FormGroup>
+
+                                <ActionButtons>
+                                    <Button
+                                        id="login-unlock-button"
+                                        type="submit"
+                                        fullWidth
+                                        loading={isPending}
+                                        disabled={
+                                            !password.trim() ||
+                                            !selectedSignerId ||
+                                            isLockedOut ||
+                                            isPending
+                                        }
+                                    >
+                                        {isLockedOut ? "Locked" : "Unlock"}
+                                    </Button>
+                                </ActionButtons>
+                            </UnlockForm>
 
                         <ActionsFooter>
+                            <FormGroup style={{ marginTop: "24px", marginBottom: 0 }}>
+                                <FieldLabel htmlFor="login-account-type-button">
+                                    Account Type
+                                </FieldLabel>
+                                <Select
+                                    id="login-account-type"
+                                    aria-label="Account Type"
+                                    value={walletKind}
+                                    onChange={(value: string) =>
+                                        setWalletKind(value as WalletKind)
+                                    }
+                                    options={WALLET_KIND_OPTIONS}
+                                    style={{ width: "100%" }}
+                                />
+                            </FormGroup>
                             <WalletActionsFooter>
-                                <InlineButton
-                                    id="create-wallet-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    variant="secondary"
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Wallet</h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                                <InlineButton
-                                    id="import-wallet-button"
-                                    variant="secondary"
-                                    onClick={() => setShowImportModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Import Wallet</h3>
-                                    <svg
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <g clipPath="url(#clip0_3_1930)">
-                                            <path
-                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                                fill="currentcolor"
-                                            />
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_3_1930">
-                                                <rect
-                                                    width="24"
-                                                    height="24"
+                                {walletKind === "hd" ? (
+                                    <>
+                                        <InlineButton
+                                            id="create-wallet-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            variant="secondary"
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Wallet</h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
                                                     fill="currentcolor"
                                                 />
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </InlineButton>
-                            </WalletActionsFooter>
-                            <InlineButton
-                                id="import-private-key-button"
-                                variant="full-ghost"
-                                onClick={() => setShowImportPkModal(true)}
-                                fullWidth={isLaptop}
-                                style={{
-                                    flexWrap: "nowrap",
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                <h3>Import Private Key</h3>
-                                <svg
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <g clipPath="url(#clip0_3_1930)">
-                                        <path
-                                            d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                            fill="currentcolor"
-                                        />
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_3_1930">
-                                            <rect
+                                            </svg>
+                                        </InlineButton>
+                                        <InlineButton
+                                            id="import-wallet-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowImportModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Import Wallet</h3>
+                                            <svg
                                                 width="24"
                                                 height="24"
-                                                fill="currentcolor"
-                                            />
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                            </InlineButton>
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <g clipPath="url(#clip0_3_1930)">
+                                                    <path
+                                                        d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                        fill="currentcolor"
+                                                    />
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_3_1930">
+                                                        <rect
+                                                            width="24"
+                                                            height="24"
+                                                            fill="currentcolor"
+                                                        />
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </InlineButton>
+                                    </>
+                                ) : (
+                                    <>
+                                        <InlineButton
+                                            id="create-private-key-wallet-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowCreatePkModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Private Key Wallet</h3>
+                                        </InlineButton>
+                                        <InlineButton
+                                            id="import-private-key-button"
+                                            variant="secondary"
+                                            onClick={() =>
+                                                setShowImportPkModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Import Private Key</h3>
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                            >
+                                                <g clipPath="url(#clip0_3_1930)">
+                                                    <path
+                                                        d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
+                                                        fill="currentcolor"
+                                                    />
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_3_1930">
+                                                        <rect
+                                                            width="24"
+                                                            height="24"
+                                                            fill="currentcolor"
+                                                        />
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </InlineButton>
+                                    </>
+                                )}
+                            </WalletActionsFooter>
                             <InlineButton
                                 id="import-keyfile-wallet-button"
                                 variant="full-ghost"
@@ -726,7 +879,7 @@ export const Login: React.FC = () => {
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                <h3>Import from Keyfile</h3>
+                                <h3>Import Wallet from keyfile</h3>
                                 <svg
                                     width="24"
                                     height="24"
@@ -755,6 +908,7 @@ export const Login: React.FC = () => {
                     </CardContent>
                 </Card>
             </LoginContainer>
+            </LoginPage>
             <CreateHdWalletModal
                 isOpen={showCreateModal}
                 onCancel={() => {
@@ -762,6 +916,14 @@ export const Login: React.FC = () => {
                     navigate("/login");
                 }}
                 onClose={() => setShowCreateModal(false)}
+                onSuccess={() => {
+                    navigate("/");
+                }}
+            />
+            <CreatePkWalletModal
+                isOpen={showCreatePkModal}
+                onCancel={() => setShowCreatePkModal(false)}
+                onClose={() => setShowCreatePkModal(false)}
                 onSuccess={() => {
                     navigate("/");
                 }}

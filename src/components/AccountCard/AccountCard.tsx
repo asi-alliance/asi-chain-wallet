@@ -1,7 +1,10 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import CopyButton from "components/CopyButton";
 import { AccountNameEditor } from "components/AccountNameEditor/AccountNameEditor";
-import { RemoveAccountButton } from "components/RemoveAccountButton";
+import {
+    RemoveAccountButton,
+    TRemoveAccountRequest,
+} from "components/RemoveAccountButton";
 import { ASIAccountBalance } from "components/ASIAccountBalance";
 import { useSelector } from "react-redux";
 import {
@@ -12,106 +15,190 @@ import {
 import { Card } from "components/Card";
 import { IUnlockedAccountMeta } from "types/wallet";
 import { WalletTypes } from "@asichain/asi-wallet-sdk";
-import { ReactElement } from "react";
+import { KeyboardEvent, MouseEvent, ReactElement } from "react";
 import { RootState } from "store";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { useAppDispatch } from "store/hooks";
+import { AccountCardBackground, FileCopyIcon } from "components/Icons";
 
 interface IAccountCardProps {
     account: IUnlockedAccountMeta;
     fullMode?: boolean;
     className?: string;
+    onRequestDelete?: (request: TRemoveAccountRequest) => void;
 }
 
-const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
-    border: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? `1px solid ${theme.border}`
-            : `1px solid ${theme.primary}`};
-    cursor: pointer;
-    transition: all 0.2s ease;
-    padding: 26px 16px;
-    background-color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.colors.background.secondary : theme.primary};
-    min-width: 462px;
-    overflow: auto;
+export const ACCOUNT_CARD_WIDTH_PX = 462;
 
+const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
+    border: ${({ $isSelected }) => ($isSelected ? "3px" : "1px")} solid
+        ${({ theme }) => theme.primary};
+    cursor: pointer;
+    transition:
+        border-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing},
+        background-color ${({ theme }) => theme.motion.normal}
+            ${({ theme }) => theme.motion.easing};
+    padding: ${({ theme }) => theme.spacing["3xl"]}
+        ${({ theme }) => theme.spacing.xl};
+    width: 100%;
+    max-width: ${ACCOUNT_CARD_WIDTH_PX}px;
+    overflow: visible;
     box-shadow: ${({ theme }) => theme.shadowDrop};
+    background-color: ${({ theme }) => theme.card};
+    isolation: isolate;
 
     &:hover {
         border-color: ${({ theme }) => theme.primary};
     }
 
-    @media (max-width: 768px) {
-        min-width: auto;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        max-width: none;
+
+        .amount-balance-info-wrapper > span:first-child {
+            font-size: ${({ theme }) => theme.typography.size.display};
+        }
     }
 `;
 
-const AccountHeader = styled.div<{ $fullMode: boolean; $isActions: boolean }>`
+const CardBackground = styled(AccountCardBackground)<{ $isSelected: boolean }>`
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    color: ${({ $isSelected, theme }) =>
+        $isSelected ? theme.primaryMuted : theme.primarySubtle};
+    transition: color ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
+    pointer-events: none;
+`;
+
+const AccountHeader = styled.div<{ $fullMode: boolean }>`
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 26px;
-    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: ${({ theme }) => theme.spacing["2xl"]};
+    gap: ${({ theme }) => theme.spacing.xl};
 
     ${({ $fullMode }) =>
         $fullMode &&
         `
-             & > :first-child {
-        flex: 1;
-        min-width: 0;
-    }
-        `}
+        & > :first-child {
+            flex: 1;
+            min-width: 0;
+        }
+    `}
+`;
 
-    ${({ $isActions }) =>
-        $isActions &&
-        `
-        & > :last-child {
-        flex-shrink: 0;
-        flex-grow: 0;
-    }
+const HeaderActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    flex-shrink: 0;
+`;
+
+const DerivationIndex = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
+    color: ${({ theme }) => theme.control.neutralText};
+    margin: -${({ theme }) => theme.spacing.lg} 0
+        ${({ theme }) => theme.spacing.xl};
+`;
+
+const LabelSecond = styled.span<{ $compact?: boolean }>`
+    font-weight: 400;
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    color: ${({ theme }) => theme.text.primary};
+    ${({ $compact }) =>
+        $compact &&
+        css`
+            flex: 0 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         `}
 `;
 
-const LabelSecond = styled.span<{ $isSelected: boolean }>`
+const LabelThird = styled.div`
     font-weight: 400;
-    font-size: 0.75rem;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
-`;
-
-const LabelThird = styled.div<{ $isSelected: boolean }>`
-    font-weight: 400;
-    font-size: 0.5rem;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    color: ${({ theme }) => theme.control.neutralText};
 `;
 
 const AccountCardFooter = styled.div`
     display: flex;
     width: 100%;
-    justify-content: space-between;
     align-items: center;
+    gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const AccountAddress = styled.div<{ $isSelected: boolean }>`
-    font-size: 12px;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected ? theme.text.primary : theme.colors.background.secondary};
-    word-break: break-all;
+const AccountAddress = styled.div<{ $compact: boolean }>`
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    color: ${({ theme }) => theme.text.primary};
+    min-width: 0;
+    flex: 1;
+
+    ${({ $compact }) =>
+        $compact
+            ? css`
+                  word-break: normal;
+              `
+            : css`
+                  word-break: break-all;
+              `}
 
     button {
-        color: ${({ $isSelected, theme }) =>
-            !$isSelected
-                ? theme.text.primary
-                : theme.colors.background.secondary};
+        color: ${({ theme }) => theme.text.primary};
+        flex-shrink: 0;
     }
 `;
+
+const AddressValueRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+    min-width: 0;
+`;
+
+const AddressCopyAction = styled.span`
+    display: inline-flex;
+    flex-shrink: 0;
+
+    .copy-container {
+        display: inline-flex;
+    }
+
+    .copy-button {
+        position: static;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        padding: 4px;
+        transform: none;
+    }
+
+    .copy-button:hover {
+        transform: none;
+    }
+`;
+
+const stopCardActivation = (event: MouseEvent): void => {
+    event.stopPropagation();
+};
 
 export const AccountCard = ({
     account,
     fullMode = true,
     className = "",
+    onRequestDelete,
 }: IAccountCardProps): ReactElement => {
     const dispatch = useAppDispatch();
 
@@ -123,10 +210,22 @@ export const AccountCard = ({
         selectWalletByAccountId(state, account.id),
     );
 
-    const canRemoveAccount = ownerWallet?.type !== WalletTypes.PRIVATE_KEY;
-
     const handleSelectAccount = (accountId: string) => {
         dispatch(selectAccount(accountId));
+    };
+
+    const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+        // Only when the card itself is focused — nested inputs/buttons keep their keys.
+        if (event.target !== event.currentTarget) {
+            return;
+        }
+
+        if (event.key !== "Enter" && event.key !== " ") {
+            return;
+        }
+
+        event.preventDefault();
+        handleSelectAccount(account.id);
     };
 
     const formatAddress = (
@@ -141,49 +240,82 @@ export const AccountCard = ({
     };
 
     const isSelected = selectedAccountId === account.id;
+    const showDerivationIndex =
+        fullMode &&
+        ownerWallet?.type === WalletTypes.HD &&
+        account.index !== null &&
+        account.index !== undefined;
 
     return (
         <AccountCardWrapper
             key={account.id}
-            id={`account-$card-${account.id}`}
+            id={`account-card-${account.id}`}
+            data-testid={`account-card-${account.id}`}
             $isSelected={isSelected}
             className={className}
+            role="group"
+            tabIndex={0}
+            aria-label={
+                isSelected
+                    ? `${account.name}, active account`
+                    : `${account.name}, account`
+            }
             onClick={() => handleSelectAccount(account.id)}
+            onKeyDown={handleCardKeyDown}
+            aria-current={isSelected ? "true" : undefined}
         >
-            <AccountHeader
-                $fullMode={fullMode}
-                $isActions={fullMode && canRemoveAccount}
-            >
+            <CardBackground $isSelected={isSelected} />
+            <AccountHeader $fullMode={fullMode}>
                 <AccountNameEditor
                     disabled={!isUnlocked}
                     accountId={account.id}
+                    isSelected={false}
                 />
 
-                {fullMode && canRemoveAccount && (
-                    <RemoveAccountButton accountId={account.id} />
-                )}
+                <HeaderActions onClick={stopCardActivation}>
+                    {fullMode && isUnlocked && onRequestDelete && (
+                        <RemoveAccountButton
+                            accountId={account.id}
+                            onRequestDelete={onRequestDelete}
+                        />
+                    )}
+                </HeaderActions>
             </AccountHeader>
 
-            <ASIAccountBalance account={account} isSelected={isSelected} />
+            {showDerivationIndex && (
+                <DerivationIndex>
+                    <span aria-hidden="true">
+                        <FileCopyIcon size={14} color="currentColor" />
+                    </span>
+                    {`ID:${account.index}`}
+                </DerivationIndex>
+            )}
+
+            <ASIAccountBalance account={account} neutralAmount />
 
             <AccountCardFooter>
-                <AccountAddress $isSelected={isSelected}>
-                    <LabelThird
-                        $isSelected={isSelected}
-                    >{`ASI Address`}</LabelThird>
-                    <LabelSecond
-                        style={{ marginRight: 10, lineHeight: "27px" }}
-                        $isSelected={isSelected}
-                    >
-                        {formatAddress(account.address, {
-                            isFullMode: !fullMode,
-                        })}
-                    </LabelSecond>
-                    <CopyButton
-                        dataToCopy={account.address}
-                        size={15}
-                        title="Copy Address"
-                    />
+                <AccountAddress $compact={!fullMode}>
+                    <LabelThird>ASI Address</LabelThird>
+                    <AddressValueRow>
+                        <LabelSecond
+                            style={{ marginRight: 0, lineHeight: "27px" }}
+                            $compact={!fullMode}
+                            title={account.address}
+                        >
+                            {formatAddress(account.address, {
+                                // Compact Wallet: full string + CSS ellipsis (Current p26/p27).
+                                // Accounts: truncated middle form.
+                                isFullMode: !fullMode,
+                            })}
+                        </LabelSecond>
+                        <AddressCopyAction onClick={stopCardActivation}>
+                            <CopyButton
+                                dataToCopy={account.address}
+                                size={15}
+                                title={`Copy address, ${account.name}`}
+                            />
+                        </AddressCopyAction>
+                    </AddressValueRow>
                 </AccountAddress>
             </AccountCardFooter>
         </AccountCardWrapper>

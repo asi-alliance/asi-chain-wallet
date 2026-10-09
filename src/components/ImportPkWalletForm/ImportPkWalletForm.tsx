@@ -1,36 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { useScreen, useValidAccountUpdating } from "hooks/";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
+import { useValidAccountUpdating } from "hooks/";
 import { importPrivateKeyWallet } from "store/Auth/thunks";
 import { PasswordSetup } from "components/PasswordSetup";
-import { Input, Button } from "components";
+import { Alert, Input, Button, FormActions } from "components";
 import { useAppDispatch } from "store/hooks";
 import { SdkWalletService } from "sdk";
 
+const FormContainer = styled.div`
+    width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
+    margin: 0 auto;
+`;
+
 const FormGroup = styled.div`
-    margin-bottom: 16px;
-`;
-
-const ActionButtons = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 24px;
-
-    @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
-    }
-`;
-
-const AdaptiveButton = styled(Button)`
-    min-width: 242px;
-
-    @media (max-width: 768px) {
-        min-width: auto;
-    }
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 interface PendingImport {
@@ -48,6 +33,8 @@ interface ImportPkWalletFormProps {
 
 type Step = "form" | "password";
 
+const clearSecretString = (value: string): string => " ".repeat(value.length);
+
 export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
     onSuccess,
     onCancel,
@@ -56,7 +43,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
     firstAccount = false,
 }) => {
     const dispatch = useAppDispatch();
-    const { isLaptop } = useScreen();
+    const submissionRef = useRef(false);
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField } =
         useValidAccountUpdating(undefined, { firstAccount });
@@ -66,6 +53,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
     const [privateKey, setPrivateKey] = useState("");
     const [importNameError, setImportNameError] = useState("");
     const [privateKeyError, setPrivateKeyError] = useState("");
+    const [formError, setFormError] = useState("");
     const [pendingImport, setPendingImport] = useState<PendingImport | null>(
         null,
     );
@@ -82,19 +70,30 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
         }
 
         updateImportName(customAccountName);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customAccountName]);
+
+    const clearVisibleSecrets = (): void => {
+        setPrivateKey((current) => clearSecretString(current));
+        setPrivateKey("");
+        setPendingImport(null);
+    };
 
     const handleCancel = () => {
         setStep("form");
         updateImportName("");
-        setPrivateKey("");
+        clearVisibleSecrets();
         setImportNameError("");
         setPrivateKeyError("");
-        setPendingImport(null);
+        setFormError("");
         onCancel?.();
     };
 
     const handleImportAccount = () => {
+        if (loading || submissionRef.current) {
+            return;
+        }
+
         const trimmedName = importName.trim();
 
         if (!trimmedName) {
@@ -123,7 +122,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
 
         setImportNameError("");
         setPrivateKeyError("");
-
+        setFormError("");
         setPendingImport({
             name: trimmedName,
             privateKeyHex: trimmedPrivateKey,
@@ -132,9 +131,13 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
     };
 
     const handlePasswordSet = async (password: string) => {
-        if (!pendingImport) return;
+        if (!pendingImport || loading || submissionRef.current) {
+            return;
+        }
 
+        submissionRef.current = true;
         setLoading(true);
+        setFormError("");
 
         try {
             await dispatch(
@@ -148,12 +151,13 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
             onSuccess?.();
             handleCancel();
         } catch (error) {
-            setPrivateKeyError(
-                (error as Error)?.message || "Failed to import wallet",
+            setFormError(
+                getErrorMessage(error, "Failed to import wallet"),
             );
-            setStep("form");
+            setStep("password");
         } finally {
             setLoading(false);
+            submissionRef.current = false;
         }
     };
 
@@ -162,24 +166,36 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
             <PasswordSetup
                 title="Set Password for Imported Wallet"
                 loading={loading}
+                error={formError}
                 onPasswordSet={handlePasswordSet}
                 onCancel={() => {
-                    setStep("form");
+                    setFormError("");
                     setPendingImport(null);
+                    setStep("form");
                 }}
             />
         );
     }
 
     return (
-        <>
+        <FormContainer>
+            {formError && (
+                <Alert
+                    tone="danger"
+                    icon="⚠️"
+                    style={{ marginBottom: "16px" }}
+                >
+                    {formError}
+                </Alert>
+            )}
+
             <FormGroup>
                 <Input
                     id="import-pk-account-name-input"
                     label="Account Name"
                     value={importName}
-                    onChange={(e) => {
-                        updateImportName(e.target.value);
+                    onChange={(event) => {
+                        updateImportName(event.target.value);
                         if (importNameError) {
                             setImportNameError("");
                         }
@@ -189,6 +205,7 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
                     maxLength={30}
                     readOnly={!!customAccountName}
                     disabled={loading}
+                    autoComplete="off"
                 />
             </FormGroup>
 
@@ -197,8 +214,8 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
                     id="import-pk-private-key-input"
                     label="Private Key"
                     value={privateKey}
-                    onChange={(e) => {
-                        setPrivateKey(e.target.value);
+                    onChange={(event) => {
+                        setPrivateKey(event.target.value);
                         if (privateKeyError) {
                             setPrivateKeyError("");
                         }
@@ -206,11 +223,13 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
                     placeholder="Enter private key (64 hexadecimal characters)"
                     error={privateKeyError}
                     disabled={loading}
+                    autoComplete="off"
+                    spellCheck={false}
                 />
             </FormGroup>
 
-            <ActionButtons>
-                <AdaptiveButton
+            <FormActions>
+                <Button
                     id="import-pk-account-button"
                     variant="primary"
                     onClick={handleImportAccount}
@@ -220,56 +239,22 @@ export const ImportPkWalletForm: React.FC<ImportPkWalletFormProps> = ({
                         loading ||
                         !isNameUpdateValid
                     }
-                    fullWidth={isLaptop}
                     loading={loading}
-                    style={{
-                        flexWrap: "nowrap",
-                        whiteSpace: "nowrap",
-                        ...(isLaptop && {
-                            marginBottom: "16px",
-                        }),
-                    }}
+                    fullWidth
                 >
-                    <h3>Import Private Key</h3>
-                    <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <g clipPath="url(#clip0_3_1930)">
-                            <path
-                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                fill="currentcolor"
-                            />
-                        </g>
-                        <defs>
-                            <clipPath id="clip0_3_1930">
-                                <rect
-                                    width="24"
-                                    height="24"
-                                    fill="currentcolor"
-                                />
-                            </clipPath>
-                        </defs>
-                    </svg>
-                </AdaptiveButton>
+                    Import Private Key
+                </Button>
                 {!hideCancelButton && (
-                    <AdaptiveButton
+                    <Button
                         variant="secondary"
                         onClick={handleCancel}
                         disabled={loading}
-                        fullWidth={isLaptop}
-                        style={{
-                            flexWrap: "nowrap",
-                            whiteSpace: "nowrap",
-                        }}
+                        fullWidth
                     >
                         Cancel
-                    </AdaptiveButton>
+                    </Button>
                 )}
-            </ActionButtons>
-        </>
+            </FormActions>
+        </FormContainer>
     );
 };

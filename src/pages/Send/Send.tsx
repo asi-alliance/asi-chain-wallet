@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
+import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -14,53 +15,74 @@ import {
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { skipToken } from "@reduxjs/toolkit/query/react";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
 } from "store/networkOperationSlice";
 import {
+    Button,
     Card,
+    CardContent,
     CardHeader,
     CardTitle,
-    CardContent,
-    Button,
     Input,
-    TransactionConfirmationModal,
     PasswordModal,
+    TransactionConfirmationModal,
 } from "components";
-import { useWalletSessionAction } from "hooks";
-import { getTokenDisplayName } from "../../constants/token";
-import { getGasFeeAsNumber, getGasFeeRangeLabel } from "../../constants/gas";
-import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
-import {
-    getAmountValidationError,
-    getMaxSendableAmount,
-} from "utils/balanceUtils";
-import addressValidation from "utils/AddressValidation";
+import { AccountBalance } from "components/AccountBalance";
 import { AccountSelector } from "components/AccountSelector";
 import { AccountSelectorLabelMods } from "components/AccountSelector/AccountSelector";
-import { TextSecondaryBlock } from "styles/sharedStyledComponents";
-import { ASIAccountBalance } from "components/ASIAccountBalance";
-import { DefaultTheme } from "styled-components/dist/types";
 import {
     ContentPasteIcon,
     HistoryIcon,
     QRIcon,
     VectorIcon,
 } from "components/Icons";
+import { ModalWindow } from "components/ModalWindow";
+import { useCopyToClipboard, useWalletSessionAction } from "hooks";
+import { getGasFeeRangeLabel } from "../../constants/gas";
+import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
+import {
+    getAmountValidationError,
+    getMaxSendableAmount,
+    isPositiveTokenAmount,
+} from "utils/balanceUtils";
+import addressValidation from "utils/AddressValidation";
 
 const BALANCE_UNAVAILABLE_ERROR =
     "Failed to load balance for the selected network. Sending is unavailable.";
-
 const TRANSACTION_UNRESOLVED_TITLE =
-    "Transaction status is unknown. It may still complete on chain, check the transaction history later.";
-
+    "Transaction status is unknown. It may still complete on chain. Check transaction history later.";
 const NETWORK_CHANGED_ERROR =
     "Network changed while the transfer was awaiting confirmation. Check the details and send again.";
 
-interface IPendingTransfer {
+const validateRecipientAddress = (
+    value: string,
+    sourceAddress?: string,
+): string => {
+    const normalized = value.trim();
+
+    if (!normalized) return "Recipient address is required";
+    if (normalized.toLowerCase().startsWith("0x")) {
+        return "This address belongs to another network. Enter an ASI Chain address.";
+    }
+
+    const result = addressValidation(normalized);
+    if (!result.isValid) {
+        return `Invalid recipient address: ${result.validationMessages.join(", ")}`;
+    }
+    if (
+        sourceAddress &&
+        normalized.toLowerCase() === sourceAddress.toLowerCase()
+    ) {
+        return "Cannot send to the same address (self-transfer is not allowed).";
+    }
+
+    return "";
+};
+
+interface ITransferDetails {
     walletId: string;
     accountId: string;
     accountName: string;
@@ -71,187 +93,163 @@ interface IPendingTransfer {
 }
 
 const SendContainer = styled.div`
+    width: 100%;
     max-width: 600px;
     margin: 0 auto;
 `;
 
-const FormGroup = styled.div`
-    margin-bottom: 24px;
-`;
+const SendCard = styled(Card)`
+    padding-bottom: ${({ theme }) => theme.spacing["4xl"]};
 
-const RecipientAddressFormGroup = styled(FormGroup)`
-    margin-bottom: 36px;
-
-    @media (max-width: 768px) {
-        margin-bottom: 20px;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        padding-bottom: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
-const BalanceInfo = styled.div`
-    margin-bottom: 36px;
+const Form = styled.form`
     display: flex;
-    justify-content: center;
-
-    @media (max-width: 768px) {
-        margin-bottom: 49px;
-    }
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing["3xl"]};
 `;
 
-const ActionButtons = styled.div`
+const SourceSection = styled.section`
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing["5xl"]};
+`;
+
+const BalanceArea = styled.div`
+    display: flex;
     justify-content: center;
+`;
+
+const FieldRow = styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const FieldAction = styled(Button)`
+    width: 44px;
+    min-width: 44px;
+    margin-top: 24px;
+    padding: 0;
+`;
+
+const IconFieldAction = styled(Button)`
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    margin-top: 24px;
+`;
+
+const PasteFieldAction = styled(Button)`
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+`;
+
+const FormError = styled.div`
+    padding: ${({ theme }) => theme.spacing.lg};
+    border: 1px solid ${({ theme }) => theme.danger};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => `${theme.danger}12`};
+    color: ${({ theme }) => theme.dangerText};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+`;
+
+const Actions = styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: center;
-`;
+    gap: ${({ theme }) => theme.spacing.md};
 
-const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger};
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-`;
-
-const SuccessMessage = styled.div`
-    background: ${({ theme }) => theme.success};
-    color: ${({ theme }) => theme.text.inverse};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    word-break: break-all;
-    box-shadow: ${({ theme }) => theme.shadowLarge};
-
-    /* Force inverse text for all content */
-    * {
-        color: ${({ theme }) => theme.text.inverse} !important;
+    > button:nth-child(-n + 2) {
+        width: 100%;
+        min-width: 0;
     }
 
-    .deploy-id {
-        font-size: 12px;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid ${({ theme }) => `${theme.text.inverse}20`};
-        color: ${({ theme }) => theme.text.inverse};
-        opacity: 0.8;
-    }
-`;
-
-const WarningMessage = styled.div`
-    background: ${({ theme }) => `${theme.warning}20`};
-    color: ${({ theme }) => theme.warning};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    word-break: break-all;
-`;
-
-const LoadingMessage = styled.div`
-    background: ${({ theme }) => `${theme.primary}20`};
-    color: ${({ theme }) => theme.primary};
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    text-align: center;
-
-    .spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid ${({ theme }) => theme.primary};
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-right: 8px;
-        vertical-align: middle;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        > button:nth-child(-n + 2) {
+            padding-inline: 4px;
+            font-size: ${({ theme }) => theme.typography.size.sm};
         }
     }
 `;
 
-const QRScannerModal = styled.div<{ $isOpen: boolean }>`
-    display: ${({ $isOpen }) => ($isOpen ? "flex" : "none")};
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
+const StatusBanner = styled.section<{
+    $tone: "pending" | "success" | "warning";
+}>`
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme }) => theme.spacing.lg};
+    border: 1px solid
+        ${({ theme, $tone }) =>
+            $tone === "success"
+                ? theme.primary
+                : $tone === "warning"
+                  ? theme.warning
+                  : theme.secondary};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme, $tone }) =>
+        $tone === "success"
+            ? theme.primarySubtle
+            : $tone === "warning"
+              ? `${theme.warning}12`
+              : `${theme.secondary}12`};
 `;
 
-const QRScannerContent = styled.div`
-    background: ${({ theme }) => theme.background};
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 80vh;
-    overflow: auto;
-`;
-
-const QRScannerHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-`;
-
-const QRScannerTitle = styled.h3`
-    margin: 0;
+const StatusHeading = styled.h2`
+    margin: 0 0 ${({ theme }) => theme.spacing.xs};
     color: ${({ theme }) => theme.text.primary};
+    font-size: ${({ theme }) => theme.typography.size.lg};
+    line-height: ${({ theme }) => theme.typography.lineHeight.lg};
 `;
 
-const CloseButton = styled.button`
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
+const StatusText = styled.p`
+    margin: 0 0 ${({ theme }) => theme.spacing.md};
     color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+`;
 
-    &:hover {
-        color: ${({ theme }) => theme.text.primary};
-    }
+const HashValue = styled.div`
+    color: ${({ theme }) => theme.text.primary};
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
+    overflow-wrap: anywhere;
+`;
+
+const StatusActions = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.md};
+    margin-top: ${({ theme }) => theme.spacing.md};
 `;
 
 const VideoContainer = styled.div`
-    position: relative;
     width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-    border-radius: 8px;
     overflow: hidden;
-    background: ${({ theme }) => theme.surface};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.control.fieldBackground};
 `;
 
 const Video = styled.video`
+    display: block;
     width: 100%;
     height: auto;
-    display: block;
 `;
 
-const InputWithButton = styled.div`
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-`;
-
-const ButtonGroup = styled.div`
-    display: flex;
-    gap: 8px;
-    margin-bottom: 0;
-`;
-const AccountSelectorWithMarginBottom = styled(AccountSelector)`
-    margin-bottom: 36px;
-
-    @media (max-width: 768px) {
-        margin-bottom: 15px;
-    }
+const ScannerHelp = styled.p`
+    margin: ${({ theme }) => theme.spacing.xl} 0 0;
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    text-align: center;
 `;
 
 export const Send: React.FC = () => {
@@ -268,6 +266,7 @@ export const Send: React.FC = () => {
         currentData: currentBalance,
         isFetching,
         isError: isBalanceError,
+        refetch: refetchBalance,
     } = useGetBalanceQuery(
         selectedAccount
             ? { accountId: selectedAccount.id, networkId }
@@ -277,40 +276,45 @@ export const Send: React.FC = () => {
 
     const balance = currentBalance ?? "0";
     const isBalanceReady = currentBalance !== undefined && !isBalanceError;
-    const isLoading = useSelector(
-        (state: RootState) => state.walletsStore.isLoading,
-    );
-
     const [recipient, setRecipient] = useState("");
     const [amount, setAmount] = useState("");
     const [txHash, setTxHash] = useState("");
     const [validationError, setValidationError] = useState("");
+    const [maxError, setMaxError] = useState("");
+    const [amountPasteError, setAmountPasteError] = useState("");
     const [addressError, setAddressError] = useState("");
-    const [showQRScanner, setShowQRScanner] = useState(false);
     const [scanError, setScanError] = useState("");
+    const [cameraError, setCameraError] = useState("");
+    const [showQRScanner, setShowQRScanner] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [pendingTransfer, setPendingTransfer] =
-        useState<IPendingTransfer | null>(null);
-    const [copied, setCopied] = useState(false);
+        useState<ITransferDetails | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const qrScannerRef = useRef<QrScanner | null>(null);
+    const confirmationInFlightRef = useRef(false);
+    const pasteGenerationRef = useRef(0);
+    const amountPasteGenerationRef = useRef(0);
+    const scannerGenerationRef = useRef(0);
 
     const deployWatch = useSelector((state: RootState) =>
         txHash ? selectDeployWatch(state, txHash) : null,
     );
-
     const isTransactionConfirmed =
         deployWatch?.status === DeployStatus.FINALIZED;
     const unresolvedReason = deployWatch?.unresolvedReason ?? "";
     const isWaitingForConfirmation =
-        !!deployWatch && !isTransactionConfirmed && !unresolvedReason;
-
+        !!txHash && !isTransactionConfirmed && !unresolvedReason;
     const walletId = selectedWallet?.id;
+    const txHashClipboard = useCopyToClipboard(1500);
+    const txHashCopyStatus =
+        txHashClipboard.result?.value === txHash
+            ? txHashClipboard.result.status
+            : null;
 
     const clearDeployWatch = (): void => {
-        if (!txHash) {
-            return;
+        if (txHash) {
+            dispatch(deployWatchCleared(txHash));
         }
-
-        dispatch(deployWatchCleared(txHash));
         setTxHash("");
     };
 
@@ -320,13 +324,11 @@ export const Send: React.FC = () => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-
             if (pendingTransfer.networkId !== networkId) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
             clearDeployWatch();
-
             return dispatch(
                 sendTransaction({
                     walletId: pendingTransfer.walletId,
@@ -338,10 +340,15 @@ export const Send: React.FC = () => {
             ).unwrap();
         },
         onSuccess: ({ deployId }) => {
+            pasteGenerationRef.current += 1;
+            amountPasteGenerationRef.current += 1;
             setPendingTransfer(null);
             setTxHash(deployId);
             setRecipient("");
             setAmount("");
+            setValidationError("");
+            setAddressError("");
+            setScanError("");
         },
         onError: (message: string) => {
             setPendingTransfer(null);
@@ -350,173 +357,125 @@ export const Send: React.FC = () => {
         errorFallback: "Failed to send transaction",
     });
 
-    const isSending = isLoading || sendAction.isRunning;
+    const isSending = sendAction.isRunning;
+    const isFormFrozen = !!pendingTransfer || isSending;
+    const amountError = isBalanceReady
+        ? getAmountValidationError(amount, balance, GasFee.MAX, true)
+        : "";
+    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
 
-    useEffect(() => {
-        if (!pendingTransfer) {
-            return;
-        }
+    useLayoutEffect(() => {
+        if (!pendingTransfer) return;
 
         dispatch(networkOperationStarted());
-
         return () => {
             dispatch(networkOperationFinished());
         };
     }, [dispatch, pendingTransfer]);
 
-    const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance)
-        : "";
-    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
-    const displayedError = validationError || balanceError || amountError;
+    useLayoutEffect(() => {
+        if (!pendingTransfer) return;
 
-    const handleRecipientChange = (value: string) => {
-        setRecipient(value);
+        const historyIndex = window.history.state?.idx;
+        let restoringHistory = false;
 
-        if (!value.trim()) {
-            setAddressError("");
-            return;
-        }
-
-        if (value.trim().toLowerCase().startsWith("0x")) {
-            setAddressError("Sending to Ethereum addresses is not supported");
-            return;
-        }
-
-        const validation = addressValidation(value);
-        if (!validation.isValid) {
-            setAddressError(validation.validationMessages.join(", "));
-        } else {
-            setAddressError("");
-        }
-    };
-
-    const handleAmountChange = (value: string) => {
-        setAmount(value);
-        setValidationError("");
-    };
-
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const qrScannerRef = useRef<QrScanner | null>(null);
-
-    // Initialize QR scanner when modal opens
-    useEffect(() => {
-        if (showQRScanner && videoRef.current) {
-            const qrScanner = new QrScanner(
-                videoRef.current,
-                (result) => {
-                    handleRecipientChange(result.data);
-                    setShowQRScanner(false);
-                    setScanError("");
-                },
-                {
-                    returnDetailedScanResult: true,
-                    highlightScanRegion: true,
-                    highlightCodeOutline: true,
-                },
-            );
-
-            qrScannerRef.current = qrScanner;
-            qrScanner.start().catch((err) => {
-                console.error("Failed to start QR scanner:", err);
-                setScanError(
-                    "Failed to access camera. Please check permissions.",
-                );
-            });
-        }
-
-        return () => {
-            if (qrScannerRef.current) {
-                qrScannerRef.current.stop();
-                qrScannerRef.current.destroy();
-                qrScannerRef.current = null;
-            }
+        const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
+            event.preventDefault();
+            event.returnValue = "";
         };
-    }, [showQRScanner]);
-
-    // Handle paste from clipboard
-    const _handlePasteImage = async () => {
-        try {
-            setScanError("");
-
-            // Check if clipboard API is available
-            if (!navigator.clipboard || !navigator.clipboard.read) {
-                setScanError("Clipboard access not supported in this browser");
-                setTimeout(() => setScanError(""), 3000);
+        const handlePopState = (event: PopStateEvent): void => {
+            if (restoringHistory) {
+                restoringHistory = false;
                 return;
             }
 
-            const clipboardItems = await navigator.clipboard.read();
+            event.stopImmediatePropagation();
+            const nextIndex = event.state?.idx;
+            const delta =
+                typeof historyIndex === "number" &&
+                typeof nextIndex === "number"
+                    ? historyIndex - nextIndex
+                    : 1;
 
-            for (const clipboardItem of clipboardItems) {
-                for (const type of clipboardItem.types) {
-                    if (type.startsWith("image/")) {
-                        const blob = await clipboardItem.getType(type);
+            restoringHistory = true;
+            window.history.go(delta || 1);
+        };
 
-                        try {
-                            const result = await QrScanner.scanImage(blob, {
-                                returnDetailedScanResult: true,
-                            });
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("popstate", handlePopState, true);
 
-                            if (result.data) {
-                                handleRecipientChange(result.data);
-                                return;
-                            }
-                        } catch (error) {
-                            console.error(
-                                "Failed to scan QR code from clipboard image:",
-                                error,
-                            );
-                        }
-                    }
-                }
-            }
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            window.removeEventListener("popstate", handlePopState, true);
+        };
+    }, [pendingTransfer]);
 
-            setScanError(
-                "No QR code found in clipboard. Copy a QR code image and try again.",
-            );
-            setTimeout(() => setScanError(""), 3000);
-        } catch (error) {
-            console.error("Failed to access clipboard:", error);
-            setScanError(
-                "Failed to access clipboard. Please check permissions.",
-            );
-            setTimeout(() => setScanError(""), 3000);
+    useEffect(() => {
+        if (!recipient.trim() || !selectedAccount?.address) {
+            setAddressError("");
+            return;
         }
-    };
 
-    // Handle paste event on the input field
-    const handleInputPaste = async (
-        event: React.ClipboardEvent<HTMLInputElement>,
-    ) => {
-        const items = event.clipboardData?.items;
-        if (!items) return;
+        setAddressError(
+            validateRecipientAddress(recipient, selectedAccount.address),
+        );
+    }, [recipient, selectedAccount?.address]);
 
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.startsWith("image/")) {
-                event.preventDefault();
-                const blob = items[i].getAsFile();
-                if (blob) {
-                    try {
-                        const result = await QrScanner.scanImage(blob, {
-                            returnDetailedScanResult: true,
-                        });
+    useEffect(() => {
+        if (!showQRScanner || !videoRef.current) return;
 
-                        if (result.data) {
-                            handleRecipientChange(result.data);
-                        }
-                    } catch (error) {
-                        console.error(
-                            "Failed to scan QR code from pasted image:",
-                            error,
-                        );
-                        setScanError("No QR code found in the image.");
-                        setTimeout(() => setScanError(""), 3000);
-                    }
-                }
+        const scannerGeneration = ++scannerGenerationRef.current;
+        const scanner = new QrScanner(
+            videoRef.current,
+            (result) => {
+                if (scannerGeneration !== scannerGenerationRef.current) return;
+
+                pasteGenerationRef.current += 1;
+                setRecipient(result.data);
+                setAddressError(
+                    validateRecipientAddress(
+                        result.data,
+                        selectedAccount?.address,
+                    ),
+                );
+                setValidationError("");
+                setScanError("");
+                setCameraError("");
+                setShowQRScanner(false);
+            },
+            {
+                returnDetailedScanResult: true,
+                highlightScanRegion: true,
+                highlightCodeOutline: true,
+            },
+        );
+        let scannerDestroyed = false;
+        const destroyScanner = (): void => {
+            if (scannerDestroyed) return;
+
+            scannerDestroyed = true;
+            scanner.stop();
+            scanner.destroy();
+            if (scannerGenerationRef.current === scannerGeneration) {
+                scannerGenerationRef.current += 1;
             }
-        }
-    };
+            if (qrScannerRef.current === scanner) {
+                qrScannerRef.current = null;
+            }
+        };
+
+        qrScannerRef.current = scanner;
+        scanner.start().catch(() => {
+            if (scannerGeneration !== scannerGenerationRef.current) return;
+
+            destroyScanner();
+            setCameraError(
+                "Failed to access camera. Check camera permissions and try again.",
+            );
+        });
+
+        return destroyScanner;
+    }, [selectedAccount?.address, showQRScanner]);
 
     if (!selectedAccount) {
         return (
@@ -525,7 +484,7 @@ export const Send: React.FC = () => {
                     <CardContent>
                         <p>Please select an account first.</p>
                         <Button onClick={() => navigate("/accounts")}>
-                            Select Account
+                            Select account
                         </Button>
                     </CardContent>
                 </Card>
@@ -533,49 +492,31 @@ export const Send: React.FC = () => {
         );
     }
 
-    const validateForm = () => {
-        if (!recipient.trim()) {
-            setValidationError("Recipient address is required");
+    const handleRecipientChange = (value: string): void => {
+        pasteGenerationRef.current += 1;
+        setRecipient(value);
+        setValidationError("");
+        setScanError("");
+        setAddressError(
+            value.trim()
+                ? validateRecipientAddress(value, selectedAccount.address)
+                : "",
+        );
+    };
+
+    const validateForm = (): boolean => {
+        const recipientError = validateRecipientAddress(
+            recipient,
+            selectedAccount.address,
+        );
+        if (recipientError) {
+            setAddressError(recipientError);
             return false;
         }
-
-        if (recipient.trim().toLowerCase().startsWith("0x")) {
-            setValidationError(
-                "Sending to Ethereum addresses is not supported",
-            );
+        if (!amount.trim()) {
+            setValidationError("Amount is required");
             return false;
         }
-
-        // Validate address format
-        const addressValidationResult = addressValidation(recipient);
-        if (!addressValidationResult.isValid) {
-            setValidationError(
-                `Invalid recipient address: ${addressValidationResult.validationMessages.join(
-                    ", ",
-                )}`,
-            );
-            return false;
-        }
-
-        if (
-            selectedAccount &&
-            recipient.toLowerCase() === selectedAccount.address.toLowerCase()
-        ) {
-            setValidationError(
-                "Cannot send to the same address (self-transfer not allowed)",
-            );
-            return false;
-        }
-
-        if (
-            !amount.trim() ||
-            isNaN(parseFloat(amount)) ||
-            parseFloat(amount) <= 0
-        ) {
-            setValidationError("Valid amount is required");
-            return false;
-        }
-
         if (!isBalanceReady) {
             setValidationError(
                 isBalanceError
@@ -584,27 +525,27 @@ export const Send: React.FC = () => {
             );
             return false;
         }
-
         if (amountError) {
-            setValidationError(amountError);
+            setValidationError("");
             return false;
         }
-
-        setValidationError("");
         return true;
     };
 
-    const handleSendClick = (): void => {
-        if (!validateForm() || !selectedAccount) {
+    const handleSend = (): void => {
+        if (isSending || confirmationInFlightRef.current || !validateForm()) {
             return;
         }
-
         if (!walletId) {
-            setValidationError("Session expired. Please login again.");
+            setValidationError("Session expired. Please log in again.");
             navigate("/login");
             return;
         }
 
+        pasteGenerationRef.current += 1;
+        amountPasteGenerationRef.current += 1;
+        setScanError("");
+        dispatch(networkOperationStarted());
         setPendingTransfer({
             walletId,
             accountId: selectedAccount.id,
@@ -612,407 +553,421 @@ export const Send: React.FC = () => {
             accountAddress: selectedAccount.address,
             networkId,
             to: recipient.trim() as Address,
-            amount,
+            amount: amount.trim(),
         });
-
+        setValidationError("");
         setShowConfirmation(true);
     };
 
     const handleConfirmSend = (): void => {
-        setShowConfirmation(false);
+        if (isSending || confirmationInFlightRef.current) return;
 
-        void sendAction.run();
+        confirmationInFlightRef.current = true;
+        setShowConfirmation(false);
+        void sendAction.run().finally(() => {
+            confirmationInFlightRef.current = false;
+        });
     };
 
     const handleCancelTransfer = (): void => {
+        if (isSending) return;
         setShowConfirmation(false);
         sendAction.passwordPrompt.onClose();
         setPendingTransfer(null);
-    };
-
-    const handleClearAll = (): void => {
-        setRecipient("");
-        setAmount("");
-        setValidationError("");
-        setAddressError("");
-        clearDeployWatch();
         setScanError("");
-        setCopied(false);
-        handleCancelTransfer();
     };
 
-    const maxAmount = () => {
+    const handleMax = (): void => {
+        amountPasteGenerationRef.current += 1;
         const max = getMaxSendableAmount(balance);
-
-        if (max <= 0) {
-            setValidationError("Insufficient balance to cover gas fees");
-            setAmount("0");
-
+        if (!isPositiveTokenAmount(max)) {
+            setAmount("");
+            setMaxError("Insufficient balance to cover the estimated fee.");
+            setAmountPasteError("");
+            setValidationError("");
             return;
         }
 
-        setAmount(max.toFixed(8));
+        setAmount(max);
+        setMaxError("");
+        setAmountPasteError("");
         setValidationError("");
     };
 
+    const handleClear = (): void => {
+        if (isSending) return;
+        pasteGenerationRef.current += 1;
+        amountPasteGenerationRef.current += 1;
+        setRecipient("");
+        setAmount("");
+        setValidationError("");
+        setMaxError("");
+        setAmountPasteError("");
+        setAddressError("");
+        setScanError("");
+        setCameraError("");
+        clearDeployWatch();
+        handleCancelTransfer();
+    };
+
+    const handlePaste = async (
+        event: React.ClipboardEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        if (event.clipboardData?.getData?.("text/plain")?.trim()) {
+            return;
+        }
+
+        const imageItem = Array.from(event.clipboardData?.items ?? []).find(
+            (item) => item.type.startsWith("image/"),
+        );
+        const image = imageItem?.getAsFile();
+        if (!image) return;
+
+        event.preventDefault();
+        const pasteGeneration = ++pasteGenerationRef.current;
+        try {
+            const result = await QrScanner.scanImage(image, {
+                returnDetailedScanResult: true,
+            });
+            if (pasteGeneration !== pasteGenerationRef.current) return;
+            handleRecipientChange(result.data);
+        } catch {
+            if (pasteGeneration !== pasteGenerationRef.current) return;
+            setScanError("No QR code was found in the pasted image.");
+        }
+    };
+
+    const pasteRecipientFromClipboard = async (): Promise<void> => {
+        const generation = ++pasteGenerationRef.current;
+        setScanError("");
+
+        try {
+            let text = "";
+            try {
+                text = await navigator.clipboard.readText();
+            } catch {
+                // An image-only clipboard may not provide text.
+            }
+            if (generation !== pasteGenerationRef.current) return;
+            if (text.trim()) {
+                handleRecipientChange(text.trim());
+                return;
+            }
+
+            const items = await navigator.clipboard.read?.();
+            if (generation !== pasteGenerationRef.current) return;
+            const imageItem = items?.find((item) =>
+                item.types.some((type) => type.startsWith("image/")),
+            );
+            const imageType = imageItem?.types.find((type) =>
+                type.startsWith("image/"),
+            );
+            if (!imageItem || !imageType) {
+                setScanError(
+                    "Clipboard does not contain an address or QR image.",
+                );
+                return;
+            }
+
+            const blob = await imageItem.getType(imageType);
+            const result = await QrScanner.scanImage(
+                new File([blob], "clipboard-qr", { type: imageType }),
+                { returnDetailedScanResult: true },
+            );
+            if (generation !== pasteGenerationRef.current) return;
+            handleRecipientChange(result.data);
+        } catch {
+            if (generation !== pasteGenerationRef.current) return;
+            setScanError(
+                "Could not paste an address or scan a QR image from the clipboard.",
+            );
+        }
+    };
+
+    const pasteAmountFromClipboard = async (): Promise<void> => {
+        const generation = ++amountPasteGenerationRef.current;
+        setAmountPasteError("");
+
+        try {
+            const text = await navigator.clipboard.readText();
+            if (generation !== amountPasteGenerationRef.current) return;
+            if (!text.trim()) {
+                setAmountPasteError("Clipboard does not contain an amount.");
+                return;
+            }
+            setAmount(text.trim());
+            setMaxError("");
+            setValidationError("");
+        } catch {
+            if (generation !== amountPasteGenerationRef.current) return;
+            setAmountPasteError("Could not paste the amount from the clipboard.");
+        }
+    };
+
+
+    const statusTone = isTransactionConfirmed
+        ? "success"
+        : unresolvedReason
+          ? "warning"
+          : "pending";
+    const statusTitle = isTransactionConfirmed
+        ? "Transaction completed"
+        : unresolvedReason
+          ? "Confirmation unavailable"
+          : "Transaction pending";
+
     return (
         <SendContainer>
-            <Card style={{ paddingBottom: "36px" }}>
+            <SendCard>
                 <CardHeader>
                     <CardTitle>Send ASI</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {txHash && isTransactionConfirmed && (
-                        <SuccessMessage>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "flex-start",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ flex: "1", minWidth: "200px" }}>
-                                    <div>
-                                        Transaction completed successfully!
-                                    </div>
-                                    <div className="deploy-id">
-                                        Deploy ID: {txHash}
-                                    </div>
-                                </div>
+                    {txHash && (
+                        <StatusBanner
+                            $tone={statusTone}
+                            role={unresolvedReason ? "alert" : "status"}
+                            aria-live="polite"
+                        >
+                            <StatusHeading>{statusTitle}</StatusHeading>
+                            <StatusText>
+                                {isTransactionConfirmed
+                                    ? "The transfer was finalized on chain. Balance and transaction history are being refreshed."
+                                    : unresolvedReason
+                                      ? TRANSACTION_UNRESOLVED_TITLE
+                                      : "The transfer was submitted and is waiting for on-chain finalization."}
+                            </StatusText>
+                            <HashValue>Deploy ID: {txHash}</HashValue>
+                            {unresolvedReason && (
+                                <StatusText>{unresolvedReason}</StatusText>
+                            )}
+                            {txHashCopyStatus === "failed" && (
+                                <FormError role="alert">
+                                    Could not copy the transaction hash.
+                                </FormError>
+                            )}
+                            <StatusActions>
                                 <Button
+                                    type="button"
                                     variant="secondary"
                                     size="small"
-                                    style={{
-                                        flexShrink: 0,
-                                        whiteSpace: "nowrap",
-                                    }}
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(
-                                                txHash,
-                                            );
-                                            setCopied(true);
-                                            setTimeout(
-                                                () => setCopied(false),
-                                                1500,
-                                            );
-                                        } catch {}
-                                    }}
+                                    onClick={() => txHashClipboard.copy(txHash)}
+                                    aria-label="Copy transaction hash"
                                 >
-                                    {copied ? "Copied!" : "Copy"}
+                                    {txHashCopyStatus === "copied"
+                                        ? "Hash copied"
+                                        : "Copy hash"}
                                 </Button>
-                            </div>
-                        </SuccessMessage>
+                            </StatusActions>
+                        </StatusBanner>
                     )}
-
-                    {txHash && isWaitingForConfirmation && (
-                        <LoadingMessage>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "flex-start",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ flex: "1", minWidth: "200px" }}>
-                                    <span className="spinner"></span>
-                                    Transaction sent! Waiting for
-                                    confirmation...
-                                </div>
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    style={{
-                                        flexShrink: 0,
-                                        whiteSpace: "nowrap",
-                                    }}
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(
-                                                txHash,
-                                            );
-                                            setCopied(true);
-                                            setTimeout(
-                                                () => setCopied(false),
-                                                1500,
-                                            );
-                                        } catch {}
-                                    }}
-                                >
-                                    {copied ? "Copied!" : "Copy"}
-                                </Button>
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: "12px",
-                                    opacity: 0.8,
-                                    marginTop: "8px",
-                                    wordBreak: "break-all",
-                                }}
-                            >
-                                Deploy ID: {txHash}
-                            </div>
-                        </LoadingMessage>
-                    )}
-
-                    {txHash && unresolvedReason && (
-                        <WarningMessage>
-                            <div>{TRANSACTION_UNRESOLVED_TITLE}</div>
-                            <div
-                                style={{
-                                    fontSize: "12px",
-                                    opacity: 0.8,
-                                    marginTop: "8px",
-                                }}
-                            >
-                                {unresolvedReason}
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: "12px",
-                                    opacity: 0.8,
-                                    marginTop: "8px",
-                                    wordBreak: "break-all",
-                                }}
-                            >
-                                Deploy ID: {txHash}
-                            </div>
-                        </WarningMessage>
-                    )}
-
-                    {displayedError && (
-                        <ErrorMessage>{displayedError}</ErrorMessage>
-                    )}
-
-                    <AccountSelectorWithMarginBottom
-                        fullWidth
-                        labelMode={AccountSelectorLabelMods.FULL}
-                        disabled={!!pendingTransfer || isWaitingForConfirmation}
-                    />
-
-                    <BalanceInfo className="balance-info">
-                        <ASIAccountBalance account={selectedAccount} />
-                    </BalanceInfo>
-
-                    <RecipientAddressFormGroup>
-                        <label
-                            style={{
-                                display: "block",
-                                marginBottom: "4px",
-                                fontWeight: "500",
-                            }}
-                        >
-                            Recipient Address
-                        </label>
-                        <InputWithButton className="input-with-button">
-                            <div style={{ flex: 1 }}>
-                                <Input
-                                    id="send-recipient-input"
-                                    className="send-recipient-input text-3"
-                                    type="text"
-                                    value={recipient}
-                                    onChange={(e) =>
-                                        handleRecipientChange(e.target.value)
-                                    }
-                                    onPaste={handleInputPaste}
-                                    placeholder={`Enter ${getTokenDisplayName()} address or paste QR code image`}
-                                    wrapperStyle={{
-                                        marginBottom: "0",
-                                    }}
-                                    style={{
-                                        width: "100%",
-                                        fontSize: "0.75rem",
-                                        height: "44px",
-                                        border: `2px solid ${
-                                            addressError ? "#ff4d4f" : "#e0e0e0"
-                                        }`,
-                                        borderRadius: "8px",
-                                        background: "transparent",
-                                        color: "inherit",
-                                        outline: "none",
-                                    }}
-                                    copyable
-                                    CustomCopyIcon={ContentPasteIcon}
-                                />
-                            </div>
-                            <ButtonGroup>
-                                <Button
-                                    id="send-qr-scan-button"
-                                    variant="secondary"
-                                    onClick={() => setShowQRScanner(true)}
-                                    style={{
-                                        aspectRatio: "1/1",
-                                        width: "44px",
-                                        alignSelf: "flex-end",
-                                        minWidth: "auto",
-                                    }}
-                                >
-                                    <QRIcon color="currentColor" />
-                                </Button>
-                            </ButtonGroup>
-                        </InputWithButton>
-                        {addressError && (
-                            <div
-                                style={{
-                                    marginTop: "8px",
-                                    color: "#ff4d4f",
-                                    fontSize: "14px",
-                                }}
-                            >
-                                {addressError}
-                            </div>
-                        )}
-                        {scanError && (
-                            <div
-                                style={{
-                                    marginTop: "8px",
-                                    color: "#ff4d4f",
-                                    fontSize: "14px",
-                                }}
-                            >
-                                {scanError}
-                            </div>
-                        )}
-                        <TextSecondaryBlock
-                            style={{
-                                marginTop: "4px",
-                                fontSize: "12px",
-                            }}
-                        >
-                            Tip: Copy a QR code image and paste it directly in
-                            the field or click the Paste button
-                        </TextSecondaryBlock>
-                    </RecipientAddressFormGroup>
-
-                    <InputWithButton
-                        className="input-with-button"
-                        style={{ marginBottom: "36px" }}
-                    >
-                        <Input
-                            id="send-amount-input"
-                            className="send-amount-input text-3"
-                            label="Amount"
-                            labelStyle={{
-                                fontWeight: "500",
-                            }}
-                            labelColorSelector={(theme: DefaultTheme) =>
-                                theme.colors.text.primary
-                            }
-                            wrapperStyle={{
-                                marginBottom: "0",
-                            }}
-                            style={{
-                                fontSize: "0.75rem",
-                                height: "44px",
-                            }}
-                            type="number"
-                            value={amount}
-                            onChange={(e) => handleAmountChange(e.target.value)}
-                            placeholder="Enter amount"
-                            step="0.00000001"
-                            min="0"
-                            max={balance}
-                            copyable
-                            CustomCopyIcon={ContentPasteIcon}
-                        />
-                        <Button
-                            id="send-max-amount-button"
-                            variant="secondary"
-                            onClick={maxAmount}
-                            disabled={!isBalanceReady}
-                            style={{
-                                aspectRatio: "1/1",
-                                width: "44px",
-                                alignSelf: "flex-end",
-                                minWidth: "44px",
-                            }}
-                        >
-                            <h3>Max</h3>
-                        </Button>
-                    </InputWithButton>
-
-                    <ActionButtons>
-                        <Button
-                            id="send-transaction-button"
-                            onClick={handleSendClick}
-                            loading={isSending}
-                            disabled={
-                                isSending ||
-                                !recipient ||
-                                !amount ||
-                                !!displayedError ||
-                                !!addressError ||
-                                !isBalanceReady ||
-                                isFetching
-                            }
-                            style={{ minWidth: "150px", height: "44px" }}
-                        >
-                            <h3>Send</h3>
-                            <VectorIcon />
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleClearAll();
-                            }}
-                            style={{ minWidth: "150px", height: "44px" }}
-                        >
-                            <h3>Clear all</h3>
-                        </Button>
-                        <Button
-                            id="history-button"
-                            title="View transaction history"
-                            onClick={() => {
-                                navigate("/history");
-                            }}
-                            variant="icon-button-black"
-                            fullWidth={false}
-                            secondaryHover
-                        >
-                            <HistoryIcon />
-                        </Button>
-                    </ActionButtons>
-                </CardContent>
-            </Card>
-
-            {/* QR Scanner Modal */}
-            <QRScannerModal $isOpen={showQRScanner}>
-                <QRScannerContent>
-                    <QRScannerHeader>
-                        <QRScannerTitle>Scan QR Code</QRScannerTitle>
-                        <CloseButton onClick={() => setShowQRScanner(false)}>
-                            ×
-                        </CloseButton>
-                    </QRScannerHeader>
-
-                    {scanError ? (
-                        <ErrorMessage>{scanError}</ErrorMessage>
-                    ) : (
-                        <VideoContainer>
-                            <Video ref={videoRef} />
-                        </VideoContainer>
-                    )}
-
-                    <div
-                        style={{
-                            marginTop: "16px",
-                            textAlign: "center",
-                            color: "#999",
+                    <Form
+                        noValidate
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            handleSend();
                         }}
                     >
-                        <small>
-                            Position the QR code within the frame to scan
-                        </small>
-                    </div>
-                </QRScannerContent>
-            </QRScannerModal>
+                        {validationError && (
+                            <FormError role="alert">
+                                {validationError}
+                            </FormError>
+                        )}
+                        {balanceError && (
+                            <FormError role="alert">
+                                {balanceError}
+                            </FormError>
+                        )}
 
-            {/* Transaction Confirmation Modal (active session — no password needed) */}
+                        <SourceSection aria-label="Source account">
+                            <AccountSelector
+                                fullWidth
+                                label="Account"
+                                labelMode={AccountSelectorLabelMods.FULL}
+                                disabled={isFormFrozen}
+                            />
+                            <BalanceArea>
+                                <AccountBalance
+                                    balance={
+                                        isBalanceError
+                                            ? undefined
+                                            : currentBalance
+                                    }
+                                    loading={isFetching}
+                                    onRefresh={() => void refetchBalance()}
+                                    refreshButtonId={`refresh-balance-account-${selectedAccount.id}`}
+                                    refreshAriaLabel={`Refresh balance, ${selectedAccount.name}`}
+                                    compactLabel
+                                    style={{ marginBottom: 0 }}
+                                />
+                            </BalanceArea>
+                        </SourceSection>
+
+                        <FieldRow>
+                            <Input
+                                id="send-recipient-input"
+                                label="Recipient Address"
+                                type="text"
+                                value={recipient}
+                                onChange={(event) =>
+                                    handleRecipientChange(
+                                        event.target.value,
+                                    )
+                                }
+                                onPaste={(event) => void handlePaste(event)}
+                  placeholder="Enter ASI address or paste QR code image"
+                                error={addressError}
+                                helperText="Tip: Copy a QR code image and paste it directly in the field or click the Paste button."
+                                endAdornment={
+                                    <PasteFieldAction
+                                        type="button"
+                                        variant="icon-button-ghost"
+                                        size="small"
+                                        title="Paste recipient address or QR image"
+                                        aria-label="Paste recipient address or QR image"
+                                        onClick={() => void pasteRecipientFromClipboard()}
+                                        disabled={isFormFrozen}
+                                    >
+                                        <ContentPasteIcon color="currentColor" />
+                                    </PasteFieldAction>
+                                }
+                                autoComplete="off"
+                                spellCheck={false}
+                                disabled={isFormFrozen}
+                                wrapperStyle={{ marginBottom: 0 }}
+                            />
+                            <IconFieldAction
+                                type="button"
+                                variant="icon-button"
+                                aria-label="Scan recipient QR code"
+                                title="Scan recipient QR code"
+                                onClick={() => {
+                                    setScanError("");
+                                    setCameraError("");
+                                    setShowQRScanner(true);
+                                }}
+                                disabled={isFormFrozen}
+                            >
+                                <QRIcon color="currentColor" />
+                            </IconFieldAction>
+                        </FieldRow>
+                        {scanError && (
+                            <FormError role="alert">{scanError}</FormError>
+                        )}
+
+                        <FieldRow>
+                            <Input
+                                id="send-amount-input"
+                                label="Amount"
+                                type="text"
+                                inputMode="decimal"
+                                value={amount}
+                                onChange={(event) => {
+                                    amountPasteGenerationRef.current += 1;
+                                    setAmount(event.target.value);
+                                    setValidationError("");
+                                    setMaxError("");
+                                    setAmountPasteError("");
+                                }}
+                                placeholder="Enter Amount"
+                                error={
+                                    amountError || maxError || amountPasteError
+                                }
+                                endAdornment={
+                                    <PasteFieldAction
+                                        type="button"
+                                        variant="icon-button-ghost"
+                                        size="small"
+                                        title="Paste amount"
+                                        aria-label="Paste amount"
+                                        onClick={() => void pasteAmountFromClipboard()}
+                                        disabled={isFormFrozen}
+                                    >
+                                        <ContentPasteIcon color="currentColor" />
+                                    </PasteFieldAction>
+                                }
+                                autoComplete="off"
+                                disabled={isFormFrozen}
+                                wrapperStyle={{ marginBottom: 0 }}
+                            />
+                            <FieldAction
+                                id="send-max-amount-button"
+                                type="button"
+                                variant="secondary"
+                                onClick={handleMax}
+                                disabled={
+                                    !isBalanceReady ||
+                                    isFormFrozen
+                                }
+                            >
+                                Max
+                            </FieldAction>
+                        </FieldRow>
+
+                        <Actions>
+                            <Button
+                                id="send-transaction-button"
+                                type="submit"
+                                loading={isSending}
+                                disabled={
+                                    isFormFrozen ||
+                                    isWaitingForConfirmation ||
+                                    !recipient.trim() ||
+                                    !amount.trim() ||
+                                    !!addressError ||
+                                    !!amountError ||
+                                    !!maxError ||
+                                    !!amountPasteError ||
+                                    !isBalanceReady
+                                }
+                            >
+                                Send <VectorIcon />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleClear}
+                                disabled={isFormFrozen}
+                            >
+                                Clear all
+                            </Button>
+                            <Button
+                                id="history-button"
+                                type="button"
+                                variant="icon-button"
+                                aria-label="View transaction history"
+                                title="View transaction history"
+                                onClick={() => navigate("/history")}
+                                disabled={isFormFrozen}
+                            >
+                                <HistoryIcon />
+                            </Button>
+                        </Actions>
+                    </Form>
+                </CardContent>
+            </SendCard>
+
+            <ModalWindow
+                isOpen={showQRScanner}
+                onClose={() => {
+                    setShowQRScanner(false);
+                    setCameraError("");
+                }}
+                title="Scan recipient QR code"
+                maxWidth="500px"
+            >
+                {cameraError ? (
+                    <FormError role="alert">{cameraError}</FormError>
+                ) : (
+                    <VideoContainer>
+                        <Video ref={videoRef} />
+                    </VideoContainer>
+                )}
+                <ScannerHelp>
+                    Position the recipient QR code inside the camera frame.
+                </ScannerHelp>
+            </ModalWindow>
+
             <TransactionConfirmationModal
                 isOpen={showConfirmation}
                 onClose={handleCancelTransfer}
@@ -1021,12 +976,11 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                maxFee={getGasFeeAsNumber()}
+                maxFee={GasFee.MAX}
                 feeLabel={getGasFeeRangeLabel()}
-                loading={isLoading}
+                loading={isSending}
             />
 
-            {/* Password Modal (session expired — re-authenticate to sign) */}
             <PasswordModal
                 {...sendAction.passwordPrompt}
                 onClose={handleCancelTransfer}

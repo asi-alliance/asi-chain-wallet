@@ -1,55 +1,50 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { validatePassword, PasswordValidation } from "utils/encryption";
-import { PasswordInput, Button } from "components";
+import { Alert, PasswordInput, Button, FormActions } from "components";
 
 const Container = styled.div`
-    max-width: 400px;
+    width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
     margin: 0 auto;
 `;
 
 const Title = styled.h2`
-    font-size: 24px;
-    font-weight: 600;
+    margin: 0 0 ${({ theme }) => theme.spacing["3xl"]};
     color: ${({ theme }) => theme.text.primary};
-    margin-bottom: 24px;
+    font-size: ${({ theme }) => theme.typography.size.xl};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xl};
 `;
 
 const Description = styled.p`
-    font-size: 14px;
+    margin: 0 0 ${({ theme }) => theme.spacing["3xl"]};
     color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 24px;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
 `;
 
 const ValidationList = styled.ul`
     list-style: none;
     padding: 0;
-    margin: 16px 0;
+    margin: ${({ theme }) => theme.spacing.lg} 0
+        ${({ theme }) => theme.spacing.xl};
 `;
 
 const ValidationItem = styled.li<{ $valid: boolean }>`
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: ${({ theme }) => theme.spacing.md};
     color: ${({ $valid, theme }) =>
         $valid ? theme.success : theme.text.secondary};
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 
     &:before {
         content: ${({ $valid }) => ($valid ? '"✓"' : '"○"')};
-        margin-right: 8px;
-        font-weight: bold;
+        margin-right: ${({ theme }) => theme.spacing.md};
+        font-weight: ${({ theme }) => theme.typography.weight.bold};
     }
-`;
-
-const ErrorMessage = styled.div`
-    color: ${({ theme }) => theme.danger};
-    font-size: 14px;
-    margin-top: 8px;
-`;
-
-const ButtonContainer = styled.div`
-    margin-top: 24px;
 `;
 
 type PasswordSetupMode = "create" | "unlock";
@@ -76,13 +71,15 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
     loading = false,
 }) => {
     const isUnlockMode = mode === "unlock";
+    const submissionRef = useRef(false);
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [validation, setValidation] = useState<PasswordValidation | null>(
         null,
     );
-    const [localError, setLocalError] = useState("");
+    const [passwordFieldError, setPasswordFieldError] = useState("");
+    const [confirmFieldError, setConfirmFieldError] = useState("");
 
     useEffect(() => {
         if (isUnlockMode || !password) {
@@ -93,38 +90,62 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
         setValidation(validatePassword(password));
     }, [password, isUnlockMode]);
 
+    useEffect(() => {
+        return () => {
+            setPassword("");
+            setConfirmPassword("");
+        };
+    }, []);
+
     const canSubmit = isUnlockMode
         ? password.length > 0
-        : !!validation?.isValid && password === confirmPassword;
+        : !!validation?.isValid && confirmPassword.length > 0;
+
+    const clearFieldErrors = (): void => {
+        setPasswordFieldError("");
+        setConfirmFieldError("");
+    };
 
     const handleSubmit = () => {
-        setLocalError("");
+        if (loading || submissionRef.current) {
+            return;
+        }
+
+        clearFieldErrors();
 
         if (isUnlockMode) {
             if (!password) {
-                setLocalError("Password is required");
+                setPasswordFieldError("Password is required");
                 return;
             }
 
+            submissionRef.current = true;
             onPasswordSet(password);
             return;
         }
 
         if (!validation?.isValid) {
-            setLocalError("Please meet all password requirements");
+            setPasswordFieldError("Please meet all password requirements");
             return;
         }
 
         if (password !== confirmPassword) {
-            setLocalError("Passwords do not match");
+            setConfirmFieldError("Passwords do not match");
             return;
         }
 
+        submissionRef.current = true;
         onPasswordSet(password);
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && canSubmit && !loading) {
+    useEffect(() => {
+        if (!loading) {
+            submissionRef.current = false;
+        }
+    }, [loading]);
+
+    const handleKeyPress = (event: React.KeyboardEvent) => {
+        if (event.key === "Enter" && canSubmit && !loading) {
             handleSubmit();
         }
     };
@@ -135,18 +156,25 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
 
             {description && <Description>{description}</Description>}
 
+            {error && (
+                <Alert
+                    tone="danger"
+                    icon="⚠️"
+                    style={{ marginBottom: "16px" }}
+                >
+                    {error}
+                </Alert>
+            )}
+
             <PasswordInput
                 id="password-setup-password-input"
                 data-testid="password-setup-password-input"
                 data-cy="password-setup-password-input"
                 label={isUnlockMode ? "Wallet Password" : "Password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onInput={(e) => {
-                    const target = e.currentTarget;
-                    if (target.value !== password) {
-                        setPassword(target.value);
-                    }
+                onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearFieldErrors();
                 }}
                 placeholder="Enter password"
                 onKeyPress={handleKeyPress}
@@ -154,10 +182,11 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                     isUnlockMode ? "current-password" : "new-password"
                 }
                 disabled={loading}
+                error={passwordFieldError || undefined}
             />
 
             {validation && (
-                <ValidationList>
+                <ValidationList aria-live="polite">
                     <ValidationItem $valid={validation.minLength}>
                         At least 8 characters
                     </ValidationItem>
@@ -183,24 +212,19 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                     data-cy="password-setup-confirm-input"
                     label="Confirm Password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    onInput={(e) => {
-                        const target = e.currentTarget;
-                        if (target.value !== confirmPassword) {
-                            setConfirmPassword(target.value);
-                        }
+                    onChange={(event) => {
+                        setConfirmPassword(event.target.value);
+                        clearFieldErrors();
                     }}
                     placeholder="Confirm password"
                     onKeyPress={handleKeyPress}
                     autoComplete="new-password"
+                    disabled={loading}
+                    error={confirmFieldError || undefined}
                 />
             )}
 
-            {(error || localError) && (
-                <ErrorMessage>{error || localError}</ErrorMessage>
-            )}
-
-            <ButtonContainer>
+            <FormActions>
                 <Button
                     id="password-setup-submit-button"
                     onClick={handleSubmit}
@@ -217,12 +241,11 @@ export const PasswordSetup: React.FC<PasswordSetupProps> = ({
                         onClick={onCancel}
                         disabled={loading}
                         fullWidth
-                        style={{ marginTop: "8px" }}
                     >
                         Cancel
                     </Button>
                 )}
-            </ButtonContainer>
+            </FormActions>
         </Container>
     );
 };

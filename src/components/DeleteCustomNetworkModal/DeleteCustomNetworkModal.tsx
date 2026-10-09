@@ -7,10 +7,11 @@ import { WarningIcon } from "components/Icons";
 const WarningRow = styled.div`
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: ${({ theme }) => theme.spacing.lg};
     color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
-    line-height: 1.5;
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
 `;
 
 const IconWrapper = styled.div`
@@ -19,19 +20,26 @@ const IconWrapper = styled.div`
 `;
 
 const ErrorRow = styled.div`
-    margin-top: 16px;
-    padding: 12px 16px;
-    border-radius: 6px;
-    color: ${({ theme }) => theme.error};
-    background: ${({ theme }) => `${theme.error}15`};
-    border: 1px solid ${({ theme }) => theme.error};
+    margin-top: ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+    border-radius: ${({ theme }) => theme.radii.sm};
+    color: ${({ theme }) => theme.dangerText};
+    background: ${({ theme }) => `${theme.danger}15`};
+    border: 1px solid ${({ theme }) => theme.danger};
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 const Actions = styled.div`
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 24px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-top: ${({ theme }) => theme.spacing["3xl"]};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column-reverse;
+    }
 `;
 
 interface DeleteCustomNetworkModalProps {
@@ -51,6 +59,7 @@ export const DeleteCustomNetworkModal: React.FC<
         onClose={onCancel}
         title="Delete Custom Network"
         maxWidth="480px"
+        dismissible={!isDeleting}
     >
         <WarningRow>
             <IconWrapper>
@@ -63,7 +72,7 @@ export const DeleteCustomNetworkModal: React.FC<
             </span>
         </WarningRow>
 
-        {error && <ErrorRow>{error}</ErrorRow>}
+        {error && <ErrorRow role="alert">{error}</ErrorRow>}
 
         <Actions>
             <Button

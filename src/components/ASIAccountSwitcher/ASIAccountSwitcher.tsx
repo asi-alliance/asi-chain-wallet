@@ -54,6 +54,8 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     };
 
     const handleSelect = (accountId: string) => {
+        if (isNetworkBusy || isNetworkOperationPending) return;
+
         dispatch(selectAccount(accountId));
         refreshBalances();
     };
