@@ -140,6 +140,10 @@ Transaction history is currently limited to a single window of 50 records, is no
 
 **Root cause.** `SdkWalletService.getTransactionsHistory` is backed by `TRANSACTION_HISTORY_QUERY` in the SDK, which queries two independent root fields in a single GraphQL request: `transfers`, filtered by `from_address` or `to_address`, and `deployments`, filtered by `deployer`. Both are ordered by `block_number: desc` and both receive the same `$offset` and `$limit`. The SDK then merges the two lists into a map keyed by `deploy_id` and re-sorts the result by `timestamp` descending. A page of the merged timeline cannot be expressed as the same offset and limit applied to two separately ordered lists.
 
+### Bridge page action
+
+The Bridge page is implemented from the UI/UX and frontend logic perspective. Since the complete bridge transfer scenario has not yet been delivered to QA, the bridge confirmation action has been disabled for the release. A notice has also been added to the page indicating that the full bridge flow is still under development and QA.
+
 **What this means in the app today:**
 
 1. **Hard cap at 50 records.** `HISTORY_LIMIT` in `src/store/WalletsStore/api.ts` is 50 and the endpoint never sends an offset, so exactly one window is fetched. Anything older than the 50th record is unreachable and nothing in the UI signals that the list is truncated.

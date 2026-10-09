@@ -1,43 +1,53 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import {
+    CustomErrorCode,
+    getErrorMessage,
     IKeyfileImportAccountPreview,
     IKeyfileImportPreview,
     KeyfileImportAccountStatus,
     WalletTypes,
 } from "@asichain/asi-wallet-sdk";
-import { Button, Checkbox, FileSelector, PasswordInput } from "components";
-import { useScreen } from "hooks/";
+import {
+    Alert,
+    Button,
+    Checkbox,
+    FileSelector,
+    FormActions,
+    PasswordInput,
+} from "components";
 import { useAppDispatch } from "store/hooks";
 import { SdkWalletService } from "sdk";
 import { importKeyfileWallet } from "store/Auth/thunks";
 import { importKeyfileAccounts } from "store/WalletsStore/thunks";
+import { getErrorCode } from "utils/errors";
+
+const FormContainer = styled.div`
+    width: 100%;
+    max-width: ${({ theme }) => theme.layout.contentNarrow};
+    margin: 0 auto;
+`;
 
 const FormGroup = styled.div`
-    margin-bottom: 16px;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 const FieldLabel = styled.label`
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: ${({ theme }) => theme.control.labelGap};
     color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
-const Notice = styled.div`
-    margin-bottom: 16px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.secondary};
-    font-size: 13px;
-    line-height: 1.5;
+const Notice = styled(Alert)`
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 const AccountsList = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: ${({ theme }) => theme.spacing.md};
     max-height: 280px;
     overflow-y: auto;
 `;
@@ -46,10 +56,12 @@ const AccountRow = styled.label<{ $disabled: boolean }>`
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    padding: ${({ theme }) => theme.spacing.lg}
+        ${({ theme }) => theme.spacing.xl};
     border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.surface};
     cursor: ${({ $disabled }) => ($disabled ? "default" : "pointer")};
     opacity: ${({ $disabled }) => ($disabled ? 0.6 : 1)};
 `;
@@ -57,55 +69,29 @@ const AccountRow = styled.label<{ $disabled: boolean }>`
 const AccountInfo = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: ${({ theme }) => theme.spacing.sm};
     min-width: 0;
 `;
 
 const AccountName = styled.span`
     color: ${({ theme }) => theme.text.primary};
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
 `;
 
 const AccountAddress = styled.span`
     color: ${({ theme }) => theme.text.secondary};
-    font-size: 12px;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
     word-break: break-all;
 `;
 
 const Badge = styled.span`
     color: ${({ theme }) => theme.text.secondary};
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.size.xs};
     text-transform: uppercase;
     white-space: nowrap;
-`;
-
-const ErrorMessage = styled.div`
-    margin-top: 12px;
-    color: ${({ theme }) => theme.danger};
-    font-size: 14px;
-`;
-
-const ActionButtons = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 24px;
-
-    @media (max-width: 768px) {
-        display: block;
-        padding: 0 2rem;
-    }
-`;
-
-const AdaptiveButton = styled(Button)`
-    min-width: 242px;
-
-    @media (max-width: 768px) {
-        min-width: auto;
-        margin-bottom: 16px;
-    }
 `;
 
 const WALLET_TYPE_LABEL: Record<WalletTypes, string> = {
@@ -156,6 +142,21 @@ const hasImportableAccounts = (preview: IKeyfileImportPreview): boolean =>
             account.status === KeyfileImportAccountStatus.NEW,
     );
 
+type KeyfileErrorField = "password" | "file" | "form";
+
+const getKeyfileErrorField = (error: unknown): KeyfileErrorField => {
+    switch (getErrorCode(error)) {
+        case CustomErrorCode.INVALID_KEYFILE_PASSWORD:
+        case CustomErrorCode.INVALID_PASSWORD:
+            return "password";
+        case CustomErrorCode.INVALID_KEYFILE:
+        case CustomErrorCode.CORRUPTED_DATA:
+            return "file";
+        default:
+            return "form";
+    }
+};
+
 export interface IKeyfileAccountsImportOutcome {
     signerId: string;
     importedAccountsCount: number;
@@ -171,7 +172,7 @@ export const ImportKeyfileWalletForm: React.FC<
     ImportKeyfileWalletFormProps
 > = ({ onWalletImported, onAccountsImported, onCancel }) => {
     const dispatch = useAppDispatch();
-    const { isLaptop } = useScreen();
+    const submissionRef = useRef(false);
 
     const [selectedKeyfile, setSelectedKeyfile] =
         useState<ISelectedKeyfile | null>(null);
@@ -179,7 +180,9 @@ export const ImportKeyfileWalletForm: React.FC<
     const [preview, setPreview] = useState<IKeyfileImportPreview | null>(null);
     const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [fileError, setFileError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [formError, setFormError] = useState("");
 
     const sortedAccounts = useMemo<IKeyfileImportAccountPreview[]>(() => {
         if (!preview) {
@@ -196,8 +199,37 @@ export const ImportKeyfileWalletForm: React.FC<
         );
     }, [preview]);
 
+    const showKeyfileError = (
+        error: unknown,
+        fallback: string,
+    ): KeyfileErrorField => {
+        const field = getKeyfileErrorField(error);
+        const setFieldError: Record<
+            KeyfileErrorField,
+            (message: string) => void
+        > = {
+            password: setPasswordError,
+            file: setFileError,
+            form: setFormError,
+        };
+
+        setFieldError[field](getErrorMessage(error, fallback));
+
+        return field;
+    };
+
+    const clearSensitiveState = (): void => {
+        setPassword((current) => " ".repeat(current.length));
+        setPassword("");
+        setSelectedKeyfile(null);
+        setPreview(null);
+        setSelectedIndexes([]);
+    };
+
     const handleKeyfileSelect = async (file: File | null): Promise<void> => {
-        setError("");
+        setFileError("");
+        setPasswordError("");
+        setFormError("");
         setSelectedKeyfile(null);
         setPreview(null);
         setSelectedIndexes([]);
@@ -211,16 +243,14 @@ export const ImportKeyfileWalletForm: React.FC<
         try {
             content = await file.text();
         } catch {
-            setError("Keyfile cannot be read.");
-
+            setFileError("Keyfile cannot be read.");
             return;
         }
 
         const walletType = readKeyfileWalletType(content);
 
         if (!walletType) {
-            setError("Selected file is not an ASI wallet keyfile.");
-
+            setFileError("Selected file is not an ASI wallet keyfile.");
             return;
         }
 
@@ -228,14 +258,25 @@ export const ImportKeyfileWalletForm: React.FC<
     };
 
     const handlePreview = async (): Promise<void> => {
-        if (!selectedKeyfile) {
-            setError("Please select a keyfile first.");
-
+        if (loading || submissionRef.current) {
             return;
         }
 
+        if (!selectedKeyfile) {
+            setFileError("Please select a keyfile first.");
+            return;
+        }
+
+        if (!password) {
+            setPasswordError("Password is required");
+            return;
+        }
+
+        submissionRef.current = true;
         setLoading(true);
-        setError("");
+        setFileError("");
+        setPasswordError("");
+        setFormError("");
 
         try {
             const keyfilePreview =
@@ -247,16 +288,15 @@ export const ImportKeyfileWalletForm: React.FC<
             setPreview(keyfilePreview);
             setSelectedIndexes(getSelectableIndexes(keyfilePreview));
         } catch (previewError: unknown) {
-            setError(
-                (previewError as Error)?.message ?? "Keyfile cannot be read.",
-            );
+            showKeyfileError(previewError, "Keyfile cannot be read.");
         } finally {
             setLoading(false);
+            submissionRef.current = false;
         }
     };
 
     const toggleAccount = (index: number): void => {
-        setError("");
+        setFormError("");
         setSelectedIndexes((currentIndexes: number[]) =>
             currentIndexes.includes(index)
                 ? currentIndexes.filter(
@@ -267,28 +307,28 @@ export const ImportKeyfileWalletForm: React.FC<
     };
 
     const backToKeyfileStep = (): void => {
-        setError("");
+        setFormError("");
         setPreview(null);
         setSelectedIndexes([]);
     };
 
     const handleImport = async (): Promise<void> => {
-        if (!selectedKeyfile || !preview) {
+        if (!selectedKeyfile || !preview || loading || submissionRef.current) {
             return;
         }
 
         const isHdWallet = preview.walletType === WalletTypes.HD;
 
         if (isHdWallet && !selectedIndexes.length) {
-            setError("Please select at least one account to import.");
-
+            setFormError("Please select at least one account to import.");
             return;
         }
 
         const accountIndexes = isHdWallet ? selectedIndexes : undefined;
 
+        submissionRef.current = true;
         setLoading(true);
-        setError("");
+        setFormError("");
 
         try {
             if (preview.existingSignerId) {
@@ -300,6 +340,7 @@ export const ImportKeyfileWalletForm: React.FC<
                     }),
                 ).unwrap();
 
+                clearSensitiveState();
                 onAccountsImported?.({
                     signerId: preview.existingSignerId,
                     importedAccountsCount: isHdWallet
@@ -318,25 +359,41 @@ export const ImportKeyfileWalletForm: React.FC<
                 }),
             ).unwrap();
 
+            clearSensitiveState();
             onWalletImported?.();
         } catch (importError: unknown) {
-            setError(
-                (importError as Error)?.message ?? "Failed to import keyfile.",
+            const field = showKeyfileError(
+                importError,
+                "Failed to import keyfile.",
             );
+
+            if (field !== "form") {
+                backToKeyfileStep();
+            }
         } finally {
             setLoading(false);
+            submissionRef.current = false;
         }
+    };
+
+    const handleCancel = (): void => {
+        clearSensitiveState();
+        setFileError("");
+        setPasswordError("");
+        setFormError("");
+        onCancel?.();
     };
 
     if (!preview) {
         return (
-            <>
+            <FormContainer>
                 <FileSelector
                     id="import-keyfile-file-input"
                     label="Keyfile"
                     accept="application/json,.json"
                     disabled={loading}
                     onSelect={handleKeyfileSelect}
+                    error={fileError || undefined}
                     hint={
                         selectedKeyfile
                             ? `Loaded: ${selectedKeyfile.name}, ${WALLET_TYPE_LABEL[selectedKeyfile.walletType]} wallet`
@@ -356,49 +413,54 @@ export const ImportKeyfileWalletForm: React.FC<
                         onChange={(event) => {
                             setPassword(event.target.value);
 
-                            if (error) {
-                                setError("");
+                            if (passwordError) {
+                                setPasswordError("");
                             }
                         }}
                         placeholder="Enter keyfile password"
                         autoComplete="off"
                         disabled={loading}
+                        error={passwordError || undefined}
                     />
                 </FormGroup>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
+                {formError && (
+                    <Notice tone="danger" icon="⚠️">
+                        {formError}
+                    </Notice>
+                )}
 
-                <ActionButtons>
-                    <AdaptiveButton
+                <FormActions>
+                    <Button
                         id="import-keyfile-continue-button"
                         variant="primary"
                         onClick={handlePreview}
                         disabled={!selectedKeyfile || !password || loading}
                         loading={loading}
-                        fullWidth={isLaptop}
+                        fullWidth
                     >
                         Continue
-                    </AdaptiveButton>
-                    <AdaptiveButton
+                    </Button>
+                    <Button
                         id="import-keyfile-cancel-button"
                         variant="secondary"
-                        onClick={onCancel}
+                        onClick={handleCancel}
                         disabled={loading}
-                        fullWidth={isLaptop}
+                        fullWidth
                     >
                         Cancel
-                    </AdaptiveButton>
-                </ActionButtons>
-            </>
+                    </Button>
+                </FormActions>
+            </FormContainer>
         );
     }
 
     const canImport = hasImportableAccounts(preview);
 
     return (
-        <>
+        <FormContainer>
             {preview.existingSignerId && canImport && (
-                <Notice>
+                <Notice tone="info" icon="ℹ️">
                     This keyfile belongs to a wallet that is already in the
                     system. Selected accounts will be added to it.{" "}
                     {preview.isExistingWalletOpen
@@ -408,7 +470,7 @@ export const ImportKeyfileWalletForm: React.FC<
             )}
 
             {!canImport && (
-                <Notice>
+                <Notice tone="warning" icon="⚠️">
                     Every account from this keyfile is already imported, so
                     there is nothing left to import.
                 </Notice>
@@ -442,9 +504,15 @@ export const ImportKeyfileWalletForm: React.FC<
                                             index !== null &&
                                             selectedIndexes.includes(index)
                                         }
-                                        onChange={() =>
-                                            index !== null &&
-                                            toggleAccount(index)
+                                        onChange={() => {
+                                            if (index !== null) {
+                                                toggleAccount(index);
+                                            }
+                                        }}
+                                        aria-label={
+                                            index === null
+                                                ? name
+                                                : `Account ${index} ${name}`
                                         }
                                     />
                                     <AccountInfo>
@@ -467,42 +535,50 @@ export const ImportKeyfileWalletForm: React.FC<
                 </AccountsList>
             </FormGroup>
 
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {formError && (
+                <Notice tone="danger" icon="⚠️">
+                    {formError}
+                </Notice>
+            )}
 
-            <ActionButtons>
+            <FormActions>
                 {canImport ? (
                     <>
-                        <AdaptiveButton
+                        <Button
                             id="import-keyfile-import-button"
                             variant="primary"
                             onClick={handleImport}
-                            disabled={loading}
+                            disabled={
+                                loading ||
+                                (preview.walletType === WalletTypes.HD &&
+                                    !selectedIndexes.length)
+                            }
                             loading={loading}
-                            fullWidth={isLaptop}
+                            fullWidth
                         >
                             Import
-                        </AdaptiveButton>
-                        <AdaptiveButton
+                        </Button>
+                        <Button
                             id="import-keyfile-back-button"
                             variant="secondary"
                             onClick={backToKeyfileStep}
                             disabled={loading}
-                            fullWidth={isLaptop}
+                            fullWidth
                         >
                             Back
-                        </AdaptiveButton>
+                        </Button>
                     </>
                 ) : (
-                    <AdaptiveButton
+                    <Button
                         id="import-keyfile-close-button"
                         variant="primary"
-                        onClick={onCancel}
-                        fullWidth={isLaptop}
+                        onClick={handleCancel}
+                        fullWidth
                     >
                         Close
-                    </AdaptiveButton>
+                    </Button>
                 )}
-            </ActionButtons>
-        </>
+            </FormActions>
+        </FormContainer>
     );
 };

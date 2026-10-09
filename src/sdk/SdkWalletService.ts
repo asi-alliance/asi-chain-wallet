@@ -99,10 +99,28 @@ export class SdkWalletService {
         };
     }
 
+    public static toNetworkConfig({
+        validatorUrl,
+        observerUrl,
+        indexerUrl,
+        nodeApiProfile,
+    }: Network): INetworkConfig {
+        return {
+            ValidatorURL: validatorUrl,
+            ReadOnlyURL: observerUrl,
+            IndexerURL: indexerUrl,
+            nodeApiProfile,
+        };
+    }
+
     static generateMnemonic(
         strength: MnemonicStrength = MnemonicStrength.TWELVE_WORDS,
     ): string {
         return requireSdkClient().generateMnemonic(strength);
+    }
+
+    static generatePrivateKeyHex(): string {
+        return encodeBase16(requireSdkClient().generatePrivateKey());
     }
 
     static isMnemonicValid(mnemonic: string): boolean {

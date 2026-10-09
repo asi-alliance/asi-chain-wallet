@@ -25,6 +25,7 @@ export const CreateHdWalletModal: React.FC<CreateHdWalletModalProps> = ({
             isOpen={isOpen}
             onClose={onCancel}
             title="Create Wallet"
+            maxWidth="705px"
             dismissible={false}
         >
             <CreateHdWalletForm onSuccess={handleSuccess} onCancel={onCancel} />

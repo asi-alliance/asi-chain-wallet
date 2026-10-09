@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { isWalletLockedError, SdkWalletService } from "sdk";
+import {
+    isInvalidPasswordError,
+    isWalletLockedError,
+    SdkWalletService,
+} from "sdk";
 
 const DEFAULT_ERROR_FALLBACK = "Operation failed";
 const WALLET_NOT_OPENED_MESSAGE = "Wallet is not opened. Please login again.";
@@ -83,7 +87,14 @@ export const useWalletSessionAction = <TResult>({
                 return;
             }
 
-            setPasswordError(message);
+            if (isInvalidPasswordError(error)) {
+                setPasswordError(message);
+
+                return;
+            }
+
+            setIsPasswordPromptOpen(false);
+            onError?.(message);
         } finally {
             setIsRunning(false);
         }

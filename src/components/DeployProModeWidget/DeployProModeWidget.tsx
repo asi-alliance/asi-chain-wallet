@@ -3,6 +3,7 @@ import React, {
     CSSProperties,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -63,6 +64,8 @@ const IDEContainer = styled.div`
 
 const Toolbar = styled.div`
     display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
     justify-content: space-between;
     background: ${({ theme }) => theme.card};
@@ -75,11 +78,13 @@ const Toolbar = styled.div`
 
 const ToolbarActions = styled.div`
     display: flex;
-    gap: 31px;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
-    width: 100%;
+    width: auto;
 
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
+        width: 100%;
         margin-bottom: 1rem;
         gap: 16px;
     }
@@ -90,7 +95,7 @@ const MainContent = styled.div`
     flex: 1;
     overflow: hidden;
     width: 100%;
-    gap: 24px;
+    gap: ${({ theme }) => theme.spacing["3xl"]};
     margin-bottom: 24px;
 
     @media (max-width: 768px) {
@@ -109,6 +114,7 @@ const FileExplorer = styled.div`
 
     @media (max-width: 768px) {
         width: 100%;
+        margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
@@ -148,15 +154,20 @@ const TreeItem = styled.div<{ $depth: number; $active?: boolean }>`
     align-items: center;
     gap: 8px;
     background: ${({ $active, theme }) =>
-        $active ? theme.primary + "20" : "transparent"};
+        $active ? theme.primarySubtle : "transparent"};
     color: ${({ $active, theme }) =>
-        $active ? theme.primary : theme.text.primary};
+        $active ? theme.actionText : theme.text.primary};
     border-left: 3px solid
-        ${({ $active, theme }) => ($active ? theme.primary : "transparent")};
+        ${({ $active, theme }) => ($active ? theme.actionText : "transparent")};
     transition: all 0.2s ease;
 
     &:hover {
-        background: ${({ theme }) => theme.surface};
+        background: ${({ theme }) => theme.hoverSurface};
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: inset 0 0 0 2px ${({ theme }) => theme.focusRing};
     }
 
     input {
@@ -215,6 +226,19 @@ const TabItem = styled.div<{ $active?: boolean }>`
     &:hover {
         background: ${({ theme }) => theme.card};
     }
+
+    button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px ${({ theme }) => theme.focusRing};
+    }
+`;
+
+const TabSelect = styled.button`
+    border: 0;
+    padding: ${({ theme }) => theme.spacing.xs};
+    background: transparent;
+    color: ${({ theme }) => theme.text.primary};
+    cursor: pointer;
 `;
 
 const CloseButton = styled.button`
@@ -299,6 +323,18 @@ const DeploySettings = styled.div`
     display: flex;
     gap: 16px;
     align-items: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+
+        > button {
+            width: 100%;
+            height: ${({ theme }) => theme.sizes.control.field};
+            min-height: ${({ theme }) => theme.sizes.control.field};
+        }
+    }
 `;
 
 const ContextMenu = styled.div<{ $x: number; $y: number }>`
@@ -310,19 +346,50 @@ const ContextMenu = styled.div<{ $x: number; $y: number }>`
     border-radius: 8px;
     padding: 4px;
     box-shadow: ${({ theme }) => theme.shadowLarge};
-    z-index: 1000;
+    z-index: ${({ theme }) => theme.zIndices.dropdown};
     min-width: 150px;
 `;
 
-const ContextMenuItem = styled.div`
+const ContextMenuItem = styled.button`
+    display: block;
+    width: 100%;
     padding: 8px 12px;
     font-size: 14px;
+    text-align: left;
     cursor: pointer;
     border-radius: 4px;
+    border: 0;
+    background: transparent;
+    color: ${({ theme }) => theme.text.primary};
     transition: all 0.2s ease;
 
     &:hover {
         background: ${({ theme }) => theme.surface};
+    }
+
+    &:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+    }
+`;
+
+const DeployStatusPanel = styled.div<{ $tone: "info" | "success" | "warning" }>`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme }) => theme.spacing.xl};
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
+    border: 1px solid ${({ theme, $tone }) =>
+        $tone === "warning" ? theme.warning : $tone === "success" ? theme.success : theme.info};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.card};
+    color: ${({ theme }) => theme.text.primary};
+
+    code {
+        display: block;
+        margin-top: ${({ theme }) => theme.spacing.md};
+        overflow-wrap: anywhere;
     }
 `;
 
@@ -344,6 +411,7 @@ interface IContextMenuState {
 }
 
 interface IDeployProModeContextValue extends IUseDeployContractResponse {
+    isActive: boolean;
     items: IDEItem[];
     activeFileId: string;
     openFiles: string[];
@@ -375,6 +443,7 @@ interface IDeployProModeContextValue extends IUseDeployContractResponse {
     handleImportWorkspace: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleDeployClick: () => void;
     handleExploreClick: () => void;
+    handleLoadExample: () => void;
     clearConsole: () => void;
     toggleFolder: (folderId: string) => void;
 }
@@ -398,6 +467,7 @@ const useDeployProMode = (): IDeployProModeContextValue => {
 interface IDeployProModeWidgetProps {
     phloLimit: string;
     phloPrice: string;
+    isActive?: boolean;
     children: React.ReactNode;
 }
 
@@ -439,6 +509,7 @@ const loadInitialWorkspace = (): IInitialWorkspace => {
 const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     phloLimit,
     phloPrice,
+    isActive = true,
     children,
 }) => {
     const darkMode = useSelector((state: RootState) => state.theme.darkMode);
@@ -470,6 +541,21 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workspaceInputRef = useRef<HTMLInputElement>(null);
     const consoleMessageIdRef = useRef(0);
+    const itemIdCounterRef = useRef(0);
+
+    const createItemId = (prefix: string): string => {
+        const existingIds = new Set(items.map((item) => item.id));
+        let id: string;
+        do {
+            itemIdCounterRef.current += 1;
+            id = `${prefix}-${Date.now()}-${itemIdCounterRef.current}`;
+        } while (existingIds.has(id));
+        return id;
+    };
+
+    useLayoutEffect(() => {
+        if (!isActive) setContextMenu(null);
+    }, [isActive]);
 
     useEffect(() => {
         registerRholangLanguage();
@@ -488,14 +574,6 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         });
     }, [activeFileId, openFiles, expandedFolders]);
 
-    useEffect(() => {
-        const handleClick = () => setContextMenu(null);
-
-        document.addEventListener("click", handleClick);
-
-        return () => document.removeEventListener("click", handleClick);
-    }, []);
-
     const activeFile = items.find(
         (item) => item.id === activeFileId && item.type === "file",
     ) as IDEFile | undefined;
@@ -509,11 +587,12 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         message: string,
     ): void => {
         consoleMessageIdRef.current += 1;
+        const id = consoleMessageIdRef.current.toString();
 
         setConsoleMessages((prev) => [
             ...prev,
             {
-                id: consoleMessageIdRef.current.toString(),
+                id,
                 type,
                 message,
                 timestamp: new Date(),
@@ -620,7 +699,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         const now = new Date();
         const fileCount = items.filter((item) => item.type === "file").length;
         const newFile: IDEFile = {
-            id: Date.now().toString(),
+            id: createItemId("file"),
             name: `untitled-${fileCount + 1}.rho`,
             content: "// New Rholang contract\n",
             folderId,
@@ -635,13 +714,43 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         setActiveFileId(newFile.id);
     };
 
+    const handleLoadExample = (): void => {
+        const defaultExample = IDEStorageService.getDefaultFiles().find(
+            (item): item is IDEFile => item.type === "file" && item.id === DEFAULT_FILE_ID,
+        );
+        if (!defaultExample) return;
+
+        const existingExample = items.find(
+            (item): item is IDEFile => item.type === "file" && item.id === DEFAULT_FILE_ID,
+        );
+        if (existingExample && !existingExample.modified && existingExample.content === defaultExample.content) {
+            setActiveFileId(existingExample.id);
+            setOpenFiles((prev) => prev.includes(existingExample.id) ? prev : [...prev, existingExample.id]);
+            setExpandedFolders((prev) => new Set([...Array.from(prev), DEFAULT_EXPANDED_FOLDER_IDS[0]]));
+            return;
+        }
+
+        const now = new Date();
+        const newFile: IDEFile = {
+            ...defaultExample,
+            id: createItemId("example"),
+            name: `hello-example-${items.filter((item) => item.type === "file" && item.name.startsWith("hello-example-")).length + 1}.rho`,
+            folderId: undefined,
+            createdAt: now,
+            updatedAt: now,
+        };
+        setItems((prev) => [...prev, newFile]);
+        setOpenFiles((prev) => [...prev, newFile.id]);
+        setActiveFileId(newFile.id);
+    };
+
     const handleNewFolder = (parentId?: string): void => {
         const now = new Date();
         const folderCount = items.filter(
             (item) => item.type === "folder",
         ).length;
         const newFolder: IDEFolder = {
-            id: Date.now().toString(),
+            id: createItemId("folder"),
             name: `new-folder-${folderCount + 1}`,
             parentId,
             type: "folder",
@@ -707,6 +816,11 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     };
 
     const handleRename = (item: IDEItem, name: string): void => {
+        if (!name.trim()) {
+            setRenamingId(null);
+            setNewName("");
+            return;
+        }
         setItems((prev) =>
             prev.map((entry) =>
                 entry.id === item.id
@@ -762,6 +876,10 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
             const importedItems = await IDEStorageService.importWorkspace(file);
 
             setItems(importedItems);
+            const firstFile = importedItems.find((item): item is IDEFile => item.type === "file");
+            setActiveFileId(firstFile?.id ?? "");
+            setOpenFiles(firstFile ? [firstFile.id] : []);
+            setExpandedFolders(new Set(importedItems.filter((item) => item.type === "folder").map((item) => item.id)));
             addConsoleMessage(
                 ConsoleMessageMods.SUCCESS,
                 "Workspace imported successfully",
@@ -826,6 +944,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
 
     const value: IDeployProModeContextValue = {
         ...deployContractState,
+        isActive,
         items,
         activeFileId,
         openFiles,
@@ -857,6 +976,7 @@ const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
         handleImportWorkspace,
         handleDeployClick,
         handleExploreClick,
+        handleLoadExample,
         clearConsole: () => setConsoleMessages([]),
         toggleFolder,
     };
@@ -874,7 +994,7 @@ const defaultButtonStyle: CSSProperties = {
 };
 
 const DeployProModeActions: React.FC = () => {
-    const { items, workspaceInputRef } = useDeployProMode();
+    const { items, workspaceInputRef, handleLoadExample } = useDeployProMode();
     const { isTablet } = useScreen();
 
     const adaptiveButtonLabelStyle: CSSProperties = useMemo(
@@ -883,9 +1003,18 @@ const DeployProModeActions: React.FC = () => {
     );
 
     return (
-        <ToolbarActions>
+        <ToolbarActions style={isTablet ? { flexDirection: "column", gap: 16 } : undefined}>
+            <Button
+                id="ide-load-example-button"
+                style={defaultButtonStyle}
+                fullWidth={isTablet}
+                onClick={handleLoadExample}
+            >
+                Load Example
+            </Button>
             <Button
                 id="ide-import-workspace-button"
+                variant="secondary"
                 style={defaultButtonStyle}
                 fullWidth={isTablet}
                 onClick={() => workspaceInputRef.current?.click()}
@@ -906,8 +1035,16 @@ const DeployProModeActions: React.FC = () => {
 
 const DeployProModeBoard: React.FC = () => {
     const {
+        isActive,
         account,
         isBalanceReady,
+        isPhloLimitValid,
+        isBlockedByAnotherChainOperation,
+        submittedDeployId,
+        submittedDeployStatus,
+        unresolvedReason,
+        isWaitingForConfirmation,
+        isDeployConfirmed,
         items,
         activeFileId,
         openFiles,
@@ -952,7 +1089,53 @@ const DeployProModeBoard: React.FC = () => {
         toggleFolder,
     } = useDeployProMode();
 
-    const { isLaptop } = useScreen();
+    const contextMenuRef = useRef<HTMLDivElement>(null);
+    const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!contextMenu || !isActive) return;
+
+        contextMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            setContextMenu(null);
+            contextMenuOpenerRef.current?.focus();
+        };
+        const handleMouseDown = (event: MouseEvent): void => {
+            if (!contextMenuRef.current?.contains(event.target as Node)) {
+                const opener = contextMenuOpenerRef.current;
+                setContextMenu(null);
+                window.setTimeout(() => {
+                    const focused = document.activeElement;
+                    if (
+                        opener?.isConnected &&
+                        !opener.closest('[aria-hidden="true"]') &&
+                        (focused === document.body || !focused?.isConnected)
+                    ) {
+                        opener.focus();
+                    }
+                }, 0);
+            }
+        };
+        document.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("mousedown", handleMouseDown);
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("mousedown", handleMouseDown);
+        };
+    }, [contextMenu, isActive, setContextMenu]);
+
+    const openContextMenu = (item: IDEItem, x: number, y: number, opener: HTMLElement): void => {
+        contextMenuOpenerRef.current = opener;
+        setContextMenu({ item, x, y });
+    };
+
+    const closeContextMenu = (): void => {
+        setContextMenu(null);
+        contextMenuOpenerRef.current?.focus();
+    };
 
     const renderFileTree = (
         parentId?: string,
@@ -979,14 +1162,24 @@ const DeployProModeBoard: React.FC = () => {
                 <React.Fragment key={folder.id}>
                     <TreeItem
                         $depth={depth}
+                        role="treeitem"
+                        tabIndex={0}
+                        aria-expanded={expandedFolders.has(folder.id)}
                         onClick={() => toggleFolder(folder.id)}
+                        onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleFolder(folder.id);
+                            } else if (e.key === "F10" && e.shiftKey) {
+                                e.preventDefault();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                openContextMenu(folder, rect.left, rect.bottom, e.currentTarget);
+                            }
+                        }}
                         onContextMenu={(e) => {
                             e.preventDefault();
-                            setContextMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                item: folder,
-                            });
+                            openContextMenu(folder, e.clientX, e.clientY, e.currentTarget);
                         }}
                     >
                         <TreeIcon>
@@ -1031,6 +1224,9 @@ const DeployProModeBoard: React.FC = () => {
                     key={file.id}
                     $depth={depth}
                     $active={file.id === activeFileId}
+                    role="treeitem"
+                    tabIndex={0}
+                    aria-selected={file.id === activeFileId}
                     onClick={() => {
                         setActiveFileId(file.id);
 
@@ -1038,13 +1234,23 @@ const DeployProModeBoard: React.FC = () => {
                             setOpenFiles((prev) => [...prev, file.id]);
                         }
                     }}
+                    onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setActiveFileId(file.id);
+                            if (!openFiles.includes(file.id)) {
+                                setOpenFiles((prev) => [...prev, file.id]);
+                            }
+                        } else if (e.key === "F10" && e.shiftKey) {
+                            e.preventDefault();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            openContextMenu(file, rect.left, rect.bottom, e.currentTarget);
+                        }
+                    }}
                     onContextMenu={(e) => {
                         e.preventDefault();
-                        setContextMenu({
-                            x: e.clientX,
-                            y: e.clientY,
-                            item: file,
-                        });
+                        openContextMenu(file, e.clientX, e.clientY, e.currentTarget);
                     }}
                 >
                     <TreeIcon>
@@ -1080,12 +1286,14 @@ const DeployProModeBoard: React.FC = () => {
             <FileInput
                 ref={fileInputRef}
                 type="file"
+                aria-label="Import Rholang file"
                 accept=".rho"
                 onChange={handleImportFile}
             />
             <FileInput
                 ref={workspaceInputRef}
                 type="file"
+                aria-label="Import workspace file"
                 accept=".json"
                 onChange={handleImportWorkspace}
             />
@@ -1095,7 +1303,7 @@ const DeployProModeBoard: React.FC = () => {
                     <ExplorerHeader>Files</ExplorerHeader>
                     <FileExplorerContent className="file-explorer-content">
                         <FileList>
-                            <FileTree>{renderFileTree()}</FileTree>
+                        <FileTree role="tree" aria-label="Workspace files">{renderFileTree()}</FileTree>
                         </FileList>
                         <ToolbarActions
                             style={{ justifyContent: "end", padding: "7px" }}
@@ -1129,7 +1337,7 @@ const DeployProModeBoard: React.FC = () => {
                 </FileExplorer>
 
                 <EditorContainer>
-                    <EditorHeader>
+                    <EditorHeader role="tablist" aria-label="Open files">
                         <h4 className="light">Rholang Code</h4>
                         {openFiles.map((fileId) => {
                             const file = items.find(
@@ -1146,14 +1354,17 @@ const DeployProModeBoard: React.FC = () => {
                                     key={fileId}
                                     $active={fileId === activeFileId}
                                 >
-                                    <span
+                                    <TabSelect
+                                        role="tab"
+                                        aria-selected={fileId === activeFileId}
                                         className="text-3"
                                         onClick={() => setActiveFileId(fileId)}
                                     >
                                         {file.name}
                                         {file.modified ? "*" : ""}
-                                    </span>
+                                    </TabSelect>
                                     <CloseButton
+                                        aria-label={`Close ${file.name}`}
                                         onClick={() => handleCloseFile(fileId)}
                                     >
                                         ×
@@ -1193,9 +1404,11 @@ const DeployProModeBoard: React.FC = () => {
                         loading={isProcessing}
                         disabled={
                             isProcessing ||
+                            isBlockedByAnotherChainOperation ||
                             !deployableFile ||
                             !account ||
-                            !isBalanceReady
+                            !isBalanceReady ||
+                            !isPhloLimitValid
                         }
                     >
                         <h3>Deploy</h3>
@@ -1206,38 +1419,55 @@ const DeployProModeBoard: React.FC = () => {
                         variant="secondary"
                         onClick={handleExploreClick}
                         loading={isProcessing}
-                        disabled={isProcessing || !deployableFile}
+                        disabled={isProcessing || isBlockedByAnotherChainOperation || !deployableFile}
                     >
                         <h3>Explore</h3>
                     </Button>
                     <Button
-                        title="Clear console output"
-                        variant="ghost"
+                        aria-label="Clear console output"
+                        variant="danger"
                         size="small"
                         onClick={clearConsole}
-                        dangerHover
-                        style={{
-                            height: "30px",
-                        }}
                     >
-                        {!isLaptop && (
-                            <h3
-                                style={{ fontSize: "0.75rem" }}
-                                className="text-danger"
-                            >
-                                Clear
-                            </h3>
-                        )}
+                        <span>Clear</span>
                         <DeleteIcon />
                     </Button>
                 </DeploySettings>
             </Toolbar>
 
+            {submittedDeployId && (
+                <DeployStatusPanel
+                    role="status"
+                    $tone={unresolvedReason ? "warning" : isDeployConfirmed ? "success" : "info"}
+                >
+                    <div>
+                        <strong>{unresolvedReason ? "Deploy status unknown" : isDeployConfirmed ? "Deploy finalized" : isWaitingForConfirmation ? "Deploy pending" : "Deploy sent"}</strong>
+                        {submittedDeployStatus && <span> · {submittedDeployStatus}</span>}
+                        {unresolvedReason && <div>{unresolvedReason}</div>}
+                        <code>Deploy ID: {submittedDeployId}</code>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="small"
+                        aria-label="Copy deploy hash"
+                        onClick={async () => {
+                            try {
+                                await navigator.clipboard.writeText(submittedDeployId);
+                            } catch {
+                                // Clipboard permissions are controlled by the browser.
+                            }
+                        }}
+                    >
+                        Copy hash
+                    </Button>
+                </DeployStatusPanel>
+            )}
+
             <ConsolePanel>
                 <OutputHeader>
                     <h4>Console</h4>
                 </OutputHeader>
-                <OutputContent>
+                <OutputContent role="log" aria-label="Deploy console" aria-live="polite">
                     {consoleMessages.map((message) => (
                         <ConsoleEntry key={message.id} $type={message.type}>
                             {message.type === ConsoleMessageMods.SUCCESS && (
@@ -1265,6 +1495,9 @@ const DeployProModeBoard: React.FC = () => {
 
             {contextMenu && (
                 <ContextMenu
+                    ref={contextMenuRef}
+                    role="menu"
+                    aria-label={`${contextMenu.item.name} actions`}
                     $x={contextMenu.x}
                     $y={contextMenu.y}
                     onClick={(e) => e.stopPropagation()}
@@ -1272,17 +1505,19 @@ const DeployProModeBoard: React.FC = () => {
                     {contextMenu.item.type === "folder" && (
                         <>
                             <ContextMenuItem
+                                role="menuitem"
                                 onClick={() => {
                                     handleNewFile(contextMenu.item.id);
-                                    setContextMenu(null);
+                                    closeContextMenu();
                                 }}
                             >
                                 New File
                             </ContextMenuItem>
                             <ContextMenuItem
+                                role="menuitem"
                                 onClick={() => {
                                     handleNewFolder(contextMenu.item.id);
-                                    setContextMenu(null);
+                                    closeContextMenu();
                                 }}
                             >
                                 New Folder
@@ -1291,29 +1526,32 @@ const DeployProModeBoard: React.FC = () => {
                     )}
                     {contextMenu.item.type === "file" && (
                         <ContextMenuItem
+                            role="menuitem"
                             onClick={() => {
                                 IDEStorageService.exportFile(
                                     contextMenu.item as IDEFile,
                                 );
-                                setContextMenu(null);
+                                closeContextMenu();
                             }}
                         >
                             Export File
                         </ContextMenuItem>
                     )}
                     <ContextMenuItem
+                        role="menuitem"
                         onClick={() => {
                             setRenamingId(contextMenu.item.id);
                             setNewName(contextMenu.item.name);
-                            setContextMenu(null);
+                            closeContextMenu();
                         }}
                     >
                         Rename
                     </ContextMenuItem>
                     <ContextMenuItem
+                        role="menuitem"
                         onClick={() => {
                             handleDelete(contextMenu.item);
-                            setContextMenu(null);
+                            closeContextMenu();
                         }}
                     >
                         Delete

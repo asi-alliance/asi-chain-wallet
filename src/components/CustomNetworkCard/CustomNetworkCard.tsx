@@ -1,34 +1,27 @@
 import React, { Fragment, useState } from "react";
 import styled from "styled-components";
-import { Button } from "components";
-import { Network } from "types/wallet";
-import { DeleteIcon, EditIcon } from "components/Icons";
 import { useDispatch } from "react-redux";
+import { Button } from "components";
+import { DeleteIcon, EditIcon } from "components/Icons";
 import { DeleteCustomNetworkModal } from "components/DeleteCustomNetworkModal";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
-import { removeCustomNetwork } from "store/WalletsStore/thunks";
 import { AppDispatch } from "store";
+import { removeCustomNetwork } from "store/WalletsStore/thunks";
+import { Network } from "types/wallet";
 import { useIsNetworkBusy } from "sdk";
-import { getErrorMessage } from "utils/helpers";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 const NetworkItem = styled.div`
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 16px 24px;
-    margin-bottom: 8px;
+    border: 1px solid ${({ theme }) => theme.border};
+    border-radius: ${({ theme }) => theme.radii.md};
+    padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing["3xl"]};
     min-width: 0;
     box-sizing: border-box;
+    background: ${({ theme }) => theme.surface};
+    box-shadow: ${({ theme }) => theme.shadowDrop};
 
-    &:last-child {
-        margin-bottom: 0;
-    }
-
-    @media (max-width: 768px) {
-        padding: 14px 16px;
-    }
-
-    @media (max-width: 400px) {
-        padding: 12px;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     }
 `;
 
@@ -36,102 +29,86 @@ const NetworkHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 10px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
     min-width: 0;
 
-    @media (max-width: 400px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         align-items: flex-start;
-        gap: 8px;
+        gap: ${({ theme }) => theme.spacing.md};
     }
+`;
+
+const NetworkTitleGroup = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    min-width: 0;
 `;
 
 const NetworkName = styled.div`
-    font-weight: 500;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.md};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    color: ${({ theme }) => theme.text.primary};
     min-width: 0;
-    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `;
 
-const NetworkNameLabel = styled.span`
-    margin-right: 10px;
-
-    @media (max-width: 768px) {
-        display: block;
-    }
-
-    @media (max-width: 400px) {
-        margin-right: 0;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
+const NetworkId = styled.span`
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    overflow-wrap: anywhere;
 `;
 
-const NetworkBadge = styled.span`
-    color: #999;
-    font-weight: 400;
+const BusyStatus = styled.span`
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+`;
 
-    @media (max-width: 768px) {
-        display: block;
-        font-size: 0.75rem;
-    }
-
-    @media (max-width: 400px) {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
+const NetworkActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    flex-shrink: 0;
 `;
 
 const NetworkUrls = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: ${({ theme }) => theme.spacing.lg};
     min-width: 0;
-    font-family: monospace;
-    font-size: 12px;
 
-    @media (max-width: 768px) {
-        display: block;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: 1fr;
     }
 `;
 
 const NetworkUrl = styled.div`
     min-width: 0;
     overflow: hidden;
-
-    & + & {
-        @media (max-width: 768px) {
-            margin-top: 10px;
-        }
-    }
 `;
 
 const UrlLabel = styled.div`
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
     color: ${({ theme }) => theme.text.secondary};
-    margin-bottom: 2px;
+    margin-bottom: ${({ theme }) => theme.spacing["2xs"]};
 `;
 
 const UrlValue = styled.div`
-    line-height: 27px;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    color: ${({ theme }) => theme.text.primary};
     min-width: 0;
     overflow-wrap: anywhere;
     word-break: break-word;
-
-    @media (max-width: 400px) {
-        line-height: 20px;
-        font-size: 11px;
-    }
-`;
-
-const CustomNetworkActionsButtons = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    flex-shrink: 0;
-
-    @media (max-width: 400px) {
-        gap: 6px;
-    }
 `;
 
 interface CustomNetworkCardProps {
@@ -142,25 +119,22 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
     network,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
-
     const isNetworkBusy = useIsNetworkBusy(network.id);
-
     const [isEditing, setIsEditing] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const handleDelete = async (): Promise<void> => {
+        if (isNetworkBusy || isDeleting) {
+            return;
+        }
+
         setIsDeleting(true);
         setDeleteError(null);
 
         try {
-            await dispatch(
-                removeCustomNetwork({
-                    id: network.id,
-                }),
-            ).unwrap();
-
+            await dispatch(removeCustomNetwork({ id: network.id })).unwrap();
             setIsConfirmingDelete(false);
         } catch (error) {
             setDeleteError(
@@ -171,24 +145,16 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
         }
     };
 
-    const openDeleteConfirmation = (): void => {
-        setDeleteError(null);
-        setIsConfirmingDelete(true);
-    };
-
     return (
         <Fragment>
             <NetworkItem>
                 <NetworkHeader>
-                    <NetworkName className="text-2">
-                        <NetworkNameLabel className="text-2">
-                            {network.name}
-                        </NetworkNameLabel>
-
-                        {isNetworkBusy && <NetworkBadge>(busy)</NetworkBadge>}
-                    </NetworkName>
-
-                    <CustomNetworkActionsButtons>
+                    <NetworkTitleGroup>
+                        <NetworkName>{network.name}</NetworkName>
+                        <NetworkId>({network.id})</NetworkId>
+                        {isNetworkBusy && <BusyStatus>(busy)</BusyStatus>}
+                    </NetworkTitleGroup>
+                    <NetworkActions>
                         <Button
                             title="Edit network"
                             size="small"
@@ -198,7 +164,6 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                         >
                             <EditIcon />
                         </Button>
-
                         <Button
                             title={
                                 isNetworkBusy
@@ -207,40 +172,35 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
                             }
                             size="small"
                             variant="icon-button"
-                            onClick={openDeleteConfirmation}
+                            onClick={() => {
+                                setDeleteError(null);
+                                setIsConfirmingDelete(true);
+                            }}
                             disabled={isDeleting || isNetworkBusy}
                             dangerHover
                         >
                             <DeleteIcon />
                         </Button>
-                    </CustomNetworkActionsButtons>
+                    </NetworkActions>
                 </NetworkHeader>
 
                 <NetworkUrls>
                     <NetworkUrl>
-                        <UrlLabel className="text-5">Validator URL</UrlLabel>
-
-                        <UrlValue className="text-4">
-                            {network.validatorUrl}
-                        </UrlValue>
+                        <UrlLabel>Validator URL</UrlLabel>
+                        <UrlValue>{network.validatorUrl || "-"}</UrlValue>
                     </NetworkUrl>
 
                     <NetworkUrl>
-                        <UrlLabel className="text-5">Read-only URL</UrlLabel>
-
-                        <UrlValue className="text-4">
-                            {network.observerUrl || "-"}
-                        </UrlValue>
+                        <UrlLabel>Read-only URL</UrlLabel>
+                        <UrlValue>{network.observerUrl || "-"}</UrlValue>
                     </NetworkUrl>
                 </NetworkUrls>
             </NetworkItem>
-
             <EditCustomNetworkModal
                 isOpen={isEditing}
                 network={network}
                 onClose={() => setIsEditing(false)}
             />
-
             <DeleteCustomNetworkModal
                 isOpen={isConfirmingDelete}
                 networkName={network.name}

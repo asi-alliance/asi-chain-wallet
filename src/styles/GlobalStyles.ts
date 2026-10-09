@@ -10,8 +10,13 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
 
   html {
     font-size: 16px;
+    min-width: 320px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  html, body, #root {
+    min-height: 100%;
   }
 
   p {
@@ -20,7 +25,7 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   code {
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
     background: ${({ theme }) => theme.surface};
     padding: 0.2em 0.4em;
     border-radius: 4px;
@@ -28,7 +33,7 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   a {
-    color: ${({ theme }) => theme.primary};
+    color: ${({ theme }) => theme.actionText};
     text-decoration: none;
     transition: all 0.2s ease;
 
@@ -41,35 +46,78 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     cursor: pointer;
     border: none;
     outline: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
+    font: inherit;
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    transition: all ${({ theme }) => theme.motion.normal} ${({ theme }) => theme.motion.easing};
     
     &:disabled {
       cursor: not-allowed;
       opacity: 0.5;
     }
 
-    &:active {
-      transform: scale(0.98);
-    }
   }
 
+  /* Native field fallback — shared chrome; typography split below. */
   input, textarea, select {
-    // font-size: inherit;
-    background: ${({ theme }) => theme.surface};
+    font: inherit;
+    background: ${({ theme }) => theme.control.fieldBackground};
     color: ${({ theme }) => theme.text.primary};
-    border: 2px solid ${({ theme }) => theme.border};
-    transition: all 0.2s ease;
+    border: ${({ theme }) => theme.control.borderWidth} solid ${({ theme }) => theme.control.fieldBorder};
+    transition:
+      border-color ${({ theme }) => theme.motion.normal} ${({ theme }) => theme.motion.easing},
+      box-shadow ${({ theme }) => theme.motion.normal} ${({ theme }) => theme.motion.easing},
+      background-color ${({ theme }) => theme.motion.normal} ${({ theme }) => theme.motion.easing};
     outline: none;
+
+    &:hover:not(:disabled):not(:focus) {
+      border-color: var(--control-field-hover-border, ${({ theme }) => theme.control.fieldHoverBorder});
+    }
+
+    &[aria-invalid="true"] {
+      border-color: ${({ theme }) => theme.danger};
+    }
+
+    &[aria-invalid="true"]:hover:not(:disabled) {
+      border-color: ${({ theme }) => theme.danger};
+    }
 
     &:focus {
       border-color: ${({ theme }) => theme.primary};
-      background: ${({ theme }) => theme.card};
+    }
+
+    &[aria-invalid="true"]:focus {
+      border-color: ${({ theme }) => theme.danger};
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
+    }
+
+    &[aria-invalid="true"]:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 4px ${({ theme }) => theme.dangerFocusRing};
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      background: ${({ theme }) => theme.control.disabledBackground};
+      border-color: ${({ theme }) => theme.control.disabledBorder};
     }
 
     &::placeholder {
       color: ${({ theme }) => theme.text.tertiary};
     }
+  }
+
+  input, textarea {
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+  }
+
+  select {
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
   }
 
   /* Modern scrollbar styling */
@@ -97,15 +145,11 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     color: ${({ theme }) => theme.background};
   }
 
-  /* Focus styles */
-  *:focus {
-    outline: none;
-  }
-
+  /* Focus styles — semantic focusRing; fields override with box-shadow above */
   *:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.primary};
+    outline: 2px solid ${({ theme }) => theme.focusRing};
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 
   /* Animations */
@@ -169,13 +213,6 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  /* Responsive typography */
-  @media (max-width: 768px) {
-    html {
-      font-size: 14px;
-    }
-  }
-
   /* Disable user select on UI elements */
   button, label {
     user-select: none;
@@ -196,9 +233,11 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   body {
     background: ${({ theme }) => theme.background};
     color: ${({ theme }) => theme.text.primary};
-    line-height: 1.5;
-    font-weight: 400;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.md};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    font-weight: ${({ theme }) => theme.typography.weight.regular};
+    transition: background-color ${({ theme }) => theme.motion.slow} ${({ theme }) => theme.motion.easing}, color ${({ theme }) => theme.motion.slow} ${({ theme }) => theme.motion.easing};
     overflow-x: hidden;
   }
   
@@ -209,22 +248,26 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
 
   h1 {
-    font-size: 2rem;
-    font-weight: 500;
+    font-size: ${({ theme }) => theme.typography.size.display};
+    line-height: ${({ theme }) => theme.typography.lineHeight.display};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
     }
     
   h2 {
-    font-size: 1.5rem;
-    font-weight: 500;
+    font-size: ${({ theme }) => theme.typography.size.xl};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xl};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
   }
 
   h3 {
-      font-size: 1.125rem;
+      font-size: ${({ theme }) => theme.typography.size.lg};
+      line-height: ${({ theme }) => theme.typography.lineHeight.lg};
       font-weight: 700;
   }
 
   h4 {
-    font-size: 1rem;
+    font-size: ${({ theme }) => theme.typography.size.md};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
   }
 
   h4.light {
@@ -232,7 +275,8 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
   }
   
   h5 {
-    font-size: 0.875rem;
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
   }
 
   .text-1 {
@@ -266,13 +310,10 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
 }
 
   
-  * {
-  font-family: 'Roboto Mono', monospace  !important;
-  }
-
   @media (max-width: 768px) {
        h1 {
-        font-size: 1.25rem;
+        font-size: ${({ theme }) => theme.fontSize.xl};
+        line-height: 1.3;
        }
 
        .text-2 {
@@ -280,7 +321,20 @@ export const GlobalStyles = createGlobalStyle<{ theme: Theme }>`
        }
    }
 
-   .text-danger {
-    color: ${({ theme }) => theme.danger};
+  .text-danger {
+    color: ${({ theme }) => theme.dangerText};
    }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    button:active {
+      transform: none;
+    }
+  }
 `;

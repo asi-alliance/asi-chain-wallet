@@ -1,10 +1,9 @@
-import React, { Fragment, useMemo, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import styled, { DefaultTheme } from "styled-components";
+import styled from "styled-components";
 import { QRCodeCanvas } from "qrcode.react";
-import { RootState } from "store";
-import { selectSelectedAccount } from "store/WalletsStore";
+import { selectSelectedAccount, selectSelectedNetwork } from "store/WalletsStore";
 import {
     Card,
     CardHeader,
@@ -14,7 +13,7 @@ import {
     Input,
 } from "components";
 import { getAddressLabel, getTokenDisplayName } from "../../constants/token";
-import { TextSecondaryBlock } from "styles/sharedStyledComponents";
+import { FilterLabel, TextSecondaryBlock } from "styles/sharedStyledComponents";
 import { AccountSelector } from "components/AccountSelector";
 import { Select } from "components/Select";
 import { ISelectOption } from "components/Select/Select";
@@ -25,12 +24,22 @@ import {
     HistoryIcon,
     QRIconSecond,
 } from "components/Icons";
-import { Panel } from "components/Panel";
-import { useScreen } from "hooks/";
+import { Disclosure } from "components/Disclosure";
+import { useCopyToClipboard } from "hooks";
 
 const ReceiveContainer = styled.div`
+    width: 100%;
     max-width: 600px;
     margin: 0 auto;
+`;
+
+const ReceiveCard = styled(Card)`
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        h1 {
+            font-size: clamp(24px, 8vw, 32px);
+            line-height: clamp(30px, 9vw, 36px);
+        }
+    }
 `;
 
 const AddressContainer = styled.div`
@@ -39,17 +48,35 @@ const AddressContainer = styled.div`
     margin-bottom: 24px;
 `;
 
-const InlineButton = styled(Button)`
-    height: 44px;
-`;
+const AddressCopyButton = styled.button`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: ${({ theme }) => theme.text.primary};
+    cursor: pointer;
 
-const CopyButton = styled(InlineButton)`
-    margin-top: 16px;
+    &:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+        outline-offset: 2px;
+        border-radius: ${({ theme }) => theme.radii.xs};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
 `;
 
 const QRCodeContainer = styled.div`
+    box-sizing: border-box;
     width: 256px;
-    height: 256px;
+    max-width: 100%;
+    aspect-ratio: 1;
     padding: 16px;
     background: white;
     border-radius: 12px;
@@ -60,13 +87,24 @@ const QRCodeContainer = styled.div`
     box-shadow: ${({ theme }) => theme.shadowLarge};
 `;
 
-const SuccessMessage = styled.div`
-    background: ${({ theme }) => theme.success};
-    color: ${({ theme }) => theme.text.inverse};
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    text-align: center;
+const CopyStatus = styled.div`
+    color: ${({ theme }) => theme.actionText};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.sm};
+
+    &:not(:empty) {
+        margin-bottom: ${({ theme }) => theme.spacing.md};
+    }
+`;
+
+const CopyError = styled.div`
+    color: ${({ theme }) => theme.dangerText};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+
+    &:not(:empty) {
+        margin-bottom: ${({ theme }) => theme.spacing.md};
+    }
 `;
 
 const InfoBox = styled.div`
@@ -88,8 +126,11 @@ const InfoTitle = styled.h4`
 const InfoList = styled.ul`
     margin: 0;
     padding-left: 20px;
-    // font-size: 14px;
     color: ${({ theme }) => theme.text.secondary};
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        font-size: ${({ theme }) => theme.typography.size.sm};
+    }
 `;
 
 const SelectToolbar = styled.div`
@@ -97,11 +138,17 @@ const SelectToolbar = styled.div`
     align-items: center;
     width: 100%;
     gap: 24px;
-
     margin-bottom: 36px;
 
-    @media (max-width: 768px) {
-        display: block;
+    > * {
+        flex: 1;
+        min-width: 0;
+    }
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: ${({ theme }) => theme.spacing.xl};
     }
 `;
 
@@ -111,24 +158,54 @@ const FilterGroup = styled.div`
     gap: 8px;
 `;
 
-const FilterLabel = styled.label`
-    // font-size: 14px;
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
-`;
-
 const BalanceInfo = styled.div`
     margin-bottom: 36px;
     display: flex;
     justify-content: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        max-width: 100%;
+
+        .account-balance-card {
+            max-width: 100%;
+        }
+
+        .amount-balance-wrapper {
+            white-space: nowrap;
+        }
+    }
 `;
 
 const ActionsToolbar = styled.div`
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     padding: 0 20px;
-    justify-content: center;
     align-items: center;
     gap: 16px;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: minmax(0, 1fr) auto;
+
+        > button:first-child {
+            grid-column: 1 / -1;
+            grid-row: 1;
+        }
+
+        .download-qr {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .history-button {
+            grid-column: 2;
+            grid-row: 2;
+        }
+    }
+
+    @media (max-width: 400px) {
+        padding: 0;
+        gap: ${({ theme }) => theme.spacing.md};
+    }
 `;
 
 enum AddressFormats {
@@ -142,7 +219,7 @@ const formatOptions: ISelectOption[] = [
         value: AddressFormats.ASI,
         label: "ASI",
     },
-    //TODO: Restore the ETH format option when the SDK exposes the account eth address
+    // TODO: Restore the ETH format option when the SDK exposes the account ETH address.
     // {
     //     id: AddressFormats.ETHEREUM,
     //     value: AddressFormats.ETHEREUM,
@@ -153,31 +230,29 @@ const formatOptions: ISelectOption[] = [
 export const Receive: React.FC = () => {
     const navigate = useNavigate();
     const selectedAccount = useSelector(selectSelectedAccount);
-    const selectedNetwork = useSelector(
-        (state: RootState) => state.walletsStore.selectedNetwork,
-    );
+    const selectedNetwork = useSelector(selectSelectedNetwork);
+    const address = selectedAccount?.address ?? "";
+    const addressLabel = getAddressLabel();
+    const [addressFormat, setAddressFormat] = useState<AddressFormats>(AddressFormats.ASI);
+    const [isQrExpanded, setIsQrExpanded] = useState(false);
+    const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+    const clipboard = useCopyToClipboard();
+    const copyStatus =
+        clipboard.result?.value === address ? clipboard.result.status : null;
 
-    const { isLaptop } = useScreen();
-
-    const [addressFormat, setAddressFormat] = useState<AddressFormats>(
-        AddressFormats.ASI,
-    );
-    const [copyMessage, setCopyMessage] = useState("");
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text).then(() => {
-            setCopyMessage("Address copied to clipboard!");
-            setTimeout(() => setCopyMessage(""), 3000);
-        });
+    const copyAddress = (): void => {
+        clipboard.copy(address);
     };
 
-    const accountSelectorStyle = useMemo(
-        () => ({
-            flex: 1,
-            ...(isLaptop && { marginBottom: "16px" }),
-        }),
-        [isLaptop],
-    );
+    const downloadQr = (): void => {
+        const canvas = qrCanvasRef.current;
+        if (!canvas) return;
+
+        const link = document.createElement("a");
+        link.download = `${addressLabel.toLowerCase().replace(" ", "-")}-address-qr.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    };
 
     if (!selectedAccount) {
         return (
@@ -194,28 +269,22 @@ export const Receive: React.FC = () => {
         );
     }
 
-    const currentAddress = selectedAccount.address;
-    const addressLabel = "ASI Address";
-
     return (
         <ReceiveContainer>
-            <Card>
+            <ReceiveCard>
                 <CardHeader>
                     <CardTitle>Receive Tokens</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {copyMessage && (
-                        <SuccessMessage>{copyMessage}</SuccessMessage>
-                    )}
-
                     <SelectToolbar>
-                        <AccountSelector wrapperStyle={accountSelectorStyle} />
-                        <FilterGroup style={{ flex: 1 }}>
-                            <FilterLabel>
-                                <h4 className="light">Address Format</h4>
+                        <AccountSelector fullWidth label="Account" />
+                        <FilterGroup>
+                            <FilterLabel id="address-format-selector-label">
+                                Address Format
                             </FilterLabel>
                             <Select
                                 id="address-format-account-select"
+                                aria-labelledby="address-format-selector-label"
                                 value={addressFormat}
                                 onChange={(format) => {
                                     setAddressFormat(format as AddressFormats);
@@ -241,9 +310,7 @@ export const Receive: React.FC = () => {
                             labelStyle={{
                                 fontWeight: "500",
                             }}
-                            labelColorSelector={(theme: DefaultTheme) =>
-                                theme.colors.text.primary
-                            }
+                            labelColorSelector={(theme) => theme.text.primary}
                             wrapperStyle={{
                                 marginBottom: "4px",
                             }}
@@ -251,10 +318,19 @@ export const Receive: React.FC = () => {
                                 fontSize: "0.75rem",
                                 height: "44px",
                             }}
-                            value={currentAddress}
+                            value={address}
                             readOnly
-                            copyable
-                            CustomCopyIcon={FileCopyIcon}
+                            endAdornment={
+                                <AddressCopyButton
+                                    type="button"
+                                    title={`Copy ${addressLabel} from field`}
+                                    aria-label={`Copy ${addressLabel} from field`}
+                                    onClick={copyAddress}
+                                    disabled={clipboard.isCopying}
+                                >
+                                    <FileCopyIcon size={16} color="currentColor" />
+                                </AddressCopyButton>
+                            }
                         />
 
                         <TextSecondaryBlock
@@ -267,156 +343,92 @@ export const Receive: React.FC = () => {
                             the field or click the Paste button
                         </TextSecondaryBlock>
 
-                        <Panel header="Show QR Code">
+                        <Disclosure
+                            header={isQrExpanded ? "Hide QR Code" : "Show QR Code"}
+                            expanded={isQrExpanded}
+                            onToggle={setIsQrExpanded}
+                        >
                             <QRCodeContainer>
                                 <QRCodeCanvas
-                                    value={currentAddress}
+                                    ref={qrCanvasRef}
+                                    value={address}
                                     size={224}
                                     bgColor="#ffffff"
                                     fgColor="#000000"
                                     level="H"
                                     includeMargin={false}
+                                    style={{ width: "100%", height: "auto", minWidth: 0 }}
+                                    aria-label={`QR code for ${address}`}
                                 />
                             </QRCodeContainer>
-                        </Panel>
+                        </Disclosure>
                     </AddressContainer>
 
                     <InfoBox>
                         <InfoTitle>Important</InfoTitle>
                         <InfoList>
-                            <div className="text-2">
-                                <li>
-                                    Only send {getTokenDisplayName()} tokens to
-                                    the {getAddressLabel()}
-                                </li>
-                                <li>
-                                    The ETH address is for compatibility -
-                                    mainly for address derivation
-                                </li>
-                                <li>
-                                    Always double-check the address before
-                                    sending
-                                </li>
-                                <li>
-                                    Make sure you're on the correct network:{" "}
-                                    <span id="receive-network-name">
-                                        {selectedNetwork.name}
-                                    </span>
-                                </li>
-                            </div>
+                            <li>
+                                Only send {getTokenDisplayName()} tokens to the{" "}
+                                {addressLabel}
+                            </li>
+                            <li>
+                                Always double-check the address before sending
+                            </li>
+                            <li>
+                                Make sure you're on the correct network:{" "}
+                                <span id="receive-network-name">
+                                    {selectedNetwork.name}
+                                </span>
+                            </li>
                         </InfoList>
                     </InfoBox>
 
-                    {!isLaptop && (
-                        <ActionsToolbar>
-                            <CopyButton
-                                variant="primary"
-                                onClick={() => copyToClipboard(currentAddress)}
-                                style={{
-                                    marginTop: "0",
-                                }}
-                            >
-                                <h3>Copy {addressLabel}</h3>
-                                <CopyIcon size={24} color="currentColor" />
-                            </CopyButton>
-
-                            <InlineButton
-                                variant="secondary"
-                                onClick={() => {
-                                    const canvas =
-                                        document.querySelector("canvas");
-                                    if (canvas) {
-                                        const url =
-                                            canvas.toDataURL("image/png");
-                                        const link =
-                                            document.createElement("a");
-                                        link.download = `${addressLabel
-                                            .toLowerCase()
-                                            .replace(" ", "-")}-address-qr.png`;
-                                        link.href = url;
-                                        link.click();
-                                    }
-                                }}
-                            >
-                                <h3>Download QR</h3>
-                                <QRIconSecond size={24} color="currentColor" />
-                            </InlineButton>
-                            <Button
-                                id="history-button"
-                                title="View transaction history"
-                                onClick={() => {
-                                    navigate("/history");
-                                }}
-                                variant="icon-button-black"
-                                fullWidth={false}
-                                secondaryHover
-                            >
-                                <HistoryIcon />
-                            </Button>
-                        </ActionsToolbar>
-                    )}
-                    {isLaptop && (
-                        <Fragment>
-                            <ActionsToolbar style={{ marginBottom: "16px" }}>
-                                <CopyButton
-                                    variant="primary"
-                                    onClick={() =>
-                                        copyToClipboard(currentAddress)
-                                    }
-                                    style={{
-                                        marginTop: "0",
-                                    }}
-                                    fullWidth
-                                >
-                                    <h3>Copy {addressLabel}</h3>
-                                    <CopyIcon size={24} color="currentColor" />
-                                </CopyButton>
-                                <Button
-                                    id="history-button"
-                                    onClick={() => {
-                                        navigate("/history");
-                                    }}
-                                    variant="icon-button-black"
-                                    fullWidth={false}
-                                    secondaryHover
-                                >
-                                    <HistoryIcon />
-                                </Button>
-                            </ActionsToolbar>
-                            <ActionsToolbar>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => {
-                                        const canvas =
-                                            document.querySelector("canvas");
-                                        if (canvas) {
-                                            const url =
-                                                canvas.toDataURL("image/png");
-                                            const link =
-                                                document.createElement("a");
-                                            link.download = `${addressLabel
-                                                .toLowerCase()
-                                                .replace(
-                                                    " ",
-                                                    "-",
-                                                )}-address-qr.png`;
-                                            link.href = url;
-                                            link.click();
-                                        }
-                                    }}
-                                    fullWidth
-                                >
-                                    <h3>Download QR</h3>
-                                    <QRIconSecond
-                                        size={24}
-                                        color="currentColor"
-                                    />
-                                </Button>
-                            </ActionsToolbar>
-                        </Fragment>
-                    )}
+                    <CopyStatus role="status" aria-live="polite">
+                        {copyStatus === "copied" ? "Copied" : ""}
+                    </CopyStatus>
+                    <CopyError role="alert">
+                        {copyStatus === "failed"
+                            ? "Could not copy the address."
+                            : ""}
+                    </CopyError>
+                    <ActionsToolbar>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            fullWidth
+                            loading={clipboard.isCopying}
+                            onClick={copyAddress}
+                            aria-label={`Copy ${addressLabel}`}
+                        >
+                            Copy {addressLabel}
+                            <CopyIcon size={24} color="currentColor" />
+                        </Button>
+                        <Button
+                            type="button"
+                            className="download-qr"
+                            variant="secondary"
+                            fullWidth
+                            onClick={downloadQr}
+                        >
+                            Download QR
+                            <QRIconSecond size={24} color="currentColor" />
+                        </Button>
+                        <Button
+                            type="button"
+                            className="history-button"
+                            id="history-button"
+                            title="View transaction history"
+                            aria-label="View transaction history"
+                            variant="icon-button-black"
+                            fullWidth={false}
+                            secondaryHover
+                            onClick={() => navigate("/history")}
+                        >
+                            <HistoryIcon />
+                        </Button>
+                    </ActionsToolbar>
                 </CardContent>
-            </Card>
+            </ReceiveCard>
         </ReceiveContainer>
     );
 };

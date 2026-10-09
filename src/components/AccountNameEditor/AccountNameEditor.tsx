@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { EditableLabel } from "components/EditableLabel";
 import {
@@ -13,6 +13,7 @@ import { IAccountMeta } from "types/wallet";
 import { RootState } from "store";
 import { EditableLabelProps } from "components/EditableLabel/EditableLabel";
 import { useValidAccountUpdating } from "hooks";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 interface IAccountNameEditorProps extends Omit<
     EditableLabelProps,
@@ -20,6 +21,8 @@ interface IAccountNameEditorProps extends Omit<
 > {
     accountId: string;
 }
+
+const FALLBACK_RENAME_ERROR_MESSAGE = "Failed to rename account";
 
 const StyledEditableLabel = styled(EditableLabel)<{ $isSelected: boolean }>`
     font-size: 1.25rem !important;
@@ -46,6 +49,7 @@ const StyledEditableLabel = styled(EditableLabel)<{ $isSelected: boolean }>`
 
 export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     accountId,
+    isSelected: isSelectedProp,
     ...labelProps
 }) => {
     const dispatch = useAppDispatch();
@@ -61,37 +65,53 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     const { isNameUpdateValid, nameErrorMessage, updateAccountField, reset } =
         useValidAccountUpdating(account);
 
+    const [saveError, setSaveError] = useState("");
+
     if (!account) {
         return null;
     }
 
-    const handleUpdateAccountName = (newName: string) => {
+    const handleUpdateAccountName = async (newName: string): Promise<void> => {
         if (!wallet?.id) {
-            console.error(
-                "AccountNameEditor: wallet is locked or not found, cannot rename",
-            );
-
-            return;
+            setSaveError("Unlock the wallet before renaming this account");
+            throw new Error("Wallet locked");
         }
 
-        dispatch(
-            updateAccountName({
-                walletId: wallet.id,
-                accountId: accountId,
-                name: newName,
-            }),
-        );
+        setSaveError("");
+
+        try {
+            await dispatch(
+                updateAccountName({
+                    walletId: wallet.id,
+                    accountId: accountId,
+                    name: newName,
+                }),
+            ).unwrap();
+        } catch (renameError: unknown) {
+            setSaveError(
+                getErrorMessage(renameError, FALLBACK_RENAME_ERROR_MESSAGE),
+            );
+            throw renameError;
+        }
     };
 
-    const isSelected: boolean = account.id === selectedAccountId;
+    // Wallet compact cards stay on a light surface; callers can suppress inverse text.
+    const isSelected: boolean =
+        isSelectedProp ?? account.id === selectedAccountId;
 
     return (
         <StyledEditableLabel
             className={`account-name-editor`}
             label={account.name}
             onSave={handleUpdateAccountName}
-            onChange={(query: string) => updateAccountField("name", query)}
-            onCancel={reset}
+            onChange={(query: string) => {
+                setSaveError("");
+                updateAccountField("name", query);
+            }}
+            onCancel={() => {
+                setSaveError("");
+                reset();
+            }}
             isValid={isNameUpdateValid}
             $isSelected={isSelected}
             labelStyle={{
@@ -99,11 +119,12 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
                 textWrap: "nowrap",
                 textOverflow: "ellipsis",
             }}
-            errorMessage={nameErrorMessage}
+            errorMessage={saveError || nameErrorMessage}
             style={{
                 maxWidth: "100%",
             }}
             isSelected={isSelected}
+            aria-label={`Account name, ${account.name}`}
             {...labelProps}
         />
     );
