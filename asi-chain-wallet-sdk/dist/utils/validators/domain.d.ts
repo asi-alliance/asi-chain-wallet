@@ -1,5 +1,6 @@
 import type { Address } from "@domains/Wallet";
 import type { IErrorContext } from "@domains/CustomError";
+import type { INetworkConfig, INetworkRecord, NetworkName } from "@domains/Network";
 import type { TCreateTransactionReservationPayload } from "@fabrics/transactionReservation";
 import type { TDeployDetails } from "@services/TransactionService";
 export declare const validateAccountName: (name: string, maxLength?: number) => {
@@ -28,6 +29,10 @@ export declare const validateUrl: (url: string) => {
 };
 export declare const isValidUrl: (url: string) => boolean;
 export declare const validateNodeApiProfile: (profile: unknown) => {
+    isValid: boolean;
+    error?: string;
+};
+export declare const validateNetworkUniqueness: (name: NetworkName, config: INetworkConfig, otherRecords: INetworkRecord[]) => {
     isValid: boolean;
     error?: string;
 };

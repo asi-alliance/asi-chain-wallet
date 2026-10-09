@@ -1,4 +1,4 @@
-import { ExportFormat, RequirePassword } from "@config/index";
+import { RequirePassword } from "@config/index";
 import { INetworkConfig, INetworkRecord, INetworkUpdate, NetworkId, NetworkName, TNetworksConfig } from "@domains/Network";
 import { IStorageFabricOptions } from "@fabrics/storage";
 import { IDeployWatchCallbacks, IDeployWatchHandle, IDeployWatchOptions } from "@services/DeployStatusPoller";
@@ -123,7 +123,6 @@ export default class Client extends ClosableDomain {
     previewWalletKeyfileImport(source: unknown, password: string): Promise<IKeyfileImportPreview>;
     importWalletKeyfile(source: unknown, password: string, options?: IImportWalletKeyfileOptions): Promise<Wallet>;
     importKeyfileAccounts(source: unknown, password: string, options?: IImportWalletKeyfileOptions): Promise<IKeyfileAccountsImportResult>;
-    getExportedTransactionsData(walletId: string, accountId: string, format?: ExportFormat, networkId?: string): Promise<string>;
     getCurrentNetworkId(): NetworkId;
     getCurrentNetwork(): INetworkRecord;
     setNetwork(networkId: NetworkId): void;

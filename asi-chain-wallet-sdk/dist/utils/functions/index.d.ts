@@ -26,4 +26,5 @@ export interface IFieldSelection<T, V> {
 }
 export declare const selectByField: <T, K extends keyof T>(items: T[], field: K, values: readonly T[K][]) => IFieldSelection<T, T[K]>;
 export declare const isNetworkConfigChanged: (current: INetworkConfig, update?: Partial<INetworkConfig>) => boolean;
+export declare const isSameNetworkConfig: (first: INetworkConfig, second: INetworkConfig) => boolean;
 export declare const withSchemaVersion: <T extends ITableRecord>(record: T) => T;
