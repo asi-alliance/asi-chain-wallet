@@ -5,13 +5,12 @@ import {
     useId,
     useLayoutEffect,
     useRef,
-    useState,
 } from "react";
 import { createPortal } from "react-dom";
 import styled, { useTheme } from "styled-components";
 import { FilterIcon } from "components/Icons";
 import { BottomSheet } from "components/BottomSheet";
-import { useMediaQuery } from "hooks";
+import { useDropdownPosition, useMediaQuery } from "hooks";
 
 const FilterPopoverWrapper = styled.div`
     position: relative;
@@ -99,6 +98,7 @@ const FilterIconWrapper = styled.span<{ $highlighted: boolean }>`
 `;
 
 const DropdownContent = styled.div`
+    position: fixed;
     z-index: ${({ theme }) => theme.zIndices.dropdown};
     min-width: 260px;
     max-width: min(360px, 90vw);
@@ -112,27 +112,8 @@ const DropdownContent = styled.div`
     box-shadow: ${({ theme }) => theme.shadowLarge};
 `;
 
-interface IDropdownPosition {
-    top: number;
-    left?: number;
-    right?: number;
-    width: number;
-}
-
-const getDropdownPosition = (trigger: HTMLElement): IDropdownPosition => {
-    const rect = trigger.getBoundingClientRect();
-    const panelWidth = Math.min(320, Math.max(260, window.innerWidth - 32));
-    const alignRight = window.innerWidth - rect.left < panelWidth + 16;
-
-    return {
-        top: rect.bottom + 4,
-        left: alignRight ? undefined : Math.max(8, rect.left),
-        right: alignRight
-            ? Math.max(8, window.innerWidth - rect.right)
-            : undefined,
-        width: panelWidth,
-    };
-};
+const getPanelWidth = (): number =>
+    Math.min(320, Math.max(260, window.innerWidth - 32));
 
 interface IFilterPopoverProps {
     id: string;
@@ -164,12 +145,16 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
     const wasExpandedRef = useRef(expanded);
     const forceFocusRestoreRef = useRef(false);
     const skipFocusRestoreRef = useRef(false);
-    const [dropdownPosition, setDropdownPosition] =
-        useState<IDropdownPosition | null>(null);
-
     const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.mobile})`);
     const isSheetOpen = expanded && isMobile;
     const isDropdownOpen = expanded && !isMobile;
+    const { position: dropdownPosition, isDropdownVisible } =
+        useDropdownPosition({
+            anchorRef: buttonRef,
+            floatingRef: dropdownRef,
+            isOpen: isDropdownOpen,
+            getWidth: getPanelWidth,
+        });
 
     useLayoutEffect(() => {
         onToggleRef.current = onToggle;
@@ -179,28 +164,6 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
         forceFocusRestoreRef.current = true;
         onToggle(false);
     };
-
-    useLayoutEffect(() => {
-        const trigger = buttonRef.current;
-
-        if (!isDropdownOpen || !trigger) {
-            setDropdownPosition(null);
-            return;
-        }
-
-        const syncPosition = (): void =>
-            setDropdownPosition(getDropdownPosition(trigger));
-
-        syncPosition();
-        window.addEventListener("resize", syncPosition);
-        // Capture scroll from overflow ancestors (e.g. history table).
-        window.addEventListener("scroll", syncPosition, true);
-
-        return () => {
-            window.removeEventListener("resize", syncPosition);
-            window.removeEventListener("scroll", syncPosition, true);
-        };
-    }, [isDropdownOpen]);
 
     useEffect(() => {
         if (!isDropdownOpen) {
@@ -286,19 +249,12 @@ export const FilterPopover: FC<IFilterPopoverProps> = ({
     }, [expanded]);
 
     const dropdown =
-        isDropdownOpen &&
-        dropdownPosition &&
+        isDropdownVisible &&
         createPortal(
             <DropdownContent
                 ref={dropdownRef}
                 id={contentId}
-                style={{
-                    position: "fixed",
-                    top: dropdownPosition.top,
-                    left: dropdownPosition.left,
-                    right: dropdownPosition.right,
-                    width: dropdownPosition.width,
-                }}
+                style={dropdownPosition}
             >
                 {children}
             </DropdownContent>,

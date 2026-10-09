@@ -2,6 +2,11 @@ export { useScreen } from "./useScreen";
 export { useMediaQuery } from "./useMediaQuery";
 export { useBodyScrollLock } from "./useBodyScrollLock";
 export { useFocusTrap } from "./useFocusTrap";
+export { useDropdownPosition } from "./useDropdownPosition";
+export type {
+    IDropdownPosition,
+    TDropdownDirection,
+} from "./useDropdownPosition";
 export { useCopyToClipboard } from "./useCopyToClipboard";
 export { useHistoryFilters } from "./useHistoryFilters";
 export type { IUseHistoryFilters } from "./useHistoryFilters";

@@ -71,7 +71,7 @@ const MobileNavContent = styled.div`
 
 const MobileNetworkSection = styled.div`
     width: 100%;
-    margin-bottom: ${({ theme }) => theme.spacing.xl};
+    margin-bottom: 36px;
 `;
 
 const MobileNavSection = styled.div``;
@@ -280,16 +280,6 @@ export const MobileNavDrawerComponent: React.FC<
                 </MobileNavHeader>
 
                 <MobileNavContent>
-                    <MobileNetworkSection>
-                        <VisuallyHidden id="mobile-network-selector-label">
-                            Network
-                        </VisuallyHidden>
-                        <NetworkSelector
-                            id="mobile-network-selector"
-                            aria-labelledby="mobile-network-selector-label"
-                            style={{ width: "100%", minWidth: 0 }}
-                        />
-                    </MobileNetworkSection>
                     <MobileNavSection>
                         {navItems.map((item) => (
                             <MobileNavLink
@@ -331,8 +321,19 @@ export const MobileNavDrawerComponent: React.FC<
                         layout="vertical"
                         fullWidth
                         listDirection="top"
-                        wrapperStyle={{ marginBottom: "36px" }}
+                        wrapperStyle={{ marginBottom: "16px" }}
                     />
+                    <MobileNetworkSection>
+                        <VisuallyHidden id="mobile-network-selector-label">
+                            Network
+                        </VisuallyHidden>
+                        <NetworkSelector
+                            id="mobile-network-selector"
+                            aria-labelledby="mobile-network-selector-label"
+                            style={{ width: "100%", minWidth: 0 }}
+                            listDirection="top"
+                        />
+                    </MobileNetworkSection>
                     {isAuthenticated && (
                         <LogoutButton
                             fullWidth

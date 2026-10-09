@@ -1,5 +1,6 @@
 import { ExpandIcon } from "components/Icons";
 import { ErrorMessage } from "components/Input/Input";
+import { TDropdownDirection, useDropdownPosition } from "hooks";
 import {
     CSSProperties,
     FC,
@@ -117,15 +118,11 @@ const ArrowIconWrapper = styled.span<{ $isOpen: boolean }>`
         ${({ theme }) => theme.motion.easing};
 `;
 
-const DropdownMenuPortal = styled.ul<{
-    $position: { top: number; left: number; width: number };
-}>`
+const DROPDOWN_MENU_MAX_HEIGHT_PX = 240;
+
+const DropdownMenuPortal = styled.ul`
     position: fixed;
-    top: ${({ $position }) => $position.top}px;
-    left: ${({ $position }) => $position.left}px;
     z-index: ${({ theme }) => theme.zIndices.dropdown};
-    width: ${({ $position }) => $position.width}px;
-    max-height: 240px;
     margin: 0;
     padding: ${({ theme }) => theme.spacing.xs};
     overflow-y: auto;
@@ -218,6 +215,7 @@ export interface ISelectProps {
     className?: string;
     style?: CSSProperties;
     variant?: SelectVariant;
+    listDirection?: TDropdownDirection;
     "aria-label"?: string;
     "aria-labelledby"?: string;
     name?: string;
@@ -251,6 +249,7 @@ export const Select: FC<ISelectProps> = ({
     className = "",
     style,
     variant = "default",
+    listDirection = "bottom",
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     name,
@@ -269,11 +268,14 @@ export const Select: FC<ISelectProps> = ({
     const controlId = id ? `${id}-button` : `select-${generatedId}`;
     const menuId = `${controlId}-menu`;
     const errorId = `${controlId}-error`;
-    const [dropdownPosition, setDropdownPosition] = useState({
-        top: 0,
-        left: 0,
-        width: 0,
-    });
+    const { position: dropdownPosition, isDropdownVisible } =
+        useDropdownPosition({
+            anchorRef: wrapperRef,
+            floatingRef: menuRef,
+            isOpen,
+            direction: listDirection,
+            maxHeight: DROPDOWN_MENU_MAX_HEIGHT_PX,
+        });
     const selectedIndex = options.findIndex((option) => option.value === value);
     const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
 
@@ -293,19 +295,8 @@ export const Select: FC<ISelectProps> = ({
         }
     }, [required, disabled, selectedOption, value]);
 
-    const updateDropdownPosition = (): void => {
-        const rect = wrapperRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        setDropdownPosition({
-            top: rect.bottom + 4,
-            left: rect.left,
-            width: rect.width,
-        });
-    };
-
     const openDropdown = (): void => {
         if (disabled) return;
-        updateDropdownPosition();
         setFocusedIndex(
             selectedIndex >= 0 && !options[selectedIndex]?.disabled
                 ? selectedIndex
@@ -404,22 +395,11 @@ export const Select: FC<ISelectProps> = ({
     }, []);
 
     useEffect(() => {
-        if (!isOpen || focusedIndex < 0) return;
+        if (!isDropdownVisible || focusedIndex < 0) return;
         menuRef.current?.children[focusedIndex]?.scrollIntoView?.({
             block: "nearest",
         });
-    }, [isOpen, focusedIndex]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        window.addEventListener("scroll", updateDropdownPosition, true);
-        window.addEventListener("resize", updateDropdownPosition);
-        return () => {
-            window.removeEventListener("scroll", updateDropdownPosition, true);
-            window.removeEventListener("resize", updateDropdownPosition);
-        };
-    }, [isOpen]);
+    }, [isDropdownVisible, focusedIndex]);
 
     return (
         <SelectWrapper
@@ -496,14 +476,14 @@ export const Select: FC<ISelectProps> = ({
             </SelectButton>
             {validationError && <ErrorMessage id={errorId} role="alert">{validationError}</ErrorMessage>}
 
-            {isOpen &&
+            {isDropdownVisible &&
                 createPortal(
                     <DropdownMenuPortal
                         id={menuId}
                         ref={menuRef}
                         role="listbox"
                         aria-labelledby={controlId}
-                        $position={dropdownPosition}
+                        style={dropdownPosition}
                     >
                         {options.map((option, index) => (
                             <DropdownItem
