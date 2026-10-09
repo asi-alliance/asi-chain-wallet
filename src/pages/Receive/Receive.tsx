@@ -173,14 +173,6 @@ const BalanceInfo = styled.div`
         .amount-balance-wrapper {
             white-space: nowrap;
         }
-
-        .amount-balance-info-wrapper > span:first-child {
-            font-size: clamp(24px, 7vw, 30px);
-        }
-
-        .amount-balance-info-wrapper > span:nth-child(2) {
-            font-size: clamp(16px, 4.5vw, 20px);
-        }
     }
 `;
 

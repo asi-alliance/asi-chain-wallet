@@ -331,6 +331,7 @@ export const MobileNavDrawerComponent: React.FC<
                             id="mobile-network-selector"
                             aria-labelledby="mobile-network-selector-label"
                             style={{ width: "100%", minWidth: 0 }}
+                            variant="default"
                             listDirection="top"
                         />
                     </MobileNetworkSection>

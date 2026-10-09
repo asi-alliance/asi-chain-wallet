@@ -35,21 +35,21 @@ const amountColor = ({
     $neutralAmount: boolean;
     theme: {
         colors: { primary: string; background: { secondary: string } };
-        text: { primary: string };
+        control: { neutralText: string };
     };
 }): string => {
     if ($isSelected) {
         return theme.colors.background.secondary;
     }
 
-    return $neutralAmount ? theme.text.primary : theme.colors.primary;
+    return $neutralAmount ? theme.control.neutralText : theme.colors.primary;
 };
 
 const AccountBalanceBlock = styled.span<{
     $isSelected: boolean;
     $neutralAmount: boolean;
 }>`
-    font-size: 3rem;
+    font-size: ${({ theme }) => theme.typography.size.displayLarge};
     font-weight: 700;
     color: ${amountColor};
     margin-right: 4px;

@@ -128,7 +128,7 @@ const SuccessMessage = styled.div`
     margin-bottom: 16px;
     word-break: break-all;
 
-    * {
+    *:not(button, button *) {
         color: ${({ theme }) => theme.text.inverse} !important;
     }
 

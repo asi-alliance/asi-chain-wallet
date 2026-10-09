@@ -148,6 +148,11 @@ const AlertRoot = styled.div<{ $tone: AlertTone }>`
     line-height: ${({ theme }) => theme.typography.lineHeight.md};
 `;
 
+const AlertContent = styled.div`
+    min-width: 0;
+    overflow-wrap: anywhere;
+`;
+
 const AlertIcon = styled.span`
     flex-shrink: 0;
     font-size: 20px;
@@ -172,6 +177,6 @@ export const Alert: React.FC<AlertProps> = ({
         role={role ?? (tone === "danger" ? "alert" : "status")}
     >
         {icon && <AlertIcon aria-hidden="true">{icon}</AlertIcon>}
-        <div>{children}</div>
+        <AlertContent>{children}</AlertContent>
     </AlertRoot>
 );

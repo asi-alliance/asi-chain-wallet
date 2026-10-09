@@ -15,6 +15,7 @@ type NetworkSelectorProps = Omit<
 
 export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     disabled = false,
+    variant = "ghost",
     "aria-labelledby": ariaLabelledBy,
     ...props
 }) => {
@@ -71,7 +72,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
             onChange={handleNetworkChange}
             disabled={disabled}
             options={options}
-            variant="ghost"
+            variant={variant}
         />
     );
 };

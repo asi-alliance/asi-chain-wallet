@@ -11,6 +11,7 @@ const foundations = {
             lg: "18px",
             xl: "24px",
             display: "32px",
+            displayLarge: "40px",
         },
         lineHeight: {
             xs: "16px",

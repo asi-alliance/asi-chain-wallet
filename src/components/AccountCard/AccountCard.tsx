@@ -54,6 +54,10 @@ const AccountCardWrapper = styled(Card)<{ $isSelected: boolean }>`
 
     @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         max-width: none;
+
+        .amount-balance-info-wrapper > span:first-child {
+            font-size: ${({ theme }) => theme.typography.size.display};
+        }
     }
 `;
 
@@ -287,7 +291,7 @@ export const AccountCard = ({
                 </DerivationIndex>
             )}
 
-            <ASIAccountBalance account={account} neutralAmount={!fullMode} />
+            <ASIAccountBalance account={account} neutralAmount />
 
             <AccountCardFooter>
                 <AccountAddress $compact={!fullMode}>
