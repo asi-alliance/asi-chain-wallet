@@ -353,6 +353,7 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
                 selectedNetwork.readOnlyUrl,
                 selectedNetwork.adminUrl,
                 selectedNetwork.shardId,
+                selectedNetwork.graphqlUrl,
             );
 
             const unlockedAccount = unlockedAccounts.find(
@@ -441,6 +442,7 @@ const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
                 selectedNetwork.readOnlyUrl,
                 selectedNetwork.adminUrl,
                 selectedNetwork.shardId,
+                selectedNetwork.graphqlUrl,
             );
             const exploreResult = await rchain.exploreDeployData(code);
             setResult({ type: "explore", data: exploreResult });

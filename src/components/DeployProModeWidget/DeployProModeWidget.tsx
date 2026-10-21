@@ -831,6 +831,7 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
                 selectedNetwork.readOnlyUrl,
                 selectedNetwork.adminUrl,
                 selectedNetwork.shardId,
+                selectedNetwork.graphqlUrl,
             );
             let privateKey = selectedAccount.privateKey;
 
@@ -915,6 +916,7 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
                 selectedNetwork.readOnlyUrl,
                 selectedNetwork.adminUrl,
                 selectedNetwork.shardId,
+                selectedNetwork.graphqlUrl,
             );
 
             // Find the private key from unlocked accounts
