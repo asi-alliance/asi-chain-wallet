@@ -1,5 +1,13 @@
 import axios, { AxiosInstance } from "axios";
 import { signDeploy } from "utils/crypto";
+import {
+    ASI_RESOURCE_POLICY_HEX,
+    createOwnerDirectOffer,
+    decodeResourcePolicyHex,
+} from "@asichain/asi-wallet-sdk";
+import { blake2b } from "blakejs";
+import { ec as EC } from "elliptic";
+import { keccak256 } from "js-sha3";
 
 // Global balance cache to prevent excessive API calls
 const globalBalanceCache: Map<string, { balance: string; timestamp: number }> =
@@ -91,6 +99,7 @@ export class RChainService {
         const postMethods = [
             "prepare-deploy",
             "deploy",
+            "deploy/offered",
             "data-at-name",
             "explore-deploy",
             "propose",
@@ -185,7 +194,7 @@ export class RChainService {
 
         const checkBalanceRho = `
       new return, rl(\`rho:registry:lookup\`), ASIVaultCh, vaultCh in {
-        rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+        rl!(\`rho:vault:system\`, *ASIVaultCh) |
         for (@(_, ASIVault) <- ASIVaultCh) {
           @ASIVault!("findOrCreate", "${revAddress}", *vaultCh) |
           for (@maybeVault <- vaultCh) {
@@ -257,7 +266,7 @@ export class RChainService {
         asiVaultkeyCh,
         resultCh
       in {
-        rl!(\`rho:rchain:asiVault\`, *ASIVaultCh) |
+        rl!(\`rho:vault:system\`, *ASIVaultCh) |
         for (@(_, ASIVault) <- ASIVaultCh) {
           @ASIVault!("findOrCreate", "${fromAddress}", *vaultCh) |
           @ASIVault!("findOrCreate", "${toAddress}", *toVaultCh) |
@@ -292,13 +301,13 @@ export class RChainService {
     async sendDeploy(
         rholangCode: string,
         privateKey: string,
-        phloLimit: number = 500000,
+        phloLimit: number = 760000,
     ): Promise<string> {
         try {
             // Get latest block number
             const blocks = await this.rnodeHttp("blocks/1");
             const blockNumber =
-                blocks && blocks.length > 0 ? blocks[0].blockNumber : 0;
+                blocks && blocks.length > 0 ? blocks[0].blockInfo.blockNumber : 0;
 
             // Create deploy data
             const deployData: Deploy = {
@@ -310,27 +319,56 @@ export class RChainService {
                 shardId: this.shardId,
             };
 
-            // Sign the deploy
-            const signedDeploy = signDeploy(deployData, privateKey);
-
-            // Format for Web API (like f1r3wallet)
-            const webDeploy = {
-                data: {
-                    term: deployData.term,
-                    timestamp: deployData.timestamp,
-                    phloPrice: deployData.phloPrice,
+            // Commented out for the cost-accounted F1r3node: the node refuses
+            // this body-only deploy. The deploy is an owner-direct offer of the
+            // ASI policy, built by the SDK and posted to /api/deploy/offered.
+            // // Sign the deploy
+            // const signedDeploy = signDeploy(deployData, privateKey);
+            //
+            // // Format for Web API (like f1r3wallet)
+            // const webDeploy = {
+            //     data: {
+            //         term: deployData.term,
+            //         timestamp: deployData.timestamp,
+            //         phloPrice: deployData.phloPrice,
+            //         phloLimit: deployData.phloLimit,
+            //         validAfterBlockNumber: deployData.validAfterBlockNumber,
+            //         shardId: deployData.shardId,
+            //     },
+            //     sigAlgorithm: signedDeploy.sigAlgorithm,
+            //     signature: signedDeploy.sig,
+            //     deployer: signedDeploy.deployer,
+            // };
+            const keyPair = new EC("secp256k1").keyFromPrivate(privateKey, "hex");
+            const offer = await createOwnerDirectOffer(
+                {
+                    body: {
+                        term: deployData.term,
+                        timestamp: deployData.timestamp,
+                        validAfterBlockNumber: deployData.validAfterBlockNumber,
+                        shardId: this.shardId,
+                    },
                     phloLimit: deployData.phloLimit,
-                    validAfterBlockNumber: deployData.validAfterBlockNumber,
-                    shardId: deployData.shardId,
+                    phloPrice: deployData.phloPrice,
+                    genesisSchedule: decodeResourcePolicyHex(ASI_RESOURCE_POLICY_HEX).schedule,
                 },
-                sigAlgorithm: signedDeploy.sigAlgorithm,
-                signature: signedDeploy.sig,
-                deployer: signedDeploy.deployer,
-            };
+                {
+                    publicKey: new Uint8Array(keyPair.getPublic("array")),
+                    sign: (signingHash: Uint8Array) =>
+                        new Uint8Array(keyPair.sign(Array.from(signingHash), { canonical: true }).toDER()),
+                },
+                {
+                    blake2b256: (data: Uint8Array) => blake2b(data, undefined, 32),
+                    keccak256: (data: Uint8Array) => new Uint8Array(keccak256.arrayBuffer(data)),
+                },
+            );
 
             let result;
             try {
-                result = await this.rnodeHttp("deploy", webDeploy);
+                // result = await this.rnodeHttp("deploy", webDeploy);
+                result = await this.rnodeHttp("deploy/offered", {
+                    deployDataProtoBase64: offer.deployDataProtoBase64,
+                });
             } catch (error: any) {
                 console.error("Deploy failed to send:", error);
 
@@ -390,7 +428,7 @@ export class RChainService {
     async exploreDeployData(rholangCode: string): Promise<any> {
         try {
             // F1R3wallet sends the Rholang code directly as a string, not as a deploy object
-            const result = await this.rnodeHttp("explore-deploy", rholangCode);
+            const result = await this.rnodeHttp("explore-deploy", { term: rholangCode });
 
             return result.expr;
         } catch (error: any) {

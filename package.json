@@ -24,6 +24,7 @@
     "test:lt:web:homePage": "npx wdio wdio.web.conf.js --suite homePageTests"
   },
   "dependencies": {
+    "@asichain/asi-wallet-sdk": "file:../asi-chain-wallet-sdk",
     "@ledgerhq/hw-app-eth": "^6.45.18",
     "@ledgerhq/hw-transport-webusb": "^6.29.10",
     "@monaco-editor/react": "^4.7.0",
