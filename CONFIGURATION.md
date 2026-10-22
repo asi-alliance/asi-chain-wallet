@@ -39,7 +39,7 @@ Startup logs from that step are prefixed with `[config-overrides]` and report wh
 | --- | --- | --- | --- |
 | `NETWORKS` | Yes | [src/constants/networks.ts](src/constants/networks.ts) | JSON object mapping a network id to its endpoints. See [Network Management](#network-management) |
 
-Missing or invalid: the SDK client is not created and the application renders the validation message instead of the UI.
+Missing or invalid: `npm start` and `npm run build` stop in `config-overrides.js` before webpack runs. A bundle built without that check does not create the SDK client and renders the validation message instead of the UI.
 
 ### Credentials
 
@@ -164,8 +164,9 @@ Networks that the SDK reports as busy are disabled in the network selector; the 
 
 - Custom networks are added, edited and deleted on the **Network Settings** page.
 - They are stored by the SDK in **IndexedDB** together with wallets and accounts, not in `localStorage`, and are shared by every wallet on the device.
-- The form validates the name and the endpoint URLs before the network is created.
-- Networks from `NETWORKS` are marked as default, are read-only in the UI and always available.
+- The form validates the name and the endpoint URLs before the network is created or updated. The name is required and must differ, ignoring case, from the names of all other networks, including the ones from `NETWORKS`.
+- Editing the endpoints of the currently selected custom network invalidates the cached balance and history, so both are reloaded from the new endpoints.
+- Networks from `NETWORKS` are marked as default: they are not listed on Network Settings, cannot be edited or deleted, and are always available in the network selector.
 - Clearing browser storage removes custom networks along with the wallets.
 
 ## Bridge Configuration
@@ -190,7 +191,7 @@ The gas reserved for a bridge lock is not configurable: `BRIDGE_LOCK_PHLO_LIMIT`
 | Theme | `localStorage`, written by the theme slice | `darkMode` |
 | Transaction history and balances | Not persisted: RTK Query cache in memory, refetched from the indexer | |
 
-Pending transactions are no longer written to `localStorage`. The SDK reports them through the `pending` history source, backed by its own transaction reservations, and the History page maps the Status filter onto that option.
+Pending transactions are no longer written to `localStorage`. The SDK reports them through the `pending` history source, backed by its own transaction reservations. The History and Dashboard pages request every source (`source: "all"`), and the History Status filter is applied in the wallet to the loaded records.
 
 The session itself is not persisted: the authenticated state lives in Redux memory, so a reload returns to the Login page. The `sessionStorage` and IndexedDB session helpers under `src/services` belong to the pre-SDK implementation and are not part of the current flow.
 
@@ -200,8 +201,8 @@ Polling intervals are constants, not environment variables. The earlier `REACT_A
 
 | Interval | Value | Defined in |
 | --- | --- | --- |
-| Balance and history refresh on Dashboard and History | 30 s | `ACCOUNT_DATA_POLLING_INTERVAL_SECONDS` in [src/constants/polling.ts](src/constants/polling.ts) |
-| Network status check in the header | 60 s | [src/components/Layout/Layout.tsx](src/components/Layout/Layout.tsx) |
+| Balance and history refresh on Dashboard and History, balance refresh on Send | 30 s | `ACCOUNT_DATA_POLLING_INTERVAL_SECONDS` in [src/constants/polling.ts](src/constants/polling.ts) |
+| Network status check in the header | 60 s, and immediately on a network switch; results of checks started for the previous network are dropped | [src/components/Layout/Layout.tsx](src/components/Layout/Layout.tsx) |
 | Signing session auto-lock | 15 s | `security.autoLockMs` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) |
 | Deploy status | Event driven | The SDK deploy watcher, wired in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): the `subscribe` callback returned by `transfer` and `deploy` for transfers and contract deploys, and `SdkWalletService.watchDeploy` for bridge locks |
 

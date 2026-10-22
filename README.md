@@ -51,11 +51,11 @@ Besides sending and receiving ASI, the wallet can deploy Rholang contracts (a si
 
 - **HD wallet model** - one wallet per Secret Recovery Phrase, with multiple accounts derived from it on demand
 - **Keyfile export and import** - export the open wallet as an encrypted keyfile, import a keyfile as a new wallet or import selected accounts from it into an existing one
-- **Private key import** - kept for backward compatibility; creates a single-account wallet that cannot derive further accounts
+- **Private key wallets** - generate a new private key or import an existing one; either way the result is a single-account wallet that cannot derive further accounts
 - **Send and Receive** - address validation, QR code for the account address, QR scanning for the recipient, confirmation modal with the gas reserve
-- **Bridge** - outbound locks from ASI Chain to Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod
+- **Bridge** - outbound locks from ASI Chain to Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod (the lock action is disabled in this release, see [Bridge](#bridge))
 - **Rholang deployment** - Lite mode for a single contract, Pro mode with a Monaco editor, file explorer, tabs, workspace import and export, and a console
-- **Transaction history** - auto-refreshed every 30 seconds, with a Status filter and deploy id copying (see [Known Limitations](#known-limitations))
+- **Transaction history** - auto-refreshed every 30 seconds, with Date, Type, Status, From, To, Amount and Details column filters, a transaction details modal and deploy id copying (see [Known Limitations](#known-limitations))
 - **Multiple networks** - networks from the `NETWORKS` environment variable plus custom networks added at runtime, with busy networks disabled in the selector
 - **Wallet session with SDK auto-lock** - the password is requested again as soon as the signing session expires
 - **Dark and light theme**
@@ -68,19 +68,22 @@ The wallet follows the HD model of the SDK.
 - A **wallet** is one signer, created from a Secret Recovery Phrase and protected by a password. The recovery phrase is shown once at creation and is never stored in readable form.
 - An **account** is derived from that wallet. New accounts are added on the Accounts page with **Create Account**, which asks for the wallet password (no new password is created) and derives the next account.
 - Only **one wallet is open at a time**. The Login page lists every wallet stored on the device, and opening one closes any other open wallet.
-- The selected account is remembered per wallet in `localStorage`; accounts can be renamed, and both accounts and wallets can be removed.
+- The selected account is remembered per wallet in `localStorage`; accounts can be renamed, and both accounts and wallets can be removed. Removing the last account of a wallet, or the only account of a private key wallet, deletes the whole wallet from the device after a confirmation.
+- The Accounts page shows the primary account, the derived accounts under **Your sub-accounts** (hidden when there are none) and a **Wallet backup** section with **Export Keyfile**.
 - **Keyfile export** produces an encrypted file for the open wallet. Anyone with that file and its password controls the wallet.
 - **Keyfile import** either registers a new wallet or, when the keyfile belongs to a wallet that already exists on the device, imports the selected accounts into it. The second case is an import, not a login: the Login page says so explicitly and offers to select the affected wallet.
-- **Private key import** remains available for wallets created before the HD model. It produces a wallet of type `PRIVATE_KEY` with exactly one account, and the Accounts page hides **Create Account** for it because nothing can be derived from a bare key.
+- **Private key wallets** are created from a newly generated key or imported from an existing one, for example for wallets created before the HD model. Either way the result is a wallet of type `PRIVATE_KEY` with exactly one account, and the Accounts page hides **Create Account** for it because nothing can be derived from a bare key.
+- **Recovery phrase input** accepts a whole phrase pasted into any word field and spreads it over the fields from that position. A phrase with the wrong number of words is reported, and non-Latin letters are rejected with a keyboard layout hint.
 
-Entry points: the first-run widget on the Accounts page and the Login page offer the same four actions under slightly different labels.
+Entry points: the first-run widget on the Accounts page and the Login page offer the same five actions under the same labels. An **Account Type** selector (HD wallet or Private key wallet) chooses which pair of create and import actions is shown; keyfile import is always available.
 
-| Action | Accounts page (first run) | Login page | Result |
-| --- | --- | --- | --- |
-| Create a wallet | Create Wallet | Create Wallet | New HD wallet from a generated recovery phrase |
-| Restore a wallet | Import Wallet | Import Wallet | HD wallet restored from a recovery phrase |
-| Reuse a bare key | Import Account by private key | Import Private Key | New wallet of type `PRIVATE_KEY` holding exactly one account, not an account added to an existing HD wallet |
-| Reuse a keyfile | Import Wallet from keyfile | Import from Keyfile | New wallet, or the selected accounts imported into the wallet the keyfile belongs to |
+| Account Type | Action | Result |
+| --- | --- | --- |
+| HD wallet | Create Wallet | New HD wallet from a generated recovery phrase |
+| HD wallet | Import Wallet | HD wallet restored from a recovery phrase |
+| Private key wallet | Create Private Key Wallet | New wallet of type `PRIVATE_KEY` from a generated private key, shown once for backup |
+| Private key wallet | Import Private Key | New wallet of type `PRIVATE_KEY` holding exactly one account, not an account added to an existing HD wallet |
+| Any | Import Wallet from keyfile | New wallet, or the selected accounts imported into the wallet the keyfile belongs to |
 
 ## Wallet Session and Auto-Lock
 
@@ -103,6 +106,8 @@ The Bridge page locks ASI tokens on ASI Chain for transfer to another chain.
 - **Destination account** comes from an external wallet connected on the page: RainbowKit and wagmi for the EVM chains, the ASI Alliance browser wallet or Keplr for FetchHub Dorado, and a CIP-30 browser wallet through Mesh for Cardano Preprod.
 - **Locking** signs a deploy to the ASI bridge contract (`REACT_APP_ASI_BRIDGE_URI`) with the destination route id. The amount is validated against the available balance and the bridge gas reserve, the lock details are frozen when the confirmation modal opens, and the resulting deploy id is shown with a copy button.
 
+**The lock action is disabled in this release.** The page and its frontend logic are implemented, but the complete bridge transfer scenario has not been through QA yet, so the lock button is disabled and a notice on the page says that the full bridge flow is still under development and QA.
+
 **The inbound direction is not exposed.** Locking on an external chain and releasing on ASI Chain is not reachable from the UI: the source selector is static, so although the page still contains the EVM, Cosmos and Cardano lock paths, nothing can select those chains as the source. Restoring the inbound flow means exposing the source selector again and wiring the release side; until then the Bridge page is outbound only.
 
 All bridge parameters (route ids, bridge addresses, token addresses, RPC and REST endpoints) come from environment variables. They are read at module load and the application does not start if one of them is missing - see [CONFIGURATION.md](CONFIGURATION.md).
@@ -118,7 +123,6 @@ The SDK provides mnemonic generation and validation, wallet creation, opening an
 | Item | Where | Condition for restoring it |
 | --- | --- | --- |
 | History pagination and the load more control | [src/pages/History/History.tsx](src/pages/History/History.tsx), `HISTORY_LIMIT` in [src/store/WalletsStore/api.ts](src/store/WalletsStore/api.ts) | An indexer root field that returns the combined ordered timeline under one offset and limit, and an SDK `getTransactionsHistory` built on it (see [Known Limitations](#known-limitations)) |
-| Search, Type and Period filters in history | [src/pages/History/History.tsx](src/pages/History/History.tsx) | The same complete server-side timeline: over a truncated window these filters cannot return a correct answer. The Status filter stays enabled because it maps onto the SDK `sources` option |
 | CSV and JSON export of history | [src/pages/History/History.tsx](src/pages/History/History.tsx) | The SDK exposes a history download flow |
 | ETH address format on the Receive page | [src/pages/Receive/Receive.tsx](src/pages/Receive/Receive.tsx) | The SDK exposes the Ethereum address of an account |
 | Legacy balance and transaction polling services | [src/services/balancePolling.ts](src/services/balancePolling.ts), [src/services/transactionPolling.ts](src/services/transactionPolling.ts) | Nothing: they are replaced by the SDK deploy watcher plus 30-second RTK Query polling. They are kept disabled until that replacement is validated in production, then deleted |
@@ -140,30 +144,26 @@ Transaction history is currently limited to a single window of 50 records, is no
 
 **Root cause.** `SdkWalletService.getTransactionsHistory` is backed by `TRANSACTION_HISTORY_QUERY` in the SDK, which queries two independent root fields in a single GraphQL request: `transfers`, filtered by `from_address` or `to_address`, and `deployments`, filtered by `deployer`. Both are ordered by `block_number: desc` and both receive the same `$offset` and `$limit`. The SDK then merges the two lists into a map keyed by `deploy_id` and re-sorts the result by `timestamp` descending. A page of the merged timeline cannot be expressed as the same offset and limit applied to two separately ordered lists.
 
-### Bridge page action
-
-The Bridge page is implemented from the UI/UX and frontend logic perspective. Since the complete bridge transfer scenario has not yet been delivered to QA, the bridge confirmation action has been disabled for the release. A notice has also been added to the page indicating that the full bridge flow is still under development and QA.
-
 **What this means in the app today:**
 
 1. **Hard cap at 50 records.** `HISTORY_LIMIT` in `src/store/WalletsStore/api.ts` is 50 and the endpoint never sends an offset, so exactly one window is fetched. Anything older than the 50th record is unreachable and nothing in the UI signals that the list is truncated.
 2. **Ordering mismatch at the window boundary.** The window is cut server side by `block_number` but sorted client side by `timestamp`. Deploy timestamps are supplied by the client rather than derived from the block, so the two orderings can disagree. When they do, a record that belongs in the visible window can be missing and the displayed order can be wrong on the first screen.
 3. **Missing enrichment at the window boundary.** Deduplication is keyed on `deploy_id`. When a transfer falls inside the top 50 transfers but its matching deployment falls outside the top 50 deployments, the row is rendered without its `blockHash`.
 4. **Unstable order inside a block.** Records sharing a `block_number` have no tiebreak, so their relative order can change between polling cycles.
-5. **Filtering over a truncated window.** The Search, Type and Period filters operate on the already capped result set, so client side filtering cannot return a complete answer. They are disabled for that reason.
+5. **Filtering over a truncated window.** The column filters (Date, Type, Status, From, To, Amount, Details) run in the wallet over the already capped result set. Both pages load every history source (`source: "all"`), and the filters narrow those 50 records only: a matching transaction older than the window is not shown.
 
 **Why pagination is not implemented.** This is deliberate. The wallet never sends an offset today, so it does not currently hit the upstream paging defect. Adding pagination or a load more control would surface it immediately: records would be dropped between pages and repeated across pages, with the skew growing per page and with any imbalance between the transfers and deployments collections. Correcting the window on the client would require unbounded overfetching, so the fix belongs in the indexer, as a single root field returning the combined ordered timeline under one offset and limit, and in the SDK method built on top of it.
 
-**Affected code:** `src/store/WalletsStore/api.ts` (the `getTransactionHistory` endpoint, `HISTORY_LIMIT`, and the mapping of the Status filter onto the SDK `sources` option), `src/pages/History/History.tsx` (the history table, the disabled Search, Type and Period filters, the disabled CSV and JSON export), `src/pages/Dashboard/Dashboard.tsx` (it polls the same capped window to keep the cache warm).
+**Affected code:** `src/store/WalletsStore/api.ts` (the `getTransactionHistory` endpoint and `HISTORY_LIMIT`), `src/pages/History/History.tsx` (the history table and the disabled CSV and JSON export), `src/utils/historyFilters.ts` and `src/hooks/useHistoryFilters.ts` (the client side column filters), `src/pages/Dashboard/Dashboard.tsx` (it polls the same capped window to keep the cache warm).
 
 **Blocked by:** DevNet migration to the Rust indexer, a single indexer root field returning the combined ordered timeline under one offset and limit, and an updated `getTransactionsHistory` in the SDK built on that root field.
 
-**Once unblocked:** restore pagination or a load more control in the history page, re-enable the Search, Type and Period filters, re-enable CSV and JSON export, and update this section.
+**Once unblocked:** restore pagination or a load more control in the history page, move the column filters to the server side query so they cover the full timeline, re-enable CSV and JSON export, and update this section.
 
 ### Other Limitations
 
 - **A page reload ends the session.** The authenticated state is not persisted, so the wallet must be opened with its password again after every reload.
-- **The bridge is outbound only** (see [Bridge](#bridge)).
+- **The bridge is outbound only, and the lock action is disabled in this release** (see [Bridge](#bridge)).
 - **Configuration is baked in at build time.** All variables are read through `process.env` at build time; the runtime injection left in `docker-entrypoint.sh` is no longer read by the application. See [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Quick Start
@@ -196,7 +196,7 @@ npm start
 
 > **Important**: use `npm install --legacy-peer-deps`; the dependency tree does not resolve with strict peer dependencies.
 
-> **Important**: the application does not start with an empty `.env`. A missing or invalid `NETWORKS` renders a configuration error instead of the app, and a missing bridge variable throws while the bridge module is loaded. See [CONFIGURATION.md](CONFIGURATION.md).
+> **Important**: the application does not start with an empty `.env`. A missing or invalid `NETWORKS` stops `npm start` and `npm run build` before webpack runs, and a missing bridge variable throws while the bridge module is loaded. See [CONFIGURATION.md](CONFIGURATION.md).
 
 The wallet will be available at [http://localhost:3000](http://localhost:3000).
 
@@ -279,16 +279,20 @@ npm run deploy:gh # publish build/ to GitHub Pages
 ```
 asi-chain-wallet/
 ├── src/
-│   ├── components/   # UI components, modals and wallet forms
+│   ├── components/   # UI foundation (Button, Input, Select, ModalWindow, ...),
+│   │                 # modals and wallet forms
 │   ├── pages/        # Dashboard, Send, Receive, Bridge, Accounts,
 │   │                 # History, Deploy, Settings, Login, KeyGenerator
 │   ├── sdk/          # SDK client, provider and SdkWalletService wrapper
 │   ├── store/        # Redux: Auth, WalletsStore (+ RTK Query api), theme, ...
-│   ├── hooks/        # useWalletSessionAction, useDeployContract, bridge hooks
+│   ├── hooks/        # useWalletSessionAction, useDeployContract, history
+│   │                 # filters, focus trap, bridge hooks, ...
 │   ├── services/     # IDE storage, login rate limiting, legacy modules
+│   ├── config/       # NETWORKS parsing and validation, shared with the build
 │   ├── constants/    # networks, bridgeChains, gas, polling, token
 │   ├── contracts/    # bridge ABIs and contract addresses
-│   ├── utils/        # crypto, validation, formatting, env helpers
+│   ├── styles/       # theme tokens and global styles
+│   ├── utils/        # crypto, validation, formatting, history filters
 │   └── types/        # wallet, transactions, bridge session types
 ├── public/           # Static assets, manifest and service worker
 ├── tests-automation/ # WebdriverIO configuration and page objects
@@ -315,7 +319,7 @@ npm run analyze        # bundle analysis of build/static/js
 npm run deploy:gh      # publish build/ to GitHub Pages
 ```
 
-`npm run type-check` currently reports errors from `node_modules/viem/node_modules/ox` because the TypeScript target is ES5 while that package ships ES2020 sources; the application sources are clean. Read only the lines that start with `src/`. See [DEVELOPMENT.md](DEVELOPMENT.md) for this and for the scripts that are not usable today (`test`, `deploy:ipfs`, `wdio`, `TA`, `test:lt:*`).
+`npm run type-check` passes without errors, and `npm run lint` reports warnings only. See [DEVELOPMENT.md](DEVELOPMENT.md) for the scripts that are not usable today (`test`, `deploy:ipfs`, `wdio`, `TA`, `test:lt:*`).
 
 ## E2E Testing
 
@@ -327,7 +331,7 @@ It also cannot be committed as it stands: the root `.gitignore` excludes `*.test
 tests-automation/
 ├── pages/              # AccountsPage, DashboardPage, DeployPage, HistoryPage,
 │                       # NavbarPage, NetworkPage, ReceivePage, TransactionsPage, BasePage
-├── wdio.web.conf.js    # Chrome, Firefox, Edge on LambdaTest
+├── wdio.web.conf.js    # Windows 11 and macOS Sonoma browsers on LambdaTest
 └── wdio.mobile.conf.js # mobile capabilities on LambdaTest
 ```
 
@@ -369,7 +373,8 @@ If you encounter a problem that is not listed, please open a new issue and provi
 ## Quick Troubleshooting
 
 - **Blank page, console says `Env variable with key REACT_APP_... not found`**: a bridge variable is missing from `.env`; the bridge module throws while loading and the app never mounts.
-- **The app renders a configuration message instead of the UI**: `NETWORKS` is missing, is not valid JSON, or contains no fully configured network. The exact reason is in the message and in the `[NETWORKS env]` console output.
+- **`npm start` or `npm run build` stops with `[config-overrides] Invalid NETWORKS env config`**: `NETWORKS` is missing, is not valid JSON, contains no fully configured network, or contains duplicate networks (same endpoints and `nodeApiProfile`, or same name). The message names the problem and the conflicting ids. See [CONFIGURATION.md](CONFIGURATION.md#validation-rules).
+- **The app renders a configuration message instead of the UI**: the bundle was built without the build-time check and `NETWORKS` fails validation. The exact reason is in the message and in the `[NETWORKS env]` console output.
 - **`Module not found: Can't resolve '@harmoniclabs/crypto'` during a build**: a transitive Cardano dependency is not installed by `--legacy-peer-deps`. See [DEVELOPMENT.md](DEVELOPMENT.md).
 - **Dependencies will not install**: delete `node_modules` and `package-lock.json`, then retry with `npm install --legacy-peer-deps`.
 - **`@asichain/asi-wallet-sdk` cannot be resolved**: the SDK is not checked out next to this repository or has not been built (`npm run build` in the SDK).

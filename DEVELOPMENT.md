@@ -100,7 +100,7 @@ Working scripts:
 | `npm start` | `react-app-rewired start` | Dev server with hot reload |
 | `npm run build` | `react-app-rewired build` | Production build into `build/` |
 | `npm run lint` | `eslint src --ext .ts,.tsx` | Currently reports warnings only |
-| `npm run type-check` | `tsc --noEmit` | See the note below |
+| `npm run type-check` | `tsc --noEmit` | Passes without errors (`target` is `es2020`) |
 | `npm run serve` | `npx serve -s build` | Serves an existing build |
 | `npm run analyze` | `source-map-explorer 'build/static/js/*.js'` | Requires a build with source maps |
 | `npm run deploy:gh` | `gh-pages -d build` | Publishes `build/` to GitHub Pages |
@@ -117,15 +117,9 @@ Scripts that do not work in the current tree:
 
 ### About `npm run type-check`
 
-`tsc --noEmit` currently exits with errors, all of them inside `node_modules/viem/node_modules/ox/**`. That package ships TypeScript sources that use BigInt literals and iteration, while `tsconfig.json` targets ES5, and `skipLibCheck` does not cover `.ts` sources pulled in through package exports. **No errors come from `src/`.**
+`tsc --noEmit` exits cleanly. `tsconfig.json` targets `es2020`, which also covers the BigInt literals and iteration in the TypeScript sources that `viem` pulls in through `ox`; under the former ES5 target those sources produced errors in `node_modules`. `__mocks__`, `__tests__`, `*.test.ts(x)` and `src/setupTests.ts` are excluded from the check.
 
-When reading the output, filter for application code:
-
-```bash
-npx tsc --noEmit | grep "^src/"
-```
-
-The dev server and the production build are unaffected, because Create React App restricts type reporting to `src/**` and [config-overrides.js](config-overrides.js) relaxes the checker further for production builds.
+The production build does not depend on it: [config-overrides.js](config-overrides.js) relaxes the checker for production builds so that type errors do not fail the build. Run `npm run type-check` before pushing.
 
 ## Build Configuration
 
@@ -175,13 +169,13 @@ The entrypoint writes a `window._env_` block and runs `envsubst` over the nginx 
 
 ### Unit Tests
 
-There are none in the repository. `.gitignore` excludes `*.test.*` and `*-test.*`, so any test written locally stays untracked until that rule is changed or a different naming convention is agreed (see [E2E Tests](#e2e-tests)). The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
+There are none in the repository. `.gitignore` excludes `*.test.*` and `*-test.*`, so any test written locally stays untracked until that rule is changed or a different naming convention is agreed (see [E2E Tests](#e2e-tests)). The integration tests that were briefly kept under `__tests__` directories during the UI redesign have been removed, together with the `@testing-library/dom` dependency. The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
 
 ### E2E Tests
 
 WebdriverIO against LambdaTest, under `tests-automation/`:
 
-- `wdio.web.conf.js` - Chrome, Firefox and Edge on Windows 11
+- `wdio.web.conf.js` - Chrome, Firefox and Edge on Windows 11, Safari, Chrome and Firefox on macOS Sonoma
 - `wdio.mobile.conf.js` - mobile capabilities
 - `pages/` - page objects: `AccountsPage`, `BasePage`, `DashboardPage`, `DeployPage`, `HistoryPage`, `NavbarPage`, `NetworkPage`, `ReceivePage`, `TransactionsPage`
 
@@ -194,7 +188,7 @@ Adding specs under that pattern is not enough, because the root `.gitignore` exc
 
 The same `.gitignore` rules are why no unit tests are tracked either, so whichever convention is chosen should cover both.
 
-Credentials are loaded from the **repository root** `.env`:
+Credentials are loaded from the **repository root** `.env`. `tests-automation/.env.example` lists the same variables plus a few more (`PROJECT_NAME`, `LT_API_URL`, `PRIVATE_KEY`), but neither config reads a `.env` inside `tests-automation/`:
 
 ```ini
 LT_USER_NAME=your_username
@@ -267,13 +261,13 @@ Raised by `@harmoniclabs/uplc`, a transitive dependency of the Cardano libraries
 
 A bridge variable is missing from `.env`. The bridge constants are evaluated at module load, so the throw happens before React mounts and no error screen is rendered. Fill the variable in and restart.
 
+### `npm start` or `npm run build` fails with `Invalid NETWORKS env config`
+
+`config-overrides.js` validates `NETWORKS` before webpack starts and throws on any error: the variable is missing or not valid JSON, no entry has a valid `ValidatorURL`, `ReadOnlyURL` and `IndexerURL`, or two entries share the same endpoints and `nodeApiProfile` or the same name (ignoring case). The error lines prefixed with `[config-overrides]` name the problem and the conflicting network ids. See [CONFIGURATION.md](CONFIGURATION.md#validation-rules).
+
 ### The app shows a configuration message instead of the UI
 
-`NETWORKS` is missing, is not valid JSON, or contains no entry with a valid `ValidatorURL`, `ReadOnlyURL` and `IndexerURL`. The message states which. Startup warnings prefixed with `[NETWORKS env]` list the entries that were skipped or degraded.
-
-### Type errors from `node_modules` in `npm run type-check`
-
-Expected; see [About `npm run type-check`](#about-npm-run-type-check).
+The bundle was built without the build-time check, and `NETWORKS` fails the same validation at startup. The message states the reason. Startup warnings prefixed with `[NETWORKS env]` list the entries that were skipped or degraded.
 
 ### The password is requested for almost every operation
 
