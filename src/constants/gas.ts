@@ -3,7 +3,6 @@ import {
     fromAtomicAmountToNumber,
     GasFee,
 } from "@asichain/asi-wallet-sdk";
-import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";
 
 export const GAS_FEE = {
     BASE_FEE: 0.0025,
@@ -16,17 +15,9 @@ export const generateRandomGasFee = (): string => {
     return randomFee.toFixed(4);
 };
 
-export const getGasFeeAsNumber = (): number => {
-    return fromAtomicAmountToNumber(GasFee.MAX, ASI_DECIMALS);
-};
-
 export const getGasFeeRangeLabel = (): string => {
     const min = fromAtomicAmountToNumber(GasFee.MIN, ASI_DECIMALS);
     const max = fromAtomicAmountToNumber(GasFee.MAX, ASI_DECIMALS);
 
     return `~${min}-${max}`;
-};
-
-export const getGasFeeForBridgeAsNumber = (): number => {
-    return fromAtomicAmountToNumber(BRIDGE_LOCK_MAX_GAS_COST, ASI_DECIMALS);
 };

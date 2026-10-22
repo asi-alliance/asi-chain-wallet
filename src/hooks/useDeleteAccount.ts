@@ -1,13 +1,20 @@
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAppDispatch } from "store/hooks";
 import { removeAccount } from "store/WalletsStore/thunks";
 
+export interface IAccountDeleteTarget {
+    walletId: string;
+    accountId: string;
+    accountName: string;
+}
+
 export interface IUseDeleteAccount {
+    target: IAccountDeleteTarget | null;
     isOpen: boolean;
     isDeleting: boolean;
     error: string;
-    open: () => void;
+    open: (target: IAccountDeleteTarget) => void;
     close: () => void;
     confirm: () => Promise<void>;
 }
@@ -15,37 +22,47 @@ export interface IUseDeleteAccount {
 const FALLBACK_REMOVE_ACCOUNT_ERROR_MESSAGE: string =
     "Failed to remove account";
 
-export const useDeleteAccount = (
-    walletId: string | undefined,
-    accountId: string,
-): IUseDeleteAccount => {
+export const useDeleteAccount = (): IUseDeleteAccount => {
     const dispatch = useAppDispatch();
 
-    const [isOpen, setIsOpen] = useState(false);
+    const [target, setTarget] = useState<IAccountDeleteTarget | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState("");
+    // Sync guard for double-click before React re-renders with isDeleting.
+    const isDeletingRef = useRef(false);
 
-    const open = () => {
+    const open = (nextTarget: IAccountDeleteTarget): void => {
         setError("");
-        setIsOpen(true);
+        setTarget(nextTarget);
     };
 
-    const close = () => setIsOpen(false);
-
-    const confirm = async () => {
-        if (!walletId) {
-            setError("Unlock the wallet before removing its accounts");
-
+    const close = (): void => {
+        if (isDeletingRef.current) {
             return;
         }
 
+        setTarget(null);
+        setError("");
+    };
+
+    const confirm = async (): Promise<void> => {
+        if (!target || isDeletingRef.current) {
+            return;
+        }
+
+        isDeletingRef.current = true;
         setIsDeleting(true);
         setError("");
 
         try {
-            await dispatch(removeAccount({ walletId, accountId })).unwrap();
+            await dispatch(
+                removeAccount({
+                    walletId: target.walletId,
+                    accountId: target.accountId,
+                }),
+            ).unwrap();
 
-            setIsOpen(false);
+            setTarget(null);
         } catch (removeError: unknown) {
             setError(
                 getErrorMessage(
@@ -54,12 +71,14 @@ export const useDeleteAccount = (
                 ),
             );
         } finally {
+            isDeletingRef.current = false;
             setIsDeleting(false);
         }
     };
 
     return {
-        isOpen,
+        target,
+        isOpen: target !== null,
         isDeleting,
         error,
         open,

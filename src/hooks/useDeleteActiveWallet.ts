@@ -12,9 +12,12 @@ export const useDeleteActiveWallet = (): IUseDeleteWallet => {
 
     return useDeleteWallet(activeWallet?.id, {
         onSuccess: async () => {
-            await dispatch(logout()).unwrap();
-
-            navigate("/login");
+            try {
+                await dispatch(logout()).unwrap();
+            } finally {
+                // Wallet is already gone — always leave the authenticated shell.
+                navigate("/login");
+            }
         },
     });
 };

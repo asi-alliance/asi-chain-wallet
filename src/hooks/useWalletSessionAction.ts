@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { isWalletLockedError } from "sdk";
+import { isInvalidPasswordError, isWalletLockedError } from "sdk";
 import { useAppDispatch } from "store/hooks";
 import { checkWalletUnlocked } from "store/WalletsStore/thunks";
 
@@ -86,7 +86,14 @@ export const useWalletSessionAction = <TResult>({
                 return;
             }
 
-            setPasswordError(message);
+            if (isInvalidPasswordError(error)) {
+                setPasswordError(message);
+
+                return;
+            }
+
+            setIsPasswordPromptOpen(false);
+            onError?.(message);
         } finally {
             setIsRunning(false);
         }

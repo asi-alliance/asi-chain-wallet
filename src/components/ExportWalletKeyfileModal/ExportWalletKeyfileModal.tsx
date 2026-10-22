@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ExportFormat, IWalletKeyfile } from "@asichain/asi-wallet-sdk";
+import { ExportFormat, IWalletKeyfile, getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { PasswordModal } from "components";
+import { isInvalidPasswordError } from "sdk";
 import { useAppDispatch } from "store/hooks";
 import { exportWalletKeyfile } from "store/WalletsStore/thunks";
 import { downloadExport } from "utils/fileDownload";
@@ -16,16 +17,23 @@ export const ExportWalletKeyfileModal: React.FC<
 > = ({ isOpen, walletId, onClose }) => {
     const dispatch = useAppDispatch();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [formError, setFormError] = useState("");
 
     const handleClose = (): void => {
-        setError("");
+        setPasswordError("");
+        setFormError("");
         onClose();
     };
 
     const handleConfirm = async (password: string): Promise<void> => {
+        if (loading) {
+            return;
+        }
+
         setLoading(true);
-        setError("");
+        setPasswordError("");
+        setFormError("");
 
         try {
             const keyfile: IWalletKeyfile = await dispatch(
@@ -40,10 +48,16 @@ export const ExportWalletKeyfileModal: React.FC<
 
             handleClose();
         } catch (exportError: unknown) {
-            setError(
-                (exportError as Error)?.message ??
-                    "Failed to export wallet keyfile",
+            const message = getErrorMessage(
+                exportError,
+                "Failed to export wallet keyfile",
             );
+
+            if (isInvalidPasswordError(exportError)) {
+                setPasswordError(message);
+            } else {
+                setFormError(message);
+            }
         } finally {
             setLoading(false);
         }
@@ -57,7 +71,8 @@ export const ExportWalletKeyfileModal: React.FC<
             title="Export Wallet Keyfile"
             description="Enter your wallet password to export the keyfile. Anyone with this file and its password controls the wallet."
             loading={loading}
-            error={error}
+            error={passwordError}
+            formError={formError}
         />
     );
 };

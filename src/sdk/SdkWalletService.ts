@@ -21,6 +21,7 @@ import {
     ITransferRequest,
     IWalletKeyfile,
     IWalletMetadata,
+    KeysManager,
     Mnemonic,
     MnemonicStrength,
     NetworkId,
@@ -113,10 +114,28 @@ export class SdkWalletService {
         };
     }
 
+    public static toNetworkConfig({
+        validatorUrl,
+        observerUrl,
+        indexerUrl,
+        nodeApiProfile,
+    }: Network): INetworkConfig {
+        return {
+            ValidatorURL: validatorUrl,
+            ReadOnlyURL: observerUrl,
+            IndexerURL: indexerUrl,
+            nodeApiProfile,
+        };
+    }
+
     static generateMnemonic(
         strength: MnemonicStrength = MnemonicStrength.TWELVE_WORDS,
     ): string {
         return Mnemonic.generateMnemonic(strength);
+    }
+
+    static generatePrivateKeyHex(): string {
+        return encodeBase16(KeysManager.generateKeyPair().privateKey);
     }
 
     static isMnemonicValid(mnemonic: string): boolean {

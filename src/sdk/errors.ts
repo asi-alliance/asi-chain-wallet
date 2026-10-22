@@ -1,4 +1,8 @@
 import { CustomErrorCode } from "@asichain/asi-wallet-sdk";
+import { getErrorCode } from "utils/errors";
 
 export const isWalletLockedError = (error: unknown): boolean =>
-    (error as { code?: string } | null)?.code === CustomErrorCode.WALLET_LOCKED;
+    getErrorCode(error) === CustomErrorCode.WALLET_LOCKED;
+
+export const isInvalidPasswordError = (error: unknown): boolean =>
+    getErrorCode(error) === CustomErrorCode.INVALID_PASSWORD;

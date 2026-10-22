@@ -9,6 +9,9 @@ import {
     SuspiciousFlag,
 } from "services/loginAuditLog";
 import { recordFailedAttempt, resetRateLimit } from "services/loginRateLimit";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
+import { getErrorName } from "utils/errors";
+import { isPlainObject } from "utils/guards";
 
 export const setActiveSession = (
     state: AuthState,
@@ -25,20 +28,42 @@ export const clearActiveSession = (state: AuthState): void => {
     state.isAuthenticated = false;
 };
 
+export interface ILoginRejection {
+    reason: FailureReason;
+    message: string;
+}
+
+const FAILURE_REASONS: string[] = Object.values(FailureReason);
+
+export const isLoginRejection = (error: unknown): error is ILoginRejection =>
+    isPlainObject(error) &&
+    typeof error.reason === "string" &&
+    FAILURE_REASONS.includes(error.reason) &&
+    typeof error.message === "string";
+
 export function classifyLoginError(err: unknown): FailureReason {
-    if (err instanceof DOMException) {
-        if (err.name === "AbortError") return FailureReason.Cancelled;
-        if (err.name === "TimeoutError") return FailureReason.Timeout;
+    const name = getErrorName(err);
+    const message = getErrorMessage(err, "").toLowerCase();
+
+    if (name === "AbortError") {
+        return FailureReason.Cancelled;
     }
-    if (err instanceof TypeError) {
-        const message = err.message.toLowerCase();
-        if (
-            message.includes("network") ||
-            message.includes("failed to fetch")
-        ) {
-            return FailureReason.NetworkError;
-        }
+
+    if (
+        name === "TimeoutError" ||
+        message.includes("timeout") ||
+        message.includes("timed out")
+    ) {
+        return FailureReason.Timeout;
     }
+
+    if (
+        message.includes("network") ||
+        message.includes("failed to fetch")
+    ) {
+        return FailureReason.NetworkError;
+    }
+
     return FailureReason.Unknown;
 }
 

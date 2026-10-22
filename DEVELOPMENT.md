@@ -82,7 +82,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for every variable and for what each on
 npm start
 ```
 
-The wallet is served at `http://localhost:3000` with hot reload. Use `PORT=3001 npm start` to change the port. The startup log includes `[config-overrides]` lines reporting the parsed `NETWORKS`, and `[NETWORKS env]` warnings for any entry that was skipped or degraded.
+The wallet is served at `http://localhost:3000` with hot reload. Use `PORT=3001 npm start` to change the port. The startup log includes `[config-overrides]` lines reporting the parsed `NETWORKS`, and `[NETWORKS env]` warnings for any entry that was skipped or degraded. An invalid `NETWORKS`, including duplicate networks, stops the dev server before it starts.
 
 ## Working With The Local SDK
 
@@ -132,12 +132,22 @@ The dev server and the production build are unaffected, because Create React App
 [config-overrides.js](config-overrides.js) (react-app-rewired) is where the non-default build behaviour lives:
 
 - parses `.env.local` or `.env` and inlines `NETWORKS`, `NODE_ENV`, `REACT_APP_EXPLORER_URL` and `REACT_APP_FAUCET_URL` through `DefinePlugin`
+- validates `NETWORKS` with [src/config/networksEnv.ts](src/config/networksEnv.ts), loaded through `ts-node`, and throws on any error (for example duplicate networks), which aborts `npm start` and `npm run build`
 - excludes `__mocks__`, `__tests__`, `*.test.*`, `*.spec.*` and `setupTests.ts` from the compiled bundle
 - provides browser polyfills for `crypto`, `stream`, `assert`, `buffer` and `process`, and disables Node-only modules
 - aliases `node-persist` to `false` for the SDK
 - enables `asyncWebAssembly` and `topLevelAwait` for the Cardano libraries, which ship WebAssembly
 - splits Monaco, ethers, WalletConnect, Ledger, Trezor, React, Redux and crypto libraries into separate chunks in production
 - in production, relaxes the TypeScript checker so that type errors do not fail the build
+
+### Build-Time Modules In `src/config`
+
+[src/config/](src/config) holds TypeScript modules that `config-overrides.js` loads through `ts-node` before webpack starts, and that the application imports as well (as `config/<module>`). They run in plain Node, without webpack or the `baseUrl: src` alias resolution, so every module in this folder:
+
+- imports other application code through relative paths only (`../utils/guards`, `../sdk/SdkWalletService`), never through aliases such as `utils/guards`
+- imports types with `import type`, so that `ts-node` in `transpileOnly` mode drops those imports
+- does not touch `window`, `localStorage` or other browser APIs, and has no side effects on import, such as logging
+- imports only modules that also load in plain Node, including everything they import at runtime. `@asichain/asi-wallet-sdk` is fine, because Node loads its CommonJS build. [src/sdk/SdkWalletService.ts](src/sdk/SdkWalletService.ts) is fine too: its only alias import, `types/wallet`, brings in types alone and is dropped during transpilation. Check this before adding a new import
 
 ## Docker
 

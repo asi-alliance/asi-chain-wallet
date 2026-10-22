@@ -15,56 +15,77 @@ import {
     useGetTransactionHistoryQuery,
 } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query/react";
-import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    VisuallyHidden,
+} from "components";
 import { useNavigate } from "react-router-dom";
 import { AccountCard } from "components/AccountCard";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { HistoryIcon, VectorIcon } from "components/Icons";
+import { HistoryIcon, ReceiveIcon, SendIcon } from "components/Icons";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
-import { useScreen } from "hooks/";
-
+import { useScreen } from "hooks";
 import { AccountSelector } from "components/AccountSelector";
 
 const DashboardContainer = styled.div`
     display: block;
+    max-width: ${({ theme }) => theme.layout.contentWide};
+    margin: 0 auto;
 
-    @media (min-width: 1023px) {
+    @media (min-width: ${({ theme }) => theme.breakpoints.laptop}) {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 24px;
+        gap: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
 const ActionButtons = styled.div`
     display: flex;
-    gap: 16px;
-    margin-top: 24px;
+    gap: ${({ theme }) => theme.spacing.xl};
+    margin-top: ${({ theme }) => theme.spacing["3xl"]};
 `;
 
 const ContentHeader = styled.div`
     width: 100%;
     display: flex;
-    align-items: end;
+    align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 71px;
+    gap: ${({ theme }) => theme.spacing.xl};
+    margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
 
-    @media (max-width: 1023px) {
-        margin-bottom: 24px;
+    > :first-child {
+        flex: 1;
+        min-width: 0;
     }
 `;
 
 const ActionsToolbar = styled.div`
     display: flex;
-    padding: 0 20px;
     justify-content: center;
     align-items: center;
-    gap: 16px;
+    gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const ActionButton = styled(Button)`
+    min-width: 150px;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        min-width: 0;
+        flex: 1;
+    }
 `;
 
 const CustomAccountCard = styled(AccountCard)`
-    @media (max-width: 1023px) {
-        margin-bottom: 25px;
+    max-width: none;
+
+    /* Stack margin only below the two-column grid (min-width: laptop). */
+    @media (max-width: ${({ theme }) =>
+            `${Number.parseInt(theme.breakpoints.laptop, 10) - 1}px`}) {
+        margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
@@ -79,6 +100,7 @@ export const Dashboard: React.FC = () => {
             : false,
     );
 
+    // isLaptop is true at mobile widths (≤768px); View All is desktop-only (Current p26/p27).
     const { isLaptop } = useScreen();
 
     const balanceArgs: IAccountQueryArgs | typeof skipToken =
@@ -95,6 +117,7 @@ export const Dashboard: React.FC = () => {
               }
             : skipToken;
 
+    // Keep balance/history caches warm for Wallet and Transactions.
     useGetBalanceQuery(balanceArgs, {
         pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
     });
@@ -110,6 +133,7 @@ export const Dashboard: React.FC = () => {
     if (!selectedAccount) {
         return (
             <div>
+                <VisuallyHidden as="h1">Wallet</VisuallyHidden>
                 <Card>
                     <CardHeader>
                         <CardTitle>Welcome to ASI Wallet</CardTitle>
@@ -145,6 +169,7 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div>
+            <VisuallyHidden as="h1">Wallet</VisuallyHidden>
             <DashboardContainer>
                 <CustomAccountCard account={selectedAccount} fullMode={false} />
                 <Card>
@@ -153,49 +178,40 @@ export const Dashboard: React.FC = () => {
                             <AccountSelector fullWidth />
                             {!isLaptop && (
                                 <Button
-                                    id="import-account-button"
+                                    id="view-all-accounts-button"
                                     variant="secondary"
                                     onClick={() => navigate("/accounts")}
-                                    style={{
-                                        padding: "8px 0px",
-                                        minWidth: "136px",
-                                    }}
                                 >
-                                    <h3>View all</h3>
+                                    View All
                                 </Button>
                             )}
                         </ContentHeader>
-                        <ActionsToolbar>
-                            <Button
+                        <ActionsToolbar aria-label="Wallet actions">
+                            <ActionButton
                                 id="send-action-button"
                                 onClick={() =>
                                     handleRedirectToAccountAction("/send")
                                 }
                                 fullWidth={false}
-                                style={isLaptop ? {} : { minWidth: "150px" }}
                             >
-                                <h3>Send</h3>
-                                <VectorIcon />
-                            </Button>
-                            <Button
+                                Send
+                                <SendIcon />
+                            </ActionButton>
+                            <ActionButton
                                 id="receive-action-button"
                                 onClick={() =>
                                     handleRedirectToAccountAction("/receive")
                                 }
                                 fullWidth={false}
-                                style={isLaptop ? {} : { minWidth: "150px" }}
                             >
-                                <h3>Receive</h3>
-                                <div style={{ transform: "rotate(180deg)" }}>
-                                    <VectorIcon />
-                                </div>
-                            </Button>
+                                Receive
+                                <ReceiveIcon />
+                            </ActionButton>
                             <Button
                                 id="history-button"
                                 title="View transaction history"
-                                onClick={() => {
-                                    navigate("/history");
-                                }}
+                                aria-label="History"
+                                onClick={() => navigate("/history")}
                                 variant="icon-button-black"
                                 fullWidth={false}
                                 secondaryHover

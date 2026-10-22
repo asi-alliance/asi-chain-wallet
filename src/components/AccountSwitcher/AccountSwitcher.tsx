@@ -302,7 +302,15 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (disabled) {
+            setIsOpen(false);
+        }
+    }, [disabled]);
+
     const handleAccountSelect = (accountId: string) => {
+        if (disabled) return;
+
         onSelect(accountId);
         setIsOpen(false);
     };
@@ -344,6 +352,8 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                 onKeyDown={handleKeyDown}
                 $layout={layout}
                 type="button"
+                disabled={disabled}
+                aria-expanded={isOpen}
             >
                 <AccountInfo $layout={layout} className="account-info">
                     {selectedAccount ? (
@@ -386,6 +396,7 @@ export const AccountSwitcher: React.FC<IAccountSwitcherProps> = ({
                             $layout={layout}
                             onClick={() => handleAccountSelect(account.id)}
                             type="button"
+                            disabled={disabled}
                         >
                             <AccountInfo
                                 $layout={layout}

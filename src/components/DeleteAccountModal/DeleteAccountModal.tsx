@@ -63,7 +63,7 @@ export const DeleteAccountModal: React.FC<IDeleteAccountModalProps> = ({
                 {`This removes the account "${accountName}" from this device. It can be restored only from the Secret Recovery Phrase of its wallet.`}
             </span>
         </WarningRow>
-        {error && <ErrorMessage>{error}</ErrorMessage>}
+        {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
         <Actions>
             <Button
                 id="delete-account-cancel-button"

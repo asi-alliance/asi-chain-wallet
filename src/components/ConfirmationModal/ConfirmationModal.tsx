@@ -4,6 +4,10 @@ import { Button, PasswordInput } from "components";
 import { ModalWindow } from "components/ModalWindow";
 import { getTokenDisplayName } from "../../constants/token";
 import { useScreen } from "hooks";
+import {
+    getTokenAmountWithFee,
+    isPositiveTokenAmount,
+} from "utils/balanceUtils";
 
 const Title = styled.div`
     color: ${({ theme }) => theme.text.primary};
@@ -102,8 +106,10 @@ interface TransactionConfirmationProps {
     recipient: string;
     senderAddress: string;
     senderName: string;
-    maxFee: number;
+    maxFee: bigint;
     feeLabel: string;
+    feeDetailLabel?: string;
+    totalLabel?: string;
     loading?: boolean;
     needsPassword?: boolean;
 }
@@ -120,6 +126,8 @@ export const TransactionConfirmationModal: React.FC<
     senderName,
     maxFee,
     feeLabel,
+    feeDetailLabel = "Commission amount can be :",
+    totalLabel = "Total Cost:",
     loading = false,
     needsPassword = false,
 }) => {
@@ -127,12 +135,9 @@ export const TransactionConfirmationModal: React.FC<
 
     const [password, setPassword] = useState("");
 
-    const formatAddress = (address: string): string => {
-        if (!address) return "";
-        return `${address.substring(0, 12)}...${address.substring(address.length - 10)}`;
-    };
-
-    const totalAmount = (parseFloat(amount) + maxFee).toFixed(8);
+    const totalAmount = isPositiveTokenAmount(amount)
+        ? (getTokenAmountWithFee(amount, maxFee) ?? "—")
+        : "—";
 
     const handleClose = () => {
         if (!loading) {
@@ -149,7 +154,13 @@ export const TransactionConfirmationModal: React.FC<
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="500px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="500px"
+            dismissible={!loading}
+            aria-label="Confirm transaction"
+        >
             <Title>
                 <h1>Confirm Transaction</h1>
             </Title>
@@ -170,16 +181,12 @@ export const TransactionConfirmationModal: React.FC<
 
                 <DetailRow>
                     <DetailLabel>From Address:</DetailLabel>
-                    <AddressValue title={senderAddress}>
-                        {formatAddress(senderAddress)}
-                    </AddressValue>
+                    <AddressValue>{senderAddress}</AddressValue>
                 </DetailRow>
 
                 <DetailRow>
                     <DetailLabel>To Address:</DetailLabel>
-                    <AddressValue title={recipient}>
-                        {formatAddress(recipient)}
-                    </AddressValue>
+                    <AddressValue>{recipient}</AddressValue>
                 </DetailRow>
 
                 <DetailRow>
@@ -190,14 +197,14 @@ export const TransactionConfirmationModal: React.FC<
                 </DetailRow>
 
                 <DetailRow>
-                    <DetailLabel>Commission amount can be :</DetailLabel>
+                    <DetailLabel>{feeDetailLabel}</DetailLabel>
                     <DetailValue>
                         {feeLabel} {getTokenDisplayName()}
                     </DetailValue>
                 </DetailRow>
 
                 <DetailRow>
-                    <DetailLabel>Total Cost:</DetailLabel>
+                    <DetailLabel>{totalLabel}</DetailLabel>
                     <AmountValue>
                         {totalAmount} {getTokenDisplayName()}
                     </AmountValue>

@@ -7,3 +7,10 @@ export const TextSecondaryBlock = styled.div`
 export const TextTertiaryBlock = styled.div`
     color: ${({ theme }) => theme.text.tertiary};
 `;
+
+export const FilterLabel = styled.span`
+    font-size: ${({ theme }) => theme.typography.size.md};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    font-weight: 500;
+    color: ${({ theme }) => theme.text.secondary};
+`;

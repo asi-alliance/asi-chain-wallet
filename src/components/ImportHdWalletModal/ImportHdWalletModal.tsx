@@ -25,6 +25,7 @@ export const ImportHdWalletModal: React.FC<ImportHdWalletModalProps> = ({
             isOpen={isOpen}
             onClose={onCancel}
             title="Import Wallet"
+            maxWidth="705px"
             dismissible={false}
         >
             <ImportHdWalletForm onSuccess={handleSuccess} onCancel={onCancel} />

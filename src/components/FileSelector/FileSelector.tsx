@@ -21,31 +21,35 @@ const StyledFileInput = styled.input<{ $hasError?: boolean }>`
     background: transparent;
     border: 2px dashed
         ${({ theme, $hasError }) =>
-            $hasError ? theme.danger : theme.colors.border};
-    border-radius: 8px;
+            $hasError ? theme.danger : theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
     color: ${({ theme }) => theme.text.primary};
-    transition: all 0.2s ease;
+    transition: border-color ${({ theme }) => theme.motion.normal}
+        ${({ theme }) => theme.motion.easing};
     outline: none;
     cursor: pointer;
 
     &:hover:not(:disabled) {
         border-color: ${({ theme, $hasError }) =>
-            $hasError ? theme.danger : theme.primary};
+            $hasError ? theme.danger : theme.control.fieldHoverBorder};
     }
 
     &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+        background: ${({ theme }) => theme.control.disabledBackground};
+        border-color: ${({ theme }) => theme.control.disabledBorder};
     }
 
     &::file-selector-button {
-        margin-right: 12px;
-        padding: 6px 14px;
+        margin-right: ${({ theme }) => theme.spacing.lg};
+        padding: ${({ theme }) => theme.spacing.sm}
+            ${({ theme }) => theme.spacing.lg};
         border: none;
-        border-radius: 6px;
+        border-radius: ${({ theme }) => theme.radii.sm};
         background: ${({ theme }) => theme.primary};
         color: ${({ theme }) => theme.text.inverse};
-        font-size: 0.875rem;
+        font-size: ${({ theme }) => theme.typography.size.sm};
         cursor: inherit;
     }
 `;
@@ -70,6 +74,8 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
 }) => {
     const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
         onSelect(event.target.files?.[0] ?? null);
+        // Allow selecting the same file again after a rejected/corrupt read.
+        event.target.value = "";
     };
 
     return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { PasswordInput, Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
@@ -22,7 +22,7 @@ const Actions = styled.div`
     margin-top: 24px;
 `;
 
-const ErrorMessage = styled.div`
+const FormError = styled.div`
     color: ${({ theme }) => theme.danger};
     font-size: 14px;
     margin-top: 8px;
@@ -34,8 +34,12 @@ interface PasswordModalProps {
     onConfirm: (password: string) => void;
     title?: string;
     description?: string;
+    confirmLabel?: string;
     loading?: boolean;
+    /** Field-linked credential error (marks the password input invalid). */
     error?: string;
+    /** Operation error unrelated to the password value itself. */
+    formError?: string;
 }
 
 export const PasswordModal: React.FC<PasswordModalProps> = ({
@@ -44,11 +48,15 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     onConfirm,
     title = "Enter Password",
     description = "Please enter your password to continue.",
+    confirmLabel = "Confirm",
     loading = false,
     error,
+    formError,
 }) => {
     const [password, setPassword] = useState("");
     const [localError, setLocalError] = useState("");
+    // Sync guard for double-click before parent re-renders with loading=true.
+    const submissionRef = useRef(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -57,19 +65,32 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
 
         setPassword("");
         setLocalError("");
+        submissionRef.current = false;
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!loading) {
+            submissionRef.current = false;
+        }
+    }, [loading]);
+
     const handleConfirm = () => {
+        if (loading || submissionRef.current) {
+            return;
+        }
+
         if (!password.trim()) {
             setLocalError("Password is required");
             return;
         }
+
         setLocalError("");
+        submissionRef.current = true;
         onConfirm(password);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (loading) {
+        if (loading || submissionRef.current) {
             return;
         }
 
@@ -79,7 +100,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     };
 
     const handleClose = () => {
-        if (loading) {
+        if (loading || submissionRef.current) {
             return;
         }
 
@@ -87,15 +108,23 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
     };
 
     return (
-        <ModalWindow isOpen={isOpen} onClose={handleClose} maxWidth="400px">
+        <ModalWindow
+            isOpen={isOpen}
+            onClose={handleClose}
+            maxWidth="400px"
+            dismissible={!loading}
+            aria-label={title}
+        >
             <Title>{title}</Title>
             <Description>{description}</Description>
 
             <PasswordInput
                 id="password-modal-input"
+                label="Wallet password"
                 data-testid="password-modal-input"
                 data-cy="password-modal-input"
                 value={password}
+                error={error || localError}
                 onChange={(e) => setPassword(e.target.value)}
                 onInput={(e) => {
                     const target = e.currentTarget;
@@ -107,10 +136,11 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                 placeholder="Enter password"
                 autoFocus
                 autoComplete="current-password"
+                disabled={loading}
             />
 
-            {(error || localError) && (
-                <ErrorMessage>{error || localError}</ErrorMessage>
+            {formError && (
+                <FormError role="alert">{formError}</FormError>
             )}
 
             <Actions>
@@ -122,7 +152,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
                     Cancel
                 </Button>
                 <Button onClick={handleConfirm} loading={loading}>
-                    Confirm
+                    {confirmLabel}
                 </Button>
             </Actions>
         </ModalWindow>

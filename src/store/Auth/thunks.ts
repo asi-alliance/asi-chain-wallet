@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 import { FailureReason, LoginType } from "services/loginAuditLog";
 import { withLoginLock } from "services/loginLock";
 import {
@@ -9,7 +10,11 @@ import { createAppAsyncThunk } from "store/appThunk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { toActiveWalletSession } from "store/WalletsStore/helpers";
 import { IActiveWalletSession } from "types/wallet";
-import { classifyLoginError, handleLoginOutcome } from "./helpers";
+import {
+    classifyLoginError,
+    handleLoginOutcome,
+    ILoginRejection,
+} from "./helpers";
 
 type CreateHdWalletPayload = {
     name: string;
@@ -109,10 +114,14 @@ const LOCK_WAIT_THRESHOLD_MS = 500;
 
 export const loginWithPassword = createAppAsyncThunk<
     IActiveWalletSession,
-    { signerId: string; password: string }
+    { signerId: string; password: string },
+    { rejectValue: ILoginRejection }
 >(
     "auth/loginWithPassword",
-    async ({ signerId, password }, { extra: { walletService } }) => {
+    async (
+        { signerId, password },
+        { rejectWithValue, extra: { walletService } },
+    ) => {
     const loginType = LoginType.ByName;
     const contextKey = buildContextKey(signerId);
     let failureReason: FailureReason | undefined;
@@ -149,7 +158,11 @@ export const loginWithPassword = createAppAsyncThunk<
 
                 return wallet;
             } catch (err) {
-                failureReason = FailureReason.WrongPassword;
+                const classified = classifyLoginError(err);
+                failureReason =
+                    classified === FailureReason.Unknown
+                        ? FailureReason.WrongPassword
+                        : classified;
                 throw err;
             }
         });
@@ -158,12 +171,13 @@ export const loginWithPassword = createAppAsyncThunk<
 
         return toActiveWalletSession(unlockedWallet);
     } catch (err: unknown) {
-        console.log("AuthSlice.loginWithPassword: ", err);
+        const reason: FailureReason = failureReason ?? classifyLoginError(err);
+        failureReason = reason;
 
-        if (!failureReason) {
-            failureReason = classifyLoginError(err);
-        }
-        throw err;
+        return rejectWithValue({
+            reason,
+            message: getErrorMessage(err, ""),
+        });
     } finally {
         await handleLoginOutcome(
             succeeded,

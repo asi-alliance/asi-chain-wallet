@@ -13,7 +13,7 @@ import {
     IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
 
-const HISTORY_LIMIT = 50;
+export const HISTORY_LIMIT = 50;
 
 export enum WalletsApiTags {
     BALANCE = "Balance",
@@ -45,6 +45,18 @@ const toErrorMessage = (error: unknown, fallback: string): string =>
 
 const getWalletService = (extra: unknown) =>
     (extra as IThunkExtraArgument).walletService;
+
+export const serializeHistoryTimestamp = (timestamp: Date | string): string => {
+    if (timestamp instanceof Date) {
+        return Number.isNaN(timestamp.getTime())
+            ? ""
+            : timestamp.toISOString();
+    }
+
+    const parsed = new Date(timestamp);
+
+    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
+};
 
 export const walletsApi = createApi({
     reducerPath: "walletsApi",
@@ -129,7 +141,8 @@ export const walletsApi = createApi({
                             from: tx.from,
                             to: tx.to ?? "",
                             amount: tx.amount ?? "",
-                            timestamp: tx.timestamp.toString(),
+                            // Prefer ISO so client-side Date filters parse reliably.
+                            timestamp: serializeHistoryTimestamp(tx.timestamp),
                             status: tx.status,
                             type: tx.type,
                             gasCost:
