@@ -154,7 +154,6 @@ module.exports = function override(config, env) {
     https: false,
   };
   
-  // Fix module resolution for axios in Ledger packages
   config.resolve.alias = {
     ...config.resolve.alias,
     'process/browser': require.resolve('process/browser'),
@@ -216,18 +215,6 @@ module.exports = function override(config, env) {
         walletconnect: {
           test: /[\\/]node_modules[\\/]@walletconnect[\\/]/,
           name: 'walletconnect',
-          priority: 25,
-          enforce: true
-        },
-        ledger: {
-          test: /[\\/]node_modules[\\/]@ledgerhq[\\/]/,
-          name: 'ledger',
-          priority: 25,
-          enforce: true
-        },
-        trezor: {
-          test: /[\\/]node_modules[\\/]@trezor[\\/]/,
-          name: 'trezor',
           priority: 25,
           enforce: true
         },

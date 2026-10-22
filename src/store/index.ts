@@ -3,8 +3,6 @@ import walletReducer from "./WalletsStore";
 import { walletsApi } from "./WalletsStore/api";
 import themeReducer from "./themeSlice";
 import authReducer from "./Auth/";
-import hardwareWalletReducer from "./hardwareWalletSlice";
-import multisigReducer from "./multisigSlice";
 import networkOperationReducer from "./networkOperationSlice";
 
 export const store = configureStore({
@@ -13,28 +11,10 @@ export const store = configureStore({
         [walletsApi.reducerPath]: walletsApi.reducer,
         theme: themeReducer,
         auth: authReducer,
-        hardwareWallet: hardwareWalletReducer,
-        multisig: multisigReducer,
         networkOperation: networkOperationReducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-            serializableCheck: {
-                ignoredActions: [
-                    "hardwareWallet/sign/fulfilled",
-                    "multisig/createWallet/fulfilled",
-                    "multisig/loadWalletDetails/fulfilled",
-                ],
-                ignoredPaths: [
-                    "hardwareWallet.accounts",
-                    "hardwareWallet.selectedAccount",
-                    "multisig.wallets",
-                    "multisig.selectedWallet",
-                    "multisig.transactions",
-                    "multisig.lastUpdated",
-                ],
-            },
-        }).concat(walletsApi.middleware),
+        getDefaultMiddleware().concat(walletsApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

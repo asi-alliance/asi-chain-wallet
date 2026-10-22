@@ -23,8 +23,6 @@ import { Login } from "pages/Login";
 import { Bridge } from "pages/Bridge";
 import { History } from "pages/History";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
-//TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
-// import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
@@ -55,21 +53,8 @@ const AppContent: React.FC = () => {
     };
 
     useEffect(() => {
-        // dispatch(loadNetworksFromStorage());
         loadWallets();
     }, [dispatch]);
-
-    //TODO: Removed legacy RChain polling. Deploy status is now tracked via the SDK DeployStatusPoller in the sendTransaction thunk.
-    // useEffect(() => {
-    //     if (isAuthenticated) {
-    //         TransactionPollingService.start();
-    //     } else {
-    //         TransactionPollingService.stop();
-    //     }
-    //     return () => {
-    //         TransactionPollingService.stop();
-    //     };
-    // }, [isAuthenticated]);
 
     if (!isInitialLoadComplete) {
         return (
