@@ -2,8 +2,8 @@ import { createCaptchaFetchHandler } from "waf-captcha-frontend";
 
 export const getCaptchaFetch = () => {
     const keys = {
-        JSAPI_URL: process.env.REACT_APP_JSAPI_URL,
-        CAPTCHA_TOKEN: process.env.REACT_APP_CAPTCHA_TOKEN
+        JSAPI_URL: import.meta.env.REACT_APP_JSAPI_URL,
+        CAPTCHA_TOKEN: import.meta.env.REACT_APP_CAPTCHA_TOKEN
     }
 
     if (!keys.CAPTCHA_TOKEN || !keys.JSAPI_URL) {

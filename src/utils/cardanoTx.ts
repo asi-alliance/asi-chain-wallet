@@ -23,7 +23,7 @@ type BuildCardanoLockTxInput = {
 const MIN_BROWSER_LOCK_LOVELACE = BigInt(3000000);
 
 const cardanoProviderUrl = (): string =>
-    process.env.REACT_APP_CARDANO_PREPROD_KOIOS_URL ?? "";
+    import.meta.env.REACT_APP_CARDANO_PREPROD_KOIOS_URL ?? "";
 
 const formatAda = (lovelace: bigint): string => {
     const sign = lovelace < BigInt(0) ? "-" : "";

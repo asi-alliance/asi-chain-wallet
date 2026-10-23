@@ -34,14 +34,14 @@ export interface BridgeChainConfig {
 }
 
 export const envStr = (key: string): string => {
-    if (!process.env[key]) {
+    if (!import.meta.env[key]) {
         throw new Error(`Env variable with key ${key} not found`);
     }
 
-    return process.env[key];
+    return import.meta.env[key];
 };
 export const envNum = (key: string): number => {
-    const raw: string | undefined = process.env[key];
+    const raw: string | undefined = import.meta.env[key];
 
     if (raw === undefined || raw.trim() === "") {
         throw new Error(`Env variable with key ${key} not found`);

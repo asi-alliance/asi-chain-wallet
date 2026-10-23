@@ -163,11 +163,11 @@ const formatRelativeTime = (date: Date) => {
 
 const externalLinksSet = [
     {
-        path: `${process.env.REACT_APP_EXPLORER_URL}`,
+        path: `${import.meta.env.REACT_APP_EXPLORER_URL}`,
         label: "Explorer",
     },
     {
-        path: `${process.env.REACT_APP_FAUCET_URL}`,
+        path: `${import.meta.env.REACT_APP_FAUCET_URL}`,
         label: "Faucet",
     },
 ];

@@ -28,8 +28,8 @@ interface ExternalLink {
 }
 
 const externalLinksSet: ExternalLink[] = [
-    { path: `${process.env.REACT_APP_EXPLORER_URL}`, label: "Explorer" },
-    { path: `${process.env.REACT_APP_FAUCET_URL}`, label: "Faucet" },
+    { path: `${import.meta.env.REACT_APP_EXPLORER_URL}`, label: "Explorer" },
+    { path: `${import.meta.env.REACT_APP_FAUCET_URL}`, label: "Faucet" },
 ];
 
 export const ExternalLinks: React.FC = () => {

@@ -19,7 +19,7 @@ export const getEnvVar = (key: string): string | undefined => {
   }
   
   // Fall back to build-time env
-  return process.env[key];
+  return import.meta.env[key];
 };
 
 export const env = {
