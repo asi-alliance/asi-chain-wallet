@@ -13,7 +13,7 @@ const connectors = connectorsForWallets(
     {
         appName: "ASI Wallet Bridge",
         projectId:
-            import.meta.env.REACT_APP_WALLETCONNECT_PROJECT_ID ||
+            import.meta.env.VITE_WALLETCONNECT_PROJECT_ID ||
             "asi-wallet-bridge",
     },
 );

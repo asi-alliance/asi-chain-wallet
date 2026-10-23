@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig, normalizePath, type Plugin } from "vite";
+import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import wasm from "vite-plugin-wasm";
 import {
@@ -10,16 +10,13 @@ import {
     getNetworksEnvErrorMessage,
     parseNetworksEnv,
 } from "./src/config/networksEnv.ts";
+import { BRIDGE_ENV_KEYS } from "./src/config/bridgeEnv.ts";
 
 const LOG_PREFIX = "[vite.config]";
 
 const ROOT_DIR = fileURLToPath(new URL(".", import.meta.url));
 
 const SRC_DIR = normalizePath(path.resolve(ROOT_DIR, "src"));
-
-const NETWORKS_ENV_FILES = [".env.local", ".env"];
-
-const NETWORKS_LINE_PATTERN = /^\s*NETWORKS\s*=(.*)$/m;
 
 const SRC_MODULE_FILE_PATTERN = /^(?!.*\.d\.ts$).+\.tsx?$/;
 
@@ -84,34 +81,6 @@ const nodePersistStub = (): Plugin => ({
     },
 });
 
-const unquoteNetworksEnv = (value: string): string => {
-    const unquoted =
-        value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value;
-
-    return unquoted
-        .replace(/\\"/g, '"')
-        .replace(/\\n/g, "\n")
-        .replace(/\\\\/g, "\\");
-};
-
-const readNetworksEnv = (): string | undefined => {
-    for (const fileName of NETWORKS_ENV_FILES) {
-        const filePath = path.resolve(ROOT_DIR, fileName);
-
-        if (!fs.existsSync(filePath)) {
-            continue;
-        }
-
-        const match = fs.readFileSync(filePath, "utf8").match(NETWORKS_LINE_PATTERN);
-
-        if (match) {
-            return unquoteNetworksEnv(match[1].trim());
-        }
-    }
-
-    return process.env.NETWORKS;
-};
-
 const validateNetworksEnv = (networksEnv: string | undefined): void => {
     const { networks, issues } = parseNetworksEnv(networksEnv);
 
@@ -130,23 +99,28 @@ const validateNetworksEnv = (networksEnv: string | undefined): void => {
     const networksEnvError = getNetworksEnvErrorMessage(issues);
 
     if (networksEnvError) {
-        throw new Error(`${LOG_PREFIX} Invalid NETWORKS env config: ${networksEnvError}`);
+        throw new Error(`${LOG_PREFIX} Invalid VITE_NETWORKS env config: ${networksEnvError}`);
     }
 
     console.log(`${LOG_PREFIX} Networks found:`, networks.map(({ id }) => id).join(", "));
 };
 
-export default defineConfig(() => {
-    const networksEnv = readNetworksEnv();
+const validateBridgeEnv = (env: Record<string, string>): void => {
+    const missingKeys = Object.values(BRIDGE_ENV_KEYS).filter((key) => !env[key]?.trim());
 
-    validateNetworksEnv(networksEnv);
+    if (missingKeys.length) {
+        throw new Error(`${LOG_PREFIX} Missing required env variables: ${missingKeys.join(", ")}`);
+    }
+};
+
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, ROOT_DIR);
+
+    validateNetworksEnv(env.VITE_NETWORKS);
+    validateBridgeEnv(env);
 
     return {
         base: "./",
-        envPrefix: "REACT_APP_",
-        define: {
-            "import.meta.env.NETWORKS": JSON.stringify(networksEnv || "{}"),
-        },
         plugins: [
             srcBaseUrlAliases(),
             nodePersistStub(),

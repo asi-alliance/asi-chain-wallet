@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-    readonly NETWORKS: string;
+    readonly VITE_NETWORKS?: string;
 }

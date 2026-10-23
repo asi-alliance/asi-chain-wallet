@@ -1,3 +1,4 @@
+import { BRIDGE_ENV_KEYS } from "config/bridgeEnv";
 import { envStr } from "constants/bridgeChains";
 import { sepolia, baseSepolia } from "viem/chains";
 
@@ -12,12 +13,12 @@ const envAddr = (value: string | undefined): Addr => (value ?? "") as Addr;
 
 const CONTRACTS_BY_CHAIN: Record<number, ContractSet> = {
     [sepolia.id]: {
-        bridge: envAddr(envStr("REACT_APP_SEPOLIA_BRIDGE_ADDRESS")),
-        token: envAddr(envStr("REACT_APP_SEPOLIA_TOKEN_ADDRESS")),
+        bridge: envAddr(envStr(BRIDGE_ENV_KEYS.SEPOLIA_BRIDGE_ADDRESS)),
+        token: envAddr(envStr(BRIDGE_ENV_KEYS.SEPOLIA_TOKEN_ADDRESS)),
     },
     [baseSepolia.id]: {
-        bridge: envAddr(envStr("REACT_APP_BASE_SEPOLIA_BRIDGE_ADDRESS")),
-        token: envAddr(envStr("REACT_APP_BASE_SEPOLIA_TOKEN_ADDRESS")),
+        bridge: envAddr(envStr(BRIDGE_ENV_KEYS.BASE_SEPOLIA_BRIDGE_ADDRESS)),
+        token: envAddr(envStr(BRIDGE_ENV_KEYS.BASE_SEPOLIA_TOKEN_ADDRESS)),
     },
 };
 

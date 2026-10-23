@@ -6,10 +6,10 @@
 # Create a config file that will be loaded by the app
 cat > /usr/share/nginx/html/env-config.js <<EOF
 window._env_ = {
-  REACT_APP_WALLETCONNECT_PROJECT_ID: "${REACT_APP_WALLETCONNECT_PROJECT_ID}",
-  REACT_APP_RCHAIN_HTTP_URL: "${REACT_APP_RCHAIN_HTTP_URL}",
-  REACT_APP_RCHAIN_GRPC_URL: "${REACT_APP_RCHAIN_GRPC_URL}",
-  REACT_APP_RCHAIN_READONLY_URL: "${REACT_APP_RCHAIN_READONLY_URL}"
+  VITE_WALLETCONNECT_PROJECT_ID: "${VITE_WALLETCONNECT_PROJECT_ID}",
+  VITE_RCHAIN_HTTP_URL: "${VITE_RCHAIN_HTTP_URL}",
+  VITE_RCHAIN_GRPC_URL: "${VITE_RCHAIN_GRPC_URL}",
+  VITE_RCHAIN_READONLY_URL: "${VITE_RCHAIN_READONLY_URL}"
 };
 EOF
 
@@ -22,7 +22,7 @@ if [ -f /usr/share/nginx/html/index.html ]; then
 fi
 
 # Replace environment variables in nginx config
-envsubst '${REACT_APP_RCHAIN_HTTP_URL} ${REACT_APP_RCHAIN_GRPC_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+envsubst '${VITE_RCHAIN_HTTP_URL} ${VITE_RCHAIN_GRPC_URL}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Execute the CMD
 exec "$@"

@@ -177,8 +177,8 @@ const IconButton = styled.button`
 `;
 
 const externalLinksSet = [
-    { path: `${import.meta.env.REACT_APP_EXPLORER_URL}`, label: "Explorer" },
-    { path: `${import.meta.env.REACT_APP_FAUCET_URL}`, label: "Faucet" },
+    { path: `${import.meta.env.VITE_EXPLORER_URL}`, label: "Explorer" },
+    { path: `${import.meta.env.VITE_FAUCET_URL}`, label: "Faucet" },
 ];
 
 const openExternalLink = (url: string) => {

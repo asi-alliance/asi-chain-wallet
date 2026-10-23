@@ -7,7 +7,7 @@ services:
     environment:
       # Network Configuration
       # Configure available networks via JSON string
-      - NETWORKS=${NETWORKS:-"{\"MainNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"TestNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"DevNet\":{\"ValidatorURL\":\"http://localhost:40403\",\"ReadOnlyURL\":\"http://localhost:40453\",\"IndexerURL\":\"http://localhost:8080/v1/graphql\"}}"}
+      - VITE_NETWORKS=${VITE_NETWORKS:-"{\"MainNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"TestNet\":{\"ValidatorURL\":\"\",\"ReadOnlyURL\":\"\",\"IndexerURL\":\"\"},\"DevNet\":{\"ValidatorURL\":\"http://localhost:40403\",\"ReadOnlyURL\":\"http://localhost:40453\",\"IndexerURL\":\"http://localhost:8080/v1/graphql\"}}"}
     
     #healthcheck:
     #  test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
