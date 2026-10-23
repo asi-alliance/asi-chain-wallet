@@ -17,4 +17,6 @@ export const BRIDGE_ENV_KEYS = {
     CARDANO_PREPROD_BRIDGE_ADDRESS: "VITE_CARDANO_PREPROD_BRIDGE_ADDRESS",
     CARDANO_PREPROD_POLICY_ID: "VITE_CARDANO_PREPROD_POLICY_ID",
     CARDANO_PREPROD_ASSET_NAME: "VITE_CARDANO_PREPROD_ASSET_NAME",
-} as const;
+} as const satisfies Record<string, keyof ImportMetaEnv>;
+
+export type TBridgeEnvKey = (typeof BRIDGE_ENV_KEYS)[keyof typeof BRIDGE_ENV_KEYS];

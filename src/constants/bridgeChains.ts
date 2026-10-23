@@ -1,7 +1,7 @@
 import { sepolia, baseSepolia } from "viem/chains";
 import { CARDANO_TOKEN_DECIMALS } from "utils/tokenFormat";
 import { ASI_DECIMALS } from "@asichain/asi-wallet-sdk";
-import { BRIDGE_ENV_KEYS } from "config/bridgeEnv";
+import { BRIDGE_ENV_KEYS, TBridgeEnvKey } from "config/bridgeEnv";
 
 export type BridgeChainKey =
     | "asi"
@@ -34,14 +34,14 @@ export interface BridgeChainConfig {
     assetName?: string;
 }
 
-export const envStr = (key: string): string => {
+export const envStr = (key: TBridgeEnvKey): string => {
     if (!import.meta.env[key]) {
         throw new Error(`Env variable with key ${key} not found`);
     }
 
     return import.meta.env[key];
 };
-export const envNum = (key: string): number => {
+export const envNum = (key: TBridgeEnvKey): number => {
     const raw: string | undefined = import.meta.env[key];
 
     if (raw === undefined || raw.trim() === "") {
