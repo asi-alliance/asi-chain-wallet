@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
+import { defineConfig, loadEnv, normalizePath, type Plugin, type Rolldown } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import wasm from "vite-plugin-wasm";
 import {
@@ -28,6 +29,12 @@ const SRC_ROOT_ENTRIES = new Set(
 );
 
 const NODE_PERSIST_STUB_ID = "\0node-persist-stub";
+
+const SERVICE_WORKER_SOURCE = path.resolve(SRC_DIR, "service-worker.js");
+
+const SERVICE_WORKER_FILE_NAME = "service-worker.js";
+
+const SERVICE_WORKER_STATIC_URLS = ["./", "./manifest.json", "./favicon.ico"];
 
 const VENDOR_CHUNK_GROUPS = [
     { name: "monaco-editor", test: /[\\/]node_modules[\\/]monaco-editor[\\/]/, priority: 30 },
@@ -81,7 +88,55 @@ const nodePersistStub = (): Plugin => ({
     },
 });
 
-const validateNetworksEnv = (networksEnv: string | undefined): void => {
+const collectInitialFiles = (bundle: Rolldown.OutputBundle): string[] => {
+    const files = new Set<string>();
+
+    const visitChunk = (fileName: string): void => {
+        const chunk = bundle[fileName];
+
+        if (chunk?.type !== "chunk" || files.has(fileName)) {
+            return;
+        }
+
+        files.add(fileName);
+        chunk.viteMetadata?.importedCss.forEach((cssFileName) => files.add(cssFileName));
+        chunk.imports.forEach(visitChunk);
+    };
+
+    Object.values(bundle).forEach((output) => {
+        if (output.type === "chunk" && output.isEntry) {
+            visitChunk(output.fileName);
+        }
+    });
+
+    return [...files];
+};
+
+const serviceWorker = (): Plugin => ({
+    name: "service-worker",
+    apply: "build",
+    generateBundle(_options, bundle) {
+        const precacheUrls = [
+            ...SERVICE_WORKER_STATIC_URLS,
+            ...collectInitialFiles(bundle).map((fileName) => `./${fileName}`),
+        ];
+        const buildId = createHash("sha256")
+            .update(Object.keys(bundle).sort().join("\n"))
+            .digest("hex")
+            .slice(0, 12);
+
+        this.emitFile({
+            type: "asset",
+            fileName: SERVICE_WORKER_FILE_NAME,
+            source: fs
+                .readFileSync(SERVICE_WORKER_SOURCE, "utf8")
+                .replace("self.__SW_BUILD_ID", JSON.stringify(buildId))
+                .replace("self.__SW_PRECACHE_URLS", JSON.stringify(precacheUrls)),
+        });
+    },
+});
+
+const validateNetworksEnv =(networksEnv: string | undefined): void => {
     const { networks, issues } = parseNetworksEnv(networksEnv);
 
     issues.forEach((issue) => {
@@ -130,6 +185,7 @@ export default defineConfig(({ mode }) => {
                 include: ["buffer", "process", "crypto", "stream", "assert"],
                 globals: { Buffer: true, process: true, global: true },
             }),
+            serviceWorker(),
         ],
         resolve: {
             preserveSymlinks: true,

@@ -1,13 +1,7 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_NAME = 'asi-wallet-v2.1.0-static';
-const urlsToCache = [
-  '/',
-  '/static/css/main.css',
-  '/static/js/bundle.js',
-  '/manifest.json',
-  '/favicon.ico'
-];
+const CACHE_NAME = 'asi-wallet-static-' + self.__SW_BUILD_ID;
+const urlsToCache = self.__SW_PRECACHE_URLS;
 
 // Install event - cache resources
 self.addEventListener('install', event => {
@@ -80,54 +74,3 @@ self.addEventListener('fetch', event => {
       })
   );
 });
-
-// Background sync for queued transactions
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-transactions') {
-    event.waitUntil(syncTransactions());
-  }
-});
-
-async function syncTransactions() {
-  // Get queued transactions from IndexedDB
-  const db = await openDB();
-  const tx = db.transaction('queued_transactions', 'readonly');
-  const store = tx.objectStore('queued_transactions');
-  const transactions = await store.getAll();
-
-  for (const transaction of transactions) {
-    try {
-      // Attempt to send the transaction
-      const response = await fetch(transaction.url, {
-        method: 'POST',
-        headers: transaction.headers,
-        body: JSON.stringify(transaction.data)
-      });
-
-      if (response.ok) {
-        // Remove from queue if successful
-        const deleteTx = db.transaction('queued_transactions', 'readwrite');
-        await deleteTx.objectStore('queued_transactions').delete(transaction.id);
-      }
-    } catch (error) {
-      console.error('Failed to sync transaction:', error);
-    }
-  }
-}
-
-// Helper function to open IndexedDB
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('ASIWalletDB', 1);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    
-    request.onupgradeneeded = event => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains('queued_transactions')) {
-        db.createObjectStore('queued_transactions', { keyPath: 'id' });
-      }
-    };
-  });
-}
