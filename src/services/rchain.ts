@@ -211,12 +211,12 @@ export class RChainService {
             const result = await this.exploreDeployData(checkBalanceRho);
 
             if (result && result.length > 0) {
-                // F1R3wallet expects the balance to be directly in expr[0].ExprInt.data
                 const firstExpr = result[0];
 
                 // Check if it's a direct integer (balance)
-                if (firstExpr?.ExprInt?.data !== undefined) {
-                    const balance = firstExpr.ExprInt.data.toString();
+                const integerExpr = firstExpr?.ExprInt ?? firstExpr?.ExprBigInt;
+                if (integerExpr?.data !== undefined) {
+                    const balance = integerExpr.data.toString();
                     globalBalanceCache.set(cacheKey, {
                         balance,
                         timestamp: now,
@@ -301,7 +301,7 @@ export class RChainService {
     async sendDeploy(
         rholangCode: string,
         privateKey: string,
-        phloLimit: number = 760000,
+        phloLimit: number = 765000,
     ): Promise<string> {
         try {
             // Get latest block number
