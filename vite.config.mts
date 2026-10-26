@@ -3,7 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, normalizePath, type Plugin, type Rolldown } from "vite";
+import {
+    defineConfig,
+    loadEnv,
+    normalizePath,
+    type Plugin,
+    type Rolldown,
+} from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import wasm from "vite-plugin-wasm";
 import {
@@ -24,8 +30,13 @@ const SRC_MODULE_FILE_PATTERN = /^(?!.*\.d\.ts$).+\.tsx?$/;
 const SRC_ROOT_ENTRIES = new Set(
     fs
         .readdirSync(SRC_DIR, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() || SRC_MODULE_FILE_PATTERN.test(entry.name))
-        .map((entry) => (entry.isDirectory() ? entry.name : path.parse(entry.name).name)),
+        .filter(
+            (entry) =>
+                entry.isDirectory() || SRC_MODULE_FILE_PATTERN.test(entry.name),
+        )
+        .map((entry) =>
+            entry.isDirectory() ? entry.name : path.parse(entry.name).name,
+        ),
 );
 
 const NODE_PERSIST_STUB_ID = "\0node-persist-stub";
@@ -37,23 +48,47 @@ const SERVICE_WORKER_FILE_NAME = "service-worker.js";
 const SERVICE_WORKER_STATIC_URLS = ["./", "./manifest.json", "./favicon.ico"];
 
 const VENDOR_CHUNK_GROUPS = [
-    { name: "monaco-editor", test: /[\\/]node_modules[\\/]monaco-editor[\\/]/, priority: 30 },
-    { name: "ethers", test: /[\\/]node_modules[\\/]ethers[\\/]/, priority: 25 },
-    { name: "walletconnect", test: /[\\/]node_modules[\\/]@walletconnect[\\/]/, priority: 25 },
-    { name: "ledger", test: /[\\/]node_modules[\\/]@ledgerhq[\\/]/, priority: 25 },
-    { name: "trezor", test: /[\\/]node_modules[\\/]@trezor[\\/]/, priority: 25 },
+    {
+        name: "monaco-editor",
+        test: /[\\/]node_modules[\\/]monaco-editor[\\/]/,
+        priority: 30,
+    },
+    {
+        name: "ethers",
+        test: /[\\/]node_modules[\\/](ethers|@ethersproject)[\\/]/,
+        priority: 25,
+    },
+    {
+        name: "ledger",
+        test: /[\\/]node_modules[\\/]@ledgerhq[\\/]/,
+        priority: 25,
+    },
+    {
+        name: "trezor",
+        test: /[\\/]node_modules[\\/]@trezor[\\/]/,
+        priority: 25,
+    },
     {
         name: "react",
         test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-redux)[\\/]/,
         priority: 20,
     },
-    { name: "redux", test: /[\\/]node_modules[\\/]@reduxjs[\\/]/, priority: 20 },
+    {
+        name: "redux",
+        test: /[\\/]node_modules[\\/]@reduxjs[\\/]/,
+        priority: 20,
+    },
     {
         name: "crypto",
         test: /[\\/]node_modules[\\/](crypto-js|elliptic|ethereumjs-util|blakejs|blake2b|js-sha3)[\\/]/,
         priority: 20,
     },
-    { name: "vendors", test: /[\\/]node_modules[\\/]/, priority: 10, minShareCount: 2 },
+    {
+        name: "vendors",
+        test: /[\\/]node_modules[\\/]/,
+        priority: 10,
+        minShareCount: 2,
+    },
 ];
 
 const srcBaseUrlAliases = (): Plugin => ({
@@ -99,7 +134,9 @@ const collectInitialFiles = (bundle: Rolldown.OutputBundle): string[] => {
         }
 
         files.add(fileName);
-        chunk.viteMetadata?.importedCss.forEach((cssFileName) => files.add(cssFileName));
+        chunk.viteMetadata?.importedCss.forEach((cssFileName) =>
+            files.add(cssFileName),
+        );
         chunk.imports.forEach(visitChunk);
     };
 
@@ -131,12 +168,15 @@ const serviceWorker = (): Plugin => ({
             source: fs
                 .readFileSync(SERVICE_WORKER_SOURCE, "utf8")
                 .replace("self.__SW_BUILD_ID", JSON.stringify(buildId))
-                .replace("self.__SW_PRECACHE_URLS", JSON.stringify(precacheUrls)),
+                .replace(
+                    "self.__SW_PRECACHE_URLS",
+                    JSON.stringify(precacheUrls),
+                ),
         });
     },
 });
 
-const validateNetworksEnv =(networksEnv: string | undefined): void => {
+const validateNetworksEnv = (networksEnv: string | undefined): void => {
     const { networks, issues } = parseNetworksEnv(networksEnv);
 
     issues.forEach((issue) => {
@@ -154,17 +194,26 @@ const validateNetworksEnv =(networksEnv: string | undefined): void => {
     const networksEnvError = getNetworksEnvErrorMessage(issues);
 
     if (networksEnvError) {
-        throw new Error(`${LOG_PREFIX} Invalid VITE_NETWORKS env config: ${networksEnvError}`);
+        throw new Error(
+            `${LOG_PREFIX} Invalid VITE_NETWORKS env config: ${networksEnvError}`,
+        );
     }
 
-    console.log(`${LOG_PREFIX} Networks found:`, networks.map(({ id }) => id).join(", "));
+    console.log(
+        `${LOG_PREFIX} Networks found:`,
+        networks.map(({ id }) => id).join(", "),
+    );
 };
 
 const validateBridgeEnv = (env: Record<string, string>): void => {
-    const missingKeys = Object.values(BRIDGE_ENV_KEYS).filter((key) => !env[key]?.trim());
+    const missingKeys = Object.values(BRIDGE_ENV_KEYS).filter(
+        (key) => !env[key]?.trim(),
+    );
 
     if (missingKeys.length) {
-        throw new Error(`${LOG_PREFIX} Missing required env variables: ${missingKeys.join(", ")}`);
+        throw new Error(
+            `${LOG_PREFIX} Missing required env variables: ${missingKeys.join(", ")}`,
+        );
     }
 };
 
