@@ -66,11 +66,11 @@ The wallet is served at `http://localhost:3000` with hot reload. Use `PORT=3001 
 
 ## Working With The SDK
 
-- `package.json` declares `"@asichain/asi-wallet-sdk": "^2.1.0"`, installed from the npm registry; `package-lock.json` pins the exact version that is installed.
-- To try unreleased SDK changes, build the SDK in a local checkout of [asi-chain-wallet-sdk](https://github.com/asi-alliance/asi-chain-wallet-sdk) (`npm run build`) and point the wallet at it temporarily, for example with `npm link`. Restart the dev server after every SDK rebuild, and do not commit a `package.json` or `package-lock.json` that references a local path.
+- `package.json` declares `"@asichain/asi-wallet-sdk": "^2.1.0"`, installed from the npm registry. `package-lock.json` is listed in `.gitignore`, so the exact SDK version is resolved within that range at install time.
+- To try unreleased SDK changes, build the SDK in a local checkout of [asi-chain-wallet-sdk](https://github.com/asi-alliance/asi-chain-wallet-sdk) (`npm run build`) and point the wallet at it temporarily, for example with `npm link`. Restart the dev server after every SDK rebuild, and do not commit a `package.json` that references a local path.
 - The SDK statically imports `node-persist` for its Node storage backend. In the browser it uses IndexedDB, so [config-overrides.js](config-overrides.js) aliases `node-persist` to `false`. Keep that alias when touching the webpack configuration.
 - The SDK is the source of truth for wallet behaviour: session policy, auto-lock, key storage, reservations and history. Before adding an application-side workaround, check whether the SDK already exposes the capability.
-- The wallet relies on SDK defaults where it does not configure them, notably the signing session auto-lock (see [The password is requested again after a while](#the-password-is-requested-again-after-a-while)). When upgrading the SDK, update `package.json` and `package-lock.json` and check those defaults against the session notes in the README and in this guide.
+- The wallet relies on SDK defaults where it does not configure them, notably the signing session auto-lock (see [The password is requested again after a while](#the-password-is-requested-again-after-a-while)). When upgrading the SDK, update `package.json` and check those defaults against the session notes in the README and in this guide.
 
 ## Available Scripts
 
