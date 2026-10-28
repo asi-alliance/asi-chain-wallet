@@ -3,7 +3,6 @@ import {
     ITransactionsHistoryOptions,
     THistorySource,
 } from "@asichain/asi-wallet-sdk";
-import { generateRandomGasFee } from "constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_SECONDS } from "constants/polling";
 import { Transaction } from "types/transactions";
 import { SdkWalletService } from "sdk";
