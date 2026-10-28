@@ -1,22 +1,18 @@
 import { Select } from "components/Select";
 import { ISelectOption, ISelectProps } from "components/Select/Select";
-import { CSSProperties, ReactElement, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { selectAccount } from "store/walletSlice";
+import { CSSProperties, ReactElement, useId, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import { selectAccounts, selectSelectedAccountId } from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
 import styled from "styled-components";
-import { Account } from "types/wallet";
+import { IUnlockedAccountMeta } from "types/wallet";
+import { FilterLabel } from "styles/sharedStyledComponents";
 
 const FilterGroup = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-`;
-
-const FilterLabel = styled.label`
-    // font-size: 14px;
-    font-weight: 500;
-    color: ${({ theme }) => theme.text.secondary};
 `;
 
 type TSelectAdditionalProps = Omit<
@@ -33,22 +29,24 @@ interface IAccountSelectorProps extends TSelectAdditionalProps {
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelMode?: AccountSelectorLabelMods;
+    label?: string;
 }
 
 export const AccountSelector = ({
     fullWidth = false,
     wrapperStyle,
     labelMode,
+    label = "Account",
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {
-    const dispatch = useDispatch();
-    const { selectedAccount, accounts } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const labelId = `account-selector-label-${useId().replace(/:/g, "")}`;
 
     const accountOptions = useMemo(
         () =>
-            accounts.map((account: Account) => {
+            accounts.map((account: IUnlockedAccountMeta) => {
                 const baseOption: ISelectOption = {
                     id: account.id,
                     value: account.id,
@@ -69,16 +67,20 @@ export const AccountSelector = ({
 
     const fullWidthStyle: CSSProperties = !fullWidth ? {} : { width: "100%" };
 
-    const { style, ...otherSelectProps } = selectProps;
+    const {
+        style,
+        "aria-labelledby": ariaLabelledBy,
+        ...otherSelectProps
+    } = selectProps;
 
     return (
         <FilterGroup style={{ ...fullWidthStyle, ...wrapperStyle }}>
-            <FilterLabel>
-                <h4 className="light">Account</h4>
+            <FilterLabel id={labelId}>
+                {label}
             </FilterLabel>
             <Select
                 id="history-filter-account-select"
-                value={selectedAccount?.id}
+                value={selectedAccountId ?? undefined}
                 onChange={(accountId) => dispatch(selectAccount(accountId))}
                 placeholder="Select account"
                 options={accountOptions}
@@ -87,6 +89,7 @@ export const AccountSelector = ({
                     ...fullWidthStyle,
                 }}
                 {...otherSelectProps}
+                aria-labelledby={ariaLabelledBy ?? labelId}
             />
         </FilterGroup>
     );

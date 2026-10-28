@@ -1,13 +1,14 @@
 import { CSSProperties, ReactElement } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { useSelector } from "react-redux";
+import { selectSelectedNetworkId } from "store/WalletsStore";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { AccountBalance } from "components/AccountBalance";
-import { Account } from "types/wallet";
+import { IAccountMeta } from "types/wallet";
 
 interface IASIAccountBalanceProps {
-    account: Account;
+    account: IAccountMeta;
     isSelected?: boolean;
+    neutralAmount?: boolean;
     style?: CSSProperties;
     onBalanceUpdate?: () => void;
 }
@@ -15,33 +16,32 @@ interface IASIAccountBalanceProps {
 export const ASIAccountBalance = ({
     account,
     isSelected = false,
+    neutralAmount = false,
     style,
     onBalanceUpdate,
 }: IASIAccountBalanceProps): ReactElement => {
-    const dispatch = useDispatch();
-    const { selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const networkId = useSelector(selectSelectedNetworkId);
+    const {
+        currentData: balance,
+        isFetching,
+        refetch,
+    } = useGetBalanceQuery({ accountId: account.id, networkId });
 
     const handleRefresh = () => {
-        dispatch(
-            fetchBalance({
-                account,
-                network: selectedNetwork,
-                forceRefresh: true,
-            }) as any,
-        );
+        refetch();
         onBalanceUpdate?.();
     };
 
     return (
         <AccountBalance
-            balance={account.balance}
-            loading={isLoading}
+            balance={balance}
+            loading={isFetching}
             onRefresh={handleRefresh}
             isSelected={isSelected}
+            neutralAmount={neutralAmount}
             style={style}
             refreshButtonId={`refresh-balance-account-${account.id}`}
+            refreshAriaLabel={`Refresh balance, ${account.name}`}
         />
     );
 };

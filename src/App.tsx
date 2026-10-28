@@ -7,79 +7,78 @@ import {
 } from "react-router-dom";
 import { Provider } from "react-redux";
 import { ThemeProvider } from "styled-components";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { store, RootState } from "store";
-import { checkAuthentication } from "store/authSlice";
-import {
-    loadNetworksFromStorage,
-    loadAccountsFromStorage,
-} from "store/walletSlice";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
-import { Layout } from "components";
+import { Layout, Loader } from "components";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
-import { Bridge } from "pages/Bridge";
 import { Receive } from "pages/Receive";
 import { Accounts } from "pages/Accounts";
 import { Deploy } from "pages/Deploy";
-import { IDE } from "pages/IDE";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
+import { Bridge } from "pages/Bridge";
 import { History } from "pages/History";
-import { useIdleTimer, useSessionGuard } from "hooks";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
-import TransactionPollingService from "services/transactionPolling";
+//TODO: Restore transaction status polling once the SDK deploy-status poller is wired in
+// import TransactionPollingService from "services/transactionPolling";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
 import { EvmProvider } from "components/EvmProvider";
+import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
+import { selectWalletsInitialLoadComplete } from "store/WalletsStore";
+import { SdkClientProvider } from "sdk";
+import { useAppDispatch } from "store/hooks";
+import { ProtectedRoute } from "components/ProtectedRoute";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-    children,
-}) => {
-    const { isAuthenticated, hasAccounts } = useSelector(
-        (state: RootState) => state.auth,
-    );
-
-    if (!hasAccounts) {
-        return <Navigate to="/accounts" replace />;
-    }
-
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
-
-    return <>{children}</>;
-};
-
 const AppContent: React.FC = () => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const { darkMode } = useSelector((state: RootState) => state.theme);
     const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const isInitialLoadComplete = useSelector(selectWalletsInitialLoadComplete);
     const theme = darkMode ? darkTheme : lightTheme;
 
-    useIdleTimer();
-    useSessionGuard();
+    const loadWallets = async (): Promise<void> => {
+        try {
+            await dispatch(loadWalletsFromStorage()).unwrap();
+        } catch (error: unknown) {
+            console.error(
+                "LOAD WALLETS FROM STORAGE ERROR: ",
+                (error as Error).message,
+            );
+        }
+    };
 
     useEffect(() => {
-        dispatch(checkAuthentication());
-        dispatch(loadNetworksFromStorage());
-        dispatch(loadAccountsFromStorage());
+        // dispatch(loadNetworksFromStorage());
+        loadWallets();
     }, [dispatch]);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            TransactionPollingService.start();
-        } else {
-            TransactionPollingService.stop();
-        }
-        return () => {
-            TransactionPollingService.stop();
-        };
-    }, [isAuthenticated]);
+    //TODO: Removed legacy RChain polling. Deploy status is now tracked via the SDK DeployStatusPoller in the sendTransaction thunk.
+    // useEffect(() => {
+    //     if (isAuthenticated) {
+    //         TransactionPollingService.start();
+    //     } else {
+    //         TransactionPollingService.stop();
+    //     }
+    //     return () => {
+    //         TransactionPollingService.stop();
+    //     };
+    // }, [isAuthenticated]);
+
+    if (!isInitialLoadComplete) {
+        return (
+            <ThemeProvider theme={theme}>
+                <GlobalStyles theme={theme} />
+                <Loader />
+            </ThemeProvider>
+        );
+    }
 
     return (
         <ThemeProvider theme={theme}>
@@ -87,7 +86,6 @@ const AppContent: React.FC = () => {
             <Routes>
                 {/* Public route for login */}
                 <Route path="/login" element={<Login />} />
-
                 {/* Accounts page can be accessed without auth for initial setup */}
                 <Route
                     path="/accounts"
@@ -99,7 +97,6 @@ const AppContent: React.FC = () => {
                         </ExistingAccountGuard>
                     }
                 />
-
                 {/* Protected routes */}
                 <Route
                     path="/"
@@ -111,7 +108,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/send"
                     element={
@@ -122,7 +118,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/bridge"
                     element={
@@ -144,7 +139,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/history"
                     element={
@@ -155,7 +149,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/deploy"
                     element={
@@ -166,18 +159,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
-                <Route
-                    path="/ide"
-                    element={
-                        <ProtectedRoute>
-                            <Layout>
-                                <IDE />
-                            </Layout>
-                        </ProtectedRoute>
-                    }
-                />
-
                 <Route
                     path="/settings"
                     element={
@@ -188,7 +169,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="/keys"
                     element={
@@ -199,7 +179,6 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-
                 <Route
                     path="*"
                     element={
@@ -226,7 +205,9 @@ const App: React.FC = () => {
             >
                 <QueryProvider>
                     <EvmProvider>
-                        <AppContent />
+                        <SdkClientProvider>
+                            <AppContent />
+                        </SdkClientProvider>
                     </EvmProvider>
                 </QueryProvider>
             </Router>

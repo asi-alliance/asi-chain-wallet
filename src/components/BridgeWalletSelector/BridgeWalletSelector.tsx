@@ -14,31 +14,43 @@ export type { IWalletSessionContext, WalletKind };
 const ConnectWalletRow = styled.div`
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 36px;
+    gap: ${({ theme }) => theme.spacing.md};
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
 const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger};
-    color: white;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    word-break: break-all;
+    padding: ${({ theme }) => theme.spacing.lg};
+    border: 1px solid ${({ theme }) => theme.danger};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.colors.background.tertiary};
+    color: ${({ theme }) => theme.dangerText};
+    overflow-wrap: anywhere;
 `;
 
 const AccountSectionWrapper = styled.div`
-    margin-bottom: 24px;
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
+
+    button:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+        outline-offset: 2px;
+    }
 `;
 
 const BalanceInfo = styled.div`
-    margin-bottom: 36px;
     display: flex;
     justify-content: center;
+    margin-bottom: 0;
 
-    @media (max-width: 768px) {
-        margin-bottom: 49px;
+    .account-balance-card {
+        margin-bottom: 0;
+    }
+
+    .amount-balance-wrapper {
+        flex-wrap: wrap;
+    }
+
+    .amount-balance-info-wrapper {
+        overflow-wrap: anywhere;
     }
 `;
 
@@ -73,10 +85,10 @@ export function CardanoWalletSection({
         return (
             <ConnectWalletRow>
                 <Button onClick={connect} loading={loading}>
-                    <h3>Connect Cardano Wallet</h3>
+                    Connect Cardano Wallet
                 </Button>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
+                {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             </ConnectWalletRow>
         );
     }
@@ -115,10 +127,10 @@ export function EvmWalletSection({
         return (
             <ConnectWalletRow>
                 <Button onClick={connect} loading={loading}>
-                    <h3>Connect EVM Wallet</h3>
+                    Connect EVM Wallet
                 </Button>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
+                {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             </ConnectWalletRow>
         );
     }
@@ -146,7 +158,7 @@ export function EvmWalletSection({
             {wrongNetwork && (
                 <ConnectWalletRow>
                     <Button onClick={switchNetwork}>
-                        <h3>Switch Network</h3>
+                        Switch Network
                     </Button>
                 </ConnectWalletRow>
             )}
@@ -168,10 +180,10 @@ export function CosmosWalletSection({
         return (
             <ConnectWalletRow>
                 <Button onClick={connect} loading={loading}>
-                    <h3>Connect Fetch Wallet</h3>
+                    Connect Fetch Wallet
                 </Button>
 
-                {error && <ErrorMessage>{error}</ErrorMessage>}
+                {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
             </ConnectWalletRow>
         );
     }

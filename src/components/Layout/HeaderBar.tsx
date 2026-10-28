@@ -1,20 +1,37 @@
-import React from "react";
+import React, { Fragment } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "store";
+import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
-import { logout } from "store/authSlice";
+import { logout } from "store/Auth/thunks";
+import { selectHasWallets } from "store/WalletsStore";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
-import { SunIcon, MoonIcon, MenuIcon, LogoutIcon } from "components/Icons";
+import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { useDeleteActiveWallet } from "hooks";
+import { Button } from "components/Button";
+import {
+    SunIcon,
+    MoonIcon,
+    MenuIcon,
+    LogoutIcon,
+    DeleteIcon,
+} from "components/Icons";
 
 const HeaderStyled = styled.header`
     background: ${({ theme }) => theme.card};
     border-bottom: 1px solid ${({ theme }) => theme.border};
-    padding: 12px 16px;
+    height: ${({ theme }) => theme.layout.headerHeight};
+    padding: 3px ${({ theme }) => theme.layout.gutterMobile};
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: ${({ theme }) => theme.zIndices.header};
+
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.mobile} + 1px)) {
+        padding: 3px ${({ theme }) => theme.layout.gutterDesktop};
+    }
 `;
 
 const HeaderTop = styled.div`
@@ -33,17 +50,33 @@ const LeftSection = styled.div`
     overflow: hidden;
 `;
 
-const LogoContainer = styled.div`
+const LogoContainer = styled.button`
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
     cursor: pointer;
+
+    &:focus-visible {
+        outline: none;
+        border-radius: ${({ theme }) => theme.radii.sm};
+        box-shadow: inset 0 0 0 2px ${({ theme }) => theme.focusRing};
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+    }
 `;
 
 const LogoText = styled.h1`
-    font-family: "Roboto Mono", monospace;
-    font-size: 18px;
-    font-weight: 700;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.lg};
+    font-weight: ${({ theme }) => theme.typography.weight.bold};
+    line-height: 27px;
     color: ${({ theme }) => theme.text.primary};
     margin: 0;
     display: none;
@@ -63,34 +96,19 @@ const HeaderActions = styled.div`
     }
 `;
 
-const IconButton = styled.button`
-    padding: 8px;
-    border: 1px solid ${({ theme }) => theme.border};
-    border-radius: 6px;
-    background: ${({ theme }) => theme.surface};
-    color: ${({ theme }) => theme.text.primary};
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-
-    &:hover {
-        background: ${({ theme }) => theme.primary};
-        color: white;
-    }
-`;
+const IconButton = styled(Button).attrs({
+    variant: "icon-button-black",
+    size: "large",
+})``;
 
 const AsideMenuToggle = styled(IconButton)`
-    @media (min-width: 1250px) {
+    @media (min-width: calc(${({ theme }) => theme.breakpoints.navigation} + 1px)) {
         display: none;
     }
 `;
 
 const DesktopButton = styled(IconButton)`
-    @media (max-width: 1024px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
         display: none;
     }
 `;
@@ -131,67 +149,120 @@ const LogoImage = ({ isDarkMode }: LogoImageProps) => {
 
 interface HeaderBarProps {
     onMobileMenuToggle: () => void;
+    isMobileMenuOpen?: boolean;
 }
 
-export const HeaderBar: React.FC<HeaderBarProps> = ({ onMobileMenuToggle }) => {
-    const dispatch = useDispatch();
+export const HeaderBar: React.FC<HeaderBarProps> = ({
+    onMobileMenuToggle,
+    isMobileMenuOpen = false,
+}) => {
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { darkMode } = useSelector((state: RootState) => state.theme);
-    const { accounts } = useSelector((state: RootState) => state.wallet);
-    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+    const hasWallets = useSelector(selectHasWallets);
+    const isAuthenticated = useSelector(
+        (state: RootState) => state.auth.isAuthenticated,
+    );
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
+
+    const deleteWallet = useDeleteActiveWallet();
 
     const handleThemeToggle = () => {
         dispatch(toggleTheme());
     };
 
     const handleLogout = () => {
+        if (isNetworkOperationPending) return;
+
         dispatch(logout());
         navigate("/login");
     };
 
     return (
-        <HeaderStyled>
-            <HeaderTop>
-                <LeftSection>
-                    <LogoContainer onClick={() => navigate("/")}>
-                        <LogoImage isDarkMode={darkMode} />
-                        <LogoText>ASI:Chain Wallet</LogoText>
-                    </LogoContainer>
-                </LeftSection>
+        <Fragment>
+            <HeaderStyled>
+                <HeaderTop>
+                    <LeftSection>
+                        <LogoContainer
+                            type="button"
+                            aria-label="Go to wallet home"
+                            onClick={() => navigate("/")}
+                            disabled={isNetworkOperationPending}
+                        >
+                            <LogoImage isDarkMode={darkMode} />
+                            <LogoText>ASI:Chain Wallet</LogoText>
+                        </LogoContainer>
+                    </LeftSection>
 
-                <HeaderActions>
-                    {isAuthenticated && accounts.length > 0 && (
-                        <ASIAccountSwitcher />
-                    )}
-                    <IconButton
-                        onClick={handleThemeToggle}
-                        title={
-                            darkMode
-                                ? "Switch to Light Mode"
-                                : "Switch to Dark Mode"
-                        }
-                    >
-                        {darkMode ? (
-                            <SunIcon size={20} />
-                        ) : (
-                            <MoonIcon size={20} />
+                    <HeaderActions>
+                        {isAuthenticated && hasWallets && (
+                            <ASIAccountSwitcher />
                         )}
-                    </IconButton>
+                        <IconButton
+                            onClick={handleThemeToggle}
+                            aria-label={
+                                darkMode
+                                    ? "Switch to Light Mode"
+                                    : "Switch to Dark Mode"
+                            }
+                            title={
+                                darkMode
+                                    ? "Switch to Light Mode"
+                                    : "Switch to Dark Mode"
+                            }
+                        >
+                            {darkMode ? (
+                                <SunIcon size={20} />
+                            ) : (
+                                <MoonIcon size={20} />
+                            )}
+                        </IconButton>
 
-                    {isAuthenticated && (
-                        <DesktopButton onClick={handleLogout} title={"Logout"}>
-                            <LogoutIcon size={20} />
-                        </DesktopButton>
-                    )}
+                        {isAuthenticated && (
+                            <DesktopButton
+                                onClick={handleLogout}
+                                title={"Logout"}
+                                aria-label="Logout"
+                                disabled={isNetworkOperationPending}
+                            >
+                                <LogoutIcon size={20} />
+                            </DesktopButton>
+                        )}
 
-                    <AsideMenuToggle
-                        id="sidebar-menu-button"
-                        onClick={onMobileMenuToggle}
-                    >
-                        <MenuIcon size={20} />
-                    </AsideMenuToggle>
-                </HeaderActions>
-            </HeaderTop>
-        </HeaderStyled>
+                        {isAuthenticated && hasWallets && (
+                            <DesktopButton
+                                id="delete-wallet-button"
+                                onClick={deleteWallet.open}
+                                title={"Delete Wallet"}
+                                aria-label="Delete Wallet"
+                                disabled={isNetworkOperationPending}
+                            >
+                                <DeleteIcon size={20} />
+                            </DesktopButton>
+                        )}
+
+                        <AsideMenuToggle
+                            id="sidebar-menu-button"
+                            onClick={onMobileMenuToggle}
+                            title="Open navigation"
+                            aria-label="Open navigation"
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="mobile-nav-drawer"
+                        >
+                            <MenuIcon size={20} />
+                        </AsideMenuToggle>
+                    </HeaderActions>
+                </HeaderTop>
+            </HeaderStyled>
+            <DeleteWalletModal
+                isOpen={deleteWallet.isOpen}
+                isDeleting={deleteWallet.isDeleting}
+                error={deleteWallet.error}
+                onConfirm={deleteWallet.confirm}
+                onCancel={deleteWallet.close}
+            />
+        </Fragment>
     );
 };

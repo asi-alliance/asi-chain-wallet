@@ -1,4 +1,117 @@
+import {
+    ASI_DECIMALS,
+    fromAtomicAmount,
+    GasFee,
+    NON_NEGATIVE_DECIMAL_REGEX,
+    toAtomicAmount,
+} from "@asichain/asi-wallet-sdk";
 import { getTokenDisplayName } from "../constants/token";
+
+export const BALANCE_PLACEHOLDER = "--";
+
+const getFractionLength = (value: string): number =>
+    (value.split(".")[1] ?? "").length;
+
+const parseTokenAmount = (value: string): bigint | null => {
+    const normalized = value.trim();
+
+    if (
+        !NON_NEGATIVE_DECIMAL_REGEX.test(normalized) ||
+        getFractionLength(normalized) > ASI_DECIMALS
+    ) {
+        return null;
+    }
+
+    return toAtomicAmount(normalized, ASI_DECIMALS);
+};
+
+export const getMaxSendableAmount = (
+    balance: string,
+    gasFee: bigint = GasFee.MAX,
+): string => {
+    const balanceAtomic = parseTokenAmount(balance);
+
+    if (balanceAtomic === null || balanceAtomic <= gasFee) {
+        return fromAtomicAmount(0n, ASI_DECIMALS);
+    }
+
+    return fromAtomicAmount(balanceAtomic - gasFee, ASI_DECIMALS);
+};
+
+export const getTokenAmountWithFee = (
+    amount: string,
+    gasFee: bigint = GasFee.MAX,
+): string | null => {
+    const amountAtomic = parseTokenAmount(amount);
+
+    if (amountAtomic === null) {
+        return null;
+    }
+
+    return fromAtomicAmount(amountAtomic + gasFee, ASI_DECIMALS);
+};
+
+export const isPositiveTokenAmount = (amount: string): boolean => {
+    const amountAtomic = parseTokenAmount(amount);
+
+    return amountAtomic !== null && amountAtomic > 0n;
+};
+
+export const getAmountValidationError = (
+    amount: string,
+    balance: string,
+    gasFee: bigint = GasFee.MAX,
+    validateInput: boolean = false,
+): string => {
+    const normalizedAmount = amount.trim();
+
+    if (!normalizedAmount) {
+        return "";
+    }
+
+    if (!NON_NEGATIVE_DECIMAL_REGEX.test(normalizedAmount)) {
+        return validateInput ? "Enter a valid amount" : "";
+    }
+
+    if (getFractionLength(normalizedAmount) > ASI_DECIMALS) {
+        return validateInput
+            ? `Amount supports up to ${ASI_DECIMALS} decimal places`
+            : "";
+    }
+
+    const amountAtomic = parseTokenAmount(normalizedAmount);
+
+    if (amountAtomic === null || amountAtomic <= 0n) {
+        return validateInput ? "Amount must be greater than zero" : "";
+    }
+
+    const balanceAtomic = parseTokenAmount(balance);
+
+    if (balanceAtomic === null) {
+        return "";
+    }
+
+    if (amountAtomic > balanceAtomic) {
+        return `Insufficient balance. You have ${fromAtomicAmount(
+            balanceAtomic,
+            ASI_DECIMALS,
+        )} ${getTokenDisplayName()}`;
+    }
+
+    if (amountAtomic + gasFee > balanceAtomic) {
+        const totalRequired = fromAtomicAmount(
+            amountAtomic + gasFee,
+            ASI_DECIMALS,
+        );
+
+        return `Amount + fee (${totalRequired}) exceeds balance. Max: ${getMaxSendableAmount(
+            balance,
+            gasFee,
+        )} ${getTokenDisplayName()}`;
+    }
+
+    return "";
+};
 
 /**
  * Formats a balance value for display with appropriate precision

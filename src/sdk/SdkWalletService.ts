@@ -1,0 +1,535 @@
+import {
+    Account,
+    Address,
+    Client,
+    decodeBase16,
+    encodeBase16,
+    IDeployRequest,
+    IDeployWatchCallbacks,
+    IDeployWatchHandle,
+    IDeployWatchOptions,
+    IImportWalletKeyfileOptions,
+    IKeyfileAccountsImportResult,
+    IKeyfileImportPreview,
+    INetworkConfig,
+    INetworkRecord,
+    INetworkUpdate,
+    IReservedOperationResult,
+    ISignDeployRequest,
+    ITransactionReservation,
+    ITransactionsHistoryOptions,
+    ITransferRequest,
+    IWalletKeyfile,
+    IWalletMetadata,
+    Mnemonic,
+    MnemonicStrength,
+    NetworkId,
+    NetworkName,
+    PRIVATE_KEY_LENGTH,
+    SignedResult,
+    Transaction,
+    TTransactionReservationRequest,
+    Wallet,
+} from "@asichain/asi-wallet-sdk";
+import { getSdkClient, requireSdkClient } from "./client";
+import {
+    IUnlockedAccountMeta,
+    IUnlockedWalletMeta,
+    IWalletMeta,
+    Network,
+    TCustomNetwork,
+    TCustomNetworkRecord,
+} from "types/wallet";
+
+export class SdkWalletService {
+    public static toDisplayAmount(atomicAmount: bigint): string {
+        const client = requireSdkClient();
+
+        return client.toDisplayAmount(atomicAmount);
+    }
+
+    public static toAtomicAmount(amount: string | number): bigint {
+        const client = requireSdkClient();
+
+        return client.toAtomicAmount(amount);
+    }
+
+    private static mapAccount(account: Account): IUnlockedAccountMeta {
+        return {
+            id: account.getId(),
+            name: account.getName(),
+            index: account.getIndex(),
+            address: account.getAddress(),
+            publicKey: encodeBase16(account.getPublicKey()),
+        };
+    }
+
+    private static mapWallet(wallet: Wallet): IUnlockedWalletMeta {
+        return {
+            id: wallet.getId(),
+            signerId: wallet.getSigner().getId(),
+            isUnlocked: true,
+            type: wallet.getType(),
+            accounts: wallet.getAccounts().map(SdkWalletService.mapAccount),
+        };
+    }
+
+    private static toClosedWalletMeta(
+        publicWalletMeta: IWalletMetadata,
+    ): IWalletMeta {
+        return {
+            signerId: publicWalletMeta.signerId,
+            type: publicWalletMeta.type,
+            isUnlocked: false,
+            accounts: publicWalletMeta.accounts,
+        };
+    }
+
+    private static mapNetwork<T extends boolean>(
+        record: INetworkRecord & { isDefault: T },
+    ): Omit<Network, "isDefault"> & { isDefault: T } {
+        return {
+            id: record.id,
+            name: record.name,
+            validatorUrl: record.config.ValidatorURL,
+            observerUrl: record.config.ReadOnlyURL,
+            indexerUrl: record.config.IndexerURL,
+            nodeApiProfile: record.config.nodeApiProfile,
+            isDefault: record.isDefault,
+        };
+    }
+
+    public static toNetworkConfig({
+        validatorUrl,
+        observerUrl,
+        indexerUrl,
+        nodeApiProfile,
+    }: Network): INetworkConfig {
+        return {
+            ValidatorURL: validatorUrl,
+            ReadOnlyURL: observerUrl,
+            IndexerURL: indexerUrl,
+            nodeApiProfile,
+        };
+    }
+
+    static generateMnemonic(
+        strength: MnemonicStrength = MnemonicStrength.TWELVE_WORDS,
+    ): string {
+        return requireSdkClient().generateMnemonic(strength);
+    }
+
+    static generatePrivateKeyHex(): string {
+        return encodeBase16(requireSdkClient().generatePrivateKey());
+    }
+
+    static isMnemonicValid(mnemonic: string): boolean {
+        return Mnemonic.isMnemonicValid(mnemonic);
+    }
+
+    private static normalizePrivateKeyHex(hex: string): string {
+        return hex.trim().replace(/^0x/i, "");
+    }
+
+    static isPrivateKeyHexValid(hex: string): boolean {
+        const clean = SdkWalletService.normalizePrivateKeyHex(hex);
+
+        return (
+            clean.length === PRIVATE_KEY_LENGTH * 2 &&
+            !/[^0-9a-fA-F]/.test(clean)
+        );
+    }
+
+    static async createHdWallet({
+        name,
+        mnemonic,
+        password,
+    }: {
+        name: string;
+        mnemonic: string;
+        password: string;
+    }): Promise<IUnlockedWalletMeta> {
+        const wallet = await requireSdkClient().createHDWallet(
+            { mnemonic, accountName: name },
+            password,
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static async createPrivateKeyWallet({
+        name,
+        privateKeyHex,
+        password,
+    }: {
+        name: string;
+        privateKeyHex: string;
+        password: string;
+    }): Promise<IUnlockedWalletMeta> {
+        const clean = SdkWalletService.normalizePrivateKeyHex(privateKeyHex);
+
+        if (!SdkWalletService.isPrivateKeyHexValid(clean)) {
+            throw new Error(
+                "Invalid private key: expected 64 hexadecimal characters",
+            );
+        }
+
+        const wallet = await requireSdkClient().createPrivateKeyWallet(
+            { privateKey: decodeBase16(clean), accountName: name },
+            password,
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static async deriveAccount({
+        walletId,
+        name,
+        password,
+    }: {
+        walletId: string;
+        name: string;
+        password: string;
+    }): Promise<{ wallet: IUnlockedWalletMeta; accountId: string }> {
+        const client: Client = requireSdkClient();
+
+        const { accountId } = await client.deriveAccount(
+            walletId,
+            name,
+            password,
+        );
+
+        const wallet: Wallet | null = client.getWalletManager().get(walletId);
+
+        if (!wallet) {
+            throw new Error(
+                "SdkWalletService.deriveAccount: wallet not found after derive",
+            );
+        }
+
+        return { wallet: SdkWalletService.mapWallet(wallet), accountId };
+    }
+
+    static async openWallet(
+        signerId: string,
+        password: string,
+    ): Promise<IUnlockedWalletMeta> {
+        const client: Client = requireSdkClient();
+
+        const wallet: Wallet = await client.openWallet(signerId, password);
+        const openedWalletId: string = wallet.getId();
+
+        [...client.getWalletManager().getAll()].forEach(
+            (previousWallet: Wallet) => {
+                if (previousWallet.getId() === openedWalletId) {
+                    return;
+                }
+
+                client.closeWallet(previousWallet.getId());
+            },
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static getActiveSession(): IUnlockedWalletMeta | null {
+        return SdkWalletService.getUnlockedWallets()[0] ?? null;
+    }
+
+    static closeSession(): void {
+        SdkWalletService.lockAll();
+    }
+
+    static async loadWallets(): Promise<IWalletMeta[]> {
+        const client: Client = requireSdkClient();
+
+        const walletManager = client.getWalletManager();
+
+        const publicWalletsMetadata: IWalletMetadata[] =
+            await walletManager.getPublicWalletsMetadata();
+
+        const unlockedBySignerId = new Map<string, Wallet>();
+
+        walletManager.getAll().forEach((wallet: Wallet) => {
+            unlockedBySignerId.set(wallet.getSigner().getId(), wallet);
+        });
+
+        return publicWalletsMetadata.map(
+            (publicWalletMeta: IWalletMetadata): IWalletMeta => {
+                const unlockedWallet: Wallet | undefined =
+                    unlockedBySignerId.get(publicWalletMeta.signerId);
+
+                if (unlockedWallet) {
+                    return SdkWalletService.mapWallet(unlockedWallet);
+                }
+
+                return SdkWalletService.toClosedWalletMeta(publicWalletMeta);
+            },
+        );
+    }
+
+    static async getWalletMetaBySignerId(
+        signerId: string,
+    ): Promise<IWalletMeta> {
+        const walletManager = requireSdkClient().getWalletManager();
+
+        const openWallet: Wallet | null = walletManager.getBySignerId(signerId);
+
+        if (openWallet) {
+            return SdkWalletService.mapWallet(openWallet);
+        }
+
+        const publicWalletsMetadata: IWalletMetadata[] =
+            await walletManager.getPublicWalletsMetadata();
+
+        const publicWalletMeta: IWalletMetadata | undefined =
+            publicWalletsMetadata.find(
+                (walletMeta: IWalletMetadata) =>
+                    walletMeta.signerId === signerId,
+            );
+
+        if (!publicWalletMeta) {
+            throw new Error(
+                "SdkWalletService.getWalletMetaBySignerId: wallet not found",
+            );
+        }
+
+        return SdkWalletService.toClosedWalletMeta(publicWalletMeta);
+    }
+
+    static getUnlockedWallets(): IUnlockedWalletMeta[] {
+        const client: Client | null = getSdkClient();
+
+        if (!client) {
+            return [];
+        }
+
+        return client
+            .getWalletManager()
+            .getAll()
+            .map(SdkWalletService.mapWallet);
+    }
+
+    static getCustomNetworks(): TCustomNetwork[] {
+        return requireSdkClient()
+            .getNetworks()
+            .filter(
+                (network: INetworkRecord): network is TCustomNetworkRecord =>
+                    !network.isDefault,
+            )
+            .map(SdkWalletService.mapNetwork);
+    }
+
+    static getActiveNetwork(): Network {
+        return SdkWalletService.mapNetwork(
+            requireSdkClient().getCurrentNetwork(),
+        );
+    }
+
+    static getActiveNetworkId(): NetworkId {
+        return requireSdkClient().getCurrentNetworkId();
+    }
+
+    static async addCustomNetwork(
+        name: NetworkName,
+        config: INetworkConfig,
+    ): Promise<TCustomNetwork> {
+        const addedNetworkRecord = (await requireSdkClient().addNetwork(
+            name,
+            config,
+        )) as TCustomNetworkRecord;
+
+        return SdkWalletService.mapNetwork(addedNetworkRecord);
+    }
+
+    static async updateCustomNetwork(
+        id: NetworkId,
+        update: INetworkUpdate,
+    ): Promise<TCustomNetwork> {
+        const client = requireSdkClient();
+
+        await client.updateNetwork(id, update);
+
+        return SdkWalletService.mapNetwork(
+            client.getNetwork(id) as TCustomNetworkRecord,
+        );
+    }
+
+    static async removeCustomNetwork(id: NetworkId): Promise<void> {
+        const client = requireSdkClient();
+
+        await client.removeNetwork(id);
+    }
+
+    static lockAll(): void {
+        requireSdkClient().closeAllWallets();
+    }
+
+    static removeWallet(walletId: string): Promise<Wallet> {
+        return requireSdkClient().removeWallet(walletId);
+    }
+
+    static removeAccount(
+        walletId: string,
+        accountId: string,
+    ): Promise<Account> {
+        return requireSdkClient().removeAccount(walletId, accountId);
+    }
+
+    static renameAccount(
+        walletId: string,
+        accountId: string,
+        name: string,
+    ): Promise<void> {
+        return requireSdkClient().renameAccount(walletId, accountId, name);
+    }
+
+    static setNetwork(networkId: string): void {
+        return requireSdkClient().setNetwork(networkId);
+    }
+
+    static async getBalance(address: string): Promise<string> {
+        const client = requireSdkClient();
+        const atomicBalance = await client.getBalance(address as Address);
+
+        return client.toDisplayAmount(atomicBalance);
+    }
+
+    static async getAvailableBalance(
+        walletId: string,
+        accountId: string,
+    ): Promise<string> {
+        const client = requireSdkClient();
+        const atomicBalance = await client.getAvailableBalance(
+            walletId,
+            accountId,
+        );
+
+        return client.toDisplayAmount(atomicBalance);
+    }
+
+    static getTransactionsHistory(
+        walletId: string,
+        accountId: string,
+        options?: ITransactionsHistoryOptions,
+    ): Promise<Transaction[]> {
+        return requireSdkClient().getTransactionsHistory(
+            walletId,
+            accountId,
+            options,
+        );
+    }
+
+    static signDeploy(
+        request: ISignDeployRequest,
+        password?: string,
+    ): Promise<SignedResult> {
+        return requireSdkClient().signDeploy(request, password);
+    }
+
+    static addTransactionReservation(
+        request: TTransactionReservationRequest,
+        password?: string,
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().addTransactionReservation(request, password);
+    }
+
+    static removeTransactionReservation(
+        walletId: string,
+        reservationId: ITransactionReservation["id"],
+    ): Promise<ITransactionReservation> {
+        return requireSdkClient().removeTransactionReservation(
+            walletId,
+            reservationId,
+        );
+    }
+
+    static isWalletUnlocked(walletId: string): boolean {
+        return getSdkClient()?.isWalletUnlocked(walletId) ?? false;
+    }
+
+    static async transfer(
+        {
+            walletId,
+            accountId,
+            to,
+            amount,
+        }: Omit<ITransferRequest, "amount"> & { amount: string },
+        password?: string,
+    ): Promise<IReservedOperationResult> {
+        const client = requireSdkClient();
+
+        return client.transfer(
+            { walletId, accountId, to, amount: client.toAtomicAmount(amount) },
+            password,
+        );
+    }
+
+    static deploy(
+        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        password?: string,
+    ): Promise<IReservedOperationResult> {
+        return requireSdkClient().deploy(
+            { walletId, accountId, term, phloLimit },
+            password,
+        );
+    }
+
+    static exploreDeploy(term: string): Promise<unknown> {
+        return requireSdkClient().exploreDeploy(term);
+    }
+
+    static watchDeploy(
+        deployId: string,
+        callbacks?: IDeployWatchCallbacks,
+        options?: IDeployWatchOptions,
+    ): IDeployWatchHandle {
+        return requireSdkClient().watchDeploy(deployId, callbacks, options);
+    }
+
+    static exportWalletKeyfile(
+        walletId: string,
+        password: string,
+    ): Promise<IWalletKeyfile> {
+        return requireSdkClient().exportWalletKeyfile(walletId, password);
+    }
+
+    static previewWalletKeyfileImport(
+        source: string,
+        password: string,
+    ): Promise<IKeyfileImportPreview> {
+        return requireSdkClient().previewWalletKeyfileImport(source, password);
+    }
+
+    static async importWalletKeyfile(
+        source: string,
+        password: string,
+        options?: IImportWalletKeyfileOptions,
+    ): Promise<IUnlockedWalletMeta> {
+        const wallet: Wallet = await requireSdkClient().importWalletKeyfile(
+            source,
+            password,
+            options,
+        );
+
+        return SdkWalletService.mapWallet(wallet);
+    }
+
+    static importKeyfileAccounts(
+        source: string,
+        password: string,
+        options?: IImportWalletKeyfileOptions,
+    ): Promise<IKeyfileAccountsImportResult> {
+        return requireSdkClient().importKeyfileAccounts(
+            source,
+            password,
+            options,
+        );
+    }
+
+    static async hasStoredWallets(): Promise<boolean> {
+        return (
+            (await requireSdkClient().getWalletManager().countInStorage()) > 0
+        );
+    }
+}

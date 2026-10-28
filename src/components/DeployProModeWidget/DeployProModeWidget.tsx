@@ -1,19 +1,18 @@
 import React, {
-    useState,
-    useEffect,
-    useRef,
     createContext,
-    useContext,
     CSSProperties,
+    useContext,
+    useEffect,
+    useLayoutEffect,
     useMemo,
+    useRef,
+    useState,
 } from "react";
 import styled from "styled-components";
 import { useSelector } from "react-redux";
 import Editor from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
 import { RootState } from "store";
-import { RChainService } from "services/rchain";
-import { Button, PasswordModal, DeploymentConfirmationModal } from "components";
+import { Button, DeploymentConfirmationModal, PasswordModal } from "components";
 import {
     FileIcon,
     FolderIcon,
@@ -36,55 +35,24 @@ import IDEStorageService, {
     IDEFile,
     IDEFolder,
 } from "services/ideStorage";
-import { SecureStorage } from "services/secureStorage";
-import { getGasFeeAsNumber } from "../../constants/gas";
-import { useScreen } from "hooks/";
+import {
+    DeployEventTypes,
+    IUseDeployContractResponse,
+    TDeployEvent,
+    useDeployContract,
+    useScreen,
+} from "hooks/";
+import { stringifyWithBigInt } from "utils/helpers";
 
-const PENDING_TRANSACTIONS_KEY = "asi_wallet_pending_transactions";
-
-const savePendingDeploy = (
-    deployId: string,
-    accountId: string,
-    revAddress: string,
-    expectedBalance?: string,
-) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
-    }
-
-    try {
-        const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
-        const pendingTxs: any[] = existing ? JSON.parse(existing) : [];
-
-        const pendingDeploy = {
-            deployId,
-            from: revAddress,
-            timestamp: new Date().toISOString(),
-            accountId,
-            type: "deploy",
-            expectedBalance,
-        };
-
-        const existingIndex = pendingTxs.findIndex(
-            (t: any) => t.deployId === deployId,
-        );
-        if (existingIndex >= 0) {
-            pendingTxs[existingIndex] = pendingDeploy;
-        } else {
-            pendingTxs.push(pendingDeploy);
-        }
-
-        localStorage.setItem(
-            PENDING_TRANSACTIONS_KEY,
-            JSON.stringify(pendingTxs),
-        );
-    } catch (error) {
-        console.error("Failed to save pending deploy to localStorage:", error);
-    }
-};
+enum ConsoleMessageMods {
+    INFO = "info",
+    ERROR = "error",
+    SUCCESS = "success",
+    WARNING = "warning",
+}
 
 const IDEContainer = styled.div`
-    height: calc(100vh - 120px); // Account for header and nav
+    height: calc(100vh - 120px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -96,12 +64,12 @@ const IDEContainer = styled.div`
 
 const Toolbar = styled.div`
     display: flex;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
     justify-content: space-between;
     background: ${({ theme }) => theme.card};
     margin-bottom: 24px;
-
-    // border-bottom: 1px solid ${({ theme }) => theme.border};
 
     @media (max-width: 768px) {
         margin-bottom: 36px;
@@ -110,11 +78,13 @@ const Toolbar = styled.div`
 
 const ToolbarActions = styled.div`
     display: flex;
-    gap: 31px;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
-    width: 100%;
+    width: auto;
 
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.laptop}) {
+        width: 100%;
         margin-bottom: 1rem;
         gap: 16px;
     }
@@ -125,7 +95,7 @@ const MainContent = styled.div`
     flex: 1;
     overflow: hidden;
     width: 100%;
-    gap: 24px;
+    gap: ${({ theme }) => theme.spacing["3xl"]};
     margin-bottom: 24px;
 
     @media (max-width: 768px) {
@@ -144,6 +114,7 @@ const FileExplorer = styled.div`
 
     @media (max-width: 768px) {
         width: 100%;
+        margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
@@ -183,15 +154,20 @@ const TreeItem = styled.div<{ $depth: number; $active?: boolean }>`
     align-items: center;
     gap: 8px;
     background: ${({ $active, theme }) =>
-        $active ? theme.primary + "20" : "transparent"};
+        $active ? theme.primarySubtle : "transparent"};
     color: ${({ $active, theme }) =>
-        $active ? theme.primary : theme.text.primary};
+        $active ? theme.actionText : theme.text.primary};
     border-left: 3px solid
-        ${({ $active, theme }) => ($active ? theme.primary : "transparent")};
+        ${({ $active, theme }) => ($active ? theme.actionText : "transparent")};
     transition: all 0.2s ease;
 
     &:hover {
-        background: ${({ theme }) => theme.surface};
+        background: ${({ theme }) => theme.hoverSurface};
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: inset 0 0 0 2px ${({ theme }) => theme.focusRing};
     }
 
     input {
@@ -215,7 +191,7 @@ const EditorContainer = styled.div`
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0; // Prevent overflow
+    min-width: 0;
     overflow: hidden;
 
     @media (max-width: 768px) {
@@ -225,7 +201,6 @@ const EditorContainer = styled.div`
 
 const EditorHeader = styled.div`
     background: ${({ theme }) => theme.surface};
-    // font-size: 14px;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -251,6 +226,19 @@ const TabItem = styled.div<{ $active?: boolean }>`
     &:hover {
         background: ${({ theme }) => theme.card};
     }
+
+    button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px ${({ theme }) => theme.focusRing};
+    }
+`;
+
+const TabSelect = styled.button`
+    border: 0;
+    padding: ${({ theme }) => theme.spacing.xs};
+    background: transparent;
+    color: ${({ theme }) => theme.text.primary};
+    cursor: pointer;
 `;
 
 const CloseButton = styled.button`
@@ -259,7 +247,6 @@ const CloseButton = styled.button`
     color: ${({ theme }) => theme.text.tertiary};
     cursor: pointer;
     padding: 0 4px;
-    // font-size: 18px;
     line-height: 1;
 
     &:hover {
@@ -297,7 +284,6 @@ const ConsolePanel = styled(OutputPanel)`
 const OutputHeader = styled.div`
     padding: 8px 4px;
     background: ${({ theme }) => theme.surface};
-    // font-size: 14px;
     font-weight: 600;
     display: flex;
     justify-content: space-between;
@@ -306,24 +292,28 @@ const OutputHeader = styled.div`
 
 const OutputContent = styled.div`
     flex: 1;
-    padding: 8px 16px;
     overflow-y: auto;
     font-size: 13px;
-
     padding: 16px;
     border: 1px solid ${({ theme }) => theme.border};
     border-radius: 8px;
     min-height: 150px;
 `;
 
-const ConsoleEntry = styled.div<{ $type?: "info" | "error" | "success" }>`
+const ConsoleEntry = styled.div<{ $type?: ConsoleMessageMods }>`
     margin-bottom: 4px;
-    color: ${({ theme, $type }) =>
-        $type === "error"
-            ? theme.danger
-            : $type === "success"
-              ? theme.success
-              : theme.text.secondary};
+    color: ${({ theme, $type }) => {
+        switch ($type) {
+            case ConsoleMessageMods.ERROR:
+                return theme.danger;
+            case ConsoleMessageMods.SUCCESS:
+                return theme.success;
+            case ConsoleMessageMods.WARNING:
+                return theme.warning;
+            default:
+                return theme.text.secondary;
+        }
+    }};
     display: flex;
     align-items: flex-start;
     gap: 6px;
@@ -333,6 +323,18 @@ const DeploySettings = styled.div`
     display: flex;
     gap: 16px;
     align-items: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+
+        > button {
+            width: 100%;
+            height: ${({ theme }) => theme.sizes.control.field};
+            min-height: ${({ theme }) => theme.sizes.control.field};
+        }
+    }
 `;
 
 const ContextMenu = styled.div<{ $x: number; $y: number }>`
@@ -344,19 +346,50 @@ const ContextMenu = styled.div<{ $x: number; $y: number }>`
     border-radius: 8px;
     padding: 4px;
     box-shadow: ${({ theme }) => theme.shadowLarge};
-    z-index: 1000;
+    z-index: ${({ theme }) => theme.zIndices.dropdown};
     min-width: 150px;
 `;
 
-const ContextMenuItem = styled.div`
+const ContextMenuItem = styled.button`
+    display: block;
+    width: 100%;
     padding: 8px 12px;
     font-size: 14px;
+    text-align: left;
     cursor: pointer;
     border-radius: 4px;
+    border: 0;
+    background: transparent;
+    color: ${({ theme }) => theme.text.primary};
     transition: all 0.2s ease;
 
     &:hover {
         background: ${({ theme }) => theme.surface};
+    }
+
+    &:focus-visible {
+        outline: 2px solid ${({ theme }) => theme.focusRing};
+    }
+`;
+
+const DeployStatusPanel = styled.div<{ $tone: "info" | "success" | "warning" }>`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.spacing.xl};
+    padding: ${({ theme }) => theme.spacing.xl};
+    margin-bottom: ${({ theme }) => theme.spacing.xl};
+    border: 1px solid ${({ theme, $tone }) =>
+        $tone === "warning" ? theme.warning : $tone === "success" ? theme.success : theme.info};
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.card};
+    color: ${({ theme }) => theme.text.primary};
+
+    code {
+        display: block;
+        margin-top: ${({ theme }) => theme.spacing.md};
+        overflow-wrap: anywhere;
     }
 `;
 
@@ -364,195 +397,175 @@ const FileInput = styled.input`
     display: none;
 `;
 
-interface ConsoleMessage {
+interface IConsoleMessage {
     id: string;
-    type: "info" | "error" | "success";
+    type: ConsoleMessageMods;
     message: string;
     timestamp: Date;
 }
 
-enum DeployResultStatus {
-    Completed = "completed",
-    Submitted = "submitted",
-    Errored = "errored",
-    SystemError = "system_error",
-    Pending = "pending",
+interface IContextMenuState {
+    x: number;
+    y: number;
+    item: IDEItem;
 }
 
-type DeployResultData = {
-    status: DeployResultStatus;
-    message?: string;
-    error?: string;
-    blockHash?: string;
-    cost?: string;
-};
-
-interface DeployProModeContextValue {
+interface IDeployProModeContextValue extends IUseDeployContractResponse {
+    isActive: boolean;
     items: IDEItem[];
     activeFileId: string;
     openFiles: string[];
     expandedFolders: Set<string>;
     fileInputRef: React.RefObject<HTMLInputElement>;
     workspaceInputRef: React.RefObject<HTMLInputElement>;
-    contextMenu: { x: number; y: number; item: IDEItem } | null;
+    contextMenu: IContextMenuState | null;
     renamingId: string | null;
     newName: string;
-    showPasswordModal: boolean;
-    showDeployConfirmation: boolean;
-    showExploreConfirmation: boolean;
-    isDeploying: boolean;
-    consoleMessages: ConsoleMessage[];
+    consoleMessages: IConsoleMessage[];
     monacoInitialized: boolean;
     darkMode: boolean;
-    selectedAccount: RootState["wallet"]["selectedAccount"];
     activeFile: IDEFile | undefined;
+    deployableFile: IDEFile | undefined;
     phloLimit: string;
     phloPrice: string;
     setActiveFileId: (id: string) => void;
     setOpenFiles: React.Dispatch<React.SetStateAction<string[]>>;
-    setContextMenu: (
-        value: { x: number; y: number; item: IDEItem } | null,
-    ) => void;
+    setContextMenu: (value: IContextMenuState | null) => void;
     setNewName: (value: string) => void;
     setRenamingId: (value: string | null) => void;
-    setEditorInstance: (
-        editor: monaco.editor.IStandaloneCodeEditor | null,
-    ) => void;
-    setShowPasswordModal: (value: boolean) => void;
-    setShowDeployConfirmation: (value: boolean) => void;
-    setShowExploreConfirmation: (value: boolean) => void;
     handleEditorChange: (value: string | undefined) => void;
     handleNewFile: (folderId?: string) => void;
     handleNewFolder: (parentId?: string) => void;
     handleCloseFile: (fileId: string) => void;
     handleDelete: (item: IDEItem) => void;
-    handleRename: (item: IDEItem, newName: string) => void;
+    handleRename: (item: IDEItem, name: string) => void;
     handleImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleImportWorkspace: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    handleDeploy: () => void;
-    handleExplore: () => void;
-    handleConfirmDeploy: () => void;
-    handleConfirmExplore: () => void;
-    handlePasswordSubmit: (password: string) => void;
+    handleDeployClick: () => void;
+    handleExploreClick: () => void;
+    handleLoadExample: () => void;
     clearConsole: () => void;
     toggleFolder: (folderId: string) => void;
 }
 
-const DeployProModeContext = createContext<DeployProModeContextValue | null>(
+const DeployProModeContext = createContext<IDeployProModeContextValue | null>(
     null,
 );
 
-const useDeployProMode = (): DeployProModeContextValue => {
+const useDeployProMode = (): IDeployProModeContextValue => {
     const context = useContext(DeployProModeContext);
+
     if (!context) {
         throw new Error(
             "DeployProModeWidget compound components must be used within <DeployProModeWidget>",
         );
     }
+
     return context;
 };
 
-interface DeployProModeWidgetProps {
+interface IDeployProModeWidgetProps {
     phloLimit: string;
     phloPrice: string;
+    isActive?: boolean;
     children: React.ReactNode;
 }
 
-const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
+const DEFAULT_EXPANDED_FOLDER_IDS = ["examples-folder", "contracts-folder"];
+const DEFAULT_FILE_ID = "hello-rho";
+
+interface IInitialWorkspace {
+    items: IDEItem[];
+    activeFileId: string;
+    openFiles: string[];
+    expandedFolders: Set<string>;
+}
+
+const loadInitialWorkspace = (): IInitialWorkspace => {
+    const items = IDEStorageService.loadFiles();
+    const workspaceState = IDEStorageService.loadWorkspaceState();
+
+    if (workspaceState) {
+        return {
+            items,
+            activeFileId: workspaceState.activeFileId || "",
+            openFiles: workspaceState.openFiles || [],
+            expandedFolders: new Set<string>(
+                workspaceState.expandedFolders || [],
+            ),
+        };
+    }
+
+    const defaultFile = items.find((item) => item.id === DEFAULT_FILE_ID);
+
+    return {
+        items,
+        activeFileId: defaultFile?.id ?? "",
+        openFiles: defaultFile ? [defaultFile.id] : [],
+        expandedFolders: new Set(DEFAULT_EXPANDED_FOLDER_IDS),
+    };
+};
+
+const DeployProModeWidgetRoot: React.FC<IDeployProModeWidgetProps> = ({
     phloLimit,
     phloPrice,
+    isActive = true,
     children,
 }) => {
-    const { selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
+    const darkMode = useSelector((state: RootState) => state.theme.darkMode);
+
+    const [initialWorkspace] = useState<IInitialWorkspace>(
+        loadInitialWorkspace,
     );
-    const { darkMode } = useSelector((state: RootState) => state.theme);
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
-    const [, setEditorInstance] =
-        useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
-    // State to track if Monaco is initialized
     const [monacoInitialized, setMonacoInitialized] = useState(false);
+    const [items, setItems] = useState<IDEItem[]>(initialWorkspace.items);
+    const [activeFileId, setActiveFileId] = useState<string>(
+        initialWorkspace.activeFileId,
+    );
+    const [openFiles, setOpenFiles] = useState<string[]>(
+        initialWorkspace.openFiles,
+    );
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+        initialWorkspace.expandedFolders,
+    );
+    const [contextMenu, setContextMenu] = useState<IContextMenuState | null>(
+        null,
+    );
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [newName, setNewName] = useState("");
+    const [consoleMessages, setConsoleMessages] = useState<IConsoleMessage[]>(
+        [],
+    );
 
-    // Initialize Monaco editor with Rholang support
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const workspaceInputRef = useRef<HTMLInputElement>(null);
+    const consoleMessageIdRef = useRef(0);
+    const itemIdCounterRef = useRef(0);
+
+    const createItemId = (prefix: string): string => {
+        const existingIds = new Set(items.map((item) => item.id));
+        let id: string;
+        do {
+            itemIdCounterRef.current += 1;
+            id = `${prefix}-${Date.now()}-${itemIdCounterRef.current}`;
+        } while (existingIds.has(id));
+        return id;
+    };
+
+    useLayoutEffect(() => {
+        if (!isActive) setContextMenu(null);
+    }, [isActive]);
+
     useEffect(() => {
-        // Monaco is now auto-initialized in newer versions
         registerRholangLanguage();
         setMonacoInitialized(true);
     }, []);
 
-    // File management state
-    const [items, setItems] = useState<IDEItem[]>([]);
-    const [activeFileId, setActiveFileId] = useState<string>("");
-    const [openFiles, setOpenFiles] = useState<string[]>([]);
-    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-        new Set(["examples-folder", "contracts-folder"]),
-    );
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const workspaceInputRef = useRef<HTMLInputElement>(null);
-
-    // Context menu state
-    const [contextMenu, setContextMenu] = useState<{
-        x: number;
-        y: number;
-        item: IDEItem;
-    } | null>(null);
-    const [renamingId, setRenamingId] = useState<string | null>(null);
-    const [newName, setNewName] = useState("");
-
-    // Password modal state
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
-
-    // Confirmation modal state
-    const [showDeployConfirmation, setShowDeployConfirmation] = useState(false);
-    const [showExploreConfirmation, setShowExploreConfirmation] =
-        useState(false);
-
-    const [isDeploying, setIsDeploying] = useState(false);
-
-    // Console output
-    const [consoleMessages, setConsoleMessages] = useState<ConsoleMessage[]>(
-        [],
-    );
-
-    const isAccountUnlocked = (account: any): boolean => {
-        const isUnlocked = unlockedAccounts.some(
-            (unlockedAcc) => unlockedAcc.id === account?.id,
-        );
-        return isUnlocked;
-    };
-
-    // Load files from storage on mount
     useEffect(() => {
-        const loadedItems = IDEStorageService.loadFiles();
-        setItems(loadedItems);
-
-        // Load workspace state
-        const workspaceState = IDEStorageService.loadWorkspaceState();
-        if (workspaceState) {
-            setActiveFileId(workspaceState.activeFileId || "");
-            setOpenFiles(workspaceState.openFiles || []);
-            setExpandedFolders(new Set(workspaceState.expandedFolders || []));
-        } else {
-            // Set default active file
-            const defaultFile = loadedItems.find(
-                (item) => item.id === "hello-rho",
-            );
-            if (defaultFile) {
-                setActiveFileId(defaultFile.id);
-                setOpenFiles([defaultFile.id]);
-            }
-        }
-    }, []);
-
-    // Save files to storage whenever they change
-    useEffect(() => {
-        if (items.length > 0) {
-            IDEStorageService.saveFiles(items);
-        }
+        IDEStorageService.saveFiles(items);
     }, [items]);
 
-    // Save workspace state
     useEffect(() => {
         IDEStorageService.saveWorkspaceState({
             activeFileId,
@@ -562,24 +575,24 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
     }, [activeFileId, openFiles, expandedFolders]);
 
     const activeFile = items.find(
-        (f) => f.id === activeFileId && f.type === "file",
+        (item) => item.id === activeFileId && item.type === "file",
     ) as IDEFile | undefined;
 
-    // Close context menu when clicking outside
-    useEffect(() => {
-        const handleClick = () => setContextMenu(null);
-        document.addEventListener("click", handleClick);
-        return () => document.removeEventListener("click", handleClick);
-    }, []);
+    const deployableFile: IDEFile | undefined = activeFile?.content.trim()
+        ? activeFile
+        : undefined;
 
     const addConsoleMessage = (
-        type: ConsoleMessage["type"],
+        type: ConsoleMessageMods,
         message: string,
-    ) => {
+    ): void => {
+        consoleMessageIdRef.current += 1;
+        const id = consoleMessageIdRef.current.toString();
+
         setConsoleMessages((prev) => [
             ...prev,
             {
-                id: Date.now().toString(),
+                id,
                 type,
                 message,
                 timestamp: new Date(),
@@ -587,8 +600,86 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         ]);
     };
 
-    const handleEditorChange = (value: string | undefined) => {
-        if (!value || !activeFile) return;
+    const handleDeployEvent = (event: TDeployEvent): void => {
+        switch (event.type) {
+            case DeployEventTypes.DEPLOY_STARTED:
+                addConsoleMessage(
+                    ConsoleMessageMods.INFO,
+                    `Deploying ${event.fileName ?? "contract"}...`,
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_SUBMITTED:
+                addConsoleMessage(
+                    ConsoleMessageMods.INFO,
+                    `Deploy sent! Deploy ID: ${event.deployId}`,
+                );
+                addConsoleMessage(
+                    ConsoleMessageMods.INFO,
+                    "Waiting for deploy to be included in block...",
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_STATUS:
+                addConsoleMessage(
+                    ConsoleMessageMods.INFO,
+                    `Deploy status: ${event.status}`,
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_CONFIRMED:
+                addConsoleMessage(
+                    ConsoleMessageMods.SUCCESS,
+                    "Deploy finalized",
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_FAILED:
+                addConsoleMessage(
+                    ConsoleMessageMods.ERROR,
+                    `Deploy failed: ${event.message}`,
+                );
+
+                return;
+            case DeployEventTypes.DEPLOY_UNRESOLVED:
+                addConsoleMessage(
+                    ConsoleMessageMods.WARNING,
+                    `Deploy status is unknown: ${event.message}. It may still be finalized, check the transaction history later.`,
+                );
+
+                return;
+            case DeployEventTypes.EXPLORE_STARTED:
+                addConsoleMessage(
+                    ConsoleMessageMods.INFO,
+                    `Exploring ${event.fileName ?? "contract"}...`,
+                );
+
+                return;
+            case DeployEventTypes.EXPLORE_COMPLETED:
+                addConsoleMessage(
+                    ConsoleMessageMods.SUCCESS,
+                    `Explore result: ${stringifyWithBigInt(event.result)}`,
+                );
+
+                return;
+            case DeployEventTypes.EXPLORE_FAILED:
+                addConsoleMessage(
+                    ConsoleMessageMods.ERROR,
+                    `Explore failed: ${event.message}`,
+                );
+        }
+    };
+
+    const deployContractState = useDeployContract({
+        phloLimit,
+        phloPrice,
+        onEvent: handleDeployEvent,
+    });
+
+    const handleEditorChange = (value: string | undefined): void => {
+        if (value === undefined) {
+            return;
+        }
 
         setItems((prev) =>
             prev.map((item) =>
@@ -604,11 +695,11 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         );
     };
 
-    const handleNewFile = (folderId?: string) => {
+    const handleNewFile = (folderId?: string): void => {
         const now = new Date();
         const fileCount = items.filter((item) => item.type === "file").length;
         const newFile: IDEFile = {
-            id: Date.now().toString(),
+            id: createItemId("file"),
             name: `untitled-${fileCount + 1}.rho`,
             content: "// New Rholang contract\n",
             folderId,
@@ -617,421 +708,243 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
             createdAt: now,
             updatedAt: now,
         };
+
         setItems((prev) => [...prev, newFile]);
         setOpenFiles((prev) => [...prev, newFile.id]);
         setActiveFileId(newFile.id);
     };
 
-    const handleNewFolder = (parentId?: string) => {
+    const handleLoadExample = (): void => {
+        const defaultExample = IDEStorageService.getDefaultFiles().find(
+            (item): item is IDEFile => item.type === "file" && item.id === DEFAULT_FILE_ID,
+        );
+        if (!defaultExample) return;
+
+        const existingExample = items.find(
+            (item): item is IDEFile => item.type === "file" && item.id === DEFAULT_FILE_ID,
+        );
+        if (existingExample && !existingExample.modified && existingExample.content === defaultExample.content) {
+            setActiveFileId(existingExample.id);
+            setOpenFiles((prev) => prev.includes(existingExample.id) ? prev : [...prev, existingExample.id]);
+            setExpandedFolders((prev) => new Set([...Array.from(prev), DEFAULT_EXPANDED_FOLDER_IDS[0]]));
+            return;
+        }
+
+        const now = new Date();
+        const newFile: IDEFile = {
+            ...defaultExample,
+            id: createItemId("example"),
+            name: `hello-example-${items.filter((item) => item.type === "file" && item.name.startsWith("hello-example-")).length + 1}.rho`,
+            folderId: undefined,
+            createdAt: now,
+            updatedAt: now,
+        };
+        setItems((prev) => [...prev, newFile]);
+        setOpenFiles((prev) => [...prev, newFile.id]);
+        setActiveFileId(newFile.id);
+    };
+
+    const handleNewFolder = (parentId?: string): void => {
         const now = new Date();
         const folderCount = items.filter(
             (item) => item.type === "folder",
         ).length;
         const newFolder: IDEFolder = {
-            id: Date.now().toString(),
+            id: createItemId("folder"),
             name: `new-folder-${folderCount + 1}`,
             parentId,
             type: "folder",
             createdAt: now,
             updatedAt: now,
         };
+
         setItems((prev) => [...prev, newFolder]);
         setExpandedFolders(
             (prev) => new Set([...Array.from(prev), newFolder.id]),
         );
     };
 
-    const handleCloseFile = (fileId: string) => {
-        const newOpenFiles = openFiles.filter((id) => id !== fileId);
-        setOpenFiles(newOpenFiles);
+    const handleCloseFile = (fileId: string): void => {
+        const nextOpenFiles = openFiles.filter((id) => id !== fileId);
 
-        if (activeFileId === fileId && newOpenFiles.length > 0) {
-            setActiveFileId(newOpenFiles[newOpenFiles.length - 1]);
+        setOpenFiles(nextOpenFiles);
+
+        if (activeFileId !== fileId) {
+            return;
         }
+
+        const nextActiveFileId: string = nextOpenFiles.length > 0
+                ? nextOpenFiles[nextOpenFiles.length - 1]
+                : "";
+
+        setActiveFileId(
+            nextActiveFileId
+        );
     };
 
-    const handleDelete = (item: IDEItem) => {
+    const handleDelete = (item: IDEItem): void => {
         if (item.type === "folder") {
-            // Check if folder has children
             const hasChildren = items.some(
-                (i) =>
-                    (i.type === "file" &&
-                        (i as IDEFile).folderId === item.id) ||
-                    (i.type === "folder" &&
-                        (i as IDEFolder).parentId === item.id),
+                (child) =>
+                    (child.type === "file" &&
+                        (child as IDEFile).folderId === item.id) ||
+                    (child.type === "folder" &&
+                        (child as IDEFolder).parentId === item.id),
             );
 
             if (hasChildren) {
                 addConsoleMessage(
-                    "error",
+                    ConsoleMessageMods.ERROR,
                     "Cannot delete folder with contents",
                 );
+
                 return;
             }
         }
 
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setItems((prev) => prev.filter((entry) => entry.id !== item.id));
 
-        if (item.type === "file") {
-            setOpenFiles((prev) => prev.filter((id) => id !== item.id));
-            if (activeFileId === item.id) {
-                const newActiveId =
-                    openFiles.find((id) => id !== item.id) || "";
-                setActiveFileId(newActiveId);
-            }
+        if (item.type !== "file") {
+            return;
+        }
+
+        setOpenFiles((prev) => prev.filter((id) => id !== item.id));
+
+        if (activeFileId === item.id) {
+            setActiveFileId(openFiles.find((id) => id !== item.id) || "");
         }
     };
 
-    const handleRename = (item: IDEItem, newName: string) => {
+    const handleRename = (item: IDEItem, name: string): void => {
+        if (!name.trim()) {
+            setRenamingId(null);
+            setNewName("");
+            return;
+        }
         setItems((prev) =>
-            prev.map((i) =>
-                i.id === item.id
-                    ? { ...i, name: newName, updatedAt: new Date() }
-                    : i,
+            prev.map((entry) =>
+                entry.id === item.id
+                    ? { ...entry, name, updatedAt: new Date() }
+                    : entry,
             ),
         );
         setRenamingId(null);
         setNewName("");
     };
 
-    const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleImportFile = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
 
         try {
             const ideFile = await IDEStorageService.importFile(file);
+
             setItems((prev) => [...prev, ideFile]);
             setOpenFiles((prev) => [...prev, ideFile.id]);
             setActiveFileId(ideFile.id);
-            addConsoleMessage("success", `Imported ${ideFile.name}`);
-        } catch (error) {
-            addConsoleMessage("error", "Failed to import file");
+            addConsoleMessage(
+                ConsoleMessageMods.SUCCESS,
+                `Imported ${ideFile.name}`,
+            );
+        } catch {
+            addConsoleMessage(
+                ConsoleMessageMods.ERROR,
+                "Failed to import file",
+            );
         }
 
-        // Reset input
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
 
     const handleImportWorkspace = async (
-        e: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        event: React.ChangeEvent<HTMLInputElement>,
+    ): Promise<void> => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
 
         try {
             const importedItems = await IDEStorageService.importWorkspace(file);
+
             setItems(importedItems);
-            addConsoleMessage("success", "Workspace imported successfully");
-        } catch (error) {
-            addConsoleMessage("error", "Failed to import workspace");
+            const firstFile = importedItems.find((item): item is IDEFile => item.type === "file");
+            setActiveFileId(firstFile?.id ?? "");
+            setOpenFiles(firstFile ? [firstFile.id] : []);
+            setExpandedFolders(new Set(importedItems.filter((item) => item.type === "folder").map((item) => item.id)));
+            addConsoleMessage(
+                ConsoleMessageMods.SUCCESS,
+                "Workspace imported successfully",
+            );
+        } catch {
+            addConsoleMessage(
+                ConsoleMessageMods.ERROR,
+                "Failed to import workspace",
+            );
         }
 
-        // Reset input
         if (workspaceInputRef.current) {
             workspaceInputRef.current.value = "";
         }
     };
 
-    const handleDeploy = async () => {
-        if (!selectedAccount || !activeFile) {
+    const handleDeployClick = (): void => {
+        if (!deployableFile) {
             addConsoleMessage(
-                "error",
-                "Please select an account and file to deploy",
+                ConsoleMessageMods.ERROR,
+                "Please select a file with contract code to deploy",
             );
+
             return;
         }
 
-        // Check if account is unlocked
-        if (!isAccountUnlocked(selectedAccount)) {
-            // Show password modal
-            setShowPasswordModal(true);
-            return;
-        }
-
-        // Show confirmation modal
-        setShowDeployConfirmation(true);
-    };
-
-    const logDeployResult = (result: DeployResultData) => {
-        if (result.status === DeployResultStatus.Completed) {
-            addConsoleMessage("success", `[SUCCESS] ${result.message}`);
-            if (result.blockHash)
-                addConsoleMessage("info", `Block Hash: ${result.blockHash}`);
-            if (result.cost)
-                addConsoleMessage("info", `Gas Cost: ${result.cost}`);
-            return;
-        }
-
-        if (result.status === DeployResultStatus.Submitted) {
-            addConsoleMessage("info", `[INFO] ${result.message}`);
-            return;
-        }
-
-        if (result.status === DeployResultStatus.Errored) {
-            addConsoleMessage(
-                "error",
-                `[ERROR] Deploy execution failed: ${result.error}`,
-            );
-            return;
-        }
-
-        if (result.status === DeployResultStatus.SystemError) {
-            addConsoleMessage("error", `[ERROR] System error: ${result.error}`);
-            return;
-        }
-
-        addConsoleMessage(
-            "info",
-            result.message ??
-                "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.",
+        deployContractState.requestDeploy(
+            deployableFile.content,
+            deployableFile.name,
         );
     };
 
-    const waitForDeployAndLog = async (
-        rchain: RChainService,
-        deployId: string,
-    ) => {
-        try {
+    const handleExploreClick = (): void => {
+        if (!deployableFile) {
             addConsoleMessage(
-                "info",
-                "Waiting for deploy to be included in block...",
+                ConsoleMessageMods.ERROR,
+                "Please select a file with contract code to explore",
             );
-            const result = await rchain.waitForDeployResult(deployId);
-            logDeployResult(result);
-        } catch {
-            addConsoleMessage(
-                "info",
-                "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.",
-            );
-        }
-    };
 
-    const handleDeployWithPassword = async (password: string) => {
-        if (!selectedAccount || !activeFile) return;
-        if (!SecureStorage.hasSessionToken()) {
-            addConsoleMessage("error", "Session expired. Please login again.");
             return;
         }
 
-        setIsDeploying(true);
-        setShowPasswordModal(false); // Close password modal immediately
-        addConsoleMessage("info", `Deploying ${activeFile.name}...`);
-
-        try {
-            if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-                throw new Error(
-                    `Network "${selectedNetwork.name}" has no validator URL configured`,
-                );
-            }
-
-            const rchain = new RChainService(
-                selectedNetwork.url.trim(),
-                selectedNetwork.readOnlyUrl,
-                selectedNetwork.adminUrl,
-                selectedNetwork.shardId,
-            );
-            let privateKey = selectedAccount.privateKey;
-
-            if (!privateKey && password) {
-                const userId = SecureStorage.getCurrentUserId();
-                const unlockedAccount = await SecureStorage.unlockAccount(
-                    selectedAccount.id,
-                    password,
-                    userId ?? undefined,
-                );
-                privateKey = unlockedAccount?.privateKey;
-            }
-
-            if (!privateKey) {
-                throw new Error("Failed to access private key");
-            }
-
-            let expectedBalanceAfterConfirmation: string | undefined;
-            try {
-                const atomicBalanceBefore = await rchain.getBalance(
-                    selectedAccount.revAddress,
-                    true,
-                );
-                const chainBalanceBefore =
-                    Number(atomicBalanceBefore) / 100000000;
-                const gasFee = getGasFeeAsNumber();
-                const expected = Math.max(0, chainBalanceBefore - gasFee);
-                expectedBalanceAfterConfirmation = expected.toFixed(8);
-            } catch (error) {
-                console.warn(
-                    "[IDE] Failed to fetch balance before deploy for pending metadata:",
-                    error,
-                );
-            }
-
-            const deployId = await rchain.sendDeploy(
-                activeFile.content,
-                privateKey,
-                parseInt(phloLimit),
-            );
-
-            addConsoleMessage(
-                "success",
-                `Deploy submitted successfully! Deploy ID: ${deployId}`,
-            );
-
-            savePendingDeploy(
-                deployId,
-                selectedAccount.id,
-                selectedAccount.revAddress,
-                expectedBalanceAfterConfirmation,
-            );
-
-            await waitForDeployAndLog(rchain, deployId);
-        } catch (error: any) {
-            addConsoleMessage("error", `Deploy failed: ${error.message}`);
-        } finally {
-            setIsDeploying(false);
-        }
+        deployContractState.requestExplore(
+            deployableFile.content,
+            deployableFile.name,
+        );
     };
 
-    const handleConfirmDeploy = async () => {
-        if (!selectedAccount || !activeFile) return;
-        if (!SecureStorage.hasSessionToken()) {
-            addConsoleMessage("error", "Session expired. Please login again.");
-            return;
-        }
-
-        setShowDeployConfirmation(false);
-        setIsDeploying(true);
-        addConsoleMessage("info", `Deploying ${activeFile.name}...`);
-
-        try {
-            if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-                throw new Error(
-                    `Network "${selectedNetwork.name}" has no validator URL configured`,
-                );
-            }
-
-            const rchain = new RChainService(
-                selectedNetwork.url.trim(),
-                selectedNetwork.readOnlyUrl,
-                selectedNetwork.adminUrl,
-                selectedNetwork.shardId,
-            );
-
-            // Find the private key from unlocked accounts
-            const unlockedAccount = unlockedAccounts.find(
-                (acc) => acc.id === selectedAccount.id,
-            );
-            const privateKey = unlockedAccount?.privateKey;
-
-            if (!privateKey) {
-                throw new Error(
-                    "Account is locked. Please unlock your account first.",
-                );
-            }
-
-            let expectedBalanceAfterConfirmation: string | undefined;
-            try {
-                const atomicBalanceBefore = await rchain.getBalance(
-                    selectedAccount.revAddress,
-                    true,
-                );
-                const chainBalanceBefore =
-                    Number(atomicBalanceBefore) / 100000000;
-                const gasFee = getGasFeeAsNumber();
-                const expected = Math.max(0, chainBalanceBefore - gasFee);
-                expectedBalanceAfterConfirmation = expected.toFixed(8);
-            } catch (error) {
-                console.warn(
-                    "[IDE] Failed to fetch balance before deploy for pending metadata:",
-                    error,
-                );
-            }
-
-            const deployId = await rchain.sendDeploy(
-                activeFile.content,
-                privateKey,
-                parseInt(phloLimit),
-            );
-
-            addConsoleMessage(
-                "success",
-                `Deploy submitted successfully! Deploy ID: ${deployId}`,
-            );
-
-            savePendingDeploy(
-                deployId,
-                selectedAccount.id,
-                selectedAccount.revAddress,
-                expectedBalanceAfterConfirmation,
-            );
-
-            await waitForDeployAndLog(rchain, deployId);
-        } catch (error: any) {
-            addConsoleMessage("error", `Deploy failed: ${error.message}`);
-        } finally {
-            setIsDeploying(false);
-        }
-    };
-
-    const handleExplore = async () => {
-        if (!activeFile) return;
-        setShowExploreConfirmation(true);
-    };
-
-    const handleConfirmExplore = async () => {
-        if (!activeFile) return;
-
-        setShowExploreConfirmation(false);
-        setIsDeploying(true);
-        addConsoleMessage("info", `Exploring ${activeFile.name}...`);
-
-        try {
-            if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-                throw new Error(
-                    `Network "${selectedNetwork.name}" has no validator URL configured`,
-                );
-            }
-
-            const rchain = new RChainService(
-                selectedNetwork.url.trim(),
-                selectedNetwork.readOnlyUrl,
-                selectedNetwork.adminUrl,
-                selectedNetwork.shardId,
-            );
-            const result = await rchain.exploreDeployData(activeFile.content);
-
-            addConsoleMessage(
-                "success",
-                `Explore result: ${JSON.stringify(result, null, 2)}`,
-            );
-        } catch (error: any) {
-            addConsoleMessage("error", `Explore failed: ${error.message}`);
-        } finally {
-            setIsDeploying(false);
-        }
-    };
-
-    const clearConsole = () => {
-        setConsoleMessages([]);
-    };
-
-    const handlePasswordSubmit = (password: string) => {
-        handleDeployWithPassword(password);
-    };
-
-    const toggleFolder = (folderId: string) => {
+    const toggleFolder = (folderId: string): void => {
         setExpandedFolders((prev) => {
             const next = new Set(prev);
+
             if (next.has(folderId)) {
                 next.delete(folderId);
             } else {
                 next.add(folderId);
             }
+
             return next;
         });
     };
 
-    const value: DeployProModeContextValue = {
+    const value: IDeployProModeContextValue = {
+        ...deployContractState,
+        isActive,
         items,
         activeFileId,
         openFiles,
@@ -1041,15 +954,11 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         contextMenu,
         renamingId,
         newName,
-        showPasswordModal,
-        showDeployConfirmation,
-        showExploreConfirmation,
-        isDeploying,
         consoleMessages,
         monacoInitialized,
         darkMode,
-        selectedAccount,
         activeFile,
+        deployableFile,
         phloLimit,
         phloPrice,
         setActiveFileId,
@@ -1057,10 +966,6 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         setContextMenu,
         setNewName,
         setRenamingId,
-        setEditorInstance,
-        setShowPasswordModal,
-        setShowDeployConfirmation,
-        setShowExploreConfirmation,
         handleEditorChange,
         handleNewFile,
         handleNewFolder,
@@ -1069,12 +974,10 @@ const DeployProModeWidgetRoot: React.FC<DeployProModeWidgetProps> = ({
         handleRename,
         handleImportFile,
         handleImportWorkspace,
-        handleDeploy,
-        handleExplore,
-        handleConfirmDeploy,
-        handleConfirmExplore,
-        handlePasswordSubmit,
-        clearConsole,
+        handleDeployClick,
+        handleExploreClick,
+        handleLoadExample,
+        clearConsole: () => setConsoleMessages([]),
         toggleFolder,
     };
 
@@ -1091,7 +994,7 @@ const defaultButtonStyle: CSSProperties = {
 };
 
 const DeployProModeActions: React.FC = () => {
-    const { items, workspaceInputRef } = useDeployProMode();
+    const { items, workspaceInputRef, handleLoadExample } = useDeployProMode();
     const { isTablet } = useScreen();
 
     const adaptiveButtonLabelStyle: CSSProperties = useMemo(
@@ -1100,9 +1003,18 @@ const DeployProModeActions: React.FC = () => {
     );
 
     return (
-        <ToolbarActions>
+        <ToolbarActions style={isTablet ? { flexDirection: "column", gap: 16 } : undefined}>
+            <Button
+                id="ide-load-example-button"
+                style={defaultButtonStyle}
+                fullWidth={isTablet}
+                onClick={handleLoadExample}
+            >
+                Load Example
+            </Button>
             <Button
                 id="ide-import-workspace-button"
+                variant="secondary"
                 style={defaultButtonStyle}
                 fullWidth={isTablet}
                 onClick={() => workspaceInputRef.current?.click()}
@@ -1123,6 +1035,16 @@ const DeployProModeActions: React.FC = () => {
 
 const DeployProModeBoard: React.FC = () => {
     const {
+        isActive,
+        account,
+        isBalanceReady,
+        isPhloLimitValid,
+        isBlockedByAnotherChainOperation,
+        submittedDeployId,
+        submittedDeployStatus,
+        unresolvedReason,
+        isWaitingForConfirmation,
+        isDeployConfirmed,
         items,
         activeFileId,
         openFiles,
@@ -1132,26 +1054,27 @@ const DeployProModeBoard: React.FC = () => {
         contextMenu,
         renamingId,
         newName,
-        showPasswordModal,
-        showDeployConfirmation,
-        showExploreConfirmation,
-        isDeploying,
         consoleMessages,
         monacoInitialized,
         darkMode,
-        selectedAccount,
         activeFile,
+        deployableFile,
         phloLimit,
         phloPrice,
+        pendingTerm,
+        pendingFileName,
+        isProcessing,
+        isDeployConfirmationOpen,
+        isExploreConfirmationOpen,
+        passwordPrompt,
+        confirmDeploy,
+        confirmExplore,
+        cancel,
         setActiveFileId,
         setOpenFiles,
         setContextMenu,
         setNewName,
         setRenamingId,
-        setEditorInstance,
-        setShowPasswordModal,
-        setShowDeployConfirmation,
-        setShowExploreConfirmation,
         handleEditorChange,
         handleNewFile,
         handleNewFolder,
@@ -1160,16 +1083,59 @@ const DeployProModeBoard: React.FC = () => {
         handleRename,
         handleImportFile,
         handleImportWorkspace,
-        handleDeploy,
-        handleExplore,
-        handleConfirmDeploy,
-        handleConfirmExplore,
-        handlePasswordSubmit,
+        handleDeployClick,
+        handleExploreClick,
         clearConsole,
         toggleFolder,
     } = useDeployProMode();
 
-    const { isLaptop } = useScreen();
+    const contextMenuRef = useRef<HTMLDivElement>(null);
+    const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!contextMenu || !isActive) return;
+
+        contextMenuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            setContextMenu(null);
+            contextMenuOpenerRef.current?.focus();
+        };
+        const handleMouseDown = (event: MouseEvent): void => {
+            if (!contextMenuRef.current?.contains(event.target as Node)) {
+                const opener = contextMenuOpenerRef.current;
+                setContextMenu(null);
+                window.setTimeout(() => {
+                    const focused = document.activeElement;
+                    if (
+                        opener?.isConnected &&
+                        !opener.closest('[aria-hidden="true"]') &&
+                        (focused === document.body || !focused?.isConnected)
+                    ) {
+                        opener.focus();
+                    }
+                }, 0);
+            }
+        };
+        document.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("mousedown", handleMouseDown);
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("mousedown", handleMouseDown);
+        };
+    }, [contextMenu, isActive, setContextMenu]);
+
+    const openContextMenu = (item: IDEItem, x: number, y: number, opener: HTMLElement): void => {
+        contextMenuOpenerRef.current = opener;
+        setContextMenu({ item, x, y });
+    };
+
+    const closeContextMenu = (): void => {
+        setContextMenu(null);
+        contextMenuOpenerRef.current?.focus();
+    };
 
     const renderFileTree = (
         parentId?: string,
@@ -1196,14 +1162,24 @@ const DeployProModeBoard: React.FC = () => {
                 <React.Fragment key={folder.id}>
                     <TreeItem
                         $depth={depth}
+                        role="treeitem"
+                        tabIndex={0}
+                        aria-expanded={expandedFolders.has(folder.id)}
                         onClick={() => toggleFolder(folder.id)}
+                        onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleFolder(folder.id);
+                            } else if (e.key === "F10" && e.shiftKey) {
+                                e.preventDefault();
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                openContextMenu(folder, rect.left, rect.bottom, e.currentTarget);
+                            }
+                        }}
                         onContextMenu={(e) => {
                             e.preventDefault();
-                            setContextMenu({
-                                x: e.clientX,
-                                y: e.clientY,
-                                item: folder,
-                            });
+                            openContextMenu(folder, e.clientX, e.clientY, e.currentTarget);
                         }}
                     >
                         <TreeIcon>
@@ -1223,8 +1199,9 @@ const DeployProModeBoard: React.FC = () => {
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === "Enter")
+                                    if (e.key === "Enter") {
                                         handleRename(folder, newName);
+                                    }
                                     if (e.key === "Escape") {
                                         setRenamingId(null);
                                         setNewName("");
@@ -1247,19 +1224,33 @@ const DeployProModeBoard: React.FC = () => {
                     key={file.id}
                     $depth={depth}
                     $active={file.id === activeFileId}
+                    role="treeitem"
+                    tabIndex={0}
+                    aria-selected={file.id === activeFileId}
                     onClick={() => {
                         setActiveFileId(file.id);
+
                         if (!openFiles.includes(file.id)) {
                             setOpenFiles((prev) => [...prev, file.id]);
                         }
                     }}
+                    onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setActiveFileId(file.id);
+                            if (!openFiles.includes(file.id)) {
+                                setOpenFiles((prev) => [...prev, file.id]);
+                            }
+                        } else if (e.key === "F10" && e.shiftKey) {
+                            e.preventDefault();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            openContextMenu(file, rect.left, rect.bottom, e.currentTarget);
+                        }
+                    }}
                     onContextMenu={(e) => {
                         e.preventDefault();
-                        setContextMenu({
-                            x: e.clientX,
-                            y: e.clientY,
-                            item: file,
-                        });
+                        openContextMenu(file, e.clientX, e.clientY, e.currentTarget);
                     }}
                 >
                     <TreeIcon>
@@ -1270,8 +1261,9 @@ const DeployProModeBoard: React.FC = () => {
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter")
+                                if (e.key === "Enter") {
                                     handleRename(file, newName);
+                                }
                                 if (e.key === "Escape") {
                                     setRenamingId(null);
                                     setNewName("");
@@ -1294,12 +1286,14 @@ const DeployProModeBoard: React.FC = () => {
             <FileInput
                 ref={fileInputRef}
                 type="file"
+                aria-label="Import Rholang file"
                 accept=".rho"
                 onChange={handleImportFile}
             />
             <FileInput
                 ref={workspaceInputRef}
                 type="file"
+                aria-label="Import workspace file"
                 accept=".json"
                 onChange={handleImportWorkspace}
             />
@@ -1309,7 +1303,7 @@ const DeployProModeBoard: React.FC = () => {
                     <ExplorerHeader>Files</ExplorerHeader>
                     <FileExplorerContent className="file-explorer-content">
                         <FileList>
-                            <FileTree>{renderFileTree()}</FileTree>
+                        <FileTree role="tree" aria-label="Workspace files">{renderFileTree()}</FileTree>
                         </FileList>
                         <ToolbarActions
                             style={{ justifyContent: "end", padding: "7px" }}
@@ -1343,26 +1337,34 @@ const DeployProModeBoard: React.FC = () => {
                 </FileExplorer>
 
                 <EditorContainer>
-                    <EditorHeader>
+                    <EditorHeader role="tablist" aria-label="Open files">
                         <h4 className="light">Rholang Code</h4>
                         {openFiles.map((fileId) => {
                             const file = items.find(
-                                (f) => f.id === fileId && f.type === "file",
-                            ) as IDEFile;
-                            if (!file) return null;
+                                (item) =>
+                                    item.id === fileId && item.type === "file",
+                            ) as IDEFile | undefined;
+
+                            if (!file) {
+                                return null;
+                            }
+
                             return (
                                 <TabItem
                                     key={fileId}
                                     $active={fileId === activeFileId}
                                 >
-                                    <span
+                                    <TabSelect
+                                        role="tab"
+                                        aria-selected={fileId === activeFileId}
                                         className="text-3"
                                         onClick={() => setActiveFileId(fileId)}
                                     >
                                         {file.name}
                                         {file.modified ? "*" : ""}
-                                    </span>
+                                    </TabSelect>
                                     <CloseButton
+                                        aria-label={`Close ${file.name}`}
                                         onClick={() => handleCloseFile(fileId)}
                                     >
                                         ×
@@ -1379,9 +1381,6 @@ const DeployProModeBoard: React.FC = () => {
                                 value={activeFile.content}
                                 onChange={handleEditorChange}
                                 theme={darkMode ? "vs-dark" : "light"}
-                                onMount={(editor, _monaco) => {
-                                    setEditorInstance(editor);
-                                }}
                                 options={{
                                     minimap: { enabled: false },
                                     fontSize: 14,
@@ -1401,8 +1400,16 @@ const DeployProModeBoard: React.FC = () => {
                     <Button
                         id="ide-deploy-button"
                         size="small"
-                        onClick={handleDeploy}
-                        loading={isDeploying}
+                        onClick={handleDeployClick}
+                        loading={isProcessing}
+                        disabled={
+                            isProcessing ||
+                            isBlockedByAnotherChainOperation ||
+                            !deployableFile ||
+                            !account ||
+                            !isBalanceReady ||
+                            !isPhloLimitValid
+                        }
                     >
                         <h3>Deploy</h3>
                     </Button>
@@ -1410,49 +1417,71 @@ const DeployProModeBoard: React.FC = () => {
                         id="ide-explore-button"
                         size="small"
                         variant="secondary"
-                        onClick={handleExplore}
-                        loading={isDeploying}
+                        onClick={handleExploreClick}
+                        loading={isProcessing}
+                        disabled={isProcessing || isBlockedByAnotherChainOperation || !deployableFile}
                     >
                         <h3>Explore</h3>
                     </Button>
                     <Button
-                        title="Clear console output"
-                        variant="ghost"
+                        aria-label="Clear console output"
+                        variant="danger"
                         size="small"
                         onClick={clearConsole}
-                        dangerHover
-                        style={{
-                            height: "30px",
-                        }}
                     >
-                        {!isLaptop && (
-                            <h3
-                                style={{ fontSize: "0.75rem" }}
-                                className="text-danger"
-                            >
-                                Clear
-                            </h3>
-                        )}
+                        <span>Clear</span>
                         <DeleteIcon />
                     </Button>
                 </DeploySettings>
             </Toolbar>
 
+            {submittedDeployId && (
+                <DeployStatusPanel
+                    role="status"
+                    $tone={unresolvedReason ? "warning" : isDeployConfirmed ? "success" : "info"}
+                >
+                    <div>
+                        <strong>{unresolvedReason ? "Deploy status unknown" : isDeployConfirmed ? "Deploy finalized" : isWaitingForConfirmation ? "Deploy pending" : "Deploy sent"}</strong>
+                        {submittedDeployStatus && <span> · {submittedDeployStatus}</span>}
+                        {unresolvedReason && <div>{unresolvedReason}</div>}
+                        <code>Deploy ID: {submittedDeployId}</code>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="small"
+                        aria-label="Copy deploy hash"
+                        onClick={async () => {
+                            try {
+                                await navigator.clipboard.writeText(submittedDeployId);
+                            } catch {
+                                // Clipboard permissions are controlled by the browser.
+                            }
+                        }}
+                    >
+                        Copy hash
+                    </Button>
+                </DeployStatusPanel>
+            )}
+
             <ConsolePanel>
                 <OutputHeader>
                     <h4>Console</h4>
                 </OutputHeader>
-                <OutputContent>
-                    {consoleMessages.map((msg) => (
-                        <ConsoleEntry key={msg.id} $type={msg.type}>
-                            {msg.type === "success" && (
+                <OutputContent role="log" aria-label="Deploy console" aria-live="polite">
+                    {consoleMessages.map((message) => (
+                        <ConsoleEntry key={message.id} $type={message.type}>
+                            {message.type === ConsoleMessageMods.SUCCESS && (
                                 <SuccessIcon size={14} />
                             )}
-                            {msg.type === "error" && <ErrorIcon size={14} />}
-                            {msg.type === "info" && <PendingIcon size={14} />}
+                            {message.type === ConsoleMessageMods.ERROR && (
+                                <ErrorIcon size={14} />
+                            )}
+                            {message.type === ConsoleMessageMods.INFO && (
+                                <PendingIcon size={14} />
+                            )}
                             <span>
-                                [{msg.timestamp.toLocaleTimeString()}]{" "}
-                                {msg.message}
+                                [{message.timestamp.toLocaleTimeString()}]{" "}
+                                {message.message}
                             </span>
                         </ConsoleEntry>
                     ))}
@@ -1466,6 +1495,9 @@ const DeployProModeBoard: React.FC = () => {
 
             {contextMenu && (
                 <ContextMenu
+                    ref={contextMenuRef}
+                    role="menu"
+                    aria-label={`${contextMenu.item.name} actions`}
                     $x={contextMenu.x}
                     $y={contextMenu.y}
                     onClick={(e) => e.stopPropagation()}
@@ -1473,21 +1505,19 @@ const DeployProModeBoard: React.FC = () => {
                     {contextMenu.item.type === "folder" && (
                         <>
                             <ContextMenuItem
+                                role="menuitem"
                                 onClick={() => {
-                                    handleNewFile(
-                                        (contextMenu.item as IDEFolder).id,
-                                    );
-                                    setContextMenu(null);
+                                    handleNewFile(contextMenu.item.id);
+                                    closeContextMenu();
                                 }}
                             >
                                 New File
                             </ContextMenuItem>
                             <ContextMenuItem
+                                role="menuitem"
                                 onClick={() => {
-                                    handleNewFolder(
-                                        (contextMenu.item as IDEFolder).id,
-                                    );
-                                    setContextMenu(null);
+                                    handleNewFolder(contextMenu.item.id);
+                                    closeContextMenu();
                                 }}
                             >
                                 New Folder
@@ -1496,29 +1526,32 @@ const DeployProModeBoard: React.FC = () => {
                     )}
                     {contextMenu.item.type === "file" && (
                         <ContextMenuItem
+                            role="menuitem"
                             onClick={() => {
                                 IDEStorageService.exportFile(
                                     contextMenu.item as IDEFile,
                                 );
-                                setContextMenu(null);
+                                closeContextMenu();
                             }}
                         >
                             Export File
                         </ContextMenuItem>
                     )}
                     <ContextMenuItem
+                        role="menuitem"
                         onClick={() => {
                             setRenamingId(contextMenu.item.id);
                             setNewName(contextMenu.item.name);
-                            setContextMenu(null);
+                            closeContextMenu();
                         }}
                     >
                         Rename
                     </ContextMenuItem>
                     <ContextMenuItem
+                        role="menuitem"
                         onClick={() => {
                             handleDelete(contextMenu.item);
-                            setContextMenu(null);
+                            closeContextMenu();
                         }}
                     >
                         Delete
@@ -1526,41 +1559,38 @@ const DeployProModeBoard: React.FC = () => {
                 </ContextMenu>
             )}
 
-            {/* Deploy Confirmation Modal */}
             <DeploymentConfirmationModal
-                isOpen={showDeployConfirmation}
-                onClose={() => setShowDeployConfirmation(false)}
-                onConfirm={handleConfirmDeploy}
-                rholangCode={activeFile?.content || ""}
+                isOpen={isDeployConfirmationOpen}
+                onClose={cancel}
+                onConfirm={confirmDeploy}
+                rholangCode={pendingTerm}
                 phloLimit={phloLimit}
                 phloPrice={phloPrice}
-                accountName={selectedAccount?.name || ""}
-                accountAddress={selectedAccount?.revAddress || ""}
-                fileName={activeFile?.name}
-                loading={isDeploying}
+                accountName={account?.name || ""}
+                accountAddress={account?.address || ""}
+                fileName={pendingFileName}
+                loading={isProcessing}
             />
 
-            {/* Explore Confirmation Modal */}
             <DeploymentConfirmationModal
-                isOpen={showExploreConfirmation}
-                onClose={() => setShowExploreConfirmation(false)}
-                onConfirm={handleConfirmExplore}
-                rholangCode={activeFile?.content || ""}
+                isOpen={isExploreConfirmationOpen}
+                onClose={cancel}
+                onConfirm={confirmExplore}
+                rholangCode={pendingTerm}
                 phloLimit={phloLimit}
                 phloPrice={phloPrice}
-                accountName={selectedAccount?.name || ""}
-                accountAddress={selectedAccount?.revAddress || ""}
-                fileName={activeFile?.name}
-                isExplore={true}
-                loading={isDeploying}
+                accountName={account?.name || ""}
+                accountAddress={account?.address || ""}
+                fileName={pendingFileName}
+                isExplore
+                loading={isProcessing}
             />
 
             <PasswordModal
-                isOpen={showPasswordModal}
-                onClose={() => setShowPasswordModal(false)}
-                onConfirm={handlePasswordSubmit}
-                title="Enter Password to Deploy"
-                description="Your private key is encrypted. Please enter your password to deploy the contract."
+                {...passwordPrompt}
+                onClose={cancel}
+                title="Enter password to deploy"
+                description="Your wallet session has expired. Enter your password to sign and deploy this contract."
             />
         </IDEContainer>
     );

@@ -2,7 +2,7 @@ const BasePage = require('./BasePage');
 
 class ReceivePage extends BasePage {
     get recipientAddress() {
-        return $('//div[normalize-space()="ASI Address"]/following-sibling::div[1]');
+        return $('//*[@id="receive-address-label"]/following-sibling::*[1]');
     }
 
     async getRecipientAddress() {

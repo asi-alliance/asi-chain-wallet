@@ -1,12 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { EditableLabel } from "components/EditableLabel";
-import { selectAccountById, updateAccountName } from "store/walletSlice";
-import { useDispatch, useSelector } from "react-redux";
-import { Account } from "types/wallet";
+import {
+    selectAccountById,
+    selectSelectedAccountId,
+    selectWalletByAccountId,
+} from "store/WalletsStore";
+import { updateAccountName } from "store/WalletsStore/thunks";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import { IAccountMeta } from "types/wallet";
 import { RootState } from "store";
 import { EditableLabelProps } from "components/EditableLabel/EditableLabel";
 import { useValidAccountUpdating } from "hooks";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 interface IAccountNameEditorProps extends Omit<
     EditableLabelProps,
@@ -14,6 +21,8 @@ interface IAccountNameEditorProps extends Omit<
 > {
     accountId: string;
 }
+
+const FALLBACK_RENAME_ERROR_MESSAGE = "Failed to rename account";
 
 const StyledEditableLabel = styled(EditableLabel)<{ $isSelected: boolean }>`
     font-size: 1.25rem !important;
@@ -40,40 +49,69 @@ const StyledEditableLabel = styled(EditableLabel)<{ $isSelected: boolean }>`
 
 export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
     accountId,
+    isSelected: isSelectedProp,
     ...labelProps
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
-    const { selectedAccount } = useSelector((state: RootState) => state.wallet);
-    const account: Account | undefined = useSelector((state: RootState) =>
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const account: IAccountMeta | null = useSelector((state: RootState) =>
         selectAccountById(state, accountId),
+    );
+    const wallet = useSelector((state: RootState) =>
+        selectWalletByAccountId(state, accountId),
     );
 
     const { isNameUpdateValid, nameErrorMessage, updateAccountField, reset } =
         useValidAccountUpdating(account);
 
+    const [saveError, setSaveError] = useState("");
+
     if (!account) {
         return null;
     }
 
-    const handleUpdateAccountName = (newName: string) => {
-        dispatch(
-            updateAccountName({
-                accountId: accountId,
-                name: newName,
-            }),
-        );
+    const handleUpdateAccountName = async (newName: string): Promise<void> => {
+        if (!wallet?.id) {
+            setSaveError("Unlock the wallet before renaming this account");
+            throw new Error("Wallet locked");
+        }
+
+        setSaveError("");
+
+        try {
+            await dispatch(
+                updateAccountName({
+                    walletId: wallet.id,
+                    accountId: accountId,
+                    name: newName,
+                }),
+            ).unwrap();
+        } catch (renameError: unknown) {
+            setSaveError(
+                getErrorMessage(renameError, FALLBACK_RENAME_ERROR_MESSAGE),
+            );
+            throw renameError;
+        }
     };
 
-    const isSelected: boolean = account.id === selectedAccount?.id;
+    // Wallet compact cards stay on a light surface; callers can suppress inverse text.
+    const isSelected: boolean =
+        isSelectedProp ?? account.id === selectedAccountId;
 
     return (
         <StyledEditableLabel
             className={`account-name-editor`}
             label={account.name}
             onSave={handleUpdateAccountName}
-            onChange={(query: string) => updateAccountField("name", query)}
-            onCancel={reset}
+            onChange={(query: string) => {
+                setSaveError("");
+                updateAccountField("name", query);
+            }}
+            onCancel={() => {
+                setSaveError("");
+                reset();
+            }}
             isValid={isNameUpdateValid}
             $isSelected={isSelected}
             labelStyle={{
@@ -81,11 +119,12 @@ export const AccountNameEditor: React.FC<IAccountNameEditorProps> = ({
                 textWrap: "nowrap",
                 textOverflow: "ellipsis",
             }}
-            errorMessage={nameErrorMessage}
+            errorMessage={saveError || nameErrorMessage}
             style={{
                 maxWidth: "100%",
             }}
             isSelected={isSelected}
+            aria-label={`Account name, ${account.name}`}
             {...labelProps}
         />
     );

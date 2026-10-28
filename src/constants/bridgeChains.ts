@@ -1,5 +1,6 @@
 import { sepolia, baseSepolia } from "viem/chains";
-import { ASI_CHAIN_DECIMALS, CARDANO_TOKEN_DECIMALS } from "utils/tokenFormat";
+import { CARDANO_TOKEN_DECIMALS } from "utils/tokenFormat";
+import { ASI_DECIMALS } from "@asichain/asi-wallet-sdk";
 
 export type BridgeChainKey =
     | "asi"
@@ -94,7 +95,7 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         label: "ASI Chain",
         shortLabel: "ASI",
         routeId: ASI_ROUTE_ID,
-        nativeDecimals: ASI_CHAIN_DECIMALS,
+        nativeDecimals: ASI_DECIMALS,
         bridgeUri: ASI_BRIDGE_URI,
     },
     {
