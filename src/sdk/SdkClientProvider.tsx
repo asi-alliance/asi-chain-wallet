@@ -35,9 +35,6 @@ const initSdkClient = (): Promise<Client> => {
         clientPromise = Client.create({
             networksConfig: NETWORKS_CONFIG,
             defaultNetwork: getInitialNetwork().id,
-            security: {
-                autoLockMs: 15 * 1000,
-            },
             eventDispatcher: {
                 onNetworkChanged: (network: INetworkRecord) => {
                     console.info("SDK network changed:", network.id);
