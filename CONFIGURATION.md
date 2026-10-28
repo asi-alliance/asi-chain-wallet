@@ -203,7 +203,7 @@ Polling intervals are constants, not environment variables. The earlier `REACT_A
 | --- | --- | --- |
 | Balance and history refresh on Dashboard and History, balance refresh on Send | 30 s | `ACCOUNT_DATA_POLLING_INTERVAL_SECONDS` in [src/constants/polling.ts](src/constants/polling.ts) |
 | Network status check in the header | 60 s, and immediately on a network switch; results of checks started for the previous network are dropped | [src/components/Layout/Layout.tsx](src/components/Layout/Layout.tsx) |
-| Signing session auto-lock | 15 s | `security.autoLockMs` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) |
+| Signing session auto-lock | 15 min | SDK default `DEFAULT_AUTO_LOCK_MS`; [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) does not override it with `security.autoLockMs` |
 | Deploy status | Event driven | The SDK deploy watcher, wired in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): the `subscribe` callback returned by `transfer` and `deploy` for transfers and contract deploys, and `SdkWalletService.watchDeploy` for bridge locks |
 
 ## Docker Configuration
@@ -228,7 +228,7 @@ Because configuration is baked in at build time, setting `NETWORKS` on the conta
 
 ### Dockerfile
 
-The multi-stage `Dockerfile` installs dependencies, copies `.env.example` to `.env` when no `.env` is present, builds the application and serves `build/` with nginx. It cannot build this repository as it stands: `package.json` resolves the SDK from `file:../asi-chain-wallet-sdk`, a path outside the build context. See [DEVELOPMENT.md](DEVELOPMENT.md).
+The multi-stage `Dockerfile` installs dependencies, copies `.env.example` to `.env` when no `.env` is present, builds the application and serves `build/` with nginx. See [DEVELOPMENT.md](DEVELOPMENT.md#building-an-image-from-this-repository).
 
 ### docker-entrypoint.sh
 

@@ -91,11 +91,11 @@ The previous fixed session timeout is gone. The session is now split in two laye
 
 **Open wallet.** Logging in opens the wallet in the SDK with its password. While it is open, the app can read addresses, balances and history without any further prompt. The authenticated state lives in Redux memory only, so reloading the page ends the session and returns to the Login page; **Logout** closes every open wallet explicitly.
 
-**Signing session.** Unlocking also starts a signing session that holds the decrypted key material for **15 seconds** (`security.autoLockMs` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx#L39)). The timer starts when the wallet is unlocked and is not extended by activity. When it elapses, the SDK wipes the secret and emits a lock event; the wallet itself stays open.
+**Signing session.** Unlocking also starts a signing session that holds the decrypted key material for **15 minutes**. This is the SDK default (`DEFAULT_AUTO_LOCK_MS`): [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) does not pass `security.autoLockMs` to `Client.create`. The timer starts when the wallet is unlocked and is not extended by activity. When it elapses, the SDK wipes the secret and emits a lock event; the wallet itself stays open.
 
 **After auto-lock.** Any operation that needs the key - a transfer, a Rholang deploy, a bridge lock - is retried with a password prompt: the shared [useWalletSessionAction](src/hooks/useWalletSessionAction.ts) hook detects the locked wallet, opens the password modal, and replays the same action with the password supplied there. Operations that always take the password explicitly (deriving an account, exporting a keyfile) ask for it regardless of the session state.
 
-In practice this means the password is requested for nearly every signed operation, which matches the security policy of the SDK.
+In practice signed operations go through without a prompt for 15 minutes after the wallet is unlocked, and the first signed operation after that asks for the password again.
 
 ## Bridge
 
@@ -114,7 +114,7 @@ All bridge parameters (route ids, bridge addresses, token addresses, RPC and RES
 
 ## Built on the ASI Wallet SDK
 
-Wallet operations are served by `@asichain/asi-wallet-sdk`, consumed as a local dependency (`file:../asi-chain-wallet-sdk`). The client is created once in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) and wrapped for the app by [src/sdk/SdkWalletService.ts](src/sdk/SdkWalletService.ts).
+Wallet operations are served by `@asichain/asi-wallet-sdk`, installed from the npm registry (`^2.1.0` in `package.json`). The client is created once in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) and wrapped for the app by [src/sdk/SdkWalletService.ts](src/sdk/SdkWalletService.ts).
 
 The SDK provides mnemonic generation and validation, wallet creation, opening and closing, account derivation, renaming and removal, keyfile export, preview and import, address and amount conversion, available balance (net of reservations), transfers, deploys, explore, deploy status watching, transaction history, the network registry with custom networks and busy-network events, and the session policy with auto-lock.
 
@@ -170,27 +170,21 @@ Transaction history is currently limited to a single window of 50 records, is no
 
 ### Local Development
 
-The wallet depends on the ASI Wallet SDK through a local path (`file:../asi-chain-wallet-sdk`), so both repositories must be checked out side by side and the SDK must be built first.
+The ASI Wallet SDK is installed from the npm registry together with the other dependencies.
 
 ```bash
-# 1. Clone both repositories into the same parent directory
+# 1. Clone the repository
 git clone https://github.com/asi-alliance/asi-chain-wallet.git
-git clone https://github.com/asi-alliance/asi-chain-wallet-sdk.git
+cd asi-chain-wallet
 
-# 2. Build the SDK
-cd asi-chain-wallet-sdk
-npm install
-npm run build
-
-# 3. Install the wallet
-cd ../asi-chain-wallet
+# 2. Install dependencies
 npm install --legacy-peer-deps
 
-# 4. Configure the environment
+# 3. Configure the environment
 cp .env.example .env
 # fill in NETWORKS and the bridge variables before starting
 
-# 5. Start the development server
+# 4. Start the development server
 npm start
 ```
 
@@ -211,7 +205,7 @@ docker-compose down
 
 The `NETWORKS` variable in the compose file reaches the container but not the application: configuration is inlined when the bundle is built, so a published image always serves the networks it was built with. Running your own configuration means building your own image.
 
-Building an image from this repository is not currently supported, because `package.json` resolves the SDK from a path outside the build context. See [DEVELOPMENT.md](DEVELOPMENT.md).
+To build your own image from this repository, see [DEVELOPMENT.md](DEVELOPMENT.md#building-an-image-from-this-repository).
 
 ### Production Build
 
@@ -259,7 +253,7 @@ npm run deploy:gh # publish build/ to GitHub Pages
 ### Keys
 
 - Key material is generated, encrypted and stored by the SDK in IndexedDB. The application layer holds account metadata and addresses, never a private key.
-- The wallet password decrypts the signer. It is required to open a wallet, to derive an account, to export a keyfile, and to sign once the 15-second signing session has elapsed.
+- The wallet password decrypts the signer. It is required to open a wallet, to derive an account, to export a keyfile, and to sign once the 15-minute signing session has elapsed.
 - The Secret Recovery Phrase is displayed only at creation. There is no recovery: losing the phrase, or the keyfile together with its password, means losing the wallet.
 
 ### Access Control
@@ -356,7 +350,7 @@ Test results: [https://automation.lambdatest.com](https://automation.lambdatest.
 ## Documentation
 
 - **[CONFIGURATION.md](CONFIGURATION.md)** - environment variables, `NETWORKS` parsing and validation, storage, Docker
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - setup with the local SDK, scripts, Docker, CI/CD, troubleshooting
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - setup, the SDK dependency, scripts, Docker, CI/CD, troubleshooting
 - **[docs.asichain.io](https://docs.asichain.io)** - user-facing documentation
 
 ## Contributing
@@ -377,10 +371,10 @@ If you encounter a problem that is not listed, please open a new issue and provi
 - **The app renders a configuration message instead of the UI**: the bundle was built without the build-time check and `NETWORKS` fails validation. The exact reason is in the message and in the `[NETWORKS env]` console output.
 - **`Module not found: Can't resolve '@harmoniclabs/crypto'` during a build**: a transitive Cardano dependency is not installed by `--legacy-peer-deps`. See [DEVELOPMENT.md](DEVELOPMENT.md).
 - **Dependencies will not install**: delete `node_modules` and `package-lock.json`, then retry with `npm install --legacy-peer-deps`.
-- **`@asichain/asi-wallet-sdk` cannot be resolved**: the SDK is not checked out next to this repository or has not been built (`npm run build` in the SDK).
+- **`@asichain/asi-wallet-sdk` cannot be resolved**: dependencies are not installed or the install failed; run `npm install --legacy-peer-deps` again.
 - **Memory error during a build**: `export NODE_OPTIONS=--max_old_space_size=4096`.
 - **Port already in use**: free port 3000 or run `PORT=3001 npm start`.
-- **The password is requested for almost every operation**: expected. The signing session lasts 15 seconds, see [Wallet Session and Auto-Lock](#wallet-session-and-auto-lock).
+- **The password is requested again after a while**: expected. The signing session lasts 15 minutes from unlocking and is not extended by activity, see [Wallet Session and Auto-Lock](#wallet-session-and-auto-lock).
 
 For more detail, see [CONFIGURATION.md](CONFIGURATION.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
 

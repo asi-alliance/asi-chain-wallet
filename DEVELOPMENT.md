@@ -2,7 +2,7 @@
 
 ← [Back to README](README.md)
 
-This guide covers setup, the local SDK dependency, the available scripts, Docker, CI/CD and troubleshooting.
+This guide covers setup, the SDK dependency, the available scripts, Docker, CI/CD and troubleshooting.
 
 For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 
@@ -10,7 +10,7 @@ For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [Working With The Local SDK](#working-with-the-local-sdk)
+3. [Working With The SDK](#working-with-the-sdk)
 4. [Available Scripts](#available-scripts)
 5. [Build Configuration](#build-configuration)
 6. [Docker](#docker)
@@ -24,46 +24,26 @@ For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 - **Node.js**: 18.x (the Docker image builds on `node:18-alpine`, and the toolchain is pinned around `@types/node` 18)
 - **npm**: 8.x or higher
 - **Git**
-- **[asi-chain-wallet-sdk](https://github.com/asi-alliance/asi-chain-wallet-sdk)**: checked out next to this repository and built, see below
 - **Docker** (optional): only needed to run the published image
 
 ## Installation
 
-### 1. Clone Both Repositories Side By Side
-
-`package.json` declares `"@asichain/asi-wallet-sdk": "file:../asi-chain-wallet-sdk"`, so the SDK must sit next to the wallet:
-
-```
-<parent>/
-├── asi-chain-wallet/
-└── asi-chain-wallet-sdk/
-```
+### 1. Clone The Repository
 
 ```bash
 git clone https://github.com/asi-alliance/asi-chain-wallet.git
-git clone https://github.com/asi-alliance/asi-chain-wallet-sdk.git
+cd asi-chain-wallet
 ```
 
-### 2. Build The SDK First
-
-`npm install` in the wallet links the SDK directory as it is; it does not build it. Without `dist/` the wallet cannot resolve the package.
+### 2. Install Dependencies
 
 ```bash
-cd asi-chain-wallet-sdk
-npm install
-npm run build      # tsc -p tsconfig.build.json && rollup -c
-```
-
-### 3. Install The Wallet
-
-```bash
-cd ../asi-chain-wallet
 npm install --legacy-peer-deps
 ```
 
-The `--legacy-peer-deps` flag is required: the dependency tree does not resolve with strict peer dependencies.
+The `--legacy-peer-deps` flag is required: the dependency tree does not resolve with strict peer dependencies. The SDK is installed from the npm registry together with the other dependencies, see [Working With The SDK](#working-with-the-sdk).
 
-### 4. Configure The Environment
+### 3. Configure The Environment
 
 ```bash
 cp .env.example .env
@@ -76,7 +56,7 @@ This step is **not optional**. With an empty `.env` the application does not sta
 
 See [CONFIGURATION.md](CONFIGURATION.md) for every variable and for what each one does.
 
-### 5. Start The Development Server
+### 4. Start The Development Server
 
 ```bash
 npm start
@@ -84,12 +64,13 @@ npm start
 
 The wallet is served at `http://localhost:3000` with hot reload. Use `PORT=3001 npm start` to change the port. The startup log includes `[config-overrides]` lines reporting the parsed `NETWORKS`, and `[NETWORKS env]` warnings for any entry that was skipped or degraded. An invalid `NETWORKS`, including duplicate networks, stops the dev server before it starts.
 
-## Working With The Local SDK
+## Working With The SDK
 
-- The wallet consumes the **built output** of the SDK. After changing SDK sources, rebuild it (`npm run build`) or keep `npm run dev` running there for a rollup watch build, then restart or let the dev server pick up the new files.
+- `package.json` declares `"@asichain/asi-wallet-sdk": "^2.1.0"`, installed from the npm registry; `package-lock.json` pins the exact version that is installed.
+- To try unreleased SDK changes, build the SDK in a local checkout of [asi-chain-wallet-sdk](https://github.com/asi-alliance/asi-chain-wallet-sdk) (`npm run build`) and point the wallet at it temporarily, for example with `npm link`. Restart the dev server after every SDK rebuild, and do not commit a `package.json` or `package-lock.json` that references a local path.
 - The SDK statically imports `node-persist` for its Node storage backend. In the browser it uses IndexedDB, so [config-overrides.js](config-overrides.js) aliases `node-persist` to `false`. Keep that alias when touching the webpack configuration.
 - The SDK is the source of truth for wallet behaviour: session policy, auto-lock, key storage, reservations and history. Before adding an application-side workaround, check whether the SDK already exposes the capability.
-- Changing the SDK version or moving it to a registry package means updating `package.json`, this guide and the Docker notes below.
+- The wallet relies on SDK defaults where it does not configure them, notably the signing session auto-lock (see [The password is requested again after a while](#the-password-is-requested-again-after-a-while)). When upgrading the SDK, update `package.json` and `package-lock.json` and check those defaults against the session notes in the README and in this guide.
 
 ## Available Scripts
 
@@ -157,9 +138,14 @@ The service is named `asi-chain-wallet` and is published on `http://localhost:30
 
 ### Building An Image From This Repository
 
-Not supported as it stands. `Dockerfile` copies `package*.json` into `/app` and runs `npm install --legacy-peer-deps`, which tries to resolve `file:../asi-chain-wallet-sdk` outside the build context and fails. Building locally requires either vendoring the built SDK into the build context and pointing `package.json` at it, or publishing the SDK to a registry.
+```bash
+docker build -t asi-chain-wallet .
+docker run -d -p 3000:80 asi-chain-wallet    # wallet at http://localhost:3000
+```
 
-`start-wallet.sh` predates this: it builds and looks for an `asi-wallet-v2` image and container, while `docker-compose.yml` now runs the published image under a different name, and its messages still mention decommissioned endpoints.
+The build stage runs `npm install --legacy-peer-deps` and `npm run build`, then nginx serves `build/` on port 80. The bundle is built with the `.env` from the build context, or with `.env.example` when there is none, so fill in `.env` before building.
+
+`start-wallet.sh` is outdated: it builds and looks for an `asi-wallet-v2` image and container, while `docker-compose.yml` now runs the published image under a different name, and its messages still mention decommissioned endpoints.
 
 ### docker-entrypoint.sh
 
@@ -228,7 +214,7 @@ Same steps against the CodeBuild project `asi-chain-wallet-prod-frontend`. The p
 
 ### AWS CodeBuild
 
-The actual build and the S3 and CloudFront deployment happen in CodeBuild. `buildspec.example.yml` is an example only and is behind the current tree: it pins Node 16, runs `npm install` without `--legacy-peer-deps`, writes a `.env` that contains `NETWORKS` alone (no bridge variables, no `nodeApiProfile`) and assumes the SDK resolves from the registry. Use it as a shape, not as a working spec.
+The actual build and the S3 and CloudFront deployment happen in CodeBuild. `buildspec.example.yml` is an example only and is behind the current tree: it pins Node 16, runs `npm install` without `--legacy-peer-deps`, and writes a `.env` that contains `NETWORKS` alone (no bridge variables, no `nodeApiProfile`). Use it as a shape, not as a working spec.
 
 ## Building For Production
 
@@ -243,7 +229,7 @@ The build is code split, minified and tree shaken, generates the PWA service wor
 
 ### `Cannot find module '@asichain/asi-wallet-sdk'` or stale SDK behaviour
 
-The SDK is not checked out next to the wallet, or `dist/` is missing or outdated. Run `npm run build` in `asi-chain-wallet-sdk`, then restart the dev server. After a rebuild of the SDK, a running dev server sometimes keeps the old bundle cached; restarting it is the reliable fix.
+The dependencies are not installed or the install failed. Run `npm install --legacy-peer-deps` again and restart the dev server. When the wallet is temporarily linked to a local SDK checkout (see [Working With The SDK](#working-with-the-sdk)), check that its `dist/` is built and up to date; a running dev server sometimes keeps the old SDK bundle cached, and restarting it is the reliable fix.
 
 ### Peer dependency conflicts during install
 
@@ -269,9 +255,9 @@ A bridge variable is missing from `.env`. The bridge constants are evaluated at 
 
 The bundle was built without the build-time check, and `NETWORKS` fails the same validation at startup. The message states the reason. Startup warnings prefixed with `[NETWORKS env]` list the entries that were skipped or degraded.
 
-### The password is requested for almost every operation
+### The password is requested again after a while
 
-Expected. The SDK signing session is configured with a 15-second auto-lock, and it is not extended by activity. To change it locally, adjust `security.autoLockMs` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx); treat it as a security decision, not a convenience setting.
+Expected. The SDK signing session auto-locks 15 minutes after the wallet is unlocked, and it is not extended by activity. The wallet does not pass `security.autoLockMs` to `Client.create` in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx), so the SDK default `DEFAULT_AUTO_LOCK_MS` (900000 ms) applies. To change it, pass `security.autoLockMs` there; treat it as a security decision, not a convenience setting.
 
 ### Logged out after a page reload
 
@@ -287,7 +273,7 @@ Both are refreshed every 30 seconds through RTK Query and invalidated after a de
 docker-compose logs asi-chain-wallet
 ```
 
-Common causes: port 3000 already in use, or an attempt to build the image from this repository (see [Docker](#docker)).
+A common cause is port 3000 already being in use.
 
 ### PWA not installing
 
