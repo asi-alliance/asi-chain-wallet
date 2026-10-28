@@ -110,7 +110,7 @@ The Bridge page locks ASI tokens on ASI Chain for transfer to another chain.
 
 **The inbound direction is not exposed.** Locking on an external chain and releasing on ASI Chain is not reachable from the UI: the source selector is static, so although the page still contains the EVM, Cosmos and Cardano lock paths, nothing can select those chains as the source. Restoring the inbound flow means exposing the source selector again and wiring the release side; until then the Bridge page is outbound only.
 
-All bridge parameters (route ids, bridge addresses, token addresses, RPC and REST endpoints) come from environment variables. They are read at module load and the application does not start if one of them is missing - see [CONFIGURATION.md](CONFIGURATION.md).
+All bridge parameters (route ids, bridge addresses, token addresses, RPC and REST endpoints) come from environment variables - see [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Built on the ASI Wallet SDK
 
