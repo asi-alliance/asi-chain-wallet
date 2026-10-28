@@ -1,18 +1,20 @@
 import { CSSProperties, ReactElement } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
 import styled from "styled-components";
 import { Button } from "components/Button";
 import { ReloadIcon } from "components/Icons";
-import { formatBalanceCard } from "utils/balanceUtils";
-import { Account } from "types/wallet";
+import { BALANCE_PLACEHOLDER, formatBalanceCard } from "utils/balanceUtils";
 
 interface IAccountBalanceProps {
-    account: Account;
+    balance?: string;
+    loading?: boolean;
+    onRefresh?: () => void;
     isSelected?: boolean;
+    /** Dark amount text for surface cards (Wallet Current); default is brand green. */
+    neutralAmount?: boolean;
+    compactLabel?: boolean;
     style?: CSSProperties;
-    onBalanceUpdate?: () => void;
+    refreshButtonId?: string;
+    refreshAriaLabel?: string;
 }
 
 const AmountBalanceCard = styled.div`
@@ -24,27 +26,54 @@ const AmountBalanceWrapper = styled.div`
     align-items: center;
 `;
 
-const AccountBalanceBlock = styled.span<{ $isSelected: boolean }>`
-    font-size: 3rem;
+const amountColor = ({
+    $isSelected,
+    $neutralAmount,
+    theme,
+}: {
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+    theme: {
+        colors: { primary: string; background: { secondary: string } };
+        control: { neutralText: string };
+    };
+}): string => {
+    if ($isSelected) {
+        return theme.colors.background.secondary;
+    }
+
+    return $neutralAmount ? theme.control.neutralText : theme.colors.primary;
+};
+
+const AccountBalanceBlock = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
+    font-size: ${({ theme }) => theme.typography.size.displayLarge};
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
     margin-right: 4px;
 `;
 
-const AccountCurrency = styled.span<{ $isSelected: boolean }>`
+const AccountCurrency = styled.span<{
+    $isSelected: boolean;
+    $neutralAmount: boolean;
+}>`
     font-size: 1.5rem;
     font-weight: 700;
-    color: ${({ $isSelected, theme }) =>
-        !$isSelected
-            ? theme.colors.primary
-            : theme.colors.background.secondary};
+    color: ${amountColor};
 `;
 
-const LabelFirst = styled.div<{ $isSelected: boolean }>`
-    font-weight: 400;
+const LabelFirst = styled.div<{
+    $isSelected: boolean;
+    $compact: boolean;
+}>`
+    font-size: ${({ $compact, theme }) =>
+        $compact ? theme.typography.size.xs : "inherit"};
+    line-height: ${({ $compact, theme }) =>
+        $compact ? theme.typography.lineHeight.xs : "inherit"};
+    font-weight: ${({ $compact, theme }) =>
+        $compact ? theme.typography.weight.bold : 400};
     color: ${({ $isSelected, theme }) =>
         !$isSelected ? theme.text.primary : theme.colors.background.secondary};
 `;
@@ -55,49 +84,48 @@ const CustomReloadIcon = styled(ReloadIcon)<{ $isSelected: boolean }>`
 `;
 
 export const AccountBalance = ({
-    account,
+    balance,
+    loading = false,
+    onRefresh,
     isSelected = false,
+    neutralAmount = false,
+    compactLabel = false,
     style,
-    onBalanceUpdate,
+    refreshButtonId,
+    refreshAriaLabel = "Refresh Balance",
 }: IAccountBalanceProps): ReactElement => {
-    const dispatch = useDispatch();
-    const { selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
-
-    const { amount, currency } = formatBalanceCard(account.balance);
-
-    const handleRefreshBalance = () => {
-        dispatch(
-            fetchBalance({
-                account,
-                network: selectedNetwork,
-                forceRefresh: true,
-            }) as any,
-        );
-        onBalanceUpdate?.();
-    };
+    const { amount, currency } = formatBalanceCard(balance ?? "0");
 
     return (
         <AmountBalanceCard className="account-balance-card" style={style}>
             <AmountBalanceWrapper className="amount-balance-wrapper">
                 <div className="amount-balance-info-wrapper">
-                    <AccountBalanceBlock $isSelected={isSelected}>
-                        {amount}
+                    <AccountBalanceBlock
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
+                        {balance === undefined ? BALANCE_PLACEHOLDER : amount}
                     </AccountBalanceBlock>
-                    <AccountCurrency $isSelected={isSelected}>
+                    <AccountCurrency
+                        $isSelected={isSelected}
+                        $neutralAmount={neutralAmount}
+                    >
                         {currency}
                     </AccountCurrency>
                 </div>
                 <Button
-                    id={`refresh-balance-account-${account.id}`}
-                    title="Refresh Balance"
+                    type="button"
+                    id={refreshButtonId}
+                    title={refreshAriaLabel}
+                    aria-label={refreshAriaLabel}
                     variant="icon-button-ghost"
+                    disabled={!onRefresh}
                     onClick={(e) => {
                         e.stopPropagation();
-                        handleRefreshBalance();
+                        onRefresh?.();
                     }}
-                    loading={isLoading}
+                    loading={loading}
+                    spinIconOnLoading
                     withFadeHover
                 >
                     <CustomReloadIcon
@@ -107,7 +135,9 @@ export const AccountBalance = ({
                 </Button>
             </AmountBalanceWrapper>
 
-            <LabelFirst $isSelected={isSelected}>Balance</LabelFirst>
+            <LabelFirst $isSelected={isSelected} $compact={compactLabel}>
+                Balance
+            </LabelFirst>
         </AmountBalanceCard>
     );
 };

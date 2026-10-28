@@ -1,29 +1,66 @@
-import React, { useState, useEffect, useMemo, Fragment } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useState, Fragment, useEffect } from "react";
+import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccounts,
+    selectActiveWallet,
+    selectIsAnyAccountBalanceFetching,
+} from "store/WalletsStore";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
 import { Card, CardHeader, CardTitle, CardContent, Button } from "components";
 import { ReloadIcon } from "components/Icons";
-import { AccountCard } from "components/AccountCard";
-import { Account } from "types/wallet";
-import { FirstAccountCreatingWidget } from "components/FirstAccountCreatingWidget";
+import { AccountCard, ACCOUNT_CARD_WIDTH_PX } from "components/AccountCard";
+import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { useSearchParams } from "react-router-dom";
-import { CreateAccountModal } from "components/CreateAccountModal";
-import { ImportAccountModal } from "components/ImportAccountModal";
-import { useScreen } from "hooks/";
+import { DeriveAccountModal } from "components/DeriveAccountModal";
+import { ExportWalletKeyfileModal } from "components/ExportWalletKeyfileModal";
+import { ImportHdWalletModal } from "components/ImportHdWalletModal";
+import { ImportPkWalletModal } from "components/ImportPkWalletModal";
+import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
+import { DeleteAccountModal } from "components/DeleteAccountModal";
+import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { TRemoveAccountRequest } from "components/RemoveAccountButton";
+import {
+    useDeleteAccount,
+    useDeleteActiveWallet,
+    useIsAnyWalletDeleteInProgress,
+    useScreen,
+} from "hooks/";
+import { FirstHdWalletCreatingWidget } from "components/FirstHdWalletCreatingWidget";
+import { WalletTypes } from "@asichain/asi-wallet-sdk";
+
+type ImportMode = "wallet" | "private-key" | "keyfile";
 
 const AccountsContainer = styled.div``;
 
+const AccountSection = styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const AccountSectionHeading = styled.h2`
+    margin: 0;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.lg};
+    font-weight: ${({ theme }) => theme.typography.weight.semibold};
+    line-height: ${({ theme }) => theme.typography.lineHeight.lg};
+    color: ${({ theme }) => theme.text.primary};
+`;
+
 const AccountsGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(462px, 1fr));
-    gap: 20px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(100%, ${ACCOUNT_CARD_WIDTH_PX}px), 1fr)
+    );
+    gap: ${({ theme }) => theme.spacing["2xl"]};
+    margin-bottom: ${({ theme }) => theme.spacing["4xl"]};
     max-height: 65vh;
     overflow-y: auto;
-    padding: 6px 0;
-
+    padding: ${({ theme }) => theme.spacing.sm} 0;
+    justify-items: start;
     align-items: start;
 
     & > * {
@@ -31,229 +68,324 @@ const AccountsGrid = styled.div`
         flex-shrink: 0;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         display: flex;
         flex-direction: column;
+        justify-items: stretch;
 
         & > * {
             width: 100%;
+            max-width: none;
         }
     }
 `;
 
 const AccountsActionsFooter = styled.div`
     width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.xl};
+    max-width: 860px;
+    margin: 0 auto;
 
-    @media (max-width: 768px) {
-        flex-direction: column;
-        padding: 0 3rem;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: 1fr;
     }
 `;
 
 const InlineButton = styled(Button)`
-    height: 44px;
-    min-width: 242px;
+    height: ${({ theme }) => theme.sizes.control.field};
+    min-width: 0;
+    width: 100%;
 
-    @media (max-width: 768px) {
-        min-width: auto;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         width: 100%;
     }
 `;
 
+const BackupAction = styled.div`
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: ${({ theme }) => theme.spacing.sm};
+    padding-top: ${({ theme }) => theme.spacing.md};
+`;
+
+const BackupLabel = styled.span`
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+`;
+
 export const Accounts: React.FC = () => {
-    const dispatch = useDispatch();
-    const { accounts, selectedNetwork, isLoading } = useSelector(
-        (state: RootState) => state.wallet,
-    );
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const activeWallet: IUnlockedWalletMeta | null =
+        useSelector(selectActiveWallet);
+    const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
+    const deleteWallet = useDeleteActiveWallet();
+    const deleteAccount = useDeleteAccount();
+    // Covers this page, HeaderBar, and MobileNav Delete Wallet instances.
+    const isWalletDeleteInProgress = useIsAnyWalletDeleteInProgress();
 
     const { isLaptop } = useScreen();
 
     const [searchParams] = useSearchParams();
     const actionParam: string | null = searchParams.get("action");
 
-    const selectedNetworkId = selectedNetwork?.id;
-    const filteredAccounts = useMemo(
-        () =>
-            selectedNetworkId
-                ? accounts.filter(
-                      (account: Account) =>
-                          account.networkId === selectedNetworkId,
-                  )
-                : accounts,
-        [accounts, selectedNetworkId],
-    );
-
     const [showCreateModal, setShowCreateModal] = useState(
         actionParam === "create-account",
     );
-    const [showImportModal, setShowImportModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [importMode, setImportMode] = useState<ImportMode | null>(null);
+    const [exportWalletId, setExportWalletId] = useState<string | null>(null);
+    const [deleteWalletMessage, setDeleteWalletMessage] = useState<
+        string | undefined
+    >();
 
-    const filteredAccountIds = useMemo(
-        () => filteredAccounts.map((account: Account) => account.id).join(","),
-        [filteredAccounts],
-    );
-
-    useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            const timeoutId = setTimeout(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
-                });
-            }, 100);
-
-            return () => clearTimeout(timeoutId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
+    const canDeriveAccount =
+        !!activeWallet && activeWallet.type !== WalletTypes.PRIVATE_KEY;
+    const primaryAccount = canDeriveAccount
+        ? (accounts.find((account) => account.index === 0) ?? accounts[0])
+        : accounts[0];
+    const subAccounts = canDeriveAccount
+        ? accounts.filter((account) => account.id !== primaryAccount?.id)
+        : [];
+    const hasSubAccounts: boolean = !!subAccounts.length;
 
     useEffect(() => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            const interval = setInterval(() => {
-                filteredAccounts.forEach((account: Account) => {
-                    dispatch(
-                        fetchBalance({
-                            account,
-                            network: selectedNetwork,
-                        }) as any,
-                    );
-                });
-            }, 30000);
-            return () => clearInterval(interval);
+        if (canDeriveAccount || !showCreateModal) {
+            return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNetwork?.id, filteredAccountIds]);
+
+        setShowCreateModal(false);
+    }, [canDeriveAccount, showCreateModal]);
 
     const handleRefreshBalances = () => {
-        if (filteredAccounts.length > 0 && selectedNetwork) {
-            filteredAccounts.forEach((account: Account) => {
-                dispatch(
-                    fetchBalance({
-                        account,
-                        network: selectedNetwork,
-                        forceRefresh: true,
-                    }) as any,
-                );
-            });
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account: IUnlockedAccountMeta) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
+            ),
+        );
+    };
+
+    const handleRequestDelete = (request: TRemoveAccountRequest): void => {
+        if (request.type === "wallet") {
+            setDeleteWalletMessage(request.message);
+            deleteWallet.open();
+
+            return;
         }
+
+        deleteAccount.open(request.target);
+    };
+
+    const handleCloseDeleteWallet = (): void => {
+        if (!deleteWallet.close()) {
+            return;
+        }
+
+        setDeleteWalletMessage(undefined);
+    };
+
+    const handleOpenExport = (): void => {
+        if (!activeWallet) {
+            return;
+        }
+
+        setExportWalletId(activeWallet.id);
+        setShowExportModal(true);
+    };
+
+    const handleCloseExport = (): void => {
+        setShowExportModal(false);
+        setExportWalletId(null);
     };
 
     return (
         <Fragment>
             <AccountsContainer>
-                {filteredAccounts.length === 0 && (
-                    <FirstAccountCreatingWidget />
+                {accounts.length === 0 && !isWalletDeleteInProgress && (
+                    <FirstHdWalletCreatingWidget />
                 )}
-                {filteredAccounts.length > 0 && (
-                    <Card style={{ marginBottom: "32px" }}>
+                {accounts.length > 0 && (
+                    <Card
+                        style={{ marginBottom: "32px" }}
+                        role="region"
+                        aria-label="Your Wallet"
+                    >
                         <CardHeader>
-                            <CardTitle>
-                                Your Accounts ({filteredAccounts.length})
-                            </CardTitle>
+                            <CardTitle>Your Wallet</CardTitle>
                             <Button
                                 title="Refresh Balances"
+                                aria-label="Refresh Balances"
                                 variant="icon-button-ghost"
                                 onClick={handleRefreshBalances}
                                 loading={isLoading}
+                                spinIconOnLoading
                                 withFadeHover
                             >
                                 <ReloadIcon />
                             </Button>
                         </CardHeader>
                         <CardContent>
-                            <AccountsGrid className="accounts-grid">
-                                {filteredAccounts.map((account: Account) => (
+                            {primaryAccount && (
+                                <AccountsGrid className="accounts-grid">
                                     <AccountCard
-                                        key={account.id}
-                                        account={account}
+                                        key={primaryAccount.id}
+                                        account={primaryAccount}
+                                        onRequestDelete={handleRequestDelete}
                                     />
-                                ))}
-                            </AccountsGrid>
-                            <AccountsActionsFooter>
-                                <InlineButton
-                                    id="create-account-button"
-                                    onClick={() => setShowCreateModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Create Account </h3>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
-                                            fill="currentcolor"
-                                        />
-                                    </svg>
-                                </InlineButton>
-                                <InlineButton
-                                    id="import-account-button"
-                                    variant="secondary"
-                                    onClick={() => setShowImportModal(true)}
-                                    fullWidth={isLaptop}
-                                    style={{
-                                        flexWrap: "nowrap",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    <h3>Import Account</h3>
-                                    <svg
-                                        width="24"
-                                        height="24"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <g clipPath="url(#clip0_3_1930)">
-                                            <path
-                                                d="M12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3ZM12 16L16 12H13V3H11V12H8L12 16ZM21 3H15V4.99H21V19.02H3V4.99H9V3H3C1.9 3 1 3.9 1 5V19C1 20.1 1.9 21 3 21H21C22.1 21 23 20.1 23 19V5C23 3.9 22.1 3 21 3Z"
-                                                fill="currentcolor"
+                                </AccountsGrid>
+                            )}
+                            {hasSubAccounts && (
+                                <AccountSection aria-label="Your sub-accounts">
+                                    <AccountSectionHeading>
+                                        Your sub-accounts ({subAccounts.length})
+                                    </AccountSectionHeading>
+                                    <AccountsGrid className="accounts-grid">
+                                        {subAccounts.map((account) => (
+                                            <AccountCard
+                                                key={account.id}
+                                                account={account}
+                                                onRequestDelete={
+                                                    handleRequestDelete
+                                                }
                                             />
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_3_1930">
-                                                <rect
-                                                    width="24"
-                                                    height="24"
+                                        ))}
+                                    </AccountsGrid>
+                                </AccountSection>
+                            )}
+                            {!!activeWallet && (
+                                <AccountsActionsFooter>
+                                    {canDeriveAccount && (
+                                        <InlineButton
+                                            id="accounts-create-account-button"
+                                            onClick={() =>
+                                                setShowCreateModal(true)
+                                            }
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Create Account </h3>
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    d="M14 8H8V14H6V8H0L0 6H6V0L8 0V6H14V8Z"
                                                     fill="currentcolor"
                                                 />
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </InlineButton>
-                            </AccountsActionsFooter>
+                                            </svg>
+                                        </InlineButton>
+                                    )}
+                                    <InlineButton
+                                        id="accounts-import-wallet-button"
+                                        variant="secondary"
+                                        onClick={() => setImportMode("wallet")}
+                                    >
+                                        Import Wallet
+                                    </InlineButton>
+                                    <InlineButton
+                                        id="accounts-import-private-key-button"
+                                        variant="secondary"
+                                        onClick={() =>
+                                            setImportMode("private-key")
+                                        }
+                                    >
+                                        Import Private Key
+                                    </InlineButton>
+                                    <InlineButton
+                                        id="accounts-import-keyfile-button"
+                                        variant="secondary"
+                                        onClick={() => setImportMode("keyfile")}
+                                    >
+                                        Import Wallet from keyfile
+                                    </InlineButton>
+                                    <BackupAction>
+                                        <BackupLabel>Wallet backup</BackupLabel>
+                                        <InlineButton
+                                            id="export-wallet-keyfile-button"
+                                            variant="secondary"
+                                            onClick={handleOpenExport}
+                                            fullWidth={isLaptop}
+                                            style={{
+                                                flexWrap: "nowrap",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            <h3>Export Keyfile</h3>
+                                        </InlineButton>
+                                    </BackupAction>
+                                </AccountsActionsFooter>
+                            )}
                         </CardContent>
                     </Card>
                 )}
             </AccountsContainer>
-            <CreateAccountModal
-                isOpen={showCreateModal}
+            <DeriveAccountModal
+                isOpen={showCreateModal && canDeriveAccount}
                 onClose={() => setShowCreateModal(false)}
                 onSuccess={() => {
-                    console.info("Account created successfully");
+                    setShowCreateModal(false);
                 }}
             />
-
-            <ImportAccountModal
-                isOpen={showImportModal}
-                onClose={() => setShowImportModal(false)}
-                onSuccess={() => {
-                    console.info("Account imported successfully");
-                }}
+            {importMode === "wallet" && (
+                <ImportHdWalletModal
+                    isOpen
+                    onClose={() => setImportMode(null)}
+                    onCancel={() => setImportMode(null)}
+                />
+            )}
+            {importMode === "private-key" && (
+                <ImportPkWalletModal
+                    isOpen
+                    onClose={() => setImportMode(null)}
+                    onCancel={() => setImportMode(null)}
+                />
+            )}
+            {importMode === "keyfile" && (
+                <ImportKeyfileWalletModal
+                    isOpen
+                    onClose={() => setImportMode(null)}
+                    onCancel={() => setImportMode(null)}
+                />
+            )}
+            {!!exportWalletId && (
+                <ExportWalletKeyfileModal
+                    isOpen={showExportModal}
+                    walletId={exportWalletId}
+                    onClose={handleCloseExport}
+                />
+            )}
+            <DeleteAccountModal
+                isOpen={deleteAccount.isOpen}
+                accountName={deleteAccount.target?.accountName ?? ""}
+                isDeleting={deleteAccount.isDeleting}
+                error={deleteAccount.error}
+                onConfirm={deleteAccount.confirm}
+                onCancel={deleteAccount.close}
+            />
+            <DeleteWalletModal
+                isOpen={deleteWallet.isOpen}
+                isDeleting={deleteWallet.isDeleting}
+                error={deleteWallet.error}
+                onConfirm={deleteWallet.confirm}
+                onCancel={handleCloseDeleteWallet}
+                title="Delete Wallet"
+                confirmLabel="Delete Wallet"
+                message={deleteWalletMessage}
+                idPrefix="accounts-"
             />
         </Fragment>
     );

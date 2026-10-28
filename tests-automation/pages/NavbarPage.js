@@ -6,7 +6,7 @@ class NavbarPage extends BasePage {
     }
 
     get networkSelector(){
-        return $("#mobile-header-network-selector");
+        return $("#header-network-selector");
     }
 
     get sendBtn() {
@@ -93,8 +93,8 @@ class NavbarPage extends BasePage {
     }
 
     async isSettingsPageDisplayed() {
-        return await $("//h3[contains(., 'Network Settings')]").isDisplayed() &&
-               await $("//h3[contains(., 'Predefined Networks')]").isDisplayed();
+        return await $("//h1[contains(., 'Add Custom Network')]").isDisplayed() &&
+               await $("//h1[contains(., 'Existing Custom Networks')]").isDisplayed();
     }
 }
 

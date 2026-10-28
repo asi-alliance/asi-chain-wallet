@@ -1,186 +1,129 @@
-import React, { useEffect, useMemo } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React, { useMemo } from "react";
+import { useSelector } from "react-redux";
 import styled from "styled-components";
 import { RootState } from "store";
-import { fetchBalance } from "store/walletSlice";
-import { Card, CardHeader, CardTitle, Button, CardContent } from "components";
+import {
+    selectAccounts,
+    selectIsAccountUnlocked,
+    selectSelectedAccount,
+    selectSelectedNetworkId,
+} from "store/WalletsStore";
+import {
+    IAccountQueryArgs,
+    IHistoryQueryArgs,
+    useGetBalanceQuery,
+    useGetTransactionHistoryQuery,
+} from "store/WalletsStore/api";
+import { skipToken } from "@reduxjs/toolkit/query/react";
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    VisuallyHidden,
+} from "components";
 import { useNavigate } from "react-router-dom";
-import TransactionHistoryService from "../../services/transactionHistory";
 import { AccountCard } from "components/AccountCard";
 import { buildUrlWithParams } from "utils/navigationUtils";
-import { HistoryIcon, VectorIcon } from "components/Icons";
-import { useScreen } from "hooks/";
-
+import { HistoryIcon, ReceiveIcon, SendIcon } from "components/Icons";
+import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
+import { useScreen } from "hooks";
 import { AccountSelector } from "components/AccountSelector";
 
 const DashboardContainer = styled.div`
     display: block;
+    max-width: ${({ theme }) => theme.layout.contentWide};
+    margin: 0 auto;
 
-    @media (min-width: 1023px) {
+    @media (min-width: ${({ theme }) => theme.breakpoints.laptop}) {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 24px;
+        gap: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
 const ActionButtons = styled.div`
     display: flex;
-    gap: 16px;
-    margin-top: 24px;
+    gap: ${({ theme }) => theme.spacing.xl};
+    margin-top: ${({ theme }) => theme.spacing["3xl"]};
 `;
 
 const ContentHeader = styled.div`
     width: 100%;
     display: flex;
-    align-items: end;
+    align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 71px;
+    gap: ${({ theme }) => theme.spacing.xl};
+    margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
 
-    @media (max-width: 1023px) {
-        margin-bottom: 24px;
+    > :first-child {
+        flex: 1;
+        min-width: 0;
     }
 `;
 
 const ActionsToolbar = styled.div`
     display: flex;
-    padding: 0 20px;
     justify-content: center;
     align-items: center;
-    gap: 16px;
+    gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const ActionButton = styled(Button)`
+    min-width: 150px;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        min-width: 0;
+        flex: 1;
+    }
 `;
 
 const CustomAccountCard = styled(AccountCard)`
-    @media (max-width: 1023px) {
-        margin-bottom: 25px;
+    max-width: none;
+
+    /* Stack margin only below the two-column grid (min-width: laptop). */
+    @media (max-width: ${({ theme }) =>
+            `${Number.parseInt(theme.breakpoints.laptop, 10) - 1}px`}) {
+        margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
     }
 `;
 
 export const Dashboard: React.FC = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { selectedAccount, selectedNetwork, accounts } = useSelector(
-        (state: RootState) => state.wallet,
+    const selectedAccount = useSelector(selectSelectedAccount);
+    const accounts = useSelector(selectAccounts);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isAccountUnlocked = useSelector((state: RootState) =>
+        selectedAccount
+            ? selectIsAccountUnlocked(state, selectedAccount.id)
+            : false,
     );
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
 
+    // isLaptop is true at mobile widths (≤768px); View All is desktop-only (Current p26/p27).
     const { isLaptop } = useScreen();
 
-    const isAccountUnlocked = useMemo(() => {
-        if (!selectedAccount) return false;
-        return unlockedAccounts.some(
-            (account) => account.id === selectedAccount.id,
-        );
-    }, [unlockedAccounts, selectedAccount]);
+    const balanceArgs: IAccountQueryArgs | typeof skipToken =
+        selectedAccount && isAccountUnlocked
+            ? { accountId: selectedAccount.id, networkId }
+            : skipToken;
 
-    useEffect(() => {
-        if (
-            selectedAccount &&
-            selectedAccount.revAddress &&
-            selectedNetwork &&
-            isAccountUnlocked
-        ) {
-            const oldBalance = selectedAccount.balance || "0";
+    const historyArgs: IHistoryQueryArgs | typeof skipToken =
+        selectedAccount && isAccountUnlocked
+            ? {
+                  accountId: selectedAccount.id,
+                  networkId,
+                  source: "all",
+              }
+            : skipToken;
 
-            if (selectedNetwork.graphqlUrl) {
-                TransactionHistoryService.syncFromBlockchain(
-                    selectedAccount.revAddress,
-                    selectedAccount.publicKey,
-                    selectedNetwork.name,
-                    selectedNetwork.graphqlUrl,
-                )
-                    .then((result) => {
-                        if (result.added > 0 || result.updated > 0) {
-                            console.info(
-                                `[Dashboard] Synced ${result.added} new, ${result.updated} updated transactions from blockchain`,
-                            );
-                        }
-                    })
-                    .catch((error) => {
-                        console.error(
-                            "[Dashboard] Error syncing from blockchain:",
-                            error,
-                        );
-                    });
-            }
-
-            if (selectedNetwork.readOnlyUrl) {
-                dispatch(
-                    fetchBalance({
-                        account: selectedAccount,
-                        network: selectedNetwork,
-                    }) as any,
-                ).then((result: any) => {
-                    if (result.payload) {
-                        const newBalance = result.payload.balance;
-
-                        if (parseFloat(newBalance) > parseFloat(oldBalance)) {
-                            try {
-                                TransactionHistoryService.detectReceivedTransaction(
-                                    selectedAccount.revAddress,
-                                    oldBalance,
-                                    newBalance,
-                                    selectedNetwork.name,
-                                );
-                            } catch (error) {
-                                console.error(
-                                    `[Dashboard] Error detecting received transaction for ${selectedAccount.name}:`,
-                                    error,
-                                );
-                            }
-                        }
-                    }
-                });
-            }
-        }
-    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
-
-    useEffect(() => {
-        if (
-            selectedAccount &&
-            selectedAccount.revAddress &&
-            selectedNetwork &&
-            isAccountUnlocked &&
-            selectedNetwork.readOnlyUrl
-        ) {
-            const interval = setInterval(() => {
-                if (selectedAccount && selectedAccount.revAddress) {
-                    const oldBalance = selectedAccount.balance || "0";
-
-                    dispatch(
-                        fetchBalance({
-                            account: selectedAccount,
-                            network: selectedNetwork,
-                        }) as any,
-                    ).then((result: any) => {
-                        if (result.payload) {
-                            const newBalance = result.payload.balance;
-
-                            if (
-                                parseFloat(newBalance) > parseFloat(oldBalance)
-                            ) {
-                                try {
-                                    TransactionHistoryService.detectReceivedTransaction(
-                                        selectedAccount.revAddress,
-                                        oldBalance,
-                                        newBalance,
-                                        selectedNetwork.name,
-                                    );
-                                } catch (error) {
-                                    console.error(
-                                        `[Dashboard Auto-refresh] Error detecting received transaction for ${selectedAccount.name}:`,
-                                        error,
-                                    );
-                                }
-                            }
-                        }
-                    });
-                }
-            }, 30000); // 30 seconds
-
-            return () => clearInterval(interval);
-        }
-    }, [dispatch, selectedAccount, selectedNetwork, isAccountUnlocked]);
+    // Keep balance/history caches warm for Wallet and Transactions.
+    useGetBalanceQuery(balanceArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
+    useGetTransactionHistoryQuery(historyArgs, {
+        pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS,
+    });
 
     const accountIdForActions = useMemo(
         () => selectedAccount?.id ?? accounts[0]?.id,
@@ -190,6 +133,7 @@ export const Dashboard: React.FC = () => {
     if (!selectedAccount) {
         return (
             <div>
+                <VisuallyHidden as="h1">Wallet</VisuallyHidden>
                 <Card>
                     <CardHeader>
                         <CardTitle>Welcome to ASI Wallet</CardTitle>
@@ -225,6 +169,7 @@ export const Dashboard: React.FC = () => {
 
     return (
         <div>
+            <VisuallyHidden as="h1">Wallet</VisuallyHidden>
             <DashboardContainer>
                 <CustomAccountCard account={selectedAccount} fullMode={false} />
                 <Card>
@@ -233,49 +178,40 @@ export const Dashboard: React.FC = () => {
                             <AccountSelector fullWidth />
                             {!isLaptop && (
                                 <Button
-                                    id="import-account-button"
+                                    id="view-all-accounts-button"
                                     variant="secondary"
                                     onClick={() => navigate("/accounts")}
-                                    style={{
-                                        padding: "8px 0px",
-                                        minWidth: "136px",
-                                    }}
                                 >
-                                    <h3>View all</h3>
+                                    View All
                                 </Button>
                             )}
                         </ContentHeader>
-                        <ActionsToolbar>
-                            <Button
+                        <ActionsToolbar aria-label="Wallet actions">
+                            <ActionButton
                                 id="send-action-button"
                                 onClick={() =>
                                     handleRedirectToAccountAction("/send")
                                 }
                                 fullWidth={false}
-                                style={isLaptop ? {} : { minWidth: "150px" }}
                             >
-                                <h3>Send</h3>
-                                <VectorIcon />
-                            </Button>
-                            <Button
+                                Send
+                                <SendIcon />
+                            </ActionButton>
+                            <ActionButton
                                 id="receive-action-button"
                                 onClick={() =>
                                     handleRedirectToAccountAction("/receive")
                                 }
                                 fullWidth={false}
-                                style={isLaptop ? {} : { minWidth: "150px" }}
                             >
-                                <h3>Receive</h3>
-                                <div style={{ transform: "rotate(180deg)" }}>
-                                    <VectorIcon />
-                                </div>
-                            </Button>
+                                Receive
+                                <ReceiveIcon />
+                            </ActionButton>
                             <Button
                                 id="history-button"
                                 title="View transaction history"
-                                onClick={() => {
-                                    navigate("/history");
-                                }}
+                                aria-label="History"
+                                onClick={() => navigate("/history")}
                                 variant="icon-button-black"
                                 fullWidth={false}
                                 secondaryHover

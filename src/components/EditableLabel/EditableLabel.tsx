@@ -2,6 +2,7 @@ import React, {
     useState,
     useRef,
     useEffect,
+    useId,
     CSSProperties,
     MouseEvent,
 } from "react";
@@ -15,7 +16,7 @@ export interface EditableLabelProps extends Omit<
     "onChange" | "ref" | "labelStyle" | "onClick" | "onCancel"
 > {
     label: string;
-    onSave: (newLabel: string) => void;
+    onSave: (newLabel: string) => void | Promise<void>;
     disabled?: boolean;
     placeholder?: string;
     inputSize?: "small" | "medium" | "large";
@@ -96,6 +97,7 @@ const ErrorMessage = styled.span`
     font-weight: 500;
     color: ${({ theme }) => theme.danger};
     margin-top: 6px;
+    z-index: 1;
     animation: slideIn 0.2s ease;
 
     @keyframes slideIn {
@@ -180,11 +182,19 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     isValid = true,
     onChange,
     onCancel,
+    "aria-label": ariaLabel,
     ...props
 }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [value, setValue] = useState(label);
     const inputRef = useRef<HTMLInputElement>(null);
+    // Sync guard for double Enter before re-render with isSaving.
+    const isSavingRef = useRef(false);
+    const errorMessageRef = useRef(errorMessage);
+    errorMessageRef.current = errorMessage;
+    const errorId = useId();
+    const inputAriaLabel = ariaLabel ?? "Edit label";
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -199,18 +209,36 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (isSavingRef.current) {
+            return;
+        }
+
         if (!value.trim() || value === label) {
-            setIsEditing(false);
+            handleCancel();
 
             return;
         }
 
-        onSave(value.trim());
-        setIsEditing(false);
+        isSavingRef.current = true;
+        setIsSaving(true);
+
+        try {
+            await onSave(value.trim());
+            setIsEditing(false);
+        } catch {
+            // Keep editing; parent surfaces the failure via errorMessage.
+        } finally {
+            isSavingRef.current = false;
+            setIsSaving(false);
+        }
     };
 
     const handleCancel = () => {
+        if (isSavingRef.current) {
+            return;
+        }
+
         setValue(label);
         setIsEditing(false);
 
@@ -224,9 +252,11 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === "Escape") {
             handleCancel();
+
+            return;
         }
 
-        if (!isValid) {
+        if (!isValid || isSavingRef.current) {
             return;
         }
 
@@ -242,6 +272,12 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
     };
 
     const handleBlur = () => {
+        // Keep failed/pending save visible without stealing focus back from
+        // other controls (e.g. selecting another account card).
+        if (isSavingRef.current || errorMessageRef.current) {
+            return;
+        }
+
         handleCancel();
     };
 
@@ -267,13 +303,13 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
         height: "30px",
     };
 
-    const currentErrorMessage: string | undefined = !isValid
-        ? errorMessage
-        : undefined;
+    const currentErrorMessage: string | undefined = errorMessage;
 
     if (isEditing && !disabled) {
         return (
-            <InlineEditableInputContainer>
+            <InlineEditableInputContainer
+                onClick={(event) => event.stopPropagation()}
+            >
                 <InlineEditableInput
                     inputRef={inputRef}
                     value={value}
@@ -289,22 +325,40 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
                     wrapperStyle={{ marginBottom: "0" }}
                     className={`inline-editable-input ${inputClassName} ${propsInputClassname}`}
                     withoutHoverUI
+                    disabled={isSaving}
                     {...otherProps}
+                    aria-label={inputAriaLabel}
+                    aria-invalid={currentErrorMessage ? true : undefined}
+                    aria-describedby={
+                        currentErrorMessage ? errorId : undefined
+                    }
                 />
                 {!!currentErrorMessage && (
-                    <ErrorMessage>{currentErrorMessage}</ErrorMessage>
+                    <ErrorMessage
+                        id={errorId}
+                        role="alert"
+                        onMouseDown={(event) => {
+                            // Prevent input blur→cancel when pressing the error text.
+                            event.preventDefault();
+                        }}
+                    >
+                        {currentErrorMessage}
+                    </ErrorMessage>
                 )}
             </InlineEditableInputContainer>
         );
     }
 
     return (
-        <EditableContainer>
+        <EditableContainer onClick={(event) => event.stopPropagation()}>
             <LabelDisplay
                 $isSelected={isSelected}
                 $disabled={disabled}
                 className={`editable-label-text ${labelClassName || ""}`}
-                onClick={handleEditClick}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    handleEditClick();
+                }}
                 style={labelStyle}
                 data-testid={dataTestId ? `${dataTestId}-label` : undefined}
             >
@@ -312,14 +366,14 @@ export const EditableLabel: React.FC<EditableLabelProps> = ({
             </LabelDisplay>
             {!disabled && (
                 <EditButton
-                    title="Edit"
+                    title={`Edit ${label}`}
                     $isSelected={isSelected}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleEditClick();
                     }}
                     disabled={disabled}
-                    aria-label="Edit label"
+                    aria-label={`Edit ${label}`}
                 >
                     <EditIcon color="currentColor" size={14} />
                 </EditButton>

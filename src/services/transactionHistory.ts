@@ -310,14 +310,14 @@ class TransactionHistoryService {
     newBalance: string,
     network: string
   ): Transaction | null {
-    const prevBalanceNum = BigInt(previousBalance);
-    const newBalanceNum = BigInt(newBalance);
-    
-    if (newBalanceNum <= prevBalanceNum) {
+    const prevBalanceWei = utils.parseEther(previousBalance || "0");
+    const newBalanceWei = utils.parseEther(newBalance || "0");
+
+    if (newBalanceWei.lte(prevBalanceWei)) {
       return null;
     }
-    
-    const amount = (newBalanceNum - prevBalanceNum).toString();
+
+    const amount = utils.formatEther(newBalanceWei.sub(prevBalanceWei));
     
     const transaction: Transaction = {
       id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

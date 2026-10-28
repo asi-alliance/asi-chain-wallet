@@ -1,0 +1,73 @@
+import React, { CSSProperties, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { useAppDispatch } from "store/hooks";
+import {
+    selectAccounts,
+    selectSelectedAccountId,
+    selectSelectedNetworkId,
+} from "store/WalletsStore";
+import { selectAccount } from "store/WalletsStore/thunks";
+import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
+import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
+import { useIsNetworkBusy } from "sdk";
+
+interface IASIAccountSwitcherProps {
+    adaptive?: boolean;
+    layout?: "horizontal" | "vertical";
+    fullWidth?: boolean;
+    listDirection?: "top" | "bottom";
+    wrapperStyle?: CSSProperties;
+}
+
+export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
+    props,
+) => {
+    const dispatch = useAppDispatch();
+    const accounts = useSelector(selectAccounts);
+    const selectedAccountId = useSelector(selectSelectedAccountId);
+    const networkId = useSelector(selectSelectedNetworkId);
+    const isNetworkBusy = useIsNetworkBusy(networkId);
+    const isNetworkOperationPending = useSelector(
+        selectIsNetworkOperationPending,
+    );
+
+    const accountViews: AccountView[] = useMemo(
+        () =>
+            accounts.map((account) => ({
+                id: account.id,
+                name: account.name,
+                address: account.address,
+            })),
+        [accounts],
+    );
+
+    const refreshBalances = () => {
+        dispatch(
+            walletsApi.util.invalidateTags(
+                accounts.map((account) => ({
+                    type: WalletsApiTags.BALANCE,
+                    id: account.id,
+                })),
+            ),
+        );
+    };
+
+    const handleSelect = (accountId: string) => {
+        if (isNetworkBusy || isNetworkOperationPending) return;
+
+        dispatch(selectAccount(accountId));
+        refreshBalances();
+    };
+
+    return (
+        <AccountSwitcher
+            accounts={accountViews}
+            selectedId={selectedAccountId ?? undefined}
+            onSelect={handleSelect}
+            onOpen={refreshBalances}
+            disabled={isNetworkBusy || isNetworkOperationPending}
+            {...props}
+        />
+    );
+};

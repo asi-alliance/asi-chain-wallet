@@ -1,20 +1,27 @@
 import React, { Fragment, useState } from "react";
 import styled from "styled-components";
-import { Button } from "components";
-import { Network } from "types/wallet";
-import { DeleteIcon, EditIcon } from "components/Icons";
 import { useDispatch } from "react-redux";
-import { removeNetwork, updateNetwork } from "store/walletSlice";
+import { Button } from "components";
+import { DeleteIcon, EditIcon } from "components/Icons";
+import { DeleteCustomNetworkModal } from "components/DeleteCustomNetworkModal";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
+import { AppDispatch } from "store";
+import { removeCustomNetwork } from "store/WalletsStore/thunks";
+import { Network } from "types/wallet";
+import { useIsNetworkBusy } from "sdk";
+import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 const NetworkItem = styled.div`
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 16px 24px;
-    margin-bottom: 8px;
+    border: 1px solid ${({ theme }) => theme.border};
+    border-radius: ${({ theme }) => theme.radii.md};
+    padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing["3xl"]};
+    min-width: 0;
+    box-sizing: border-box;
+    background: ${({ theme }) => theme.surface};
+    box-shadow: ${({ theme }) => theme.shadowDrop};
 
-    &:last-child {
-        margin-bottom: 0;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
     }
 `;
 
@@ -22,151 +29,189 @@ const NetworkHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
+    min-width: 0;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        align-items: flex-start;
+        gap: ${({ theme }) => theme.spacing.md};
+    }
+`;
+
+const NetworkTitleGroup = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    min-width: 0;
 `;
 
 const NetworkName = styled.div`
-    font-weight: 500;
-`;
-
-const NetworkNameLabel = styled.span`
-    margin-right: 10px;
-
-    @media (max-width: 768px) {
-        display: block;
-    }
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.md};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    color: ${({ theme }) => theme.text.primary};
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `;
 
 const NetworkId = styled.span`
-    color: #999;
-    font-weight: 400;
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    overflow-wrap: anywhere;
+`;
 
-    @media (max-width: 768px) {
-        display: block;
-        font-size: 0.75rem;
-    }
+const BusyStatus = styled.span`
+    color: ${({ theme }) => theme.text.secondary};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+`;
+
+const NetworkActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    flex-shrink: 0;
 `;
 
 const NetworkUrls = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    font-family: monospace;
-    font-size: 12px;
+    gap: ${({ theme }) => theme.spacing.lg};
+    min-width: 0;
 
-    @media (max-width: 768px) {
-        display: block;
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        grid-template-columns: 1fr;
     }
 `;
 
+const NetworkUrl = styled.div`
+    min-width: 0;
+    overflow: hidden;
+`;
+
 const UrlLabel = styled.div`
+    font-family: ${({ theme }) => theme.typography.controlFontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    font-weight: ${({ theme }) => theme.typography.weight.medium};
+    line-height: ${({ theme }) => theme.typography.lineHeight.xs};
     color: ${({ theme }) => theme.text.secondary};
+    margin-bottom: ${({ theme }) => theme.spacing["2xs"]};
 `;
 
 const UrlValue = styled.div`
-    line-height: 27px;
-`;
-
-const CustomNetworkActionsButtons = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
+    font-family: ${({ theme }) => theme.typography.fontFamily};
+    font-size: ${({ theme }) => theme.typography.size.xs};
+    line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    color: ${({ theme }) => theme.text.primary};
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `;
 
 interface CustomNetworkCardProps {
     network: Network;
-    onEdit?: (network: Network) => void;
-    onDelete?: (id: string) => void;
 }
 
 export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
     network,
-    onEdit,
-    onDelete,
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useDispatch<AppDispatch>();
+    const isNetworkBusy = useIsNetworkBusy(network.id);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    const [isEditing, setIsEditing] = useState<boolean>(false);
-
-    const handleDelete = () => {
-        if (!network.id.startsWith("custom")) return;
-        dispatch(removeNetwork(network.id));
-
-        if (!onDelete) {
+    const handleDelete = async (): Promise<void> => {
+        if (isNetworkBusy || isDeleting) {
             return;
         }
 
-        onDelete(network.id);
-    };
+        setIsDeleting(true);
+        setDeleteError(null);
 
-    const handleEdit = (network: Network) => {
-        dispatch(updateNetwork(network));
-
-        if (!onEdit) {
-            setIsEditing(false);
-
-            return;
+        try {
+            await dispatch(removeCustomNetwork({ id: network.id })).unwrap();
+            setIsConfirmingDelete(false);
+        } catch (error) {
+            setDeleteError(
+                getErrorMessage(error, "Failed to remove custom network"),
+            );
+        } finally {
+            setIsDeleting(false);
         }
-
-        onEdit(network);
-
-        setIsEditing(false);
     };
 
     return (
         <Fragment>
             <NetworkItem>
                 <NetworkHeader>
-                    <NetworkName className="text-2">
-                        <NetworkNameLabel className="text-2">
-                            {network.name}
-                        </NetworkNameLabel>
+                    <NetworkTitleGroup>
+                        <NetworkName>{network.name}</NetworkName>
                         <NetworkId>({network.id})</NetworkId>
-                    </NetworkName>
-                    <CustomNetworkActionsButtons>
+                        {isNetworkBusy && <BusyStatus>(busy)</BusyStatus>}
+                    </NetworkTitleGroup>
+                    <NetworkActions>
                         <Button
                             title="Edit network"
                             size="small"
                             variant="icon-button"
-                            onClick={() =>
-                                setIsEditing((previousValue) => !previousValue)
-                            }
+                            onClick={() => setIsEditing(true)}
+                            disabled={isDeleting || isNetworkBusy}
                         >
                             <EditIcon />
                         </Button>
                         <Button
-                            title="Delete network"
+                            title={
+                                isNetworkBusy
+                                    ? "Network is busy with a running operation"
+                                    : "Delete network"
+                            }
                             size="small"
                             variant="icon-button"
-                            onClick={handleDelete}
+                            onClick={() => {
+                                setDeleteError(null);
+                                setIsConfirmingDelete(true);
+                            }}
+                            disabled={isDeleting || isNetworkBusy}
                             dangerHover
                         >
                             <DeleteIcon />
                         </Button>
-                    </CustomNetworkActionsButtons>
+                    </NetworkActions>
                 </NetworkHeader>
+
                 <NetworkUrls>
-                    <div>
-                        <UrlLabel className="text-5">Validator URL</UrlLabel>
-                        <UrlValue className="text-4">{network.url}</UrlValue>
-                    </div>
-                    <div>
-                        <UrlLabel className="text-5">Read-only URL</UrlLabel>
-                        <UrlValue className="text-4">
-                            {network.readOnlyUrl || "-"}
-                        </UrlValue>
-                    </div>
+                    <NetworkUrl>
+                        <UrlLabel>Validator URL</UrlLabel>
+                        <UrlValue>{network.validatorUrl || "-"}</UrlValue>
+                    </NetworkUrl>
+
+                    <NetworkUrl>
+                        <UrlLabel>Read-only URL</UrlLabel>
+                        <UrlValue>{network.observerUrl || "-"}</UrlValue>
+                    </NetworkUrl>
                 </NetworkUrls>
             </NetworkItem>
             <EditCustomNetworkModal
                 isOpen={isEditing}
                 network={network}
-                isActive={true}
-                onClose={() => {
-                    setIsEditing(false);
+                onClose={() => setIsEditing(false)}
+            />
+            <DeleteCustomNetworkModal
+                isOpen={isConfirmingDelete}
+                networkName={network.name}
+                isDeleting={isDeleting}
+                error={deleteError}
+                onConfirm={handleDelete}
+                onCancel={() => {
+                    if (!isDeleting) {
+                        setIsConfirmingDelete(false);
+                    }
                 }}
-                onSave={handleEdit}
             />
         </Fragment>
     );

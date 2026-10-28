@@ -1,0 +1,47 @@
+import { CSSProperties, ReactElement } from "react";
+import { useSelector } from "react-redux";
+import { selectSelectedNetworkId } from "store/WalletsStore";
+import { useGetBalanceQuery } from "store/WalletsStore/api";
+import { AccountBalance } from "components/AccountBalance";
+import { IAccountMeta } from "types/wallet";
+
+interface IASIAccountBalanceProps {
+    account: IAccountMeta;
+    isSelected?: boolean;
+    neutralAmount?: boolean;
+    style?: CSSProperties;
+    onBalanceUpdate?: () => void;
+}
+
+export const ASIAccountBalance = ({
+    account,
+    isSelected = false,
+    neutralAmount = false,
+    style,
+    onBalanceUpdate,
+}: IASIAccountBalanceProps): ReactElement => {
+    const networkId = useSelector(selectSelectedNetworkId);
+    const {
+        currentData: balance,
+        isFetching,
+        refetch,
+    } = useGetBalanceQuery({ accountId: account.id, networkId });
+
+    const handleRefresh = () => {
+        refetch();
+        onBalanceUpdate?.();
+    };
+
+    return (
+        <AccountBalance
+            balance={balance}
+            loading={isFetching}
+            onRefresh={handleRefresh}
+            isSelected={isSelected}
+            neutralAmount={neutralAmount}
+            style={style}
+            refreshButtonId={`refresh-balance-account-${account.id}`}
+            refreshAriaLabel={`Refresh balance, ${account.name}`}
+        />
+    );
+};

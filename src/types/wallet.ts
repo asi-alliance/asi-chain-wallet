@@ -1,54 +1,101 @@
-export interface Account {
-  id: string;
-  name: string;
-  address: string;
-  revAddress: string;
-  ethAddress: string;
-  publicKey: string;
-  privateKey?: string;
-  balance: string;
-  isMetamask?: boolean;
-  networkId?: string;
-  createdAt: Date;
-}
+import {
+    Address,
+    DeployStatus,
+    INetworkRecord,
+    NodeApiProfile,
+    WalletTypes,
+} from "@asichain/asi-wallet-sdk";
 
-export interface Transaction {
-  id: string;
-  deployId: string;
-  from: string;
-  to: string;
-  amount: string;
-  timestamp: string;
-  status: 'pending' | 'completed' | 'failed';
-  blockNumber?: number;
-  error?: string;
-  gasCost?: string;
+export interface Account {
+    id: string;
+    name: string;
+    address: string;
+    revAddress: string;
+    ethAddress: string;
+    publicKey: string;
+    privateKey?: string;
+    balance: string;
+    isMetamask?: boolean;
+    networkId?: string;
+    createdAt: Date;
 }
 
 export interface Deploy {
-  term: string;
-  phloLimit: number;
-  phloPrice: number;
-  validAfterBlockNumber: number;
-  timestamp: number;
+    term: string;
+    phloLimit: number;
+    phloPrice: number;
+    validAfterBlockNumber: number;
+    timestamp: number;
 }
 
 export interface Network {
-  id: string;
-  name: string;
-  url: string;
-  readOnlyUrl?: string;
-  adminUrl?: string;
-  graphqlUrl?: string;
-  shardId?: string;
+    id: string;
+    name: string;
+    validatorUrl: string;
+    observerUrl: string;
+    indexerUrl: string;
+    nodeApiProfile: NodeApiProfile;
+    isDefault: boolean;
 }
 
-export interface WalletState {
-  accounts: Account[];
-  selectedAccount: Account | null;
-  transactions: Transaction[];
-  networks: Network[];
-  selectedNetwork: Network;
-  isLoading: boolean;
-  error: string | null;
+export type TCustomNetworkRecord = Omit<INetworkRecord, "isDefault"> & {
+    isDefault: false;
+};
+
+export type TCustomNetwork = Omit<Network, "isDefault"> & {
+    isDefault: false;
+};
+
+export interface IDeployWatchState {
+    status: DeployStatus;
+    unresolvedReason?: string;
+}
+
+export interface WalletStoreState {
+    wallets: IWalletMeta[];
+    selectedAccountId: string | null;
+    networks: Network[];
+    selectedNetwork: Network;
+    deployWatches: Record<string, IDeployWatchState>;
+    isLoading: boolean;
+    isInitialLoadComplete: boolean;
+}
+
+export interface IAccountMeta {
+    id: string;
+    name: string;
+    index: number | null;
+}
+
+export interface IUnlockedAccountMeta extends IAccountMeta {
+    address: Address;
+    publicKey: string;
+}
+
+interface IWalletMetaBase {
+    signerId: string;
+    type: WalletTypes;
+}
+
+export interface ILockedWalletMeta extends IWalletMetaBase {
+    id?: undefined;
+    isUnlocked: false;
+    accounts: IAccountMeta[];
+}
+
+export interface IUnlockedWalletMeta extends IWalletMetaBase {
+    id: string;
+    isUnlocked: true;
+    accounts: IUnlockedAccountMeta[];
+}
+
+export type IWalletMeta = ILockedWalletMeta | IUnlockedWalletMeta;
+
+export interface IActiveWalletSession {
+    wallet: IUnlockedWalletMeta;
+    selectedAccountId: string | null;
+}
+
+export enum WalletActions {
+    CREATE_WALLET = "create-wallet",
 }

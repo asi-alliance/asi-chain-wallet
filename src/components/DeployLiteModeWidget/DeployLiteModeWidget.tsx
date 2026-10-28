@@ -1,91 +1,36 @@
-import React, { createContext, useContext, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import React, { createContext, useContext, useState } from "react";
 import styled from "styled-components";
-import { RootState } from "store";
-import { RChainService } from "services/rchain";
-import { SecureStorage } from "services/secureStorage";
-import { getGasFeeAsNumber } from "../../constants/gas";
-import { Button, DeploymentConfirmationModal, PasswordModal } from "components";
+import {
+    Button,
+    DeploymentConfirmationModal,
+    PasswordModal,
+} from "components";
 import { DeleteIcon, PreviewIcon } from "components/Icons";
-import { useScreen } from "hooks/";
-
-const PENDING_TRANSACTIONS_KEY = "asi_wallet_pending_transactions";
-
-interface PendingTransaction {
-    deployId: string;
-    from: string;
-    to?: string;
-    amount?: string;
-    timestamp: string;
-    accountId: string;
-    type: "send" | "receive" | "deploy";
-    expectedBalance?: string;
-}
-
-enum DeployResultStatus {
-    Completed = "completed",
-    Errored = "errored",
-    SystemError = "system_error",
-    Pending = "pending",
-    Submitted = "submitted",
-}
-
-type DeployResultData = {
-    status: DeployResultStatus;
-    message?: string;
-    error?: string;
-    blockHash?: string;
-    cost?: string;
-    [key: string]: unknown;
-};
-
-const savePendingTransaction = (tx: PendingTransaction) => {
-    if (typeof window === "undefined" || !window.localStorage) {
-        return;
-    }
-
-    try {
-        const existing = localStorage.getItem(PENDING_TRANSACTIONS_KEY);
-        const pendingTxs: PendingTransaction[] = existing
-            ? JSON.parse(existing)
-            : [];
-
-        const existingIndex = pendingTxs.findIndex(
-            (t) => t.deployId === tx.deployId,
-        );
-        if (existingIndex >= 0) {
-            pendingTxs[existingIndex] = tx;
-        } else {
-            pendingTxs.push(tx);
-        }
-
-        localStorage.setItem(
-            PENDING_TRANSACTIONS_KEY,
-            JSON.stringify(pendingTxs),
-        );
-    } catch (error) {
-        console.error(
-            "Failed to save pending transaction to localStorage:",
-            error,
-        );
-    }
-};
+import {
+    DeployEventTypes,
+    IUseDeployContractResponse,
+    TDeployEvent,
+    useDeployContract,
+    useScreen,
+} from "hooks/";
+import { stringifyWithBigInt } from "utils/helpers";
 
 const CodeEditor = styled.textarea`
     width: 100%;
     height: 300px;
-    padding: 16px;
-    font-size: 14px;
-    background: ${({ theme }) => theme.surface};
-    border: 2px solid ${({ theme }) => theme.border};
-    border-radius: 8px;
+    padding: ${({ theme }) => theme.spacing.xl};
+    font-size: ${({ theme }) => theme.typography.size.sm};
+    background: ${({ theme }) => theme.control.fieldBackground};
+    border: 1px solid ${({ theme }) => theme.control.fieldBorder};
+    border-radius: ${({ theme }) => theme.radii.md};
     color: ${({ theme }) => theme.text.primary};
     resize: vertical;
-    margin-bottom: 36px;
+    margin-bottom: ${({ theme }) => theme.spacing["3xl"]};
 
-    &:focus {
+    &:focus-visible {
         border-color: ${({ theme }) => theme.primary};
         outline: none;
+        box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
 
     &::placeholder {
@@ -93,7 +38,6 @@ const CodeEditor = styled.textarea`
         opacity: 0.7;
     }
 
-    /* Force better contrast in dark mode */
     &::-webkit-input-placeholder {
         color: ${({ theme }) => theme.text.secondary};
     }
@@ -116,8 +60,19 @@ const FormRow = styled.div`
 
 const BoardActions = styled.div`
     display: flex;
-    gap: 24px;
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xl};
     align-items: center;
+
+    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+        flex-direction: column;
+        align-items: stretch;
+
+        > button {
+            width: 100%;
+            min-height: ${({ theme }) => theme.sizes.control.field};
+        }
+    }
 `;
 
 const DeployButton = styled(Button)`
@@ -148,11 +103,21 @@ const ResultContent = styled.pre`
 `;
 
 const ErrorMessage = styled.div`
-    background: ${({ theme }) => theme.danger};
-    color: white;
+    background: ${({ theme }) => `${theme.danger}1F`};
+    color: ${({ theme }) => theme.dangerText};
     padding: 12px;
+    border: 1px solid ${({ theme }) => `${theme.danger}40`};
+    border-radius: ${({ theme }) => theme.radii.md};
+    margin-bottom: 16px;
+`;
+
+const WarningMessage = styled.div`
+    background: ${({ theme }) => `${theme.warning}20`};
+    color: ${({ theme }) => theme.warning};
+    padding: 16px;
     border-radius: 8px;
     margin-bottom: 16px;
+    word-break: break-all;
 `;
 
 const SuccessMessage = styled.div`
@@ -163,8 +128,7 @@ const SuccessMessage = styled.div`
     margin-bottom: 16px;
     word-break: break-all;
 
-    /* Force inverse text for all content */
-    * {
+    *:not(button, button *) {
         color: ${({ theme }) => theme.text.inverse} !important;
     }
 
@@ -179,339 +143,174 @@ const SuccessMessage = styled.div`
     }
 `;
 
+const LoadingMessage = styled.div`
+    background: ${({ theme }) => `${theme.primary}20`};
+    color: ${({ theme }) => theme.primary};
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    word-break: break-all;
+
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid ${({ theme }) => theme.primary};
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .deploy-id {
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0.8;
+        line-height: 1.4;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
 export const exampleContract = `new stdout(\`rho:io:stdout\`), deployerId(\`rho:rchain:deployerId\`) in {
   stdout!("Hello from ASI Wallet!") |
   deployerId!("Deploy successful")
 }`;
 
-interface DeployLiteModeContextValue {
+const SENT_STATUS_LABEL = "Sent";
+
+const DEPLOY_UNRESOLVED_TITLE =
+    "Deploy status is unknown. It may still be finalized, check the transaction history later.";
+
+interface IDeployLiteModeContextValue extends IUseDeployContractResponse {
     code: string;
     setCode: (value: string) => void;
-    isLoading: boolean;
     error: string;
-    result: any;
+    unresolvedReason: string;
+    exploreResult: unknown;
     deployId: string;
-    showDeployConfirmation: boolean;
-    showExploreConfirmation: boolean;
-    showPasswordModal: boolean;
+    deployStatus: string;
     phloLimit: string;
     phloPrice: string;
-    selectedAccount: RootState["wallet"]["selectedAccount"];
-    isAccountUnlocked: boolean;
     loadExample: () => void;
     clearCode: () => void;
-    handlePasswordSubmit: (password: string) => Promise<void>;
     handleDeployClick: () => void;
     handleExploreClick: () => void;
-    handleConfirmDeploy: () => void;
-    handleConfirmExplore: () => void;
-    closeDeployConfirmation: () => void;
-    closeExploreConfirmation: () => void;
-    closePasswordModal: () => void;
 }
 
-const DeployLiteModeContext = createContext<DeployLiteModeContextValue | null>(
-    null,
-);
+const DeployLiteModeContext =
+    createContext<IDeployLiteModeContextValue | null>(null);
 
-const useDeployLiteMode = (): DeployLiteModeContextValue => {
+const useDeployLiteMode = (): IDeployLiteModeContextValue => {
     const context = useContext(DeployLiteModeContext);
+
     if (!context) {
         throw new Error(
             "DeployLiteModeWidget compound components must be used within <DeployLiteModeWidget>",
         );
     }
+
     return context;
 };
 
-interface DeployLiteModeWidgetProps {
+interface IDeployLiteModeWidgetProps {
     phloLimit: string;
     phloPrice: string;
     children: React.ReactNode;
 }
 
-const DeployLiteModeWidgetRoot: React.FC<DeployLiteModeWidgetProps> = ({
+const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
     phloLimit,
     phloPrice,
     children,
 }) => {
-    const { selectedAccount, selectedNetwork } = useSelector(
-        (state: RootState) => state.wallet,
-    );
-    const { unlockedAccounts } = useSelector((state: RootState) => state.auth);
-
     const [code, setCode] = useState(exampleContract);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
-    const [result, setResult] = useState<any>(null);
+    const [unresolvedReason, setUnresolvedReason] = useState("");
+    const [exploreResult, setExploreResult] = useState<unknown>(null);
     const [deployId, setDeployId] = useState("");
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
-    const [showDeployConfirmation, setShowDeployConfirmation] = useState(false);
-    const [showExploreConfirmation, setShowExploreConfirmation] =
-        useState(false);
+    const [deployStatus, setDeployStatus] = useState("");
 
-    const accountPrivateKey = useRef<string | null>(null);
-
-    const isAccountUnlocked = unlockedAccounts.some(
-        (unlockedAcc) => unlockedAcc.id === selectedAccount?.id,
-    );
-
-    const handleDeployClick = () => {
-        if (!selectedAccount || !code.trim()) {
-            return;
-        }
-
-        if (!isAccountUnlocked) {
-            setShowPasswordModal(true);
-
-            return;
-        }
-
-        setShowDeployConfirmation(true);
-    };
-
-    const applyFinalDeployResult = (
-        finalResult: DeployResultData,
-        deployId: string,
-    ) => {
-        if (finalResult.status === DeployResultStatus.Completed) {
-            setResult({
-                ...finalResult,
-                deployId,
-                message: `${finalResult.message}`,
-                blockHash: finalResult.blockHash,
-                cost: finalResult.cost,
-            });
-            return;
-        }
-
-        if (finalResult.status === DeployResultStatus.Errored) {
-            setError(`[ERROR] Deploy execution failed: ${finalResult.error}`);
-            return;
-        }
-
-        if (finalResult.status === DeployResultStatus.SystemError) {
-            setError(`[ERROR] System error: ${finalResult.error}`);
-            return;
-        }
-
-        setResult(finalResult);
-    };
-
-    const applyFallbackDeployResult = (deployId: string, err: unknown) => {
-        const msg = err instanceof Error ? err.message : "";
-        const isCorsOrNetwork = msg.includes("CORS") || msg.includes("network");
-
-        setResult({
-            deployId,
-            status: isCorsOrNetwork
-                ? DeployResultStatus.Pending
-                : DeployResultStatus.Submitted,
-            message: isCorsOrNetwork
-                ? "[PENDING] Deploy submitted successfully. Status check unavailable due to CORS/network issues."
-                : "[PENDING] Deploy submitted successfully. It may still be processing or pending block inclusion.",
-        });
-    };
-
-    const handleConfirmDeploy = async () => {
-        if (!selectedAccount) return;
-        if (!SecureStorage.hasSessionToken()) {
-            setError("Session expired. Please login again.");
-            return;
-        }
-
-        const balance = parseFloat(selectedAccount.balance || "0");
-        const phloLimitNum = parseInt(phloLimit);
-        const minGasCost = (phloLimitNum * parseFloat(phloPrice)) / 1000000000;
-
-        if (balance <= 0 || balance < minGasCost) {
-            setError("Transaction aborted: Insufficient balance");
-            setShowDeployConfirmation(false);
-            return;
-        }
-
-        if (isNaN(phloLimitNum) || phloLimitNum <= 0) {
-            setError("Transaction aborted: Invalid phlo limit");
-            setShowDeployConfirmation(false);
-            return;
-        }
-
-        setShowDeployConfirmation(false);
-        setIsLoading(true);
+    const resetOutput = (): void => {
         setError("");
-        setResult(null);
+        setUnresolvedReason("");
+        setExploreResult(null);
+        setDeployId("");
+        setDeployStatus("");
+    };
 
-        try {
-            if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-                throw new Error(
-                    `Network "${selectedNetwork.name}" has no validator URL configured`,
-                );
-            }
+    const handleDeployEvent = (event: TDeployEvent): void => {
+        switch (event.type) {
+            case DeployEventTypes.DEPLOY_STARTED:
+            case DeployEventTypes.EXPLORE_STARTED:
+                resetOutput();
 
-            const rchain = new RChainService(
-                selectedNetwork.url.trim(),
-                selectedNetwork.readOnlyUrl,
-                selectedNetwork.adminUrl,
-                selectedNetwork.shardId,
-            );
+                return;
+            case DeployEventTypes.DEPLOY_SUBMITTED:
+                setDeployId(event.deployId);
+                setDeployStatus(SENT_STATUS_LABEL);
 
-            const unlockedAccount = unlockedAccounts.find(
-                (acc) => acc.id === selectedAccount.id,
-            );
+                return;
+            case DeployEventTypes.DEPLOY_STATUS:
+                setDeployStatus(event.status);
 
-            const privateKey =
-                accountPrivateKey.current ?? unlockedAccount?.privateKey;
+                return;
+            case DeployEventTypes.EXPLORE_COMPLETED:
+                setExploreResult(event.result);
 
-            if (!privateKey) {
-                throw new Error(
-                    "Account is locked. Please unlock your account first.",
-                );
-            }
+                return;
+            case DeployEventTypes.DEPLOY_UNRESOLVED:
+                setUnresolvedReason(event.message);
 
-            let expectedBalanceAfterConfirmation: string | undefined;
-            try {
-                const atomicBalanceBefore = await rchain.getBalance(
-                    selectedAccount.revAddress,
-                    true,
-                );
-                const chainBalanceBefore =
-                    Number(atomicBalanceBefore) / 100000000;
-                const gasFee = getGasFeeAsNumber();
-                const expected = Math.max(0, chainBalanceBefore - gasFee);
-                expectedBalanceAfterConfirmation = expected.toFixed(8);
-
-                accountPrivateKey.current = null;
-            } catch (error) {
-                console.warn(
-                    "[Deploy] Failed to fetch balance before deploy for pending metadata:",
-                    error,
-                );
-            }
-
-            const deployResult = await rchain.sendDeploy(
-                code,
-                privateKey,
-                parseInt(phloLimit),
-            );
-            setDeployId(deployResult);
-
-            savePendingTransaction({
-                deployId: deployResult,
-                from: selectedAccount.revAddress,
-                timestamp: new Date().toISOString(),
-                accountId: selectedAccount.id,
-                type: "deploy",
-                expectedBalance: expectedBalanceAfterConfirmation,
-            });
-
-            try {
-                const finalResult =
-                    await rchain.waitForDeployResult(deployResult);
-                applyFinalDeployResult(finalResult, deployResult);
-            } catch (resultError: unknown) {
-                applyFallbackDeployResult(deployResult, resultError);
-            }
-        } catch (err: any) {
-            setError(err.message || "Deploy failed");
-        } finally {
-            setIsLoading(false);
+                return;
+            case DeployEventTypes.DEPLOY_FAILED:
+            case DeployEventTypes.EXPLORE_FAILED:
+                setError(event.message);
         }
     };
 
-    const handleExploreClick = () => {
-        if (!code.trim()) return;
-        setShowExploreConfirmation(true);
-    };
-
-    const handleConfirmExplore = async () => {
-        setShowExploreConfirmation(false);
-        setIsLoading(true);
-        setError("");
-        setResult(null);
-
-        try {
-            if (!selectedNetwork.url || !selectedNetwork.url.trim()) {
-                throw new Error(
-                    `Network "${selectedNetwork.name}" has no validator URL configured`,
-                );
-            }
-
-            const rchain = new RChainService(
-                selectedNetwork.url.trim(),
-                selectedNetwork.readOnlyUrl,
-                selectedNetwork.adminUrl,
-                selectedNetwork.shardId,
-            );
-            const exploreResult = await rchain.exploreDeployData(code);
-            setResult({ type: "explore", data: exploreResult });
-        } catch (err: any) {
-            setError(err.message || "Explore failed");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handlePasswordSubmit = async (password: string): Promise<void> => {
-        let privateKey = selectedAccount!.privateKey;
-
-        try {
-            if (!privateKey && password) {
-                const userId = SecureStorage.getCurrentUserId();
-                const unlockedAccount = await SecureStorage.unlockAccount(
-                    selectedAccount!.id,
-                    password,
-                    userId ?? undefined,
-                );
-                privateKey = unlockedAccount!.privateKey;
-            }
-
-            if (!privateKey) {
-                throw new Error("Failed to access private key");
-            }
-
-            setShowPasswordModal(false);
-            setShowDeployConfirmation(true);
-
-            accountPrivateKey.current = privateKey;
-        } catch (error: unknown) {
-            setError("Incorrect account password");
-            setShowPasswordModal(false);
-            setShowDeployConfirmation(false);
-        }
-    };
-
-    const loadExample = () => {
-        setCode(exampleContract);
-    };
-
-    const clearCode = () => {
-        setCode("");
-    };
-
-    const value: DeployLiteModeContextValue = {
-        code,
-        setCode,
-        isLoading,
-        error,
-        result,
-        deployId,
-        showDeployConfirmation,
-        showExploreConfirmation,
-        showPasswordModal,
+    const deployContractState = useDeployContract({
         phloLimit,
         phloPrice,
-        selectedAccount,
-        isAccountUnlocked,
-        loadExample,
-        clearCode,
-        handlePasswordSubmit,
+        onEvent: handleDeployEvent,
+    });
+
+    const handleDeployClick = (): void => {
+        if (!code.trim()) {
+            return;
+        }
+
+        deployContractState.requestDeploy(code);
+    };
+
+    const handleExploreClick = (): void => {
+        if (!code.trim()) {
+            return;
+        }
+
+        deployContractState.requestExplore(code);
+    };
+
+    const value: IDeployLiteModeContextValue = {
+        ...deployContractState,
+        code,
+        setCode,
+        error,
+        unresolvedReason,
+        exploreResult,
+        deployId,
+        deployStatus,
+        phloLimit,
+        phloPrice,
+        loadExample: () => setCode(exampleContract),
+        clearCode: () => setCode(""),
         handleDeployClick,
         handleExploreClick,
-        handleConfirmDeploy,
-        handleConfirmExplore,
-        closeDeployConfirmation: () => setShowDeployConfirmation(false),
-        closeExploreConfirmation: () => setShowExploreConfirmation(false),
-        closePasswordModal: () => setShowPasswordModal(false),
     };
 
     return (
@@ -538,39 +337,103 @@ const DeployLiteModeActions: React.FC = () => {
     );
 };
 
+const CopyDeployIdButton: React.FC<{ deployId: string }> = ({ deployId }) => (
+    <Button
+        variant="secondary"
+        size="small"
+        aria-label="Copy deploy hash"
+        style={{
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+        }}
+        onClick={async () => {
+            try {
+                await navigator.clipboard.writeText(deployId);
+            } catch {}
+        }}
+    >
+        Copy hash
+    </Button>
+);
+
 const DeployLiteModeBoard: React.FC = () => {
     const {
+        account,
+        isBalanceReady,
+        isPhloLimitValid,
+        isBlockedByAnotherChainOperation,
         code,
         setCode,
-        isLoading,
         error,
-        result,
+        unresolvedReason,
+        exploreResult,
         deployId,
-        showDeployConfirmation,
-        showExploreConfirmation,
-        showPasswordModal,
+        deployStatus,
         phloLimit,
         phloPrice,
-        selectedAccount,
+        pendingTerm,
+        isProcessing,
+        isWaitingForConfirmation,
+        isDeployConfirmed,
+        isDeployConfirmationOpen,
+        isExploreConfirmationOpen,
+        passwordPrompt,
+        confirmDeploy,
+        confirmExplore,
+        cancel,
         clearCode,
-        handlePasswordSubmit,
         handleDeployClick,
         handleExploreClick,
-        handleConfirmDeploy,
-        handleConfirmExplore,
-        closeDeployConfirmation,
-        closeExploreConfirmation,
-        closePasswordModal,
     } = useDeployLiteMode();
 
     const { isLaptop } = useScreen();
 
-    const clearButtonVariant = !isLaptop ? "ghost" : "icon-button";
-
     return (
         <>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-            {(deployId || (result && (result as any).deployId)) && (
+            {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+            {unresolvedReason && (
+                <WarningMessage>
+                    <div>{DEPLOY_UNRESOLVED_TITLE}</div>
+                    <div style={{ fontSize: "12px", marginTop: "8px" }}>
+                        {unresolvedReason}
+                    </div>
+                    {deployId && (
+                        <div style={{ fontSize: "12px", marginTop: "8px" }}>
+                            Deploy ID: {deployId}
+                        </div>
+                    )}
+                </WarningMessage>
+            )}
+            {deployId && isWaitingForConfirmation && (
+                <LoadingMessage>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 12,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ flex: "1", minWidth: "200px" }}>
+                            <div>
+                                <span className="spinner"></span>
+                                Deploy sent! Waiting for confirmation...
+                            </div>
+                            <div className="deploy-id">
+                                Deploy ID: {deployId}
+                            </div>
+                            {deployStatus && (
+                                <div className="deploy-id">
+                                    Status: {deployStatus}
+                                </div>
+                            )}
+                        </div>
+                        <CopyDeployIdButton deployId={deployId} />
+                    </div>
+                </LoadingMessage>
+            )}
+            {deployId && isDeployConfirmed && (
                 <SuccessMessage>
                     <div
                         style={{
@@ -584,32 +447,16 @@ const DeployLiteModeBoard: React.FC = () => {
                         <div style={{ flex: "1", minWidth: "200px" }}>
                             <div>Deploy submitted successfully!</div>
                             <div className="deploy-id">
-                                Deploy ID:{" "}
-                                {deployId || (result as any).deployId}
+                                Deploy ID: {deployId}
                             </div>
                         </div>
-                        <Button
-                            variant="secondary"
-                            size="small"
-                            style={{
-                                flexShrink: 0,
-                                whiteSpace: "nowrap",
-                            }}
-                            onClick={async () => {
-                                try {
-                                    await navigator.clipboard.writeText(
-                                        deployId || (result as any).deployId,
-                                    );
-                                } catch {}
-                            }}
-                        >
-                            Copy
-                        </Button>
+                        <CopyDeployIdButton deployId={deployId} />
                     </div>
                 </SuccessMessage>
             )}
             <FormGroup>
                 <label
+                    htmlFor="deploy-rholang-code-editor"
                     style={{
                         display: "block",
                         marginBottom: "8px",
@@ -623,91 +470,82 @@ const DeployLiteModeBoard: React.FC = () => {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     placeholder="Enter your Rholang code here..."
-                    disabled={isLoading}
+                    disabled={isProcessing}
                 />
                 <BoardActions>
                     <DeployButton
                         id="deploy-contract-button"
                         onClick={handleDeployClick}
-                        loading={isLoading}
-                        disabled={!code.trim() || !selectedAccount}
+                        loading={isProcessing}
+                        disabled={
+                            isProcessing ||
+                            isBlockedByAnotherChainOperation ||
+                            !code.trim() ||
+                            !account ||
+                            !isBalanceReady ||
+                            !isPhloLimitValid
+                        }
                     >
                         <h3>Deploy</h3>
                     </DeployButton>
                     <Button
                         variant="secondary"
                         onClick={handleExploreClick}
-                        loading={isLoading}
-                        disabled={!code.trim()}
+                        loading={isProcessing}
+                        disabled={isProcessing || isBlockedByAnotherChainOperation || !code.trim()}
                     >
                         <h3>Explore</h3>
                         {!isLaptop && <PreviewIcon />}
                     </Button>
                     <Button
-                        title="Clear code editor"
-                        variant={clearButtonVariant}
+                        aria-label="Clear code editor"
+                        variant="danger"
                         onClick={clearCode}
-                        dangerHover
-                        style={{
-                            height: "30px",
-                        }}
                     >
-                        {!isLaptop && (
-                            <h3
-                                style={{ fontSize: "0.75rem" }}
-                                className="text-danger"
-                            >
-                                Clear
-                            </h3>
-                        )}
+                        <span>Clear</span>
                         <DeleteIcon />
                     </Button>
                 </BoardActions>
             </FormGroup>
-            {result && (
+            {exploreResult !== null && (
                 <ResultContainer>
-                    <ResultTitle>
-                        {result.type === "explore"
-                            ? "Explore Result"
-                            : "Deploy Result"}
-                    </ResultTitle>
+                    <ResultTitle>Explore Result</ResultTitle>
                     <ResultContent>
-                        {JSON.stringify(result.data || result, null, 2)}
+                        {stringifyWithBigInt(exploreResult)}
                     </ResultContent>
                 </ResultContainer>
             )}
 
             <DeploymentConfirmationModal
-                isOpen={showDeployConfirmation}
-                onClose={closeDeployConfirmation}
-                onConfirm={handleConfirmDeploy}
-                rholangCode={code}
+                isOpen={isDeployConfirmationOpen}
+                onClose={cancel}
+                onConfirm={confirmDeploy}
+                rholangCode={pendingTerm}
                 phloLimit={phloLimit}
                 phloPrice={phloPrice}
-                accountName={selectedAccount?.name || ""}
-                accountAddress={selectedAccount?.revAddress || ""}
-                loading={isLoading}
+                accountName={account?.name || ""}
+                accountAddress={account?.address || ""}
+                loading={isProcessing}
             />
 
             <DeploymentConfirmationModal
-                isOpen={showExploreConfirmation}
-                onClose={closeExploreConfirmation}
-                onConfirm={handleConfirmExplore}
-                rholangCode={code}
+                isOpen={isExploreConfirmationOpen}
+                onClose={cancel}
+                onConfirm={confirmExplore}
+                rholangCode={pendingTerm}
                 phloLimit={phloLimit}
                 phloPrice={phloPrice}
-                accountName={selectedAccount?.name || ""}
-                accountAddress={selectedAccount?.revAddress || ""}
-                isExplore={true}
-                loading={isLoading}
+                accountName={account?.name || ""}
+                accountAddress={account?.address || ""}
+                isExplore
+                loading={isProcessing}
             />
 
             <PasswordModal
-                isOpen={showPasswordModal}
-                onClose={closePasswordModal}
-                onConfirm={handlePasswordSubmit}
-                title="Enter Password to Deploy"
-                description="Your private key is encrypted. Please enter your password to deploy the contract."
+                {...passwordPrompt}
+                onClose={cancel}
+                title="Enter password to deploy"
+                description="Your wallet session has expired. Enter your password to sign and deploy this contract."
             />
         </>
     );

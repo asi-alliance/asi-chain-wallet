@@ -1,5 +1,21 @@
 const webpack = require('webpack');
 
+require('ts-node').register({
+  transpileOnly: true,
+  skipProject: true,
+  compilerOptions: {
+    module: 'commonjs',
+    target: 'es2019',
+    esModuleInterop: true,
+  },
+});
+
+const {
+  formatNetworksEnvIssue,
+  getNetworksEnvErrorMessage,
+  parseNetworksEnv,
+} = require('./src/config/networksEnv');
+
 try {
   const fs = require('fs');
   const path = require('path');
@@ -78,16 +94,29 @@ module.exports = function override(config, env) {
   const networksValue = process.env.NETWORKS || '{}';
   console.log('[config-overrides] NETWORKS available for DefinePlugin:', !!process.env.NETWORKS);
   console.log('[config-overrides] NETWORKS length:', networksValue.length);
-  if (process.env.NETWORKS) {
-    try {
-      const parsed = JSON.parse(process.env.NETWORKS);
-      const networkNames = Object.keys(parsed);
-      console.log('[config-overrides] Networks found:', networkNames.join(', '));
-    } catch (e) {
-      console.warn('[config-overrides] Failed to parse NETWORKS:', e.message);
+
+  const { networks, issues } = parseNetworksEnv(process.env.NETWORKS);
+
+  issues.forEach((issue) => {
+    const text = `[config-overrides] ${formatNetworksEnvIssue(issue)}`;
+
+    if (issue.level === 'error') {
+      console.error(text);
+
+      return;
     }
+
+    console.warn(text);
+  });
+
+  const networksEnvError = getNetworksEnvErrorMessage(issues);
+
+  if (networksEnvError) {
+    throw new Error(`[config-overrides] Invalid NETWORKS env config: ${networksEnvError}`);
   }
-  
+
+  console.log('[config-overrides] Networks found:', networks.map(({ id }) => id).join(', '));
+
   // Exclude mock files from the build
   config.module.rules.forEach(rule => {
     if (rule.oneOf) {
@@ -129,6 +158,9 @@ module.exports = function override(config, env) {
   config.resolve.alias = {
     ...config.resolve.alias,
     'process/browser': require.resolve('process/browser'),
+    // ASI Wallet SDK statically imports node-persist for its Node storage backend,
+    // but in the browser it uses IndexedDB (BrowserStorage). Stub node-persist out.
+    'node-persist': false,
   };
   
   config.plugins = [
@@ -226,6 +258,23 @@ module.exports = function override(config, env) {
       }
     };
   }
+
+  // Cardano SDK (Mesh / cardano-serialization-lib) ships WebAssembly modules.
+  config.experiments = {
+    ...(config.experiments || {}),
+    asyncWebAssembly: true,
+    topLevelAwait: true,
+  };
+
+  config.module.rules.forEach((rule) => {
+    if (rule.oneOf) {
+      rule.oneOf.forEach((loader) => {
+        if (loader.type === 'asset/resource' && Array.isArray(loader.exclude)) {
+          loader.exclude.push(/\.wasm$/);
+        }
+      });
+    }
+  });
 
   config.ignoreWarnings = [
     /Failed to parse source map/,

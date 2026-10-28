@@ -1,1 +1,2 @@
-export { AccountSwitcher } from './AccountSwitcher';
+export { AccountSwitcher } from "./AccountSwitcher";
+export type { AccountView } from "./AccountSwitcher";

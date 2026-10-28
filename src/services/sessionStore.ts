@@ -20,7 +20,6 @@ export class SessionStore {
     static setAuthenticated(value: boolean): void {
         if (value) {
             sessionStorage.setItem(SESSION_STORAGE_KEYS.AUTH, "true");
-            this.updateLastActivity();
         } else {
             sessionStorage.removeItem(SESSION_STORAGE_KEYS.AUTH);
         }
@@ -133,18 +132,6 @@ export class SessionStore {
                 SESSION_STORAGE_KEYS.SESSION,
                 JSON.stringify(data),
             );
-    }
-
-    // --- Activity ---
-
-    static updateLastActivity(): void {
-        sessionStorage.setItem("lastActivity", Date.now().toString());
-        this.port.persistThrottled();
-    }
-
-    static getLastActivity(): number {
-        const ts = sessionStorage.getItem("lastActivity");
-        return ts ? parseInt(ts, 10) : Date.now();
     }
 
     // --- Clear ---

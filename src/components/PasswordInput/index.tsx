@@ -1,28 +1,31 @@
+import { VisibilityIcon, VisibilityOffIcon } from "components/Icons";
+import {
+    ActionButtonWrapper,
+    ErrorMessage,
+    HelperMessage,
+    InputContainer,
+    InputWrapper,
+    Label,
+    RequiredMark,
+    StyledInput,
+} from "components/Input/Input";
 import React, {
-    useRef,
-    useEffect,
-    useState,
     CSSProperties,
     RefObject,
+    useEffect,
+    useId,
+    useRef,
+    useState,
 } from "react";
 import styled from "styled-components";
 import { DefaultTheme } from "styled-components/dist/types";
-import { VisibilityIcon, VisibilityOffIcon } from "components/Icons";
-import {
-    InputWrapper,
-    Label,
-    StyledInput,
-    ErrorMessage,
-    InputContainer,
-    ActionButtonWrapper,
-} from "components/Input/Input";
 
-export interface PasswordInputProps extends Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    "type"
-> {
+export interface PasswordInputProps
+    extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
     label?: string;
     error?: string;
+    helperText?: React.ReactNode;
+    status?: "default" | "success";
     fullWidth?: boolean;
     wrapperStyle?: CSSProperties;
     labelStyle?: CSSProperties;
@@ -37,33 +40,33 @@ const ToggleButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 24px;
+    height: 24px;
     padding: 0;
-    background: none;
-    border: none;
-    outline: none;
-    border-radius: 4px;
-    cursor: pointer;
+    border: 0;
+    border-radius: ${({ theme }) => theme.radii.xs};
+    background: transparent;
     color: ${({ theme }) => theme.text.primary};
-    transition: opacity 0.2s ease;
+    cursor: pointer;
 
-    &:hover {
-        opacity: 0.7;
+    &:hover:not(:disabled) {
+        background: ${({ theme }) => theme.hoverSurface};
     }
 
     &:focus-visible {
-        outline: 2px solid ${({ theme }) => theme.primary};
-        outline-offset: 2px;
+        outline: none;
+        box-shadow: 0 0 0 4px ${({ theme }) => theme.focusRing};
     }
 `;
 
 export const PasswordInput: React.FC<PasswordInputProps> = ({
     label,
     error,
+    helperText,
+    status = "default",
     fullWidth = true,
     "data-testid": dataTestId,
     "data-cy": dataCy,
-    onChange,
-    onInput,
     autoFocus,
     wrapperStyle,
     labelStyle,
@@ -71,75 +74,67 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
     inputRef,
     withoutHoverUI = false,
     value,
+    id,
+    "aria-describedby": ariaDescribedBy,
     ...props
 }) => {
     const defaultRef = useRef<HTMLInputElement>(null);
     const currentRef = inputRef || defaultRef;
     const [isVisible, setIsVisible] = useState(false);
+    const generatedId = useId();
+    const controlId = id ?? `password-${generatedId}`;
+    const errorId = `${controlId}-error`;
+    const helperId = `${controlId}-helper`;
+    const describedBy = [
+        ariaDescribedBy,
+        error ? errorId : undefined,
+        !error && helperText ? helperId : undefined,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
     useEffect(() => {
-        if (autoFocus && currentRef.current) {
-            const timer = setTimeout(() => {
-                currentRef.current?.focus();
-            }, 100);
-            return () => clearTimeout(timer);
-        }
+        if (!autoFocus) return;
+
+        const timer = window.setTimeout(() => currentRef.current?.focus(), 100);
+        return () => window.clearTimeout(timer);
     }, [autoFocus, currentRef]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (onChange) {
-            onChange(e);
-        }
-    };
-
-    const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-        if (onInput) {
-            onInput(e);
-        }
-
-        if (onChange) {
-            const changeEvent = {
-                ...e,
-                target: e.currentTarget,
-                currentTarget: e.currentTarget,
-            } as React.ChangeEvent<HTMLInputElement>;
-
-            onChange(changeEvent);
-        }
-    };
-
-    const toggleVisibility = () => setIsVisible((prev) => !prev);
 
     return (
         <InputWrapper $fullWidth={fullWidth} style={wrapperStyle}>
-            <h4>
-                {label && (
-                    <Label
-                        $themeColorSelector={labelColorSelector}
-                        style={labelStyle}
-                    >
-                        {label}
-                    </Label>
-                )}
-            </h4>
+            {label && (
+                <Label
+                    htmlFor={controlId}
+                    $themeColorSelector={labelColorSelector}
+                    style={labelStyle}
+                >
+                    {label}
+                    {props.required && (
+                        <RequiredMark aria-hidden="true"> *</RequiredMark>
+                    )}
+                </Label>
+            )}
             <InputContainer>
                 <StyledInput
+                    {...props}
+                    id={controlId}
                     ref={currentRef}
                     type={isVisible ? "text" : "password"}
-                    $hasError={!!error}
+                    value={value}
                     data-testid={dataTestId}
                     data-cy={dataCy}
-                    onChange={handleChange}
-                    onInput={handleInput}
-                    value={value}
+                    aria-invalid={error ? true : props["aria-invalid"]}
+                    aria-describedby={describedBy || undefined}
+                    $hasError={!!error}
+                    $status={status}
                     $copyable
                     $withoutHoverUI={withoutHoverUI}
-                    {...props}
                 />
-                <ActionButtonWrapper>
+                <ActionButtonWrapper $disabled={props.disabled}>
                     <ToggleButton
                         type="button"
-                        onClick={toggleVisibility}
+                        disabled={props.disabled}
+                        onClick={() => setIsVisible((visible) => !visible)}
                         title={isVisible ? "Hide password" : "Show password"}
                         aria-label={
                             isVisible ? "Hide password" : "Show password"
@@ -153,7 +148,14 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({
                     </ToggleButton>
                 </ActionButtonWrapper>
             </InputContainer>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {error && (
+                <ErrorMessage id={errorId} role="alert">
+                    {error}
+                </ErrorMessage>
+            )}
+            {!error && helperText && (
+                <HelperMessage id={helperId}>{helperText}</HelperMessage>
+            )}
         </InputWrapper>
     );
 };
