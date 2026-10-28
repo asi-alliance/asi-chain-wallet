@@ -106,7 +106,7 @@ The Bridge page locks ASI tokens on ASI Chain for transfer to another chain.
 - **Destination account** comes from an external wallet connected on the page: RainbowKit and wagmi for the EVM chains, the ASI Alliance browser wallet or Keplr for FetchHub Dorado, and a CIP-30 browser wallet through Mesh for Cardano Preprod.
 - **Locking** signs a deploy to the ASI bridge contract (`REACT_APP_ASI_BRIDGE_URI`) with the destination route id. The amount is validated against the available balance and the bridge gas reserve, the lock details are frozen when the confirmation modal opens, and the resulting deploy id is shown with a copy button.
 
-**The lock action is disabled in this release.** The page and its frontend logic are implemented, but the complete bridge transfer scenario has not been through QA yet, so the lock button is disabled and a notice on the page says that the full bridge flow is still under development and QA.
+**The lock action is disabled in this release.** The page and its frontend logic are implemented, but the complete bridge transfer scenario has not been through QA yet, so the lock button is disabled.
 
 **The inbound direction is not exposed.** Locking on an external chain and releasing on ASI Chain is not reachable from the UI: the source selector is static, so although the page still contains the EVM, Cosmos and Cardano lock paths, nothing can select those chains as the source. Restoring the inbound flow means exposing the source selector again and wiring the release side; until then the Bridge page is outbound only.
 
