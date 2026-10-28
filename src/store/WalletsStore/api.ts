@@ -45,9 +45,7 @@ const toErrorMessage = (error: unknown, fallback: string): string =>
 
 export const serializeHistoryTimestamp = (timestamp: Date | string): string => {
     if (timestamp instanceof Date) {
-        return Number.isNaN(timestamp.getTime())
-            ? ""
-            : timestamp.toISOString();
+        return Number.isNaN(timestamp.getTime()) ? "" : timestamp.toISOString();
     }
 
     const parsed = new Date(timestamp);
@@ -142,11 +140,6 @@ export const walletsApi = createApi({
                             timestamp: serializeHistoryTimestamp(tx.timestamp),
                             status: tx.status,
                             type: tx.type,
-                            gasCost:
-                                tx.gasCost ??
-                                (tx.type === "send"
-                                    ? generateRandomGasFee()
-                                    : undefined),
                         })),
                     };
                 } catch (error: unknown) {
