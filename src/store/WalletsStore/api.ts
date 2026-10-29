@@ -3,7 +3,6 @@ import {
     ITransactionsHistoryOptions,
     THistorySource,
 } from "@asichain/asi-wallet-sdk";
-import { generateRandomGasFee } from "constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_SECONDS } from "constants/polling";
 import { Transaction } from "types/transactions";
 import { RootState } from "store";
@@ -48,9 +47,7 @@ const getWalletService = (extra: unknown) =>
 
 export const serializeHistoryTimestamp = (timestamp: Date | string): string => {
     if (timestamp instanceof Date) {
-        return Number.isNaN(timestamp.getTime())
-            ? ""
-            : timestamp.toISOString();
+        return Number.isNaN(timestamp.getTime()) ? "" : timestamp.toISOString();
     }
 
     const parsed = new Date(timestamp);
@@ -145,11 +142,6 @@ export const walletsApi = createApi({
                             timestamp: serializeHistoryTimestamp(tx.timestamp),
                             status: tx.status,
                             type: tx.type,
-                            gasCost:
-                                tx.gasCost ??
-                                (tx.type === "send"
-                                    ? generateRandomGasFee()
-                                    : undefined),
                         })),
                     };
                 } catch (error: unknown) {

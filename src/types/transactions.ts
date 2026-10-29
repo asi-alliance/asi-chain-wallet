@@ -11,7 +11,6 @@ export interface Transaction {
     type: TransactionType;
     blockNumber?: number;
     error?: string;
-    gasCost?: string;
 }
 
 export interface IPagination {
