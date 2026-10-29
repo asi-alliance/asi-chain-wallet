@@ -1,5 +1,5 @@
 const endpoints = {
-    FEEDBACK: process.env.REACT_APP_FEEDBACK_FORM_URL ?? "",
+    FEEDBACK: import.meta.env.VITE_FEEDBACK_FORM_URL ?? "",
 };
 
 const FEEDBACK_FORM_SOURCE = "ASI_CHAIN_WALLET";

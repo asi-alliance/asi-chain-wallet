@@ -173,7 +173,7 @@ const validateNetworksUniqueness = (
         (group: Network[]) => {
             issues.push({
                 level: "error",
-                message: `NETWORKS contains networks with the same URLs and nodeApiProfile: ${formatNetworkIds(group)}`,
+                message: `VITE_NETWORKS contains networks with the same URLs and nodeApiProfile: ${formatNetworkIds(group)}`,
             });
         },
     );
@@ -182,7 +182,7 @@ const validateNetworksUniqueness = (
         (group: Network[]) => {
             issues.push({
                 level: "error",
-                message: `NETWORKS contains networks with the same name "${group[0].name}": ${formatNetworkIds(group)}`,
+                message: `VITE_NETWORKS contains networks with the same name "${group[0].name}": ${formatNetworkIds(group)}`,
             });
         },
     );
@@ -197,7 +197,7 @@ export const parseNetworksEnv = (
     if (!rawEnv) {
         issues.push({
             level: "error",
-            message: "NETWORKS environment variable is not set",
+            message: "VITE_NETWORKS environment variable is not set",
         });
 
         return { networks: [], issues };
@@ -210,7 +210,7 @@ export const parseNetworksEnv = (
     } catch (error) {
         issues.push({
             level: "error",
-            message: `NETWORKS is not valid JSON: ${(error as Error).message}`,
+            message: `VITE_NETWORKS is not valid JSON: ${(error as Error).message}`,
         });
 
         return { networks: [], issues };
@@ -220,7 +220,7 @@ export const parseNetworksEnv = (
         issues.push({
             level: "error",
             message:
-                "NETWORKS must be a non-empty JSON object mapping network ids to their configuration",
+                "VITE_NETWORKS must be a non-empty JSON object mapping network ids to their configuration",
         });
 
         return { networks: [], issues };
@@ -311,7 +311,7 @@ export const parseNetworksEnv = (
         issues.push({
             level: "error",
             message:
-                "NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
+                "VITE_NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
         });
     }
 

@@ -22,7 +22,7 @@ export const UNCONFIGURED_NETWORK: Network = {
     isDefault: true,
 };
 
-const { networks, issues } = parseNetworksEnv(process.env.NETWORKS);
+const { networks, issues } = parseNetworksEnv(import.meta.env.VITE_NETWORKS);
 
 export const NETWORKS: Network[] = networks;
 
