@@ -210,7 +210,6 @@ const ActionsToolbar = styled.div`
 
 enum AddressFormats {
     ASI = "asi",
-    ETHEREUM = "ethereum",
 }
 
 const formatOptions: ISelectOption[] = [
@@ -219,12 +218,6 @@ const formatOptions: ISelectOption[] = [
         value: AddressFormats.ASI,
         label: "ASI",
     },
-    // TODO: Restore the ETH format option when the SDK exposes the account ETH address.
-    // {
-    //     id: AddressFormats.ETHEREUM,
-    //     value: AddressFormats.ETHEREUM,
-    //     label: "ETH",
-    // },
 ];
 
 export const Receive: React.FC = () => {

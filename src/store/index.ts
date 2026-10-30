@@ -4,8 +4,6 @@ import walletReducer from "./WalletsStore";
 import { walletsApi } from "./WalletsStore/api";
 import themeReducer from "./themeSlice";
 import authReducer from "./Auth/";
-import hardwareWalletReducer from "./hardwareWalletSlice";
-import multisigReducer from "./multisigSlice";
 import networkActivityReducer from "./NetworkActivity";
 import sdkClientReducer from "./SdkClient";
 import { IThunkExtraArgument } from "./appThunk";
@@ -20,8 +18,6 @@ export const store = configureStore({
         [walletsApi.reducerPath]: walletsApi.reducer,
         theme: themeReducer,
         auth: authReducer,
-        hardwareWallet: hardwareWalletReducer,
-        multisig: multisigReducer,
         networkActivity: networkActivityReducer,
         sdkClient: sdkClientReducer,
     },
@@ -29,21 +25,6 @@ export const store = configureStore({
         getDefaultMiddleware({
             thunk: {
                 extraArgument: thunkExtraArgument,
-            },
-            serializableCheck: {
-                ignoredActions: [
-                    "hardwareWallet/sign/fulfilled",
-                    "multisig/createWallet/fulfilled",
-                    "multisig/loadWalletDetails/fulfilled",
-                ],
-                ignoredPaths: [
-                    "hardwareWallet.accounts",
-                    "hardwareWallet.selectedAccount",
-                    "multisig.wallets",
-                    "multisig.selectedWallet",
-                    "multisig.transactions",
-                    "multisig.lastUpdated",
-                ],
             },
         }).concat(walletsApi.middleware),
 });
