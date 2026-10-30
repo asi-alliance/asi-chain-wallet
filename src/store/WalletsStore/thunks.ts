@@ -35,7 +35,13 @@ import { SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
-import { selectIsNetworkOperationPending } from "store/NetworkActivity";
+import {
+    operationSettled,
+    operationStageChanged,
+    selectHasOperationInProgress,
+} from "store/NetworkActivity";
+import { runRegisteredOperation } from "store/NetworkActivity/thunks";
+import { OperationKind, OperationStage } from "types/operations";
 import { walletsApi, WalletsApiTags } from "./api";
 import {
     getUnlockedAccountFromWalletsMeta,
@@ -50,6 +56,7 @@ const FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE: string =
 
 interface IDeployWatchCallbacksOptions {
     deployId: string;
+    operationId: string;
     dispatch: (action: AnyAction) => void;
     invalidateAccountData: () => void;
     fallbackUnresolvedMessage: string;
@@ -57,6 +64,7 @@ interface IDeployWatchCallbacksOptions {
 
 const buildDeployWatchCallbacks = ({
     deployId,
+    operationId,
     dispatch,
     invalidateAccountData,
     fallbackUnresolvedMessage,
@@ -75,6 +83,7 @@ const buildDeployWatchCallbacks = ({
         dispatch(
             deployStatusChanged({ deployId, status: DeployStatus.FINALIZED }),
         );
+        dispatch(operationSettled(operationId));
         invalidateAccountData();
     },
     onError: (error: Error) => {
@@ -84,6 +93,7 @@ const buildDeployWatchCallbacks = ({
                 reason: getErrorMessage(error, fallbackUnresolvedMessage),
             }),
         );
+        dispatch(operationSettled(operationId));
         invalidateAccountData();
     },
 });
@@ -369,9 +379,9 @@ export const selectNetwork = createAppAsyncThunk<
     ) => {
         const state: RootState = getState();
 
-        if (selectIsNetworkOperationPending(state)) {
+        if (selectHasOperationInProgress(state)) {
             return rejectWithValue(
-                "Network cannot be changed while an operation is awaiting confirmation",
+                "Network cannot be changed while an operation is in progress",
             );
         }
 
@@ -515,38 +525,60 @@ export const sendTransaction = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.transfer(
-            {
-                walletId,
-                accountId,
-                to,
-                amount,
-            },
-            password,
+        return dispatch(
+            runRegisteredOperation(
+                {
+                    kind: OperationKind.TRANSFER,
+                    networkId: getState().walletsStore.selectedNetwork.id,
+                    accountId,
+                    stage: OperationStage.SUBMITTING,
+                },
+                async (operationId: string) => {
+                    const { deployId, subscribe } =
+                        await walletService.transfer(
+                            {
+                                walletId,
+                                accountId,
+                                to,
+                                amount,
+                            },
+                            password,
+                        );
+
+                    dispatch(
+                        operationStageChanged({
+                            id: operationId,
+                            stage: OperationStage.AWAITING_CONFIRMATION,
+                            transactionId: deployId,
+                        }),
+                    );
+
+                    const invalidateAccountData = (): void => {
+                        dispatch(
+                            walletsApi.util.invalidateTags([
+                                { type: WalletsApiTags.BALANCE, id: accountId },
+                                { type: WalletsApiTags.HISTORY, id: accountId },
+                            ]),
+                        );
+                    };
+
+                    subscribe(
+                        buildDeployWatchCallbacks({
+                            deployId,
+                            operationId,
+                            dispatch,
+                            invalidateAccountData,
+                            fallbackUnresolvedMessage:
+                                FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE,
+                        }),
+                    );
+
+                    invalidateAccountData();
+
+                    return { deployId };
+                },
+            ),
         );
-
-        const invalidateAccountData = (): void => {
-            dispatch(
-                walletsApi.util.invalidateTags([
-                    { type: WalletsApiTags.BALANCE, id: accountId },
-                    { type: WalletsApiTags.HISTORY, id: accountId },
-                ]),
-            );
-        };
-
-        subscribe(
-            buildDeployWatchCallbacks({
-                deployId,
-                dispatch,
-                invalidateAccountData,
-                fallbackUnresolvedMessage:
-                    FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE,
-            }),
-        );
-
-        invalidateAccountData();
-
-        return { deployId };
     },
 );
 
@@ -585,33 +617,54 @@ export const deployContract = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
+        return dispatch(
+            runRegisteredOperation(
+                {
+                    kind: OperationKind.DEPLOY,
+                    networkId: getState().walletsStore.selectedNetwork.id,
+                    accountId,
+                    stage: OperationStage.SUBMITTING,
+                },
+                async (operationId: string) => {
+                    const { deployId, subscribe } = await walletService.deploy(
+                        { walletId, accountId, term, phloLimit },
+                        password,
+                    );
+
+                    dispatch(
+                        operationStageChanged({
+                            id: operationId,
+                            stage: OperationStage.AWAITING_CONFIRMATION,
+                            transactionId: deployId,
+                        }),
+                    );
+
+                    const invalidateAccountData = (): void => {
+                        dispatch(
+                            walletsApi.util.invalidateTags([
+                                { type: WalletsApiTags.BALANCE, id: accountId },
+                                { type: WalletsApiTags.HISTORY, id: accountId },
+                            ]),
+                        );
+                    };
+
+                    subscribe(
+                        buildDeployWatchCallbacks({
+                            deployId,
+                            operationId,
+                            dispatch,
+                            invalidateAccountData,
+                            fallbackUnresolvedMessage:
+                                FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE,
+                        }),
+                    );
+
+                    invalidateAccountData();
+
+                    return { deployId };
+                },
+            ),
         );
-
-        const invalidateAccountData = (): void => {
-            dispatch(
-                walletsApi.util.invalidateTags([
-                    { type: WalletsApiTags.BALANCE, id: accountId },
-                    { type: WalletsApiTags.HISTORY, id: accountId },
-                ]),
-            );
-        };
-
-        subscribe(
-            buildDeployWatchCallbacks({
-                deployId,
-                dispatch,
-                invalidateAccountData,
-                fallbackUnresolvedMessage:
-                    FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE,
-            }),
-        );
-
-        invalidateAccountData();
-
-        return { deployId };
     },
 );
 
@@ -661,67 +714,102 @@ export const bridgeLock = createAppAsyncThunk<
             bridgeUri,
         );
 
-        const signedLock: SignedResult = await walletService.signDeploy(
-            {
-                walletId,
-                accountId,
-                term: lockTerm,
-                phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
-                phloPrice: BRIDGE_LOCK_PHLO_PRICE,
-            },
-            password,
+        return dispatch(
+            runRegisteredOperation(
+                {
+                    kind: OperationKind.BRIDGE_ASI_LOCK,
+                    networkId: network.id,
+                    accountId,
+                    stage: OperationStage.SIGNING,
+                },
+                async (operationId: string) => {
+                    const signedLock: SignedResult =
+                        await walletService.signDeploy(
+                            {
+                                walletId,
+                                accountId,
+                                term: lockTerm,
+                                phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
+                                phloPrice: BRIDGE_LOCK_PHLO_PRICE,
+                            },
+                            password,
+                        );
+
+                    const deployId: string = signedLock.signature;
+
+                    dispatch(
+                        operationStageChanged({
+                            id: operationId,
+                            stage: OperationStage.SUBMITTING,
+                        }),
+                    );
+
+                    const reservation =
+                        await walletService.addTransactionReservation(
+                            {
+                                walletId,
+                                accountId,
+                                kind: "deploy",
+                                deployId,
+                                term: lockTerm,
+                                pendingAmount:
+                                    atomicAmount + BRIDGE_LOCK_MAX_GAS_COST,
+                                gasCost: BRIDGE_LOCK_MAX_GAS_COST,
+                            },
+                            password,
+                        );
+
+                    try {
+                        await rchain.submitDeploy(signedLock);
+                    } catch (error: unknown) {
+                        await walletService
+                            .removeTransactionReservation(
+                                walletId,
+                                reservation.id,
+                            )
+                            .catch((releaseError: unknown) =>
+                                console.error(
+                                    "bridgeLock: failed to release the reservation of the rejected deploy:",
+                                    releaseError,
+                                ),
+                            );
+
+                        throw error;
+                    }
+
+                    dispatch(
+                        operationStageChanged({
+                            id: operationId,
+                            stage: OperationStage.AWAITING_CONFIRMATION,
+                            transactionId: deployId,
+                        }),
+                    );
+
+                    const invalidateAccountData = (): void => {
+                        dispatch(
+                            walletsApi.util.invalidateTags([
+                                { type: WalletsApiTags.BALANCE, id: accountId },
+                                { type: WalletsApiTags.HISTORY, id: accountId },
+                            ]),
+                        );
+                    };
+
+                    const settleLock = (): void => {
+                        dispatch(operationSettled(operationId));
+                        invalidateAccountData();
+                    };
+
+                    walletService.watchDeploy(deployId, {
+                        onConfirmed: settleLock,
+                        onError: settleLock,
+                    });
+
+                    invalidateAccountData();
+
+                    return { deployId };
+                },
+            ),
         );
-
-        const deployId: string = signedLock.signature;
-
-        const reservation = await walletService.addTransactionReservation(
-            {
-                walletId,
-                accountId,
-                kind: "deploy",
-                deployId,
-                term: lockTerm,
-                pendingAmount:
-                    atomicAmount +
-                    BRIDGE_LOCK_MAX_GAS_COST,
-                gasCost: BRIDGE_LOCK_MAX_GAS_COST,
-            },
-            password,
-        );
-
-        try {
-            await rchain.submitDeploy(signedLock);
-        } catch (error: unknown) {
-            await walletService.removeTransactionReservation(
-                walletId,
-                reservation.id,
-            ).catch((releaseError: unknown) =>
-                console.error(
-                    "bridgeLock: failed to release the reservation of the rejected deploy:",
-                    releaseError,
-                ),
-            );
-
-            throw error;
-        }
-
-        const invalidateAccountData = (): void => {
-            dispatch(
-                walletsApi.util.invalidateTags([
-                    { type: WalletsApiTags.BALANCE, id: accountId },
-                    { type: WalletsApiTags.HISTORY, id: accountId },
-                ]),
-            );
-        };
-
-        walletService.watchDeploy(deployId, {
-            onConfirmed: invalidateAccountData,
-            onError: invalidateAccountData,
-        });
-
-        invalidateAccountData();
-
-        return { deployId };
     },
 );
 

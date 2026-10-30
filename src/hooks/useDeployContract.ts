@@ -20,11 +20,7 @@ import {
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { deployContract, exploreDeploy } from "store/WalletsStore/thunks";
-import {
-    networkOperationFinished,
-    networkOperationStarted,
-    selectIsNetworkOperationPending,
-} from "store/NetworkActivity";
+import { selectIsOperationSubmitting } from "store/NetworkActivity";
 import { IUnlockedAccountMeta } from "types/wallet";
 import {
     IPasswordPromptProps,
@@ -134,7 +130,7 @@ export const useDeployContract = ({
     );
     const networkId = useSelector(selectSelectedNetworkId);
     const networkName = useSelector(selectSelectedNetwork).name;
-    const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
+    const isOperationSubmitting = useSelector(selectIsOperationSubmitting);
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
             selectedAccountId
@@ -150,11 +146,9 @@ export const useDeployContract = ({
     const [isExploring, setIsExploring] = useState(false);
     const [submittedDeployId, setSubmittedDeployId] = useState("");
     const confirmationSubmittedRef = useRef(false);
-    const ownsPendingOperationRef = useRef(false);
 
     const isDeployPending =
         pendingRequest?.mode === DeployConfirmationMods.DEPLOY;
-    const isOperationActive = pendingRequest !== null || isExploring;
 
     const deployWatch = useSelector((state: RootState) =>
         submittedDeployId ? selectDeployWatch(state, submittedDeployId) : null,
@@ -197,26 +191,6 @@ export const useDeployContract = ({
             emit({ type: DeployEventTypes.DEPLOY_CONFIRMED });
         }
     }, [deployWatch]);
-
-    useEffect(() => {
-        if (!isOperationActive) {
-            return;
-        }
-
-        ownsPendingOperationRef.current = true;
-
-        dispatch(networkOperationStarted());
-
-        return () => {
-            dispatch(networkOperationFinished());
-        };
-    }, [dispatch, isOperationActive]);
-
-    useEffect(() => {
-        if (!isChainOperationPending && !isOperationActive) {
-            ownsPendingOperationRef.current = false;
-        }
-    }, [isChainOperationPending, isOperationActive]);
 
     const walletId = wallet?.id;
 
@@ -278,7 +252,7 @@ export const useDeployContract = ({
     };
 
     const requestDeploy = (term: string, fileName?: string): void => {
-        if (isChainOperationPending || confirmationSubmittedRef.current || isConfirmationOpen || deployAction.isRunning || isExploring) {
+        if (isOperationSubmitting || confirmationSubmittedRef.current || isConfirmationOpen || deployAction.isRunning || isExploring) {
             return;
         }
         if (!walletId || !selectedAccountId) {
@@ -333,7 +307,7 @@ export const useDeployContract = ({
     };
 
     const requestExplore = (term: string, fileName?: string): void => {
-        if (isChainOperationPending || confirmationSubmittedRef.current || isConfirmationOpen || deployAction.isRunning || isExploring) {
+        if (isOperationSubmitting || confirmationSubmittedRef.current || isConfirmationOpen || deployAction.isRunning || isExploring) {
             return;
         }
         setPendingRequest({
@@ -396,7 +370,7 @@ export const useDeployContract = ({
         isBalanceReady,
         isPhloLimitValid: parsePhloLimit(phloLimit) !== null,
         isBlockedByAnotherChainOperation:
-            isChainOperationPending && !ownsPendingOperationRef.current,
+            isOperationSubmitting && !deployAction.isRunning && !isExploring,
         submittedDeployId,
         submittedDeployStatus: deployWatch?.status ?? "",
         unresolvedReason: deployWatch?.unresolvedReason ?? "",

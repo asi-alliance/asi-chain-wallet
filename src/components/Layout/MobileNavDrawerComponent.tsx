@@ -16,7 +16,7 @@ import {
     useDeleteActiveWallet,
     useFocusTrap,
 } from "hooks";
-import { selectIsNetworkOperationPending } from "store/NetworkActivity";
+import { selectHasOperationInProgress } from "store/NetworkActivity";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;
@@ -205,9 +205,7 @@ export const MobileNavDrawerComponent: React.FC<
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
-    const isNetworkOperationPending = useSelector(
-        selectIsNetworkOperationPending,
-    );
+    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
     const drawerRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
     const titleId = useId().replace(/:/g, "");
@@ -224,8 +222,6 @@ export const MobileNavDrawerComponent: React.FC<
     });
 
     const handleNavigation = (path: string) => {
-        if (isNetworkOperationPending) return;
-
         navigate(path);
         onClose();
     };
@@ -236,7 +232,7 @@ export const MobileNavDrawerComponent: React.FC<
     };
 
     const handleLogout = () => {
-        if (isNetworkOperationPending) return;
+        if (hasOperationInProgress) return;
 
         dispatch(logout());
         navigate("/login");
@@ -292,7 +288,6 @@ export const MobileNavDrawerComponent: React.FC<
                                         : undefined
                                 }
                                 onClick={() => handleNavigation(item.path)}
-                                disabled={isNetworkOperationPending}
                             >
                                 {item.label}
                             </MobileNavLink>
@@ -340,7 +335,7 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={handleLogout}
-                            disabled={isNetworkOperationPending}
+                            disabled={hasOperationInProgress}
                         >
                             Logout
                             <svg
@@ -367,7 +362,7 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={deleteWallet.open}
-                            disabled={isNetworkOperationPending}
+                            disabled={hasOperationInProgress}
                         >
                             Delete Wallet
                             <DeleteIcon size={20} />

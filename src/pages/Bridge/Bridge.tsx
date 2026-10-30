@@ -45,10 +45,6 @@ import {
     BridgeWalletSelector,
 } from "components/BridgeWalletSelector";
 import { bridgeLock } from "store/WalletsStore/thunks";
-import {
-    networkOperationFinished,
-    networkOperationStarted,
-} from "store/NetworkActivity";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { ASI_DECIMALS, fromAtomicAmount } from "@asichain/asi-wallet-sdk";
 import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";
@@ -443,18 +439,6 @@ export const Bridge: React.FC = () => {
         },
         errorFallback: "Failed to lock tokens",
     });
-
-    useEffect(() => {
-        if (!pendingLock) {
-            return;
-        }
-
-        dispatch(networkOperationStarted());
-
-        return () => {
-            dispatch(networkOperationFinished());
-        };
-    }, [dispatch, pendingLock]);
 
     const parsedAmount: bigint | null = amount.trim()
         ? parseAtomicAmount(amount)

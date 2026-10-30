@@ -17,10 +17,6 @@ import {
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
-    networkOperationFinished,
-    networkOperationStarted,
-} from "store/NetworkActivity";
-import {
     Button,
     Card,
     CardContent,
@@ -367,15 +363,6 @@ export const Send: React.FC = () => {
     useLayoutEffect(() => {
         if (!pendingTransfer) return;
 
-        dispatch(networkOperationStarted());
-        return () => {
-            dispatch(networkOperationFinished());
-        };
-    }, [dispatch, pendingTransfer]);
-
-    useLayoutEffect(() => {
-        if (!pendingTransfer) return;
-
         const historyIndex = window.history.state?.idx;
         let restoringHistory = false;
 
@@ -545,7 +532,6 @@ export const Send: React.FC = () => {
         pasteGenerationRef.current += 1;
         amountPasteGenerationRef.current += 1;
         setScanError("");
-        dispatch(networkOperationStarted());
         setPendingTransfer({
             walletId,
             accountId: selectedAccount.id,
