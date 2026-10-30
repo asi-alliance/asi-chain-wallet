@@ -5,7 +5,9 @@ import {
     networkBusyChanged,
 } from "store/NetworkActivity";
 import { sdkClientReady, selectIsSdkClientReady } from "store/SdkClient";
+import { networksStateChanged } from "store/WalletsStore";
 import { initializeNetworks } from "store/WalletsStore/thunks";
+import { INetworksStateMeta } from "types/wallet";
 
 export const connectSdkClient =
     (client: Client): TAppThunk =>
@@ -22,7 +24,14 @@ export const connectSdkClient =
             },
         );
 
+        walletService.onNetworksChanged(
+            (networksState: INetworksStateMeta) => {
+                dispatch(networksStateChanged(networksState));
+            },
+        );
+
         dispatch(busyNetworksSynced(walletService.getBusyNetworkIds()));
+        dispatch(networksStateChanged(walletService.getNetworksState()));
         dispatch(initializeNetworks());
         dispatch(sdkClientReady());
     };
