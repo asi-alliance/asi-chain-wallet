@@ -13,6 +13,7 @@ import {
     IKeyfileImportPreview,
     INetworkConfig,
     INetworkRecord,
+    INetworksState,
     INetworkUpdate,
     IReservedOperationResult,
     ISignDeployRequest,
@@ -38,6 +39,7 @@ import {
     Wallet,
 } from "@asichain/asi-wallet-sdk";
 import {
+    INetworksStateMeta,
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
     IWalletMeta,
@@ -111,6 +113,16 @@ export class SdkWalletService {
             indexerUrl: record.config.IndexerURL,
             nodeApiProfile: record.config.nodeApiProfile,
             isDefault: record.isDefault,
+        };
+    }
+
+    private static mapNetworksState({
+        networks,
+        selectedNetwork,
+    }: INetworksState): INetworksStateMeta {
+        return {
+            networks: networks.map(SdkWalletService.mapNetwork),
+            selectedNetwork: SdkWalletService.mapNetwork(selectedNetwork),
         };
     }
 
@@ -341,29 +353,24 @@ export class SdkWalletService {
         return this.requireClient().getCurrentNetworkId();
     }
 
+    public getNetworksState(): INetworksStateMeta {
+        return SdkWalletService.mapNetworksState(
+            this.requireClient().getNetworksState(),
+        );
+    }
+
     public async addCustomNetwork(
         name: NetworkName,
         config: INetworkConfig,
-    ): Promise<TCustomNetwork> {
-        const addedNetworkRecord = (await this.requireClient().addNetwork(
-            name,
-            config,
-        )) as TCustomNetworkRecord;
-
-        return SdkWalletService.mapNetwork(addedNetworkRecord);
+    ): Promise<void> {
+        await this.requireClient().addNetwork(name, config);
     }
 
-    public async updateCustomNetwork(
+    public updateCustomNetwork(
         id: NetworkId,
         update: INetworkUpdate,
-    ): Promise<TCustomNetwork> {
-        const client = this.requireClient();
-
-        await client.updateNetwork(id, update);
-
-        return SdkWalletService.mapNetwork(
-            client.getNetwork(id) as TCustomNetworkRecord,
-        );
+    ): Promise<void> {
+        return this.requireClient().updateNetwork(id, update);
     }
 
     public async removeCustomNetwork(id: NetworkId): Promise<void> {
@@ -562,5 +569,17 @@ export class SdkWalletService {
         return this.requireClient()
             .getEventBus()
             .on(ClientEvent.NETWORK_BUSY_CHANGED, listener);
+    }
+
+    public onNetworksChanged(
+        listener: (networksState: INetworksStateMeta) => void,
+    ): TUnsubscribe {
+        return this.requireClient()
+            .getEventBus()
+            .on(
+                ClientEvent.NETWORKS_CHANGED,
+                (networksState: INetworksState) =>
+                    listener(SdkWalletService.mapNetworksState(networksState)),
+            );
     }
 }

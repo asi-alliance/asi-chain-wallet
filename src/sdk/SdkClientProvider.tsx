@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Client, INetworkRecord } from "@asichain/asi-wallet-sdk";
+import { Client } from "@asichain/asi-wallet-sdk";
 import {
     getInitialNetwork,
     getNetworksEnvError,
@@ -19,11 +19,6 @@ const initSdkClient = (): Promise<Client> => {
         clientPromise = Client.create({
             networksConfig: NETWORKS_CONFIG,
             defaultNetwork: getInitialNetwork().id,
-            eventDispatcher: {
-                onNetworkChanged: (network: INetworkRecord) => {
-                    console.info("SDK network changed:", network.id);
-                },
-            },
         });
     }
 

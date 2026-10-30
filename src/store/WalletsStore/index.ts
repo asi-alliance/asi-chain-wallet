@@ -6,27 +6,20 @@ import {
     IAccountMeta,
     IDeployWatchState,
     IUnlockedWalletMeta,
+    INetworksStateMeta,
     Network,
-    TCustomNetwork,
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
 import {
     importKeyfileAccounts,
-    addCustomNetwork,
     deployContract,
-    IInitializeNetworksResponse,
-    initializeNetworks,
-    IRemoveNetworkResponse,
     loadWalletsFromStorage,
     removeAccount,
-    removeCustomNetwork,
     removeWallet,
     selectAccount,
-    selectNetwork,
     sendTransaction,
     updateAccountName,
-    updateCustomNetwork,
 } from "./thunks";
 import {
     addWalletToWalletsStore,
@@ -97,6 +90,13 @@ const walletsStoreSlice = createSlice({
         },
         deployWatchCleared: (state, action: PayloadAction<string>) => {
             delete state.deployWatches[action.payload];
+        },
+        networksStateChanged: (
+            state,
+            action: PayloadAction<INetworksStateMeta>,
+        ) => {
+            state.networks = action.payload.networks;
+            state.selectedNetwork = action.payload.selectedNetwork;
         },
     },
     extraReducers: (builder) => {
@@ -176,87 +176,6 @@ const walletsStoreSlice = createSlice({
             .addCase(updateAccountName.rejected, (state) => {
                 state.isLoading = false;
             })
-            .addCase(
-                initializeNetworks.fulfilled,
-                (state, action: PayloadAction<IInitializeNetworksResponse>) => {
-                    const { customNetworks, selectedNetwork } = action.payload;
-
-                    state.networks = [
-                        ...state.networks.filter(
-                            (network: Network) => network.isDefault,
-                        ),
-                        ...customNetworks,
-                    ];
-
-                    if (selectedNetwork) {
-                        state.selectedNetwork = selectedNetwork;
-                    }
-                },
-            )
-            .addCase(
-                selectNetwork.fulfilled,
-                (state, action: PayloadAction<Network>) => {
-                    state.selectedNetwork = action.payload;
-                },
-            )
-            .addCase(
-                addCustomNetwork.fulfilled,
-                (state, action: PayloadAction<TCustomNetwork>) => {
-                    state.networks.push(action.payload);
-                },
-            )
-            .addCase(
-                updateCustomNetwork.fulfilled,
-                (state, action: PayloadAction<TCustomNetwork>) => {
-                    const updatedNetwork = action.payload;
-
-                    const targetNetworkIndex = state.networks.findIndex(
-                        (network: Network) => network.id === updatedNetwork.id,
-                    );
-
-                    if (targetNetworkIndex === -1) {
-                        console.error(
-                            "walletsStoreSlice.updateCustomNetwork: Incorrect network id",
-                        );
-
-                        return;
-                    }
-
-                    state.networks[targetNetworkIndex] = updatedNetwork;
-
-                    if (state.selectedNetwork.id === updatedNetwork.id) {
-                        state.selectedNetwork = updatedNetwork;
-                    }
-                },
-            )
-            .addCase(
-                removeCustomNetwork.fulfilled,
-                (state, action: PayloadAction<IRemoveNetworkResponse>) => {
-                    const { id, selectedNetworkId } = action.payload;
-
-                    state.networks = state.networks.filter(
-                        (network: Network) => network.id !== id,
-                    );
-
-                    if (state.selectedNetwork.id !== id) {
-                        return;
-                    }
-
-                    const currentNetwork = state.networks.find(
-                        (network: Network) => network.id === selectedNetworkId,
-                    );
-
-                    if (!currentNetwork) {
-                        console.error(
-                            "walletsStoreSlice.removeCustomNetwork: SDK switched to an unknown network",
-                        );
-
-                        return;
-                    }
-
-                    state.selectedNetwork = currentNetwork;
-                },
-            )
             .addCase(sendTransaction.pending, (state) => {
                 state.isLoading = true;
             })
@@ -392,6 +311,7 @@ export const {
     deployStatusChanged,
     deployWatchUnresolved,
     deployWatchCleared,
+    networksStateChanged,
 } = walletsStoreSlice.actions;
 
 export default walletsStoreSlice.reducer;
