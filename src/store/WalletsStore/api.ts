@@ -5,8 +5,8 @@ import {
 } from "@asichain/asi-wallet-sdk";
 import { ACCOUNT_DATA_POLLING_INTERVAL_SECONDS } from "constants/polling";
 import { Transaction } from "types/transactions";
-import { SdkWalletService } from "sdk";
 import { RootState } from "store";
+import { IThunkExtraArgument } from "store/appThunk";
 import {
     getUnlockedWalletAndAccountFromWalletsMeta,
     IUnlockedWalletAndAccountPathFromMeta,
@@ -42,6 +42,9 @@ export interface IHistoryQueryArgs extends IAccountQueryArgs {
 const toErrorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error ? error.message : fallback;
 
+const getWalletService = (extra: unknown) =>
+    (extra as IThunkExtraArgument).walletService;
+
 export const serializeHistoryTimestamp = (timestamp: Date | string): string => {
     if (timestamp instanceof Date) {
         return Number.isNaN(timestamp.getTime()) ? "" : timestamp.toISOString();
@@ -60,7 +63,7 @@ export const walletsApi = createApi({
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
         getBalance: build.query<string, IAccountQueryArgs>({
-            queryFn: async ({ accountId }, { getState }) => {
+            queryFn: async ({ accountId }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -78,7 +81,7 @@ export const walletsApi = createApi({
                 const { wallet } = walletAndAccount;
 
                 try {
-                    const balance = await SdkWalletService.getAvailableBalance(
+                    const balance = await getWalletService(extra).getAvailableBalance(
                         wallet.id,
                         accountId,
                     );
@@ -95,7 +98,7 @@ export const walletsApi = createApi({
             ],
         }),
         getTransactionHistory: build.query<Transaction[], IHistoryQueryArgs>({
-            queryFn: async ({ accountId, source }, { getState }) => {
+            queryFn: async ({ accountId, source }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -122,7 +125,7 @@ export const walletsApi = createApi({
                     }
 
                     const history =
-                        await SdkWalletService.getTransactionsHistory(
+                        await getWalletService(extra).getTransactionsHistory(
                             wallet.id,
                             accountId,
                             historyOptions,

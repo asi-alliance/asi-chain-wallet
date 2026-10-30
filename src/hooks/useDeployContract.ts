@@ -19,13 +19,12 @@ import {
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { deployContract } from "store/WalletsStore/thunks";
+import { deployContract, exploreDeploy } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
     selectIsNetworkOperationPending,
-} from "store/networkOperationSlice";
-import { SdkWalletService } from "sdk";
+} from "store/NetworkActivity";
 import { IUnlockedAccountMeta } from "types/wallet";
 import {
     IPasswordPromptProps,
@@ -357,7 +356,7 @@ export const useDeployContract = ({
         emit({ type: DeployEventTypes.EXPLORE_STARTED, fileName });
 
         try {
-            const result: unknown = await SdkWalletService.exploreDeploy(term);
+            const result: unknown = await dispatch(exploreDeploy(term));
 
             emit({ type: DeployEventTypes.EXPLORE_COMPLETED, result });
         } catch (exploreError: unknown) {

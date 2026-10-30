@@ -7,7 +7,7 @@ import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/Auth/thunks";
 import { selectHasWallets } from "store/WalletsStore";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
 import { useDeleteActiveWallet } from "hooks";

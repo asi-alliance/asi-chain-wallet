@@ -1,14 +1,14 @@
 import React, { Fragment, useState } from "react";
 import styled from "styled-components";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Button } from "components";
 import { DeleteIcon, EditIcon } from "components/Icons";
 import { DeleteCustomNetworkModal } from "components/DeleteCustomNetworkModal";
 import { EditCustomNetworkModal } from "components/EditCustomNetworkModal";
-import { AppDispatch } from "store";
+import { AppDispatch, RootState } from "store";
+import { selectIsNetworkBusy } from "store/NetworkActivity";
 import { removeCustomNetwork } from "store/WalletsStore/thunks";
 import { Network } from "types/wallet";
-import { useIsNetworkBusy } from "sdk";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
 
 const NetworkItem = styled.div`
@@ -119,7 +119,9 @@ export const CustomNetworkCard: React.FC<CustomNetworkCardProps> = ({
     network,
 }) => {
     const dispatch = useDispatch<AppDispatch>();
-    const isNetworkBusy = useIsNetworkBusy(network.id);
+    const isNetworkBusy = useSelector((state: RootState) =>
+        selectIsNetworkBusy(state, network.id),
+    );
     const [isEditing, setIsEditing] = useState(false);
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
