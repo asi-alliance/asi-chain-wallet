@@ -16,7 +16,7 @@ import {
     useDeleteActiveWallet,
     useFocusTrap,
 } from "hooks";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;

@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import {
-    isInvalidPasswordError,
-    isWalletLockedError,
-    SdkWalletService,
-} from "sdk";
+import { isInvalidPasswordError, isWalletLockedError } from "sdk";
+import { useAppDispatch } from "store/hooks";
+import { checkWalletUnlocked } from "store/WalletsStore/thunks";
 
 const DEFAULT_ERROR_FALLBACK = "Operation failed";
 const WALLET_NOT_OPENED_MESSAGE = "Wallet is not opened. Please login again.";
@@ -39,6 +37,7 @@ export const useWalletSessionAction = <TResult>({
     onError,
     errorFallback = DEFAULT_ERROR_FALLBACK,
 }: IWalletSessionActionOptions<TResult>): IWalletSessionAction => {
+    const dispatch = useAppDispatch();
     const [isRunning, setIsRunning] = useState(false);
     const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
     const [passwordError, setPasswordError] = useState("");
@@ -57,7 +56,7 @@ export const useWalletSessionAction = <TResult>({
 
         if (
             password === undefined &&
-            !SdkWalletService.isWalletUnlocked(walletId)
+            !dispatch(checkWalletUnlocked(walletId))
         ) {
             openPasswordPrompt();
 

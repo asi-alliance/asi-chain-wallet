@@ -8,7 +8,7 @@ import {
     selectAccountById,
     selectSelectedAccountId,
 } from "store/WalletsStore";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import {
     Card,
     CardHeader,

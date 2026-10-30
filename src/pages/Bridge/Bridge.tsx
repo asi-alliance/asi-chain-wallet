@@ -48,7 +48,7 @@ import { bridgeLock } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
-} from "store/networkOperationSlice";
+} from "store/NetworkActivity";
 import { IUnlockedAccountMeta, IUnlockedWalletMeta } from "types/wallet";
 import { ASI_DECIMALS, fromAtomicAmount } from "@asichain/asi-wallet-sdk";
 import { BRIDGE_LOCK_MAX_GAS_COST } from "services/rchain";

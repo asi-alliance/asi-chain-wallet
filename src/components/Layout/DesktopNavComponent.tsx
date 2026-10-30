@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { VisuallyHidden } from "components/Foundation";
 import { NetworkSelector } from "components/NetworkSelector";
-import { selectIsNetworkOperationPending } from "store/networkOperationSlice";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 
 const DesktopNavStyled = styled.nav`
     height: ${({ theme }) => theme.layout.navigationHeight};

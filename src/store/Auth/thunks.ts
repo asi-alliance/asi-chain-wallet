@@ -1,6 +1,4 @@
-import { createAsyncThunk } from "@reduxjs/toolkit";
 import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
 import { FailureReason, LoginType } from "services/loginAuditLog";
 import { withLoginLock } from "services/loginLock";
 import {
@@ -8,7 +6,7 @@ import {
     checkRateLimit,
     formatLockoutMessage,
 } from "services/loginRateLimit";
-import { RootState } from "store";
+import { createAppAsyncThunk } from "store/appThunk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { toActiveWalletSession } from "store/WalletsStore/helpers";
 import { IActiveWalletSession } from "types/wallet";
@@ -24,14 +22,17 @@ type CreateHdWalletPayload = {
     password: string;
 };
 
-export const createHdWallet = createAsyncThunk<
+export const createHdWallet = createAppAsyncThunk<
     IActiveWalletSession,
     CreateHdWalletPayload
->("auth/createHdWallet", async ({ name, mnemonic, password }) => {
-    return toActiveWalletSession(
-        await SdkWalletService.createHdWallet({ name, mnemonic, password }),
-    );
-});
+>(
+    "auth/createHdWallet",
+    async ({ name, mnemonic, password }, { extra: { walletService } }) => {
+        return toActiveWalletSession(
+            await walletService.createHdWallet({ name, mnemonic, password }),
+        );
+    },
+);
 
 type ImportHdWalletPayload = {
     name: string;
@@ -39,14 +40,17 @@ type ImportHdWalletPayload = {
     password: string;
 };
 
-export const importHdWallet = createAsyncThunk<
+export const importHdWallet = createAppAsyncThunk<
     IActiveWalletSession,
     ImportHdWalletPayload
->("auth/importHdWallet", async ({ name, mnemonic, password }) => {
-    return toActiveWalletSession(
-        await SdkWalletService.createHdWallet({ name, mnemonic, password }),
-    );
-});
+>(
+    "auth/importHdWallet",
+    async ({ name, mnemonic, password }, { extra: { walletService } }) => {
+        return toActiveWalletSession(
+            await walletService.createHdWallet({ name, mnemonic, password }),
+        );
+    },
+);
 
 type ImportPrivateKeyWalletPayload = {
     name: string;
@@ -54,14 +58,17 @@ type ImportPrivateKeyWalletPayload = {
     password: string;
 };
 
-export const importPrivateKeyWallet = createAsyncThunk<
+export const importPrivateKeyWallet = createAppAsyncThunk<
     IActiveWalletSession,
     ImportPrivateKeyWalletPayload
 >(
     "auth/importPrivateKeyWallet",
-    async ({ name, privateKeyHex, password }) => {
+    async (
+        { name, privateKeyHex, password },
+        { extra: { walletService } },
+    ) => {
         return toActiveWalletSession(
-            await SdkWalletService.createPrivateKeyWallet({
+            await walletService.createPrivateKeyWallet({
                 name,
                 privateKeyHex,
                 password,
@@ -70,41 +77,51 @@ export const importPrivateKeyWallet = createAsyncThunk<
     },
 );
 
-export const deriveHdAccount = createAsyncThunk<
+export const deriveHdAccount = createAppAsyncThunk<
     IActiveWalletSession,
-    { name: string; password: string },
-    { state: RootState }
->("auth/deriveHdAccount", async ({ name, password }, { getState }) => {
-    const { wallets } = getState().walletsStore;
-    const { activeSignerId } = getState().auth;
+    { name: string; password: string }
+>(
+    "auth/deriveHdAccount",
+    async ({ name, password }, { getState, extra: { walletService } }) => {
+        const { wallets } = getState().walletsStore;
+        const { activeSignerId } = getState().auth;
 
-    const activeWallet = wallets.find(
-        (walletMeta) =>
-            walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
-    );
+        const activeWallet = wallets.find(
+            (walletMeta) =>
+                walletMeta.isUnlocked && walletMeta.signerId === activeSignerId,
+        );
 
-    if (!activeWallet?.id) {
-        throw new Error("No active HD wallet to derive an account from");
-    }
+        if (!activeWallet?.id) {
+            throw new Error("No active HD wallet to derive an account from");
+        }
 
-    const { wallet, accountId } = await SdkWalletService.deriveAccount({
-        walletId: activeWallet.id,
-        name,
-        password,
-    });
+        const { wallet, accountId } = await walletService.deriveAccount({
+            walletId: activeWallet.id,
+            name,
+            password,
+        });
 
-    WalletPreferencesStorage.setSelectedAccountId(wallet.signerId, accountId);
+        WalletPreferencesStorage.setSelectedAccountId(
+            wallet.signerId,
+            accountId,
+        );
 
-    return { wallet, selectedAccountId: accountId };
-});
+        return { wallet, selectedAccountId: accountId };
+    },
+);
 
 const LOCK_WAIT_THRESHOLD_MS = 500;
 
-export const loginWithPassword = createAsyncThunk<
+export const loginWithPassword = createAppAsyncThunk<
     IActiveWalletSession,
     { signerId: string; password: string },
     { rejectValue: ILoginRejection }
->("auth/loginWithPassword", async ({ signerId, password }, { rejectWithValue }) => {
+>(
+    "auth/loginWithPassword",
+    async (
+        { signerId, password },
+        { rejectWithValue, extra: { walletService } },
+    ) => {
     const loginType = LoginType.ByName;
     const contextKey = buildContextKey(signerId);
     let failureReason: FailureReason | undefined;
@@ -134,7 +151,7 @@ export const loginWithPassword = createAsyncThunk<
             }
 
             try {
-                const wallet = await SdkWalletService.openWallet(
+                const wallet = await walletService.openWallet(
                     signerId,
                     password,
                 );
@@ -170,11 +187,15 @@ export const loginWithPassword = createAsyncThunk<
             loginType,
         );
     }
-});
+    },
+);
 
-export const logout = createAsyncThunk("auth/logout", async () => {
-    SdkWalletService.closeSession();
-});
+export const logout = createAppAsyncThunk(
+    "auth/logout",
+    async (_, { extra: { walletService } }) => {
+        walletService.closeSession();
+    },
+);
 
 export interface IImportKeyfileWalletPayload {
     keyfile: string;
@@ -182,14 +203,17 @@ export interface IImportKeyfileWalletPayload {
     accountIndexes?: number[];
 }
 
-export const importKeyfileWallet = createAsyncThunk<
+export const importKeyfileWallet = createAppAsyncThunk<
     IActiveWalletSession,
     IImportKeyfileWalletPayload
 >(
     "auth/importKeyfileWallet",
-    async ({ keyfile, password, accountIndexes }: IImportKeyfileWalletPayload) =>
+    async (
+        { keyfile, password, accountIndexes }: IImportKeyfileWalletPayload,
+        { extra: { walletService } },
+    ) =>
         toActiveWalletSession(
-            await SdkWalletService.importWalletKeyfile(
+            await walletService.importWalletKeyfile(
                 keyfile,
                 password,
                 accountIndexes ? { accountIndexes } : undefined,
