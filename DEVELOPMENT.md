@@ -4,6 +4,8 @@
 
 This guide covers setup, the SDK dependency, the available scripts, Docker, CI/CD and troubleshooting.
 
+Use `dev` for current development. Read [branch and testnet-image selection](README.md#branches-and-testnet-image) first: the testnet ECR artifact has a separate infra packaging recipe and runtime configuration from the repository Dockerfile described here.
+
 For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 
 ## Table of Contents
@@ -31,7 +33,7 @@ For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 ### 1. Clone The Repository
 
 ```bash
-git clone https://github.com/asi-alliance/asi-chain-wallet.git
+git clone --branch dev https://github.com/asi-alliance/asi-chain-wallet.git
 cd asi-chain-wallet
 ```
 
