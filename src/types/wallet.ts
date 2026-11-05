@@ -6,28 +6,6 @@ import {
     WalletTypes,
 } from "@asichain/asi-wallet-sdk";
 
-export interface Account {
-    id: string;
-    name: string;
-    address: string;
-    revAddress: string;
-    ethAddress: string;
-    publicKey: string;
-    privateKey?: string;
-    balance: string;
-    isMetamask?: boolean;
-    networkId?: string;
-    createdAt: Date;
-}
-
-export interface Deploy {
-    term: string;
-    phloLimit: number;
-    phloPrice: number;
-    validAfterBlockNumber: number;
-    timestamp: number;
-}
-
 export interface Network {
     id: string;
     name: string;

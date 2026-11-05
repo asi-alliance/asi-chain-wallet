@@ -1,8 +1,5 @@
 import {
     StorageAdapter,
-    StoredAccountRecord,
-    SettingsRecord,
-    SessionRecord,
     StoreName,
     TransactionMode,
     StorageError,
@@ -10,7 +7,6 @@ import {
 
 const DB_NAME = "asi_wallet_db";
 const DB_VERSION = 3;
-const DEFAULT_SETTINGS_ID = "default";
 
 function toError(
     domError: DOMException | null,
@@ -130,20 +126,6 @@ export class IndexedDBAdapter implements StorageAdapter {
         return { store: tx.objectStore(name), tx };
     }
 
-    private async getMultiStore(
-        names: StoreName[],
-        mode: TransactionMode,
-    ): Promise<{ stores: Map<StoreName, IDBObjectStore>; tx: IDBTransaction }> {
-        this.ensureOpen();
-        const db = await this.dbPromise;
-        const tx = db.transaction(names, mode);
-        const stores = new Map<StoreName, IDBObjectStore>();
-        for (const name of names) {
-            stores.set(name, tx.objectStore(name));
-        }
-        return { stores, tx };
-    }
-
     async getItem(key: string): Promise<string | null> {
         const { store } = await this.getStore(
             StoreName.General,
@@ -170,127 +152,6 @@ export class IndexedDBAdapter implements StorageAdapter {
             TransactionMode.ReadWrite,
         );
         store.delete(key);
-        await commitTransaction(tx);
-    }
-
-    async getAllAccounts(): Promise<StoredAccountRecord[]> {
-        const { store } = await this.getStore(
-            StoreName.Accounts,
-            TransactionMode.ReadOnly,
-        );
-        return promisifyRequest<StoredAccountRecord[]>(store.getAll());
-    }
-
-    async putAccount(account: StoredAccountRecord): Promise<void> {
-        const { store, tx } = await this.getStore(
-            StoreName.Accounts,
-            TransactionMode.ReadWrite,
-        );
-        store.put(account);
-        await commitTransaction(tx);
-    }
-
-    async putAccounts(accounts: StoredAccountRecord[]): Promise<void> {
-        const { store, tx } = await this.getStore(
-            StoreName.Accounts,
-            TransactionMode.ReadWrite,
-        );
-        for (const account of accounts) {
-            store.put(account);
-        }
-        await commitTransaction(tx);
-    }
-
-    async deleteAccount(id: string): Promise<void> {
-        const { store, tx } = await this.getStore(
-            StoreName.Accounts,
-            TransactionMode.ReadWrite,
-        );
-
-        store.delete(id);
-        await commitTransaction(tx);
-    }
-
-    async getSettings(): Promise<SettingsRecord | null> {
-        const { store } = await this.getStore(
-            StoreName.Settings,
-            TransactionMode.ReadOnly,
-        );
-        const result = await promisifyRequest<SettingsRecord | undefined>(
-            store.get(DEFAULT_SETTINGS_ID),
-        );
-        return result ?? null;
-    }
-
-    async putSettings(settings: SettingsRecord): Promise<void> {
-        const record: SettingsRecord = { ...settings, id: DEFAULT_SETTINGS_ID };
-        const { store, tx } = await this.getStore(
-            StoreName.Settings,
-            TransactionMode.ReadWrite,
-        );
-        store.put(record);
-        await commitTransaction(tx);
-    }
-
-    async getSession(token: string): Promise<SessionRecord | null> {
-        const { store } = await this.getStore(
-            StoreName.Sessions,
-            TransactionMode.ReadOnly,
-        );
-        const result = await promisifyRequest<SessionRecord | undefined>(
-            store.get(token),
-        );
-        return result ?? null;
-    }
-
-    async putSession(session: SessionRecord): Promise<void> {
-        const { store, tx } = await this.getStore(
-            StoreName.Sessions,
-            TransactionMode.ReadWrite,
-        );
-        store.put(session);
-        await commitTransaction(tx);
-    }
-
-    async deleteSession(token: string): Promise<void> {
-        const { store, tx } = await this.getStore(
-            StoreName.Sessions,
-            TransactionMode.ReadWrite,
-        );
-        store.delete(token);
-        await commitTransaction(tx);
-    }
-
-    async deleteSessionsOlderThan(maxAgeMs: number): Promise<number> {
-        const cutoff = Date.now() - maxAgeMs;
-        const { store, tx } = await this.getStore(
-            StoreName.Sessions,
-            TransactionMode.ReadWrite,
-        );
-        const index = store.index("updatedAt");
-        const range = IDBKeyRange.upperBound(cutoff);
-        const staleRecords = await promisifyRequest<SessionRecord[]>(
-            index.getAll(range),
-        );
-        for (const record of staleRecords) {
-            store.delete(record.token);
-        }
-        await commitTransaction(tx);
-        return staleRecords.length;
-    }
-
-    async clear(): Promise<void> {
-        const allStores: StoreName[] = [
-            StoreName.Accounts,
-            StoreName.Settings,
-            StoreName.General,
-            StoreName.Sessions,
-        ];
-        const { stores, tx } = await this.getMultiStore(
-            allStores,
-            TransactionMode.ReadWrite,
-        );
-        stores.forEach((store) => store.clear());
         await commitTransaction(tx);
     }
 }

@@ -96,12 +96,6 @@ const authSlice = createSlice({
             });
     },
 });
-
-export const selectAuth = (state: RootState): AuthState => state.auth;
-export const selectActiveSignerId = (state: RootState): string | null =>
-    state.auth.activeSignerId;
-export const selectActiveWalletId = (state: RootState): string | null =>
-    state.auth.activeWalletId;
 export const selectIsAuthenticated = (state: RootState): boolean =>
     state.auth.isAuthenticated;
 

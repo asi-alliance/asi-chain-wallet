@@ -103,24 +103,6 @@ export async function recordLoginAttempt(
   await writeLog(trimEntries([...entries, entry]));
 }
 
-// ── Analysis ─────────────────────────────────────────────────────────────────
-
-/**
- * Count consecutive failures walking backwards from the end of the audit log
- * until a success is found. Ignores time — only cares about the sequence.
- * This is used for the security warning ("If it wasn't you, change your password").
- */
-export async function getConsecutiveFailureCount(): Promise<number> {
-  const entries = await readLog();
-  let count = 0;
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (entries[i].status === LoginAttemptStatus.Success) break;
-    if (entries[i].status === LoginAttemptStatus.Failure) count++;
-    // AccountLocked entries don't count as separate failures
-  }
-  return count;
-}
-
 /**
  * Count consecutive failures from the tail of the log until a success.
  * Returns count + 1 to include the upcoming entry being recorded.
@@ -206,16 +188,4 @@ export async function analyzeRecentActivity(): Promise<SuspiciousActivityReport>
     accountNameChanged,
     recentAccountNames: Array.from(recentNames),
   };
-}
-
-// ── Getters / cleanup ────────────────────────────────────────────────────────
-
-export async function getLoginAuditLog(): Promise<LoginAuditEntry[]> {
-  return readLog();
-}
-
-export async function clearLoginAuditLog(): Promise<void> {
-  const adapter = StorageProvider.getAdapter();
-  if (!adapter) return;
-  await adapter.removeItem(AUDIT_LOG_KEY);
 }
