@@ -127,51 +127,6 @@ export const ReceiveIcon: React.FC<IconProps> = ({
     </svg>
 );
 
-export const AccountsIcon: React.FC<IconProps> = ({
-    size = 20,
-    color = "currentColor",
-    className,
-}) => (
-    <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        className={className}
-    >
-        <path
-            d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <circle
-            cx="9"
-            cy="7"
-            r="4"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <path
-            d="M23 21v-2a4 4 0 0 0-3-3.87"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <path
-            d="M16 3.13a4 4 0 0 1 0 7.75"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-    </svg>
-);
-
 export const ContractIcon: React.FC<IconProps> = ({
     size = 20,
     color = "currentColor",
@@ -214,45 +169,6 @@ export const ContractIcon: React.FC<IconProps> = ({
         />
         <path
             d="M10 9H9H8"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-    </svg>
-);
-
-export const IDEIcon: React.FC<IconProps> = ({
-    size = 20,
-    color = "currentColor",
-    className,
-}) => (
-    <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        className={className}
-    >
-        <rect
-            x="3"
-            y="3"
-            width="18"
-            height="18"
-            rx="2"
-            ry="2"
-            stroke={color}
-            strokeWidth="2"
-        />
-        <path
-            d="M9 9L12 12L9 15"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-        <path
-            d="M13 15H17"
             stroke={color}
             strokeWidth="2"
             strokeLinecap="round"
@@ -815,33 +731,6 @@ export const ReloadIcon: React.FC<IconProps> = ({
             d="M12 6V9L16 5L12 1V4C7.58 4 4 7.58 4 12C4 13.57 4.46 15.03 5.24 16.26L6.7 14.8C6.25 13.97 6 13.01 6 12C6 8.69 8.69 6 12 6ZM18.76 7.74L17.3 9.2C17.74 10.04 18 10.99 18 12C18 15.31 15.31 18 12 18V15L8 19L12 23V20C16.42 20 20 16.42 20 12C20 10.43 19.54 8.97 18.76 7.74Z"
             fill={color}
         />
-    </svg>
-);
-
-export const LockPassIcon: React.FC<IconProps> = ({
-    size = 24,
-    color = "currentColor",
-    className,
-}) => (
-    <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-    >
-        <g clipPath="url(#clip0_97_211)">
-            <path
-                d="M15.207 18.707L13.414 20.5L15.207 22.293L13.793 23.707L12 21.914L10.207 23.707L8.793 22.293L10.586 20.5L8.793 18.707L10.207 17.293L12 19.086L13.793 17.293L15.207 18.707ZM23.207 18.707L21.793 17.293L20 19.086L18.207 17.293L16.793 18.707L18.586 20.5L16.793 22.293L18.207 23.707L20 21.914L21.793 23.707L23.207 22.293L21.414 20.5L23.207 18.707ZM5.793 17.293L4 19.086L2.207 17.293L0.792999 18.707L2.586 20.5L0.792999 22.293L2.207 23.707L4 21.914L5.793 23.707L7.207 22.293L5.414 20.5L7.207 18.707L5.793 17.293ZM6 12V5H8V4C8 1.794 9.794 0 12 0C14.206 0 16 1.794 16 4V5H18V12C18 13.654 16.654 15 15 15H9C7.346 15 6 13.654 6 12ZM13 9H11V11H13V9ZM10 5H14V4C14 2.897 13.103 2 12 2C10.897 2 10 2.897 10 4V5Z"
-                fill={color}
-            />
-        </g>
-        <defs>
-            <clipPath id="clip0_97_211">
-                <rect width="24" height="24" fill="white" />
-            </clipPath>
-        </defs>
     </svg>
 );
 

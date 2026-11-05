@@ -8,38 +8,11 @@ import {
     IWalletMeta,
     WalletStoreState,
 } from "types/wallet";
-import { Transaction } from "types/transactions";
-import { TransactionStatus } from "@asichain/asi-wallet-sdk";
 
 export interface IUnlockedWalletAndAccountPathFromMeta {
     wallet: IUnlockedWalletMeta;
     account: IUnlockedAccountMeta;
 }
-
-export interface ITransactionStatusUpdate {
-    deployId: string;
-    status: TransactionStatus;
-    error?: string;
-}
-
-export const updateTransactionStatus = (
-    transactions: Transaction[],
-    { deployId, status, error }: ITransactionStatusUpdate,
-): void => {
-    const targetTransaction: Transaction | undefined = transactions.find(
-        (transaction: Transaction) => transaction.deployId === deployId,
-    );
-
-    if (!targetTransaction) {
-        return;
-    }
-
-    targetTransaction.status = status;
-
-    if (error) {
-        targetTransaction.error = error;
-    }
-};
 
 export const getUnlockedWalletAndAccountFromWalletsMeta = (
     walletsMeta: IWalletMeta[],
