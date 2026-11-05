@@ -391,3 +391,9 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 ---
 
 **Remember**: this is a self-custodial wallet with no backend. You control your keys and your data.
+
+## Bounded deploy admission compatibility
+
+The draft adaptation for [node #789](https://github.com/F1R3FLY-io/f1r3node-rust/pull/789) displays explicit SDK admission refusals as "Not accepted by the node. Please try again later." An unknown submission instead directs the user to check transaction history before retrying. Transfer and contract-deploy watchers start only after the SDK submission promise resolves.
+
+This UI requires the SDK companion admission-handling change to be released and resolved in the wallet lockfile before this draft becomes ready. The existing npm dependency is retained while that release is pending. A bare HTTP 503 is never interpreted by the wallet as proof of non-acceptance.

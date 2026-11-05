@@ -1,3 +1,3 @@
-export { isInvalidPasswordError, isWalletLockedError } from "./errors";
+export { getWalletActionErrorMessage, isInvalidPasswordError, isWalletLockedError } from "./errors";
 export { SdkClientProvider } from "./SdkClientProvider";
 export { SdkWalletService } from "./SdkWalletService";
