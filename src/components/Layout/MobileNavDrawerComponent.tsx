@@ -10,11 +10,18 @@ import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
 import { VisuallyHidden } from "components/Foundation";
+import { hasOpenModal } from "components/ModalWindow";
 import { NetworkSelector } from "components/NetworkSelector";
+import {
+    DELETE_DURING_OPERATION_WARNING,
+    LOGOUT_OPERATION_PROMPT,
+    OperationInProgressModal,
+} from "components/OperationInProgressModal";
 import {
     useBodyScrollLock,
     useDeleteActiveWallet,
     useFocusTrap,
+    useOperationGuard,
 } from "hooks";
 import { selectHasOperationInProgress } from "store/NetworkActivity";
 
@@ -217,7 +224,7 @@ export const MobileNavDrawerComponent: React.FC<
         active: isOpen,
         initialFocusRef: closeButtonRef,
         onEscape: onClose,
-        isPaused: () => deleteWallet.isOpen,
+        isPaused: hasOpenModal,
         restoreFocus: true,
     });
 
@@ -231,13 +238,11 @@ export const MobileNavDrawerComponent: React.FC<
         onClose();
     };
 
-    const handleLogout = () => {
-        if (hasOperationInProgress) return;
-
+    const logoutGuard = useOperationGuard(() => {
         dispatch(logout());
         navigate("/login");
         onClose();
-    };
+    });
 
     return (
         <>
@@ -334,8 +339,7 @@ export const MobileNavDrawerComponent: React.FC<
                         <LogoutButton
                             fullWidth
                             variant="secondary"
-                            onClick={handleLogout}
-                            disabled={hasOperationInProgress}
+                            onClick={() => logoutGuard.run()}
                         >
                             Logout
                             <svg
@@ -362,7 +366,6 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={deleteWallet.open}
-                            disabled={hasOperationInProgress}
                         >
                             Delete Wallet
                             <DeleteIcon size={20} />
@@ -374,8 +377,17 @@ export const MobileNavDrawerComponent: React.FC<
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
                 error={deleteWallet.error}
+                operationWarning={
+                    hasOperationInProgress
+                        ? DELETE_DURING_OPERATION_WARNING
+                        : undefined
+                }
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
+            />
+            <OperationInProgressModal
+                {...logoutGuard.prompt}
+                {...LOGOUT_OPERATION_PROMPT}
             />
         </>
     );

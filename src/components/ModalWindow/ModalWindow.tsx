@@ -136,6 +136,8 @@ let initialModalOpener: HTMLElement | null = null;
 const isTopModal = (id: string): boolean =>
     modalStack[modalStack.length - 1] === id;
 
+export const hasOpenModal = (): boolean => modalStack.length > 0;
+
 const isOwnedPortal = (modal: HTMLElement, target: Node): boolean => {
     const element = target instanceof Element ? target : target.parentElement;
     const listbox = element?.closest<HTMLElement>('[role="listbox"][id]');

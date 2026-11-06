@@ -20,7 +20,9 @@ import { ImportPkWalletModal } from "components/ImportPkWalletModal";
 import { ImportKeyfileWalletModal } from "components/ImportKeyfileWalletModal";
 import { DeleteAccountModal } from "components/DeleteAccountModal";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
+import { DELETE_DURING_OPERATION_WARNING } from "components/OperationInProgressModal";
 import { TRemoveAccountRequest } from "components/RemoveAccountButton";
+import { selectHasOperationInProgress } from "store/NetworkActivity";
 import {
     useDeleteAccount,
     useDeleteActiveWallet,
@@ -123,6 +125,7 @@ export const Accounts: React.FC = () => {
     const activeWallet: IUnlockedWalletMeta | null =
         useSelector(selectActiveWallet);
     const isLoading = useSelector(selectIsAnyAccountBalanceFetching);
+    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
     const deleteWallet = useDeleteActiveWallet();
     const deleteAccount = useDeleteAccount();
     // Covers this page, HeaderBar, and MobileNav Delete Wallet instances.
@@ -373,6 +376,11 @@ export const Accounts: React.FC = () => {
                 accountName={deleteAccount.target?.accountName ?? ""}
                 isDeleting={deleteAccount.isDeleting}
                 error={deleteAccount.error}
+                operationWarning={
+                    hasOperationInProgress
+                        ? DELETE_DURING_OPERATION_WARNING
+                        : undefined
+                }
                 onConfirm={deleteAccount.confirm}
                 onCancel={deleteAccount.close}
             />
@@ -380,6 +388,11 @@ export const Accounts: React.FC = () => {
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
                 error={deleteWallet.error}
+                operationWarning={
+                    hasOperationInProgress
+                        ? DELETE_DURING_OPERATION_WARNING
+                        : undefined
+                }
                 onConfirm={deleteWallet.confirm}
                 onCancel={handleCloseDeleteWallet}
                 title="Delete Wallet"

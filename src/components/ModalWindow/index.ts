@@ -1,1 +1,1 @@
-export { ModalWindow } from './ModalWindow';
+export { ModalWindow, hasOpenModal } from './ModalWindow';

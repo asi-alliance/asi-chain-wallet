@@ -4,8 +4,12 @@ import { useAppDispatch } from "store/hooks";
 import { selectAccounts, selectSelectedAccountId } from "store/WalletsStore";
 import { selectAccount } from "store/WalletsStore/thunks";
 import { walletsApi, WalletsApiTags } from "store/WalletsStore/api";
-import { selectHasOperationInProgress } from "store/NetworkActivity";
 import { AccountSwitcher, AccountView } from "components/AccountSwitcher";
+import {
+    OperationInProgressModal,
+    SWITCH_ACCOUNT_OPERATION_PROMPT,
+} from "components/OperationInProgressModal";
+import { useOperationGuard } from "hooks";
 
 interface IASIAccountSwitcherProps {
     adaptive?: boolean;
@@ -21,7 +25,6 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
     const dispatch = useAppDispatch();
     const accounts = useSelector(selectAccounts);
     const selectedAccountId = useSelector(selectSelectedAccountId);
-    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
 
     const accountViews: AccountView[] = useMemo(
         () =>
@@ -44,21 +47,36 @@ export const ASIAccountSwitcher: React.FC<IASIAccountSwitcherProps> = (
         );
     };
 
-    const handleSelect = (accountId: string) => {
-        if (hasOperationInProgress) return;
-
+    const switchAccount = (accountId: string): void => {
         dispatch(selectAccount(accountId));
         refreshBalances();
     };
 
+    const switchAccountGuard = useOperationGuard(switchAccount);
+
+    const handleSelect = (accountId: string) => {
+        if (accountId === selectedAccountId) {
+            switchAccount(accountId);
+
+            return;
+        }
+
+        switchAccountGuard.run(accountId);
+    };
+
     return (
-        <AccountSwitcher
-            accounts={accountViews}
-            selectedId={selectedAccountId ?? undefined}
-            onSelect={handleSelect}
-            onOpen={refreshBalances}
-            disabled={hasOperationInProgress}
-            {...props}
-        />
+        <>
+            <AccountSwitcher
+                accounts={accountViews}
+                selectedId={selectedAccountId ?? undefined}
+                onSelect={handleSelect}
+                onOpen={refreshBalances}
+                {...props}
+            />
+            <OperationInProgressModal
+                {...switchAccountGuard.prompt}
+                {...SWITCH_ACCOUNT_OPERATION_PROMPT}
+            />
+        </>
     );
 };

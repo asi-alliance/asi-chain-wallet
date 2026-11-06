@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
@@ -368,43 +368,6 @@ export const Send: React.FC = () => {
         ? getAmountValidationError(amount, balance, GasFee.MAX, true)
         : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
-
-    useLayoutEffect(() => {
-        if (!pendingTransfer) return;
-
-        const historyIndex = window.history.state?.idx;
-        let restoringHistory = false;
-
-        const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
-            event.preventDefault();
-            event.returnValue = "";
-        };
-        const handlePopState = (event: PopStateEvent): void => {
-            if (restoringHistory) {
-                restoringHistory = false;
-                return;
-            }
-
-            event.stopImmediatePropagation();
-            const nextIndex = event.state?.idx;
-            const delta =
-                typeof historyIndex === "number" &&
-                typeof nextIndex === "number"
-                    ? historyIndex - nextIndex
-                    : 1;
-
-            restoringHistory = true;
-            window.history.go(delta || 1);
-        };
-
-        window.addEventListener("beforeunload", handleBeforeUnload);
-        window.addEventListener("popstate", handlePopState, true);
-
-        return () => {
-            window.removeEventListener("beforeunload", handleBeforeUnload);
-            window.removeEventListener("popstate", handlePopState, true);
-        };
-    }, [pendingTransfer]);
 
     useEffect(() => {
         if (!recipient.trim() || !selectedAccount?.address) {
