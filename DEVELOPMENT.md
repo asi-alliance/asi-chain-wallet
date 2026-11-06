@@ -41,7 +41,7 @@ cd asi-chain-wallet
 npm install --legacy-peer-deps
 ```
 
-The `--legacy-peer-deps` flag is required: the dependency tree does not resolve with strict peer dependencies. The SDK is installed from the npm registry together with the other dependencies, see [Working With The SDK](#working-with-the-sdk).
+The `--legacy-peer-deps` flag is required: the dependency tree does not resolve with strict peer dependencies. This feature branch installs the SDK from an immutable public Git commit, see [Working With The SDK](#working-with-the-sdk). Keep build scripts enabled for that dependency. Local checks and the monetary-checks workflow use Node 24; the older Docker image/toolchain below has not been revalidated by this feature.
 
 ### 3. Configure The Environment
 
@@ -66,7 +66,8 @@ The wallet is served at `http://localhost:3000` with hot reload. Use `PORT=3001 
 
 ## Working With The SDK
 
-- `package.json` declares `"@asichain/asi-wallet-sdk": "^2.1.0"`, installed from the npm registry. `package-lock.json` is listed in `.gitignore`, so the exact SDK version is resolved within that range at install time.
+- `package.json` pins SDK commit `6a9c482b5590e312af580de6aadf077095bef9a2`, implementing [SDK #219 via PR #221](https://github.com/asi-alliance/asi-chain-wallet-sdk/pull/221) on top of [#214](https://github.com/asi-alliance/asi-chain-wallet-sdk/pull/214). Its `prepare` script produces CJS/ESM bundles and declarations during Git installation. Do not install this Git dependency with `--ignore-scripts`. This pin enables development/review before an npm release; release adoption remains open under [wallet #92](https://github.com/asi-alliance/asi-chain-wallet/issues/92).
+- `package-lock.json` remains ignored by this repository. The SDK source revision is fixed; this does not freeze the wallet's entire transitive dependency tree. Replace the Git dependency with the selected published SDK version once released and validated.
 - To try unreleased SDK changes, build the SDK in a local checkout of [asi-chain-wallet-sdk](https://github.com/asi-alliance/asi-chain-wallet-sdk) (`npm run build`) and point the wallet at it temporarily, for example with `npm link`. Restart the dev server after every SDK rebuild, and do not commit a `package.json` that references a local path.
 - The SDK statically imports `node-persist` for its Node storage backend. In the browser it uses IndexedDB, so [config-overrides.js](config-overrides.js) aliases `node-persist` to `false`. Keep that alias when touching the webpack configuration.
 - The SDK is the source of truth for wallet behaviour: session policy, auto-lock, key storage, reservations and history. Before adding an application-side workaround, check whether the SDK already exposes the capability.
@@ -82,6 +83,7 @@ Working scripts:
 | `npm run build` | `react-app-rewired build` | Production build into `build/` |
 | `npm run lint` | `eslint src --ext .ts,.tsx` | Currently reports warnings only |
 | `npm run type-check` | `tsc --noEmit` | Passes without errors (`target` is `es2020`) |
+| `npm test -- --watchAll=false --runInBand --runTestsByPath src/utils/__tests__/amountPrecision.spec.ts` | Focused Jest regression suite | Exact amounts, balance display, history filters, send limits and fee arithmetic |
 | `npm run serve` | `npx serve -s build` | Serves an existing build |
 | `npm run analyze` | `source-map-explorer 'build/static/js/*.js'` | Requires a build with source maps |
 | `npm run deploy:gh` | `gh-pages -d build` | Publishes `build/` to GitHub Pages |
@@ -90,7 +92,6 @@ Scripts that do not work in the current tree:
 
 | Script | Why |
 | --- | --- |
-| `npm test` | `react-scripts test` runs, but there are no unit tests: `*.test.*` is listed in `.gitignore`, so none are committed. Only `src/setupTests.ts` and the mocks under `src/__mocks__` and `src/services/__mocks__` remain |
 | `npm run deploy:ipfs` | Points at `scripts/deploy-ipfs.js`; there is no `scripts/` directory |
 | `npm run wdio`, `npm run TA`, `npm run TA-lambda` | Point at `wdio.conf.js`, `index.js` and `wdio.lambdatest.conf.js` in the repository root; none of them exist |
 | `npm run test:lt:web`, `test:lt:web:homePage`, `test:lt:android`, `test:lt:ios` | The referenced configs are either missing (`wdio.android.conf.js`, `wdio.ios.conf.js`) or live in `tests-automation/` and must be run from there. The `homePageTests` suite is not defined in any config |
@@ -155,7 +156,9 @@ The entrypoint writes a `window._env_` block and runs `envsubst` over the nginx 
 
 ### Unit Tests
 
-There are none in the repository. `.gitignore` excludes `*.test.*` and `*-test.*`, so any test written locally stays untracked until that rule is changed or a different naming convention is agreed (see [E2E Tests](#e2e-tests)). The integration tests that were briefly kept under `__tests__` directories during the UI redesign have been removed, together with the `@testing-library/dom` dependency. The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
+The focused amount suite is `src/utils/__tests__/amountPrecision.spec.ts`. Run it with the command above. It covers integer values beyond JavaScript's safe range, 18-decimal history/dust, exact filter boundaries, shortened balances with full-value tooltips, unavailable values, current native send arithmetic and deploy fee checks. These regressions do not establish live-node acceptance or enable 18-decimal native sending with the current SDK.
+
+Use `*.spec.ts` under `__tests__` for these regressions: the existing `.gitignore` excludes `*.test.*` and `*-test.*`. Jest maps the SDK to its shipped CommonJS bundle in `package.json`, so the tests exercise the installed SDK without changing the browser dependency or its webpack resolution. `src/setupTests.ts` provides the existing browser test setup. Type-check excludes `__tests__`; run both the focused suite and `npm run type-check`.
 
 ### E2E Tests
 

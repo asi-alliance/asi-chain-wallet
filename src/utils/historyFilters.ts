@@ -7,6 +7,7 @@ import {
 } from "@asichain/asi-wallet-sdk";
 import { Transaction } from "types/transactions";
 import { getTokenDisplayName } from "constants/token";
+import { compareDecimalAmounts, formatDecimalAmount } from "./decimalAmounts";
 
 interface IDurationPreset {
     id: string;
@@ -29,20 +30,20 @@ export const DURATION_PRESETS: IDurationPreset[] = [
 interface IAmountPreset {
     id: string;
     label: string;
-    min: number;
-    max?: number;
+    min: string;
+    max?: string;
     exclusiveMin?: boolean;
 }
 
 export const AMOUNT_PRESETS: IAmountPreset[] = [
-    { id: "gt-min", label: ">0.00001", min: 0.00001, exclusiveMin: true },
-    { id: "0-1", label: "0-1", min: 0, max: 1 },
-    { id: "1-10", label: "1-10", min: 1, max: 10 },
-    { id: "1-100", label: "1-100", min: 1, max: 100 },
-    { id: "1-1k", label: "1-1K", min: 1, max: 1_000 },
-    { id: "1-10k", label: "1-10K", min: 1, max: 10_000 },
-    { id: "1-100k", label: "1-100K", min: 1, max: 100_000 },
-    { id: "1-1m", label: "1-1M", min: 1, max: 1_000_000 },
+    { id: "gt-min", label: ">0.00001", min: "0.00001", exclusiveMin: true },
+    { id: "0-1", label: "0-1", min: "0", max: "1" },
+    { id: "1-10", label: "1-10", min: "1", max: "10" },
+    { id: "1-100", label: "1-100", min: "1", max: "100" },
+    { id: "1-1k", label: "1-1K", min: "1", max: "1000" },
+    { id: "1-10k", label: "1-10K", min: "1", max: "10000" },
+    { id: "1-100k", label: "1-100K", min: "1", max: "100000" },
+    { id: "1-1m", label: "1-1M", min: "1", max: "1000000" },
 ];
 
 const capitalize = (value: string): string =>
@@ -121,18 +122,6 @@ export const createEmptyPanelFilters = (): IPanelFilters => ({
     details: "",
 });
 
-const parseNumericValue = (value: string): number | null => {
-    const trimmed = value.trim();
-
-    if (!trimmed) {
-        return null;
-    }
-
-    const parsed = Number(trimmed);
-
-    return Number.isFinite(parsed) ? parsed : null;
-};
-
 interface IBounds {
     start?: number;
     end?: number;
@@ -178,20 +167,20 @@ export const getAmountFieldErrors = (amount: IRangeFilter): IAmountFieldErrors =
         return { from: "", to: "" };
     }
 
-    const from = parseNumericValue(amount.from);
-    const to = parseNumericValue(amount.to);
+    const from = formatDecimalAmount(amount.from);
+    const to = formatDecimalAmount(amount.to);
     let fromError = "";
     let toError = "";
 
     if (amount.from.trim() && from === null) {
         fromError = "Enter a valid amount.";
-    } else if (from !== null && from < 0) {
+    } else if (from !== null && compareDecimalAmounts(from, "0") === -1) {
         fromError = "Enter a valid amount.";
     }
 
     if (amount.to.trim() && to === null) {
         toError = "Enter a valid amount.";
-    } else if (to !== null && to < 0) {
+    } else if (to !== null && compareDecimalAmounts(to, "0") === -1) {
         toError = "Enter a valid amount.";
     }
 
@@ -200,7 +189,7 @@ export const getAmountFieldErrors = (amount: IRangeFilter): IAmountFieldErrors =
         !toError &&
         from !== null &&
         to !== null &&
-        from > to
+        compareDecimalAmounts(from, to) === 1
     ) {
         toError = "The maximum must be greater than or equal to the minimum.";
     }
@@ -218,28 +207,29 @@ const matchesAmount = (
     transaction: Transaction,
     amount: IRangeFilter,
 ): boolean => {
-    const value = parseNumericValue(transaction.amount ?? "");
+    const value = formatDecimalAmount(transaction.amount);
     const preset = AMOUNT_PRESETS.find(({ id }) => id === amount.preset);
 
     if (preset) {
         if (value === null) return false;
-        if (preset.exclusiveMin ? value <= preset.min : value < preset.min) {
+        const minOrder = compareDecimalAmounts(value, preset.min);
+        if (minOrder === -1 || (preset.exclusiveMin && minOrder === 0)) {
             return false;
         }
 
-        return preset.max === undefined || value <= preset.max;
+        return preset.max === undefined || compareDecimalAmounts(value, preset.max) !== 1;
     }
 
-    const from = parseNumericValue(amount.from);
-    const to = parseNumericValue(amount.to);
+    const from = formatDecimalAmount(amount.from);
+    const to = formatDecimalAmount(amount.to);
 
     if (from === null && to === null) {
         return true;
     }
 
     if (value === null) return false;
-    if (from !== null && value < from) return false;
-    return to === null || value <= to;
+    if (from !== null && compareDecimalAmounts(value, from) === -1) return false;
+    return to === null || compareDecimalAmounts(value, to) !== 1;
 };
 
 export const describeDateFilter = (date: IRangeFilter): string | undefined => {

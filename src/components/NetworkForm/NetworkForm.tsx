@@ -7,6 +7,7 @@ import {
     INetworkConfig,
     INetworkEndpoints,
     isNodeApiProfile,
+    isNativeTokenDecimals,
     NetworkName,
     NODE_API_PROFILE_DESCRIPTORS,
     validateUrl,
@@ -137,6 +138,7 @@ export interface INetworkFormValues {
 
 export type TNetworkFormFieldKey =
     | "name"
+    | "nativeTokenDecimals"
     | keyof Pick<INetworkEndpoints, "ValidatorURL" | "ReadOnlyURL" | "IndexerURL">;
 
 export type TNetworkFormFieldErrors = Partial<
@@ -186,6 +188,7 @@ export const createEmptyNetworkFormValues = (): INetworkFormValues => ({
         ReadOnlyURL: "",
         IndexerURL: "",
         nodeApiProfile: DEFAULT_NODE_API_PROFILE,
+        nativeTokenDecimals: 8,
     },
 });
 
@@ -199,6 +202,7 @@ export const normalizeNetworkFormValues = ({
         ReadOnlyURL: config.ReadOnlyURL.trim(),
         IndexerURL: config.IndexerURL.trim(),
         nodeApiProfile: config.nodeApiProfile,
+        ...("nativeTokenDecimals" in config ? { nativeTokenDecimals: config.nativeTokenDecimals } : {}),
     },
 });
 
@@ -208,6 +212,10 @@ export const getNetworkFormFieldErrors = (
 ): TNetworkFormFieldErrors => {
     const { name, config } = normalizeNetworkFormValues(values);
     const fieldErrors: TNetworkFormFieldErrors = {};
+
+    if ("nativeTokenDecimals" in config && !isNativeTokenDecimals(config.nativeTokenDecimals)) {
+        fieldErrors.nativeTokenDecimals = "Native token decimals must be an integer from 0 to 18.";
+    }
 
     if (!name) {
         fieldErrors.name = "Network name is required.";
@@ -331,6 +339,23 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
                         options={nodeApiOptions}
                     />
                 </NodeApiSelectWrapper>
+            </ConfigSection>
+
+            <ConfigSection>
+                <InlineInput
+                    id={`${idPrefix}-native-token-decimals-input`}
+                    label="Native token decimals"
+                    type="text"
+                    inputMode="numeric"
+                    value={Number.isInteger(config.nativeTokenDecimals ?? 8) ? String(config.nativeTokenDecimals ?? 8) : ""}
+                    onChange={(event) => onChange({
+                        ...values,
+                        config: { ...config, nativeTokenDecimals: /^\d+$/.test(event.target.value) ? Number(event.target.value) : NaN },
+                    })}
+                    helperText="Match this network's denomination (0–18). Legacy networks use 8."
+                    disabled={disabled}
+                    error={fieldErrors.nativeTokenDecimals}
+                />
             </ConfigSection>
 
             <ConfigSection>

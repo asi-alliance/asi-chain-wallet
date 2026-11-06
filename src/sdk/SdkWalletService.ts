@@ -1,5 +1,6 @@
 import {
     Account,
+    ApiClientManager,
     Address,
     Client,
     decodeBase16,
@@ -29,6 +30,7 @@ import {
     PRIVATE_KEY_LENGTH,
     ClientEvent,
     fromAtomicAmount,
+    getNativeTokenDecimals,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
     SignedResult,
     toAtomicAmount,
@@ -46,15 +48,51 @@ import {
     TCustomNetworkRecord,
 } from "types/wallet";
 
+export interface INativeOperationContext {
+    networkId: string;
+    nativeTokenDecimals: number;
+    networkRevision: number;
+}
+
 export class SdkWalletService {
     private client: Client | null = null;
 
-    public static toDisplayAmount(atomicAmount: bigint): string {
-        return fromAtomicAmount(atomicAmount, NATIVE_TOKEN_DECIMALS_AMOUNT);
+    public static toDisplayAmount(atomicAmount: bigint, decimals = NATIVE_TOKEN_DECIMALS_AMOUNT): string {
+        return fromAtomicAmount(atomicAmount, decimals);
     }
 
-    public static toAtomicAmount(amount: string | number): bigint {
-        return toAtomicAmount(amount, NATIVE_TOKEN_DECIMALS_AMOUNT);
+    public static toAtomicAmount(amount: string | number, decimals = NATIVE_TOKEN_DECIMALS_AMOUNT): bigint {
+        return toAtomicAmount(amount, decimals);
+    }
+
+    public static captureOperationContext(): INativeOperationContext {
+        const manager = ApiClientManager.getInstance();
+        const network = manager.getCurrentNetwork();
+        return Object.freeze({
+            networkId: network.id,
+            nativeTokenDecimals: getNativeTokenDecimals(network.config),
+            networkRevision: manager.getCurrentNetworkRevision(),
+        });
+    }
+
+    public static assertOperationContext(expected: INativeOperationContext): void {
+        const current = SdkWalletService.captureOperationContext();
+        if (current.networkId !== expected.networkId ||
+            current.nativeTokenDecimals !== expected.nativeTokenDecimals ||
+            current.networkRevision !== expected.networkRevision) {
+            throw new Error("Network changed while awaiting confirmation. Check the details and try again.");
+        }
+    }
+
+    public static getNetworkKey(network: Network): string {
+        return JSON.stringify([
+            network.id, network.validatorUrl, network.observerUrl,
+            network.indexerUrl, network.nodeApiProfile, getNativeTokenDecimals(network),
+        ]);
+    }
+
+    public getActiveNetworkKey(): string {
+        return SdkWalletService.getNetworkKey(this.getActiveNetwork());
     }
 
     public attachClient(client: Client): void {
@@ -110,6 +148,7 @@ export class SdkWalletService {
             observerUrl: record.config.ReadOnlyURL,
             indexerUrl: record.config.IndexerURL,
             nodeApiProfile: record.config.nodeApiProfile,
+            nativeTokenDecimals: getNativeTokenDecimals(record.config),
             isDefault: record.isDefault,
         };
     }
@@ -119,12 +158,15 @@ export class SdkWalletService {
         observerUrl,
         indexerUrl,
         nodeApiProfile,
+        ...metadata
     }: Network): INetworkConfig {
         return {
             ValidatorURL: validatorUrl,
             ReadOnlyURL: observerUrl,
             IndexerURL: indexerUrl,
             nodeApiProfile,
+            ...("nativeTokenDecimals" in metadata
+                ? { nativeTokenDecimals: metadata.nativeTokenDecimals } : {}),
         };
     }
 
@@ -401,9 +443,11 @@ export class SdkWalletService {
 
     public async getBalance(address: string): Promise<string> {
         const client = this.requireClient();
+        const context = SdkWalletService.captureOperationContext();
         const atomicBalance = await client.getBalance(address as Address);
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        SdkWalletService.assertOperationContext(context);
+        return SdkWalletService.toDisplayAmount(atomicBalance, context.nativeTokenDecimals);
     }
 
     public async getAvailableBalance(
@@ -411,24 +455,29 @@ export class SdkWalletService {
         accountId: string,
     ): Promise<string> {
         const client = this.requireClient();
+        const context = SdkWalletService.captureOperationContext();
         const atomicBalance = await client.getAvailableBalance(
             walletId,
             accountId,
         );
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        SdkWalletService.assertOperationContext(context);
+        return SdkWalletService.toDisplayAmount(atomicBalance, context.nativeTokenDecimals);
     }
 
-    public getTransactionsHistory(
+    public async getTransactionsHistory(
         walletId: string,
         accountId: string,
         options?: ITransactionsHistoryOptions,
     ): Promise<Transaction[]> {
-        return this.requireClient().getTransactionsHistory(
+        const context = SdkWalletService.captureOperationContext();
+        const history = await this.requireClient().getTransactionsHistory(
             walletId,
             accountId,
             options,
         );
+        SdkWalletService.assertOperationContext(context);
+        return history;
     }
 
     public signDeploy(
@@ -465,24 +514,28 @@ export class SdkWalletService {
             accountId,
             to,
             amount,
-        }: Omit<ITransferRequest, "amount"> & { amount: string },
+            context,
+        }: Omit<ITransferRequest, "amount"> & { amount: string; context: INativeOperationContext },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().transfer(
+        const client = this.requireClient();
+        SdkWalletService.assertOperationContext(context);
+        return client.transfer(
             {
                 walletId,
                 accountId,
                 to,
-                amount: SdkWalletService.toAtomicAmount(amount),
+                amount: client.toAtomicAmount(amount),
             },
             password,
         );
     }
 
     public deploy(
-        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        { walletId, accountId, term, phloLimit, context }: IDeployRequest & { context: INativeOperationContext },
         password?: string,
     ): Promise<IReservedOperationResult> {
+        SdkWalletService.assertOperationContext(context);
         return this.requireClient().deploy(
             { walletId, accountId, term, phloLimit },
             password,

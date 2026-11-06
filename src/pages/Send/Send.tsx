@@ -3,7 +3,8 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { Address, DeployStatus, GasFee, getNativeTokenDecimals } from "@asichain/asi-wallet-sdk";
+import { INativeOperationContext, SdkWalletService } from "sdk/SdkWalletService";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -12,6 +13,8 @@ import {
     selectDeployWatch,
     selectSelectedAccount,
     selectSelectedNetworkId,
+    selectSelectedNetwork,
+    selectSelectedNetworkKey,
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
@@ -88,6 +91,7 @@ interface ITransferDetails {
     accountName: string;
     accountAddress: string;
     networkId: string;
+    context: INativeOperationContext;
     to: Address;
     amount: string;
 }
@@ -262,6 +266,9 @@ export const Send: React.FC = () => {
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
+    const network = useSelector(selectSelectedNetwork);
+    const networkKey = useSelector(selectSelectedNetworkKey);
+    const nativeTokenDecimals = getNativeTokenDecimals(network);
     const {
         currentData: currentBalance,
         isFetching,
@@ -269,7 +276,7 @@ export const Send: React.FC = () => {
         refetch: refetchBalance,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId }
+            ? { accountId: selectedAccount.id, networkId, networkKey }
             : skipToken,
         { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
@@ -319,7 +326,7 @@ export const Send: React.FC = () => {
     };
 
     const sendAction = useWalletSessionAction({
-        walletId,
+        walletId: pendingTransfer?.walletId ?? walletId,
         action: (password?: string) => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
@@ -335,6 +342,7 @@ export const Send: React.FC = () => {
                     accountId: pendingTransfer.accountId,
                     to: pendingTransfer.to,
                     amount: pendingTransfer.amount,
+                    context: pendingTransfer.context,
                     password,
                 }),
             ).unwrap();
@@ -360,7 +368,7 @@ export const Send: React.FC = () => {
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
     const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance, GasFee.MAX, true)
+        ? getAmountValidationError(amount, balance, GasFee.MAX, true, nativeTokenDecimals)
         : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
 
@@ -546,12 +554,24 @@ export const Send: React.FC = () => {
         amountPasteGenerationRef.current += 1;
         setScanError("");
         dispatch(networkOperationStarted());
+        let context: INativeOperationContext;
+        try {
+            context = SdkWalletService.captureOperationContext();
+            if (context.networkId !== networkId || context.nativeTokenDecimals !== nativeTokenDecimals) {
+                throw new Error(NETWORK_CHANGED_ERROR);
+            }
+        } catch (error) {
+            dispatch(networkOperationFinished());
+            setValidationError(error instanceof Error ? error.message : NETWORK_CHANGED_ERROR);
+            return;
+        }
         setPendingTransfer({
             walletId,
             accountId: selectedAccount.id,
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
             networkId,
+            context,
             to: recipient.trim() as Address,
             amount: amount.trim(),
         });
@@ -579,8 +599,8 @@ export const Send: React.FC = () => {
 
     const handleMax = (): void => {
         amountPasteGenerationRef.current += 1;
-        const max = getMaxSendableAmount(balance);
-        if (!isPositiveTokenAmount(max)) {
+        const max = getMaxSendableAmount(balance, GasFee.MAX, nativeTokenDecimals);
+        if (!isPositiveTokenAmount(max, nativeTokenDecimals)) {
             setAmount("");
             setMaxError("Insufficient balance to cover the estimated fee.");
             setAmountPasteError("");
@@ -977,7 +997,8 @@ export const Send: React.FC = () => {
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
                 maxFee={GasFee.MAX}
-                feeLabel={getGasFeeRangeLabel()}
+                nativeTokenDecimals={pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals}
+                feeLabel={getGasFeeRangeLabel(pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals)}
                 loading={isSending}
             />
 

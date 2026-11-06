@@ -7,6 +7,7 @@ import {
     selectIsAccountUnlocked,
     selectSelectedAccount,
     selectSelectedNetworkId,
+    selectSelectedNetworkKey,
 } from "store/WalletsStore/";
 import {
     IHistoryQueryArgs,
@@ -211,6 +212,7 @@ const HISTORY_REFRESH_ERROR =
 export const History: React.FC = () => {
     const selectedAccount = useSelector(selectSelectedAccount);
     const networkId = useSelector(selectSelectedNetworkId);
+    const networkKey = useSelector(selectSelectedNetworkKey);
     const isAccountUnlocked = useSelector((state: RootState) =>
         selectedAccount
             ? selectIsAccountUnlocked(state, selectedAccount.id)
@@ -232,6 +234,7 @@ export const History: React.FC = () => {
             ? {
                   accountId: selectedAccount.id,
                   networkId,
+                  networkKey,
                   // Status is filtered on the transaction model, so every source stays loaded.
                   source: "all",
               }

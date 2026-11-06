@@ -344,7 +344,7 @@ export const Bridge: React.FC = () => {
         isError: isBalanceError,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
+            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id, networkKey: SdkWalletService.getNetworkKey(selectedNetwork) }
             : skipToken,
     );
 

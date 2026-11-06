@@ -114,7 +114,7 @@ All bridge parameters (route ids, bridge addresses, token addresses, RPC and RES
 
 ## Built on the ASI Wallet SDK
 
-Wallet operations are served by `@asichain/asi-wallet-sdk`, installed from the npm registry (`^2.1.0` in `package.json`). The client is created once in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) and wrapped for the app by [src/sdk/SdkWalletService.ts](src/sdk/SdkWalletService.ts).
+Wallet operations are served by `@asichain/asi-wallet-sdk`. This feature branch pins public SDK commit `6a9c482b5590e312af580de6aadf077095bef9a2` for [SDK #221](https://github.com/asi-alliance/asi-chain-wallet-sdk/pull/221), dependent on [SDK #214](https://github.com/asi-alliance/asi-chain-wallet-sdk/pull/214). Its Git `prepare` step builds the bundles and declarations. This is a development dependency pin; replace it with the selected published SDK version after release and consumer validation. The client is created once in [src/sdk/SdkClientProvider.tsx](src/sdk/SdkClientProvider.tsx) and wrapped for the app by [src/sdk/SdkWalletService.ts](src/sdk/SdkWalletService.ts).
 
 The SDK provides mnemonic generation and validation, wallet creation, opening and closing, account derivation, renaming and removal, keyfile export, preview and import, address and amount conversion, available balance (net of reservations), transfers, deploys, explore, deploy status watching, transaction history, the network registry with custom networks and busy-network events, and the session policy with auto-lock.
 
@@ -170,7 +170,7 @@ Transaction history is currently limited to a single window of 50 records, is no
 
 ### Local Development
 
-The ASI Wallet SDK is installed from the npm registry together with the other dependencies.
+The pinned ASI Wallet SDK is installed and built together with the other dependencies. Git and enabled dependency build scripts are required for this feature branch.
 
 ```bash
 # 1. Clone the repository
