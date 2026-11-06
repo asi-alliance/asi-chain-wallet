@@ -24,7 +24,7 @@
     "test:lt:web:homePage": "npx wdio wdio.web.conf.js --suite homePageTests"
   },
   "dependencies": {
-    "@asichain/asi-wallet-sdk": "git+https://github.com/asi-alliance/asi-chain-wallet-sdk.git#6a9c482b5590e312af580de6aadf077095bef9a2",
+    "@asichain/asi-wallet-sdk": "git+https://github.com/asi-alliance/asi-chain-wallet-sdk.git#90aa870da4704a5460f59976d873bc6a59a0f97e",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
