@@ -128,16 +128,24 @@ export const selectOperationById = (
     id: string,
 ): TOperation | null => state.networkActivity.operations[id] ?? null;
 
-export const selectAccountOperation = (
+export const selectLatestAccountOperation = (
     state: RootState,
     { kind, networkId, accountId }: TOperationLookup,
 ): TOperation | null =>
-    selectActiveOperations(state).find(
-        (operation: TOperation) =>
-            operation.kind === kind &&
-            operation.networkId === networkId &&
-            operation.accountId === accountId,
-    ) ?? null;
+    selectActiveOperations(state)
+        .filter(
+            (operation: TOperation) =>
+                operation.kind === kind &&
+                operation.networkId === networkId &&
+                operation.accountId === accountId,
+        )
+        .reduce<TOperation | null>(
+            (latest: TOperation | null, operation: TOperation) =>
+                !latest || operation.startedAt > latest.startedAt
+                    ? operation
+                    : latest,
+            null,
+        );
 
 export const {
     busyNetworksSynced,

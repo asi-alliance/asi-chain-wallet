@@ -21,7 +21,9 @@ import {
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { deployContract, exploreDeploy } from "store/WalletsStore/thunks";
 import { selectIsOperationSubmitting } from "store/NetworkActivity";
+import { OperationKind } from "types/operations";
 import { IUnlockedAccountMeta } from "types/wallet";
+import { useRestoredOperation } from "./useRestoredOperation";
 import {
     IPasswordPromptProps,
     useWalletSessionAction,
@@ -168,6 +170,14 @@ export const useDeployContract = ({
         onEventRef.current(event);
     };
 
+    const isDeploySubmitting = useRestoredOperation(
+        OperationKind.DEPLOY,
+        (deployId: string) => {
+            setSubmittedDeployId(deployId);
+            emit({ type: DeployEventTypes.DEPLOY_SUBMITTED, deployId });
+        },
+    );
+
     useEffect(() => {
         if (!deployWatch) {
             return;
@@ -243,6 +253,9 @@ export const useDeployContract = ({
         },
         errorFallback: "Deploy failed",
     });
+
+    const isProcessing =
+        deployAction.isRunning || isExploring || isDeploySubmitting;
 
     const cancel = (): void => {
         confirmationSubmittedRef.current = false;
@@ -369,14 +382,13 @@ export const useDeployContract = ({
         networkName,
         isBalanceReady,
         isPhloLimitValid: parsePhloLimit(phloLimit) !== null,
-        isBlockedByAnotherChainOperation:
-            isOperationSubmitting && !deployAction.isRunning && !isExploring,
+        isBlockedByAnotherChainOperation: isOperationSubmitting && !isProcessing,
         submittedDeployId,
         submittedDeployStatus: deployWatch?.status ?? "",
         unresolvedReason: deployWatch?.unresolvedReason ?? "",
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
-        isProcessing: deployAction.isRunning || isExploring,
+        isProcessing,
         isWaitingForConfirmation,
         isDeployConfirmed,
         isDeployConfirmationOpen: isConfirmationOpen && isDeployPending,

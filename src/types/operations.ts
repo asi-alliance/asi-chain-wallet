@@ -2,8 +2,6 @@ export enum OperationKind {
     TRANSFER = "transfer",
     DEPLOY = "deploy",
     BRIDGE_ASI_LOCK = "bridge-asi-lock",
-    BRIDGE_EVM_APPROVE = "bridge-evm-approve",
-    BRIDGE_EVM_LOCK = "bridge-evm-lock",
 }
 
 export enum OperationStage {

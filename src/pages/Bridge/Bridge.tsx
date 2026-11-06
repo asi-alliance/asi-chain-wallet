@@ -35,7 +35,12 @@ import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
-import { useCopyToClipboard, useWalletSessionAction } from "hooks";
+import {
+    useCopyToClipboard,
+    useRestoredOperation,
+    useWalletSessionAction,
+} from "hooks";
+import { OperationKind } from "types/operations";
 import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
@@ -451,12 +456,17 @@ export const Bridge: React.FC = () => {
         atomicAmount > BigInt(0) &&
         evm.allowance < atomicAmount;
 
+    const isLockSubmitting = useRestoredOperation(
+        OperationKind.BRIDGE_ASI_LOCK,
+        setTxHash,
+    );
+
     const busy =
         srcKind === "evm"
             ? evm.isPending ||
               evm.isConfirming ||
               (evm.isSuccess && evm.lastAction === "approve")
-            : isLoading || asiLock.isRunning;
+            : isLoading || asiLock.isRunning || isLockSubmitting;
     const isEvmLockSuccess =
         srcKind === "evm" &&
         evm.isSuccess &&

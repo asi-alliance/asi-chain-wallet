@@ -36,7 +36,12 @@ import {
     VectorIcon,
 } from "components/Icons";
 import { ModalWindow } from "components/ModalWindow";
-import { useCopyToClipboard, useWalletSessionAction } from "hooks";
+import {
+    useCopyToClipboard,
+    useRestoredOperation,
+    useWalletSessionAction,
+} from "hooks";
+import { OperationKind } from "types/operations";
 import { getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
@@ -353,7 +358,11 @@ export const Send: React.FC = () => {
         errorFallback: "Failed to send transaction",
     });
 
-    const isSending = sendAction.isRunning;
+    const isTransferSubmitting = useRestoredOperation(
+        OperationKind.TRANSFER,
+        setTxHash,
+    );
+    const isSending = sendAction.isRunning || isTransferSubmitting;
     const isFormFrozen = !!pendingTransfer || isSending;
     const amountError = isBalanceReady
         ? getAmountValidationError(amount, balance, GasFee.MAX, true)
