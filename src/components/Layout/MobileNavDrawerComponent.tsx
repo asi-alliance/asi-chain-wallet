@@ -10,13 +10,20 @@ import { Button } from "components/Button";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
 import { VisuallyHidden } from "components/Foundation";
+import { hasOpenModal } from "components/ModalWindow";
 import { NetworkSelector } from "components/NetworkSelector";
+import {
+    DELETE_DURING_OPERATION_WARNING,
+    LOGOUT_OPERATION_PROMPT,
+    OperationInProgressModal,
+} from "components/OperationInProgressModal";
 import {
     useBodyScrollLock,
     useDeleteActiveWallet,
     useFocusTrap,
+    useOperationGuard,
 } from "hooks";
-import { selectIsNetworkOperationPending } from "store/NetworkActivity";
+import { selectHasOperationInProgress } from "store/NetworkActivity";
 
 const MobileNavDrawerStyled = styled.div<{ $isOpen: boolean }>`
     position: fixed;
@@ -205,9 +212,7 @@ export const MobileNavDrawerComponent: React.FC<
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
-    const isNetworkOperationPending = useSelector(
-        selectIsNetworkOperationPending,
-    );
+    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
     const drawerRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
     const titleId = useId().replace(/:/g, "");
@@ -219,13 +224,11 @@ export const MobileNavDrawerComponent: React.FC<
         active: isOpen,
         initialFocusRef: closeButtonRef,
         onEscape: onClose,
-        isPaused: () => deleteWallet.isOpen,
+        isPaused: hasOpenModal,
         restoreFocus: true,
     });
 
     const handleNavigation = (path: string) => {
-        if (isNetworkOperationPending) return;
-
         navigate(path);
         onClose();
     };
@@ -235,13 +238,11 @@ export const MobileNavDrawerComponent: React.FC<
         onClose();
     };
 
-    const handleLogout = () => {
-        if (isNetworkOperationPending) return;
-
+    const logoutGuard = useOperationGuard(() => {
         dispatch(logout());
         navigate("/login");
         onClose();
-    };
+    });
 
     return (
         <>
@@ -292,7 +293,6 @@ export const MobileNavDrawerComponent: React.FC<
                                         : undefined
                                 }
                                 onClick={() => handleNavigation(item.path)}
-                                disabled={isNetworkOperationPending}
                             >
                                 {item.label}
                             </MobileNavLink>
@@ -339,8 +339,7 @@ export const MobileNavDrawerComponent: React.FC<
                         <LogoutButton
                             fullWidth
                             variant="secondary"
-                            onClick={handleLogout}
-                            disabled={isNetworkOperationPending}
+                            onClick={() => logoutGuard.run()}
                         >
                             Logout
                             <svg
@@ -367,7 +366,6 @@ export const MobileNavDrawerComponent: React.FC<
                             fullWidth
                             variant="secondary"
                             onClick={deleteWallet.open}
-                            disabled={isNetworkOperationPending}
                         >
                             Delete Wallet
                             <DeleteIcon size={20} />
@@ -379,8 +377,17 @@ export const MobileNavDrawerComponent: React.FC<
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
                 error={deleteWallet.error}
+                operationWarning={
+                    hasOperationInProgress
+                        ? DELETE_DURING_OPERATION_WARNING
+                        : undefined
+                }
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
+            />
+            <OperationInProgressModal
+                {...logoutGuard.prompt}
+                {...LOGOUT_OPERATION_PROMPT}
             />
         </>
     );

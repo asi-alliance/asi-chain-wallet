@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "styled-components";
-import { Button } from "components";
+import { Alert, Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
 import { WarningIcon } from "components/Icons";
 
@@ -38,6 +38,7 @@ interface IDeleteAccountModalProps {
     onCancel: () => void;
     isDeleting?: boolean;
     error?: string;
+    operationWarning?: string;
 }
 
 export const DeleteAccountModal: React.FC<IDeleteAccountModalProps> = ({
@@ -47,6 +48,7 @@ export const DeleteAccountModal: React.FC<IDeleteAccountModalProps> = ({
     onCancel,
     isDeleting = false,
     error,
+    operationWarning,
 }) => (
     <ModalWindow
         isOpen={isOpen}
@@ -63,6 +65,15 @@ export const DeleteAccountModal: React.FC<IDeleteAccountModalProps> = ({
                 {`This removes the account "${accountName}" from this device. It can be restored only from the Secret Recovery Phrase of its wallet.`}
             </span>
         </WarningRow>
+        {operationWarning && (
+            <Alert
+                tone="warning"
+                icon={<WarningIcon size={20} />}
+                style={{ marginTop: "16px" }}
+            >
+                {operationWarning}
+            </Alert>
+        )}
         {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
         <Actions>
             <Button

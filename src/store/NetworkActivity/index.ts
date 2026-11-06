@@ -1,10 +1,19 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { NetworkId } from "@asichain/asi-wallet-sdk";
+import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { generateRandomId, NetworkId } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
+import { logout } from "store/Auth/thunks";
+import {
+    IPendingOperation,
+    OperationStage,
+    TOperation,
+    TOperationLookup,
+    TOperationStageChange,
+    TOperationStart,
+} from "types/operations";
 
 interface NetworkActivityState {
-    isOperationPending: boolean;
     busyNetworkIds: NetworkId[];
+    operations: Record<string, TOperation>;
 }
 
 interface INetworkBusyChangedPayload {
@@ -13,20 +22,14 @@ interface INetworkBusyChangedPayload {
 }
 
 const initialState: NetworkActivityState = {
-    isOperationPending: false,
     busyNetworkIds: [],
+    operations: {},
 };
 
 const networkActivitySlice = createSlice({
     name: "network-activity",
     initialState,
     reducers: {
-        networkOperationStarted: (state) => {
-            state.isOperationPending = true;
-        },
-        networkOperationFinished: (state) => {
-            state.isOperationPending = false;
-        },
         busyNetworksSynced: (state, action: PayloadAction<NetworkId[]>) => {
             state.busyNetworkIds = action.payload;
         },
@@ -47,11 +50,43 @@ const networkActivitySlice = createSlice({
                 );
             }
         },
+        operationStarted: {
+            reducer: (state, action: PayloadAction<IPendingOperation>) => {
+                state.operations[action.payload.id] = action.payload;
+            },
+            prepare: (operation: TOperationStart) => ({
+                payload: {
+                    ...operation,
+                    id: generateRandomId(),
+                    startedAt: Date.now(),
+                },
+            }),
+        },
+        operationStageChanged: (
+            state,
+            action: PayloadAction<TOperationStageChange>,
+        ) => {
+            const operation = state.operations[action.payload.id];
+
+            if (!operation) {
+                return;
+            }
+
+            state.operations[action.payload.id] = {
+                ...operation,
+                ...action.payload,
+            };
+        },
+        operationSettled: (state, action: PayloadAction<string>) => {
+            delete state.operations[action.payload];
+        },
+    },
+    extraReducers: (builder) => {
+        builder.addCase(logout.fulfilled, (state) => {
+            state.operations = {};
+        });
     },
 });
-
-export const selectIsNetworkOperationPending = (state: RootState): boolean =>
-    state.networkActivity.isOperationPending;
 
 export const selectBusyNetworkIds = (state: RootState): NetworkId[] =>
     state.networkActivity.busyNetworkIds;
@@ -61,11 +96,63 @@ export const selectIsNetworkBusy = (
     networkId: NetworkId,
 ): boolean => state.networkActivity.busyNetworkIds.includes(networkId);
 
+const selectOperationsById = (state: RootState): Record<string, TOperation> =>
+    state.networkActivity.operations;
+
+export const selectActiveOperations = createSelector(
+    [selectOperationsById],
+    (operations: Record<string, TOperation>): TOperation[] =>
+        Object.values(operations),
+);
+
+const selectHasRegisteredOperations = (state: RootState): boolean =>
+    Object.keys(state.networkActivity.operations).length > 0;
+
+const selectHasSubmittingOperations = (state: RootState): boolean =>
+    selectActiveOperations(state).some(
+        (operation: TOperation) =>
+            operation.stage !== OperationStage.AWAITING_CONFIRMATION,
+    );
+
+const selectIsSelectedNetworkBusy = (state: RootState): boolean =>
+    selectIsNetworkBusy(state, state.walletsStore.selectedNetwork.id);
+
+export const selectHasOperationInProgress = (state: RootState): boolean =>
+    selectHasRegisteredOperations(state) || selectIsSelectedNetworkBusy(state);
+
+export const selectIsOperationSubmitting = (state: RootState): boolean =>
+    selectHasSubmittingOperations(state) || selectIsSelectedNetworkBusy(state);
+
+export const selectOperationById = (
+    state: RootState,
+    id: string,
+): TOperation | null => state.networkActivity.operations[id] ?? null;
+
+export const selectLatestAccountOperation = (
+    state: RootState,
+    { kind, networkId, accountId }: TOperationLookup,
+): TOperation | null =>
+    selectActiveOperations(state)
+        .filter(
+            (operation: TOperation) =>
+                operation.kind === kind &&
+                operation.networkId === networkId &&
+                operation.accountId === accountId,
+        )
+        .reduce<TOperation | null>(
+            (latest: TOperation | null, operation: TOperation) =>
+                !latest || operation.startedAt > latest.startedAt
+                    ? operation
+                    : latest,
+            null,
+        );
+
 export const {
-    networkOperationStarted,
-    networkOperationFinished,
     busyNetworksSynced,
     networkBusyChanged,
+    operationStarted,
+    operationStageChanged,
+    operationSettled,
 } = networkActivitySlice.actions;
 
 export default networkActivitySlice.reducer;
