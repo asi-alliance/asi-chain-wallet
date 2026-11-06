@@ -33,6 +33,7 @@ const HISTORY_SOURCES: Record<
 export interface IAccountQueryArgs {
     accountId: string;
     networkId: string;
+    networkKey?: string;
 }
 
 export interface IHistoryQueryArgs extends IAccountQueryArgs {
@@ -63,7 +64,7 @@ export const walletsApi = createApi({
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
         getBalance: build.query<string, IAccountQueryArgs>({
-            queryFn: async ({ accountId }, { getState, extra }) => {
+            queryFn: async ({ accountId, networkId, networkKey }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -81,6 +82,11 @@ export const walletsApi = createApi({
                 const { wallet } = walletAndAccount;
 
                 try {
+                    const service = getWalletService(extra);
+                    if (service.getActiveNetworkId() !== networkId ||
+                        (networkKey !== undefined && service.getActiveNetworkKey() !== networkKey)) {
+                        throw new Error("Balance request belongs to a different network configuration");
+                    }
                     const balance = await getWalletService(extra).getAvailableBalance(
                         wallet.id,
                         accountId,
@@ -98,7 +104,7 @@ export const walletsApi = createApi({
             ],
         }),
         getTransactionHistory: build.query<Transaction[], IHistoryQueryArgs>({
-            queryFn: async ({ accountId, source }, { getState, extra }) => {
+            queryFn: async ({ accountId, source, networkId, networkKey }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -116,6 +122,11 @@ export const walletsApi = createApi({
                 const { wallet } = walletAndAccount;
 
                 try {
+                    const service = getWalletService(extra);
+                    if (service.getActiveNetworkId() !== networkId ||
+                        (networkKey !== undefined && service.getActiveNetworkKey() !== networkKey)) {
+                        throw new Error("History request belongs to a different network configuration");
+                    }
                     const historyOptions: ITransactionsHistoryOptions = {
                         pagination: { limit: HISTORY_LIMIT },
                     };
@@ -138,6 +149,9 @@ export const walletsApi = createApi({
                             from: tx.from,
                             to: tx.to ?? "",
                             amount: tx.amount ?? "",
+                            gasCost: tx.gasCost,
+                            nativeTokenDecimals: tx.nativeTokenDecimals,
+                            networkId: tx.networkId,
                             // Prefer ISO so client-side Date filters parse reliably.
                             timestamp: serializeHistoryTimestamp(tx.timestamp),
                             status: tx.status,

@@ -1,8 +1,12 @@
 import { ReactElement } from "react";
 import { useSelector } from "react-redux";
 import styled from "styled-components";
-import { BALANCE_PLACEHOLDER, formatBalanceCompact } from "utils/balanceUtils";
-import { selectSelectedNetworkId } from "store/WalletsStore";
+import {
+    BALANCE_PLACEHOLDER,
+    formatBalanceCompact,
+    formatBalanceExact,
+} from "utils/balanceUtils";
+import { selectSelectedNetworkId, selectSelectedNetworkKey } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 
 const LoadingSpinner = styled.span`
@@ -31,17 +35,21 @@ export const AccountBalanceValue = ({
     accountId,
 }: IAccountBalanceValueProps): ReactElement => {
     const networkId = useSelector(selectSelectedNetworkId);
+    const networkKey = useSelector(selectSelectedNetworkKey);
     const { currentData: balance, isFetching } = useGetBalanceQuery({
         accountId,
         networkId,
+        networkKey,
     });
 
     return (
         <>
             {isFetching && <LoadingSpinner />}
-            {balance === undefined
-                ? BALANCE_PLACEHOLDER
-                : formatBalanceCompact(balance)}
+            <span title={balance === undefined ? undefined : formatBalanceExact(balance)}>
+                {balance === undefined
+                    ? BALANCE_PLACEHOLDER
+                    : formatBalanceCompact(balance)}
+            </span>
         </>
     );
 };

@@ -145,6 +145,7 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
+    context: import("sdk").INativeOperationContext;
     password?: string;
 }
 
@@ -496,7 +497,7 @@ export const sendTransaction = createAppAsyncThunk<
 >(
     "wallets-store/sendTransaction",
     async (
-        { walletId, accountId, to, amount, password }: ITransferPayload,
+        { walletId, accountId, to, amount, password, context }: ITransferPayload,
         { getState, dispatch, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
@@ -521,6 +522,7 @@ export const sendTransaction = createAppAsyncThunk<
                 accountId,
                 to,
                 amount,
+                context,
             },
             password,
         );
@@ -555,6 +557,7 @@ export interface IDeployContractPayload {
     accountId: string;
     term: string;
     phloLimit: number;
+    context: import("sdk").INativeOperationContext;
     password?: string;
 }
 
@@ -569,6 +572,7 @@ export const deployContract = createAppAsyncThunk<
             accountId,
             term,
             phloLimit,
+            context,
             password,
         }: IDeployContractPayload,
         { getState, dispatch, extra: { walletService } },
@@ -586,7 +590,7 @@ export const deployContract = createAppAsyncThunk<
         }
 
         const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit },
+            { walletId, accountId, term, phloLimit, context },
             password,
         );
 

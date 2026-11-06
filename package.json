@@ -24,7 +24,7 @@
     "test:lt:web:homePage": "npx wdio wdio.web.conf.js --suite homePageTests"
   },
   "dependencies": {
-    "@asichain/asi-wallet-sdk": "^2.1.0",
+    "@asichain/asi-wallet-sdk": "git+https://github.com/asi-alliance/asi-chain-wallet-sdk.git#6a9c482b5590e312af580de6aadf077095bef9a2",
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",
     "@cosmjs/stargate": "^0.32.4",
@@ -100,6 +100,11 @@
     "typescript": "^5.9.3",
     "wdio-lambdatest-service": "^4.0.0",
     "webdriverio": "^9.18.4"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@asichain/asi-wallet-sdk$": "<rootDir>/node_modules/@asichain/asi-wallet-sdk/dist/index.cjs"
+    }
   },
   "browserslist": {
     "production": [

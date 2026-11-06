@@ -5,9 +5,10 @@ export const formatTransactionAmount = (amount?: string): string => {
         return "-";
     }
 
-    const amountNumber = Number.parseFloat(amount);
+    if (!/^-?(0|[1-9]\d*)(?:\.\d+)?$/.test(amount)) {
+        return `${amount} ${getTokenDisplayName()}`;
+    }
 
-    return Number.isNaN(amountNumber)
-        ? `${amount} ${getTokenDisplayName()}`
-        : `${amountNumber.toFixed(8)} ${getTokenDisplayName()}`;
+    const [integer, fraction = ""] = amount.split(".");
+    return `${integer}.${fraction.padEnd(8, "0")} ${getTokenDisplayName()}`;
 };

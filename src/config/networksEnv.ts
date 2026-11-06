@@ -3,6 +3,7 @@ import {
     INetworkEndpoints,
     isNodeApiProfile,
     isSameNetworkConfig,
+    getNativeTokenDecimals,
     NodeApiProfile,
 } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "../sdk/SdkWalletService";
@@ -173,7 +174,7 @@ const validateNetworksUniqueness = (
         (group: Network[]) => {
             issues.push({
                 level: "error",
-                message: `NETWORKS contains networks with the same URLs and nodeApiProfile: ${formatNetworkIds(group)}`,
+                message: `NETWORKS contains networks with the same URLs, nodeApiProfile and nativeTokenDecimals: ${formatNetworkIds(group)}`,
             });
         },
     );
@@ -288,6 +289,14 @@ export const parseNetworksEnv = (
             });
         }
 
+        let nativeTokenDecimals: number;
+        try {
+            nativeTokenDecimals = getNativeTokenDecimals(entry);
+        } catch {
+            issues.push({ level: "error", networkId, message: "nativeTokenDecimals must be an integer from 0 to 18" });
+            return;
+        }
+
         networks.push({
             id: networkId,
             name:
@@ -296,6 +305,7 @@ export const parseNetworksEnv = (
             observerUrl,
             indexerUrl,
             nodeApiProfile: readNodeApiProfile(entry, networkId, issues),
+            nativeTokenDecimals,
             isDefault: true,
         });
     });

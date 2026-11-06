@@ -5,8 +5,10 @@ import {
     DeployStatus,
     getErrorMessage,
     isIntegerInRange,
-    NATIVE_TOKEN_DECIMALS_AMOUNT,
+    DEFAULT_PHLO_PRICE,
+    getNativeTokenDecimals,
 } from "@asichain/asi-wallet-sdk";
+import { INativeOperationContext, SdkWalletService } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -15,6 +17,7 @@ import {
     selectDeployWatch,
     selectSelectedAccountId,
     selectSelectedNetworkId,
+    selectSelectedNetworkKey,
     selectSelectedNetwork,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -26,12 +29,11 @@ import {
     selectIsNetworkOperationPending,
 } from "store/NetworkActivity";
 import { IUnlockedAccountMeta } from "types/wallet";
+import { canCoverDeployCost, getDeployCostAtomic } from "utils/deployFees";
 import {
     IPasswordPromptProps,
     useWalletSessionAction,
 } from "./useWalletSessionAction";
-
-const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
 
 const MIN_PHLO_LIMIT = 1;
 const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
@@ -69,6 +71,11 @@ interface IPendingDeployRequest {
     term: string;
     fileName?: string;
     phloLimit: number;
+    context: INativeOperationContext;
+    walletId: string;
+    account: IUnlockedAccountMeta;
+    networkName: string;
+    phloPrice: string;
 }
 
 interface IPendingExploreRequest {
@@ -88,6 +95,9 @@ export interface IUseDeployContractOptions {
 export interface IUseDeployContractResponse {
     account: IUnlockedAccountMeta | null;
     networkName: string;
+    nativeTokenDecimals: number;
+    pendingPhloLimit: string;
+    pendingPhloPrice: string;
     isBalanceReady: boolean;
     isPhloLimitValid: boolean;
     isBlockedByAnotherChainOperation: boolean;
@@ -133,12 +143,15 @@ export const useDeployContract = ({
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkName = useSelector(selectSelectedNetwork).name;
+    const networkKey = useSelector(selectSelectedNetworkKey);
+    const network = useSelector(selectSelectedNetwork);
+    const networkName = network.name;
+    const nativeTokenDecimals = getNativeTokenDecimals(network);
     const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
             selectedAccountId
-                ? { accountId: selectedAccountId, networkId }
+                ? { accountId: selectedAccountId, networkId, networkKey }
                 : skipToken,
         );
 
@@ -230,12 +243,11 @@ export const useDeployContract = ({
     };
 
     const deployAction = useWalletSessionAction({
-        walletId,
+        walletId: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.walletId : walletId,
         action: (password?: string) => {
             if (
                 pendingRequest?.mode !== DeployConfirmationMods.DEPLOY ||
-                !walletId ||
-                !selectedAccountId
+                !pendingRequest.walletId
             ) {
                 throw new Error("Deploy details are missing. Please retry.");
             }
@@ -248,10 +260,11 @@ export const useDeployContract = ({
 
             return dispatch(
                 deployContract({
-                    walletId,
-                    accountId: selectedAccountId,
+                    walletId: pendingRequest.walletId,
+                    accountId: pendingRequest.account.id,
                     term: pendingRequest.term,
                     phloLimit: pendingRequest.phloLimit,
+                    context: pendingRequest.context,
                     password,
                 }),
             ).unwrap();
@@ -281,7 +294,7 @@ export const useDeployContract = ({
         if (isChainOperationPending || confirmationSubmittedRef.current || isConfirmationOpen || deployAction.isRunning || isExploring) {
             return;
         }
-        if (!walletId || !selectedAccountId) {
+        if (!walletId || !selectedAccountId || !account) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Session expired. Please login again.",
@@ -310,11 +323,16 @@ export const useDeployContract = ({
             return;
         }
 
-        const minGasCost =
-            (phloLimitValue * Number(phloPrice)) / ATOMIC_UNITS_PER_ASI;
-        const availableBalance = Number(balance);
+        const minGasCost = getDeployCostAtomic(phloLimitValue, phloPrice);
+        if (minGasCost === null || phloPrice !== String(DEFAULT_PHLO_PRICE)) {
+            emit({
+                type: DeployEventTypes.DEPLOY_FAILED,
+                message: "Deploy aborted: invalid phlo price",
+            });
+            return;
+        }
 
-        if (availableBalance <= 0 || availableBalance < minGasCost) {
+        if (!canCoverDeployCost(balance!, minGasCost, nativeTokenDecimals)) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: insufficient balance",
@@ -323,11 +341,27 @@ export const useDeployContract = ({
             return;
         }
 
+        let context: INativeOperationContext;
+        try {
+            context = SdkWalletService.captureOperationContext();
+            if (context.networkId !== networkId || context.nativeTokenDecimals !== nativeTokenDecimals) {
+                throw new Error("Network changed. Check the details and try again.");
+            }
+        } catch (error) {
+            emit({ type: DeployEventTypes.DEPLOY_FAILED, message: getErrorMessage(error, "Network changed. Please retry.") });
+            return;
+        }
+
         setPendingRequest({
             mode: DeployConfirmationMods.DEPLOY,
             term,
             fileName,
             phloLimit: phloLimitValue,
+            phloPrice,
+            context,
+            walletId,
+            account,
+            networkName,
         });
         setIsConfirmationOpen(true);
     };
@@ -391,8 +425,11 @@ export const useDeployContract = ({
     };
 
     return {
-        account,
-        networkName,
+        account: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.account : account,
+        networkName: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.networkName : networkName,
+        nativeTokenDecimals: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.context.nativeTokenDecimals : nativeTokenDecimals,
+        pendingPhloLimit: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? String(pendingRequest.phloLimit) : phloLimit,
+        pendingPhloPrice: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.phloPrice : phloPrice,
         isBalanceReady,
         isPhloLimitValid: parsePhloLimit(phloLimit) !== null,
         isBlockedByAnotherChainOperation:

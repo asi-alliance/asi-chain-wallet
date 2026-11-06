@@ -35,6 +35,7 @@ export interface Network {
     observerUrl: string;
     indexerUrl: string;
     nodeApiProfile: NodeApiProfile;
+    nativeTokenDecimals?: number;
     isDefault: boolean;
 }
 

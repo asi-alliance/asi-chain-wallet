@@ -2,6 +2,12 @@ import React from "react";
 import styled from "styled-components";
 import { Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
+import {
+    fromAtomicAmount,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
+} from "@asichain/asi-wallet-sdk";
+import { getTokenDisplayName } from "constants/token";
+import { getDeployCostAtomic } from "utils/deployFees";
 
 const Title = styled.h3`
     font-size: 20px;
@@ -123,6 +129,7 @@ interface DeploymentConfirmationProps {
     rholangCode: string;
     phloLimit: string;
     phloPrice: string;
+    nativeTokenDecimals?: number;
     accountName: string;
     accountAddress: string;
     isExplore?: boolean;
@@ -139,6 +146,7 @@ export const DeploymentConfirmationModal: React.FC<
     rholangCode,
     phloLimit,
     phloPrice,
+    nativeTokenDecimals = NATIVE_TOKEN_DECIMALS_AMOUNT,
     accountName,
     accountAddress,
     isExplore = false,
@@ -163,7 +171,7 @@ export const DeploymentConfirmationModal: React.FC<
         return rholangCode.substring(0, 300) + "\n\n... (truncated)";
     };
 
-    const estimatedCost = parseInt(phloLimit) * parseInt(phloPrice);
+    const estimatedCost = getDeployCostAtomic(phloLimit, phloPrice);
 
     return (
         <ModalWindow
@@ -223,8 +231,11 @@ export const DeploymentConfirmationModal: React.FC<
                         </DetailRow>
 
                         <DetailRow>
-                            <DetailLabel>Estimated Cost:</DetailLabel>
-                            <DetailValue>{estimatedCost} phlo</DetailValue>
+                            <DetailLabel>Maximum Fee:</DetailLabel>
+                            <DetailValue>
+                                {estimatedCost === null ? "—" :
+                                    `${fromAtomicAmount(estimatedCost, nativeTokenDecimals)} ${getTokenDisplayName()}`}
+                            </DetailValue>
                         </DetailRow>
                     </>
                 )}

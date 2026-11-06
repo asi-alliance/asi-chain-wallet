@@ -107,6 +107,7 @@ interface TransactionConfirmationProps {
     senderAddress: string;
     senderName: string;
     maxFee: bigint;
+    nativeTokenDecimals?: number;
     feeLabel: string;
     feeDetailLabel?: string;
     totalLabel?: string;
@@ -125,6 +126,7 @@ export const TransactionConfirmationModal: React.FC<
     senderAddress,
     senderName,
     maxFee,
+    nativeTokenDecimals = 8,
     feeLabel,
     feeDetailLabel = "Commission amount can be :",
     totalLabel = "Total Cost:",
@@ -135,8 +137,8 @@ export const TransactionConfirmationModal: React.FC<
 
     const [password, setPassword] = useState("");
 
-    const totalAmount = isPositiveTokenAmount(amount)
-        ? (getTokenAmountWithFee(amount, maxFee) ?? "—")
+    const totalAmount = isPositiveTokenAmount(amount, nativeTokenDecimals)
+        ? (getTokenAmountWithFee(amount, maxFee, nativeTokenDecimals) ?? "—")
         : "—";
 
     const handleClose = () => {

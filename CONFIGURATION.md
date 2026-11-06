@@ -123,12 +123,21 @@ The JSON key of every entry is the network id, and it is the same id the SDK use
     "ValidatorURL": "https://validator.example/HTTP_API",
     "ReadOnlyURL": "https://observer.example/HTTP_API",
     "IndexerURL": "https://indexer.example/v1/graphql",
-    "nodeApiProfile": "rust"
+    "nodeApiProfile": "rust",
+    "nativeTokenDecimals": 18
   }
 }
 ```
 
 An entry may also carry `name`; without it the id is used as the display name. `nodeApiProfile` selects the node API dialect (`scala` or `rust`, validated by the SDK) and falls back to the SDK default when absent.
+
+`nativeTokenDecimals` must match the configured chain's native denomination. Omitted means legacy **8**; explicit values must be JSON integer numbers from **0 through 18**. An explicit invalid value (`null`, `"18"`, a fraction, or an out-of-range number) is a fatal configuration error. The wallet does not discover decimals from node status or switch denomination when a node is unavailable. Existing configurations without this field stay at 8. Set the same value when adding/editing a custom network in Network Settings.
+
+On an 18-decimal network, `0.000000000000000001` ASI is one atomic unit and `10.000000000000000001` becomes `10000000000000000001n`. Input, Max, balance, fee display and confirmation totals use the selected precision. Atomic fee budgets stay unchanged: a 250000-unit budget displays as `0.0025` at 8 decimals and `0.00000000000025` at 18. Nonzero excess precision is rejected; redundant trailing zeros are exact. Amounts remain decimal strings and bigint values throughout.
+
+Confirmation captures network id, precision and configuration revision. A changed selection or endpoint, including switching away and back, invalidates the operation before signing. Balance/history cache keys include endpoints, API profile and precision. Stored reservation/history display values keep their recorded units, including mixed legacy and 18-decimal records; current precision never rescales old history. The SDK refuses precision changes while reservations remain, including closed-wallet storage. Hasura must supply exact decimal amount strings; already-rounded JSON numbers cannot be recovered.
+
+This setting does not migrate a chain, implement [node #881](https://github.com/F1R3FLY-io/f1r3node-rust/pull/881)'s protobuf/signing changes, or enable the wallet's disabled bridge flow. SDK release adoption and a funded upgraded-node/browser send/finalization/history run remain acceptance work for [wallet #92](https://github.com/asi-alliance/asi-chain-wallet/issues/92).
 
 ### Validation Rules
 
@@ -137,8 +146,9 @@ Errors are fatal: `npm start` and `npm run build` stop in `config-overrides.js`,
 - `NETWORKS` is missing or empty
 - `NETWORKS` is not valid JSON (the parser message is included)
 - `NETWORKS` is not a non-empty JSON object mapping ids to configurations
+- An entry explicitly supplies invalid `nativeTokenDecimals`
 - **No entry is fully configured**: at least one network needs a valid `http(s)` `ValidatorURL`, `ReadOnlyURL` and `IndexerURL`
-- **Duplicate endpoints**: two or more loaded entries have the same `ValidatorURL`, `ReadOnlyURL`, `IndexerURL` and `nodeApiProfile` (compared after validation and fallbacks). The message lists the ids of the conflicting networks
+- **Duplicate configuration**: two or more loaded entries have the same URLs, `nodeApiProfile` and effective `nativeTokenDecimals` (compared after validation and fallbacks). The message lists the ids of the conflicting networks
 - **Duplicate names**: two or more loaded entries have the same display name (`name`, or the id when `name` is absent), compared ignoring case. The message lists the name and the ids of the conflicting networks
 
 Warnings keep the app running and are reported per network:
