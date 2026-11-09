@@ -35,10 +35,12 @@ import { useCardanoWallet } from "hooks/useCardanoWallet";
 import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
-import { useCopyToClipboard, useWalletSessionAction } from "hooks";
+import {
+    useBalanceSufficiencyCheck,
+    useCopyToClipboard,
+    useWalletSessionAction,
+} from "hooks";
 import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
-import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { skipToken } from "@reduxjs/toolkit/query";
 import { IWalletSessionContext, WalletKind } from "types/bridgeWalletSession";
 import {
     ASIWalletSection,
@@ -61,7 +63,7 @@ import { SdkWalletService } from "sdk";
 import { getTokenDisplayName } from "constants/token";
 
 const BALANCE_UNAVAILABLE_ERROR =
-    "Failed to load balance for the selected network. Locking is unavailable.";
+    "Failed to load balance for the selected network. The balance will be checked again when you lock.";
 
 const BALANCE_LOADING_ERROR =
     "Balance is still loading. Please wait and try again.";
@@ -339,14 +341,11 @@ export const Bridge: React.FC = () => {
     const cardano = useCardanoWallet();
 
     const {
-        currentData: currentASIAccountBalance,
-        isFetching: isBalanceFetching,
-        isError: isBalanceError,
-    } = useGetBalanceQuery(
-        selectedAccount
-            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
-            : skipToken,
-    );
+        balance: currentASIAccountBalance,
+        isBalanceLoading,
+        isBalanceError,
+        submitWithBalanceCheck,
+    } = useBalanceSufficiencyCheck(selectedAccount?.id);
 
     const selectedASIAccountBalance = currentASIAccountBalance ?? "0";
     const isBalanceReady =
@@ -419,18 +418,23 @@ export const Bridge: React.FC = () => {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
-            return dispatch(
-                bridgeLock({
-                    walletId: pendingLock.walletId,
-                    accountId: pendingLock.accountId,
-                    recipient: pendingLock.recipient,
-                    amount: pendingLock.amount,
-                    destChainId: pendingLock.destChainId,
-                    bridgeUri: pendingLock.bridgeUri,
-                    password,
-                    network: selectedNetwork,
-                }),
-            ).unwrap();
+            return submitWithBalanceCheck(
+                SdkWalletService.toAtomicAmount(pendingLock.amount) +
+                    BRIDGE_LOCK_MAX_GAS_COST,
+                () =>
+                    dispatch(
+                        bridgeLock({
+                            walletId: pendingLock.walletId,
+                            accountId: pendingLock.accountId,
+                            recipient: pendingLock.recipient,
+                            amount: pendingLock.amount,
+                            destChainId: pendingLock.destChainId,
+                            bridgeUri: pendingLock.bridgeUri,
+                            password,
+                            network: selectedNetwork,
+                        }),
+                    ).unwrap(),
+            );
         },
         onSuccess: ({ deployId }) => {
             setPendingLock(null);
@@ -503,8 +507,7 @@ export const Bridge: React.FC = () => {
     };
 
     const amountError = getAmountError();
-    const balanceLoadingStatus =
-        !isBalanceReady && !isBalanceError ? BALANCE_LOADING_ERROR : "";
+    const balanceLoadingStatus = isBalanceLoading ? BALANCE_LOADING_ERROR : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
@@ -736,8 +739,7 @@ export const Bridge: React.FC = () => {
 
     const lockDisabled =
         busy ||
-        !isBalanceReady ||
-        isBalanceFetching ||
+        isBalanceLoading ||
         !sourceAccountLoaded ||
         !destinationAccountLoaded ||
         !isAmountValid;
@@ -871,7 +873,7 @@ export const Bridge: React.FC = () => {
                             placeholder="Enter Amount"
                             step="0.00000001"
                             min="0"
-                            disabled={!isBalanceReady}
+                            disabled={isBalanceLoading}
                             error={amountError || undefined}
                             helperText={`8 decimal places (1 ${assetSymbol} = 1.00000000)`}
                             copyable

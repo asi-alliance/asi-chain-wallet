@@ -51,6 +51,25 @@ export const getTokenAmountWithFee = (
     return fromAtomicAmount(amountAtomic + gasFee, ASI_DECIMALS);
 };
 
+export const getInsufficientBalanceError = (
+    balance: string,
+    requiredAmount: bigint,
+): string => {
+    const balanceAtomic = parseTokenAmount(balance);
+
+    if (balanceAtomic === null || requiredAmount <= balanceAtomic) {
+        return "";
+    }
+
+    return `Insufficient balance. Required ${fromAtomicAmount(
+        requiredAmount,
+        ASI_DECIMALS,
+    )} ${getTokenDisplayName()}, available ${fromAtomicAmount(
+        balanceAtomic,
+        ASI_DECIMALS,
+    )} ${getTokenDisplayName()}.`;
+};
+
 export const isPositiveTokenAmount = (amount: string): boolean => {
     const amountAtomic = parseTokenAmount(amount);
 

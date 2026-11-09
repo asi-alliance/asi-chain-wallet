@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { skipToken } from "@reduxjs/toolkit/query/react";
 import {
     DeployStatus,
     getErrorMessage,
     isIntegerInRange,
-    NATIVE_TOKEN_DECIMALS_AMOUNT,
 } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -14,11 +12,9 @@ import {
     selectAccountById,
     selectDeployWatch,
     selectSelectedAccountId,
-    selectSelectedNetworkId,
     selectSelectedNetwork,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { deployContract, exploreDeploy } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
@@ -26,12 +22,12 @@ import {
     selectIsNetworkOperationPending,
 } from "store/NetworkActivity";
 import { IUnlockedAccountMeta } from "types/wallet";
+import { getInsufficientBalanceError } from "utils/balanceUtils";
+import { useBalanceSufficiencyCheck } from "./useBalanceSufficiencyCheck";
 import {
     IPasswordPromptProps,
     useWalletSessionAction,
 } from "./useWalletSessionAction";
-
-const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
 
 const MIN_PHLO_LIMIT = 1;
 const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
@@ -88,7 +84,7 @@ export interface IUseDeployContractOptions {
 export interface IUseDeployContractResponse {
     account: IUnlockedAccountMeta | null;
     networkName: string;
-    isBalanceReady: boolean;
+    isBalanceLoading: boolean;
     isPhloLimitValid: boolean;
     isBlockedByAnotherChainOperation: boolean;
     submittedDeployId: string;
@@ -117,6 +113,9 @@ const parsePhloLimit = (value: string): number | null => {
         : null;
 };
 
+const getDeployCost = (phloLimit: number, phloPrice: string): bigint =>
+    BigInt(phloLimit) * BigInt(phloPrice);
+
 export const useDeployContract = ({
     phloLimit,
     phloPrice,
@@ -132,17 +131,10 @@ export const useDeployContract = ({
             ? selectWalletByAccountId(state, selectedAccountId)
             : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
     const networkName = useSelector(selectSelectedNetwork).name;
     const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
-    const { currentData: balance, isError: isBalanceError } =
-        useGetBalanceQuery(
-            selectedAccountId
-                ? { accountId: selectedAccountId, networkId }
-                : skipToken,
-        );
-
-    const isBalanceReady = balance !== undefined && !isBalanceError;
+    const { balance, isBalanceLoading, submitWithBalanceCheck } =
+        useBalanceSufficiencyCheck(selectedAccountId ?? undefined);
 
     const [pendingRequest, setPendingRequest] =
         useState<TPendingRequest | null>(null);
@@ -246,15 +238,19 @@ export const useDeployContract = ({
                 fileName: pendingRequest.fileName,
             });
 
-            return dispatch(
-                deployContract({
-                    walletId,
-                    accountId: selectedAccountId,
-                    term: pendingRequest.term,
-                    phloLimit: pendingRequest.phloLimit,
-                    password,
-                }),
-            ).unwrap();
+            return submitWithBalanceCheck(
+                getDeployCost(pendingRequest.phloLimit, phloPrice),
+                () =>
+                    dispatch(
+                        deployContract({
+                            walletId,
+                            accountId: selectedAccountId,
+                            term: pendingRequest.term,
+                            phloLimit: pendingRequest.phloLimit,
+                            password,
+                        }),
+                    ).unwrap(),
+            );
         },
         onSuccess: ({ deployId }) => {
             confirmationSubmittedRef.current = false;
@@ -290,10 +286,10 @@ export const useDeployContract = ({
             return;
         }
 
-        if (!isBalanceReady) {
+        if (isBalanceLoading) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
-                message: "Deploy aborted: account balance is unavailable",
+                message: "Deploy aborted: account balance is still loading",
             });
 
             return;
@@ -310,14 +306,18 @@ export const useDeployContract = ({
             return;
         }
 
-        const minGasCost =
-            (phloLimitValue * Number(phloPrice)) / ATOMIC_UNITS_PER_ASI;
-        const availableBalance = Number(balance);
+        const insufficientBalanceError: string =
+            balance === undefined
+                ? ""
+                : getInsufficientBalanceError(
+                      balance,
+                      getDeployCost(phloLimitValue, phloPrice),
+                  );
 
-        if (availableBalance <= 0 || availableBalance < minGasCost) {
+        if (insufficientBalanceError) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
-                message: "Deploy aborted: insufficient balance",
+                message: `Deploy aborted: ${insufficientBalanceError}`,
             });
 
             return;
@@ -393,7 +393,7 @@ export const useDeployContract = ({
     return {
         account,
         networkName,
-        isBalanceReady,
+        isBalanceLoading,
         isPhloLimitValid: parsePhloLimit(phloLimit) !== null,
         isBlockedByAnotherChainOperation:
             isChainOperationPending && !ownsPendingOperationRef.current,

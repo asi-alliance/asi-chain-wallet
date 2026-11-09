@@ -1037,7 +1037,7 @@ const DeployProModeBoard: React.FC = () => {
     const {
         isActive,
         account,
-        isBalanceReady,
+        isBalanceLoading,
         isPhloLimitValid,
         isBlockedByAnotherChainOperation,
         submittedDeployId,
@@ -1407,7 +1407,7 @@ const DeployProModeBoard: React.FC = () => {
                             isBlockedByAnotherChainOperation ||
                             !deployableFile ||
                             !account ||
-                            !isBalanceReady ||
+                            isBalanceLoading ||
                             !isPhloLimitValid
                         }
                     >

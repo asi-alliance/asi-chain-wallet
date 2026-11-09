@@ -3,8 +3,13 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
-import { skipToken } from "@reduxjs/toolkit/query/react";
+import {
+    Address,
+    ASI_DECIMALS,
+    DeployStatus,
+    GasFee,
+    toAtomicAmount,
+} from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -14,7 +19,6 @@ import {
     selectSelectedNetworkId,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
@@ -40,9 +44,12 @@ import {
     VectorIcon,
 } from "components/Icons";
 import { ModalWindow } from "components/ModalWindow";
-import { useCopyToClipboard, useWalletSessionAction } from "hooks";
+import {
+    useBalanceSufficiencyCheck,
+    useCopyToClipboard,
+    useWalletSessionAction,
+} from "hooks";
 import { getGasFeeRangeLabel } from "../../constants/gas";
-import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
     getMaxSendableAmount,
@@ -51,7 +58,7 @@ import {
 import addressValidation from "utils/AddressValidation";
 
 const BALANCE_UNAVAILABLE_ERROR =
-    "Failed to load balance for the selected network. Sending is unavailable.";
+    "Failed to load balance for the selected network. The balance will be checked again when you send.";
 const TRANSACTION_UNRESOLVED_TITLE =
     "Transaction status is unknown. It may still complete on chain. Check transaction history later.";
 const NETWORK_CHANGED_ERROR =
@@ -263,16 +270,13 @@ export const Send: React.FC = () => {
     );
     const networkId = useSelector(selectSelectedNetworkId);
     const {
-        currentData: currentBalance,
-        isFetching,
-        isError: isBalanceError,
-        refetch: refetchBalance,
-    } = useGetBalanceQuery(
-        selectedAccount
-            ? { accountId: selectedAccount.id, networkId }
-            : skipToken,
-        { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
-    );
+        balance: currentBalance,
+        isBalanceFetching: isFetching,
+        isBalanceLoading,
+        isBalanceError,
+        refetchBalance,
+        submitWithBalanceCheck,
+    } = useBalanceSufficiencyCheck(selectedAccount?.id);
 
     const balance = currentBalance ?? "0";
     const isBalanceReady = currentBalance !== undefined && !isBalanceError;
@@ -329,15 +333,20 @@ export const Send: React.FC = () => {
             }
 
             clearDeployWatch();
-            return dispatch(
-                sendTransaction({
-                    walletId: pendingTransfer.walletId,
-                    accountId: pendingTransfer.accountId,
-                    to: pendingTransfer.to,
-                    amount: pendingTransfer.amount,
-                    password,
-                }),
-            ).unwrap();
+            return submitWithBalanceCheck(
+                toAtomicAmount(pendingTransfer.amount, ASI_DECIMALS) +
+                    GasFee.MAX,
+                () =>
+                    dispatch(
+                        sendTransaction({
+                            walletId: pendingTransfer.walletId,
+                            accountId: pendingTransfer.accountId,
+                            to: pendingTransfer.to,
+                            amount: pendingTransfer.amount,
+                            password,
+                        }),
+                    ).unwrap(),
+            );
         },
         onSuccess: ({ deployId }) => {
             pasteGenerationRef.current += 1;
@@ -517,11 +526,9 @@ export const Send: React.FC = () => {
             setValidationError("Amount is required");
             return false;
         }
-        if (!isBalanceReady) {
+        if (isBalanceLoading) {
             setValidationError(
-                isBalanceError
-                    ? BALANCE_UNAVAILABLE_ERROR
-                    : "Balance is still loading. Please wait and try again.",
+                "Balance is still loading. Please wait and try again.",
             );
             return false;
         }
@@ -918,7 +925,7 @@ export const Send: React.FC = () => {
                                     !!amountError ||
                                     !!maxError ||
                                     !!amountPasteError ||
-                                    !isBalanceReady
+                                    isBalanceLoading
                                 }
                             >
                                 Send <VectorIcon />

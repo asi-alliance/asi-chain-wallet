@@ -359,7 +359,7 @@ const CopyDeployIdButton: React.FC<{ deployId: string }> = ({ deployId }) => (
 const DeployLiteModeBoard: React.FC = () => {
     const {
         account,
-        isBalanceReady,
+        isBalanceLoading,
         isPhloLimitValid,
         isBlockedByAnotherChainOperation,
         code,
@@ -482,7 +482,7 @@ const DeployLiteModeBoard: React.FC = () => {
                             isBlockedByAnotherChainOperation ||
                             !code.trim() ||
                             !account ||
-                            !isBalanceReady ||
+                            isBalanceLoading ||
                             !isPhloLimitValid
                         }
                     >
