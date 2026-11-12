@@ -303,6 +303,7 @@ asi-chain-wallet/
 npm start              # dev server on port 3000 (PORT=3001 npm start to change it)
 npm run lint           # ESLint over src
 npm run type-check     # tsc --noEmit
+npm test -- --watchAll=false --runInBand # run all unit tests once
 
 # Building
 npm run build          # production build into build/
@@ -313,7 +314,11 @@ npm run analyze        # bundle analysis of build/static/js
 npm run deploy:gh      # publish build/ to GitHub Pages
 ```
 
-`npm run type-check` passes without errors, and `npm run lint` reports warnings only. See [DEVELOPMENT.md](DEVELOPMENT.md) for the scripts that are not usable today (`test`, `deploy:ipfs`, `wdio`, `TA`, `test:lt:*`).
+Unit tests run automatically for every pull request targeting `dev`, without path
+filters. The test workflow does not run on pushes. See
+[DEVELOPMENT.md](DEVELOPMENT.md#unit-tests) for local test setup.
+
+`npm run type-check` passes without errors, and `npm run lint` reports warnings only. See [DEVELOPMENT.md](DEVELOPMENT.md) for the scripts that are not usable today (`deploy:ipfs`, `wdio`, `TA`, `test:lt:*`).
 
 ## E2E Testing
 
