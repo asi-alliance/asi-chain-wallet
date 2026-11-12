@@ -82,6 +82,7 @@ Working scripts:
 | `npm run build` | `react-app-rewired build` | Production build into `build/` |
 | `npm run lint` | `eslint src --ext .ts,.tsx` | Currently reports warnings only |
 | `npm run type-check` | `tsc --noEmit` | Passes without errors (`target` is `es2020`) |
+| `npm test -- --watchAll=false --runInBand` | `react-scripts test` | Runs all unit tests once without watch mode |
 | `npm run serve` | `npx serve -s build` | Serves an existing build |
 | `npm run analyze` | `source-map-explorer 'build/static/js/*.js'` | Requires a build with source maps |
 | `npm run deploy:gh` | `gh-pages -d build` | Publishes `build/` to GitHub Pages |
@@ -90,7 +91,6 @@ Scripts that do not work in the current tree:
 
 | Script | Why |
 | --- | --- |
-| `npm test` | `react-scripts test` runs, but there are no unit tests: `*.test.*` is listed in `.gitignore`, so none are committed. Only `src/setupTests.ts` and the mocks under `src/__mocks__` and `src/services/__mocks__` remain |
 | `npm run deploy:ipfs` | Points at `scripts/deploy-ipfs.js`; there is no `scripts/` directory |
 | `npm run wdio`, `npm run TA`, `npm run TA-lambda` | Point at `wdio.conf.js`, `index.js` and `wdio.lambdatest.conf.js` in the repository root; none of them exist |
 | `npm run test:lt:web`, `test:lt:web:homePage`, `test:lt:android`, `test:lt:ios` | The referenced configs are either missing (`wdio.android.conf.js`, `wdio.ios.conf.js`) or live in `tests-automation/` and must be run from there. The `homePageTests` suite is not defined in any config |
@@ -155,7 +155,20 @@ The entrypoint writes a `window._env_` block and runs `envsubst` over the nginx 
 
 ### Unit Tests
 
-There are none in the repository. `.gitignore` excludes `*.test.*` and `*-test.*`, so any test written locally stays untracked until that rule is changed or a different naming convention is agreed (see [E2E Tests](#e2e-tests)). The integration tests that were briefly kept under `__tests__` directories during the UI redesign have been removed, together with the `@testing-library/dom` dependency. The Jest setup that Create React App would use is still present (`src/setupTests.ts`, `src/__mocks__/crypto-js.ts`, `src/services/__mocks__/secureStorage.ts`).
+Use Node.js 24 and the existing Create React App/Jest runner:
+
+```bash
+npm install --legacy-peer-deps --no-audit --no-fund --package-lock=false
+npm test -- --watchAll=false --runInBand
+```
+
+The suite covers account name validation, URL parameter encoding, exact BigInt
+serialization and byte-array copying. It uses `src/setupTests.ts` and needs no
+wallet credentials, LambdaTest account or running node/API services.
+
+Unit tests belong in `src/**/*.test.ts` or `src/**/*.test.tsx`; `.gitignore`
+explicitly allows these files. The runner discovers all matching tests, and an
+empty suite fails instead of silently passing.
 
 ### E2E Tests
 
@@ -172,7 +185,8 @@ Adding specs under that pattern is not enough, because the root `.gitignore` exc
 - add an exception to `.gitignore`, for example `!tests-automation/**/*.test.js` after the existing rules;
 - or rename the spec pattern, for example `tests-automation/TestSuites/**/*.e2e.js`, and update `specs` in `wdio.web.conf.js` and `wdio.mobile.conf.js` accordingly.
 
-The same `.gitignore` rules are why no unit tests are tracked either, so whichever convention is chosen should cover both.
+Unit tests in `src` have explicit exceptions to these ignore rules; E2E specs
+still need their own exception or a different naming convention.
 
 Credentials are loaded from the **repository root** `.env`. `tests-automation/.env.example` lists the same variables plus a few more (`PROJECT_NAME`, `LT_API_URL`, `PRIVATE_KEY`), but neither config reads a `.env` inside `tests-automation/`:
 
@@ -195,6 +209,14 @@ The page objects address elements through the `id` attributes set in the applica
 ## CI/CD Pipeline
 
 Workflows live in `.github/workflows/`.
+
+### Pull Request Tests
+
+**File**: `tests.yml`, **trigger**: `pull_request` targeting `dev` only.
+
+Installs the application dependencies with the documented legacy peer dependency
+setting and runs the complete unit suite once. There are no path filters, push
+triggers or deployment steps. The job uses a read-only GitHub token.
 
 ### Development Deployment
 
