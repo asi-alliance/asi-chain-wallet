@@ -1,13 +1,20 @@
 import { getTokenDisplayName } from "constants/token";
+import { formatExactDecimalAmount } from "./decimalAmounts";
 
-export const formatTransactionAmount = (amount?: string): string => {
+const MIN_TRANSACTION_AMOUNT_FRACTION_DIGITS = 8;
+
+export const formatTransactionAmount = (
+    amount: string,
+    nativeTokenDecimals: number,
+): string => {
     if (!amount) {
         return "-";
     }
 
-    const amountNumber = Number.parseFloat(amount);
+    const formattedAmount: string | null = formatExactDecimalAmount(
+        amount,
+        Math.min(MIN_TRANSACTION_AMOUNT_FRACTION_DIGITS, nativeTokenDecimals),
+    );
 
-    return Number.isNaN(amountNumber)
-        ? `${amount} ${getTokenDisplayName()}`
-        : `${amountNumber.toFixed(8)} ${getTokenDisplayName()}`;
+    return `${formattedAmount ?? amount} ${getTokenDisplayName()}`;
 };

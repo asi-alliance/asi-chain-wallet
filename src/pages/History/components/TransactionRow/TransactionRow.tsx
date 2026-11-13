@@ -72,7 +72,12 @@ export const TransactionRow: FC<ITransactionRowProps> = ({ transaction }) => {
                     copyTitle="Copy recipient address"
                 />
             </TableCell>
-            <TableCell>{formatTransactionAmount(transaction.amount)}</TableCell>
+            <TableCell>
+                {formatTransactionAmount(
+                    transaction.amount,
+                    transaction.nativeTokenDecimals,
+                )}
+            </TableCell>
             <TableCell>
                 {transaction.deployId ? (
                     <TransactionField
