@@ -1,9 +1,11 @@
 import {
     DEFAULT_NODE_API_PROFILE,
     INetworkEndpoints,
+    isNativeTokenDecimals,
     isNodeApiProfile,
     isSameNetworkConfig,
-    getNativeTokenDecimals,
+    MAX_NATIVE_TOKEN_DECIMALS,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
     NodeApiProfile,
 } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "../sdk/SdkWalletService";
@@ -129,6 +131,30 @@ const readNodeApiProfile = (
     }
 
     return profile;
+};
+
+const readNativeTokenDecimals = (
+    entry: TNetworkEnvEntry,
+    networkId: string,
+    issues: INetworksEnvIssue[],
+): number | null => {
+    const decimals: unknown = entry.nativeTokenDecimals;
+
+    if (decimals === undefined) {
+        return NATIVE_TOKEN_DECIMALS_AMOUNT;
+    }
+
+    if (!isNativeTokenDecimals(decimals)) {
+        issues.push({
+            level: "error",
+            networkId,
+            message: `skipped: nativeTokenDecimals must be an integer from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}`,
+        });
+
+        return null;
+    }
+
+    return decimals;
 };
 
 const isSameNetworkEndpoints = (first: Network, second: Network): boolean =>
@@ -289,11 +315,13 @@ export const parseNetworksEnv = (
             });
         }
 
-        let nativeTokenDecimals: number;
-        try {
-            nativeTokenDecimals = getNativeTokenDecimals(entry);
-        } catch {
-            issues.push({ level: "error", networkId, message: "nativeTokenDecimals must be an integer from 0 to 18" });
+        const nativeTokenDecimals = readNativeTokenDecimals(
+            entry,
+            networkId,
+            issues,
+        );
+
+        if (nativeTokenDecimals === null) {
             return;
         }
 

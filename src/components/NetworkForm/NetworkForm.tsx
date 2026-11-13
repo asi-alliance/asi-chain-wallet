@@ -4,10 +4,13 @@ import { Input } from "components";
 import { AdaptiveSelect, ISelectOption } from "components/Select";
 import {
     DEFAULT_NODE_API_PROFILE,
+    DIGITS_ONLY_REGEX,
     INetworkConfig,
     INetworkEndpoints,
     isNodeApiProfile,
     isNativeTokenDecimals,
+    MAX_NATIVE_TOKEN_DECIMALS,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
     NetworkName,
     NODE_API_PROFILE_DESCRIPTORS,
     validateUrl,
@@ -188,7 +191,7 @@ export const createEmptyNetworkFormValues = (): INetworkFormValues => ({
         ReadOnlyURL: "",
         IndexerURL: "",
         nodeApiProfile: DEFAULT_NODE_API_PROFILE,
-        nativeTokenDecimals: 8,
+        nativeTokenDecimals: NATIVE_TOKEN_DECIMALS_AMOUNT,
     },
 });
 
@@ -202,7 +205,7 @@ export const normalizeNetworkFormValues = ({
         ReadOnlyURL: config.ReadOnlyURL.trim(),
         IndexerURL: config.IndexerURL.trim(),
         nodeApiProfile: config.nodeApiProfile,
-        ...("nativeTokenDecimals" in config ? { nativeTokenDecimals: config.nativeTokenDecimals } : {}),
+        nativeTokenDecimals: config.nativeTokenDecimals,
     },
 });
 
@@ -213,8 +216,8 @@ export const getNetworkFormFieldErrors = (
     const { name, config } = normalizeNetworkFormValues(values);
     const fieldErrors: TNetworkFormFieldErrors = {};
 
-    if ("nativeTokenDecimals" in config && !isNativeTokenDecimals(config.nativeTokenDecimals)) {
-        fieldErrors.nativeTokenDecimals = "Native token decimals must be an integer from 0 to 18.";
+    if (!isNativeTokenDecimals(config.nativeTokenDecimals)) {
+        fieldErrors.nativeTokenDecimals = `Native token decimals must be an integer from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}.`;
     }
 
     if (!name) {
@@ -303,6 +306,18 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
         });
     };
 
+    const updateNativeTokenDecimals = (value: string): void => {
+        onChange({
+            ...values,
+            config: {
+                ...config,
+                nativeTokenDecimals: DIGITS_ONLY_REGEX.test(value)
+                    ? Number(value)
+                    : NaN,
+            },
+        });
+    };
+
     const filledUrlFields = URL_FIELDS.filter(
         ({ field }: INetworkUrlField) => !!config[field],
     );
@@ -347,12 +362,15 @@ export const NetworkFormFields: React.FC<NetworkFormFieldsProps> = ({
                     label="Native token decimals"
                     type="text"
                     inputMode="numeric"
-                    value={Number.isInteger(config.nativeTokenDecimals ?? 8) ? String(config.nativeTokenDecimals ?? 8) : ""}
-                    onChange={(event) => onChange({
-                        ...values,
-                        config: { ...config, nativeTokenDecimals: /^\d+$/.test(event.target.value) ? Number(event.target.value) : NaN },
-                    })}
-                    helperText="Match this network's denomination (0–18). Legacy networks use 8."
+                    value={
+                        Number.isInteger(config.nativeTokenDecimals)
+                            ? String(config.nativeTokenDecimals)
+                            : ""
+                    }
+                    onChange={(event) =>
+                        updateNativeTokenDecimals(event.target.value)
+                    }
+                    helperText={`Match this network's denomination (0-${MAX_NATIVE_TOKEN_DECIMALS}). Legacy networks use ${NATIVE_TOKEN_DECIMALS_AMOUNT}.`}
                     disabled={disabled}
                     error={fieldErrors.nativeTokenDecimals}
                 />

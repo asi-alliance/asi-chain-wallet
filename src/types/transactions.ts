@@ -6,9 +6,7 @@ export interface Transaction {
     from: string;
     to: string;
     amount: string;
-    gasCost?: string;
     nativeTokenDecimals: number;
-    networkId?: string;
     timestamp: string;
     status: TransactionStatus;
     type: TransactionType;

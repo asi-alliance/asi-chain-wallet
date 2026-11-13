@@ -3,8 +3,8 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee, getNativeTokenDecimals } from "@asichain/asi-wallet-sdk";
-import { INativeOperationContext, SdkWalletService } from "sdk/SdkWalletService";
+import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { INativeOperationContext } from "sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -13,8 +13,8 @@ import {
     selectDeployWatch,
     selectSelectedAccount,
     selectSelectedNetworkId,
-    selectSelectedNetwork,
     selectSelectedNetworkKey,
+    selectSelectedNetworkNativeTokenDecimals,
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
@@ -90,7 +90,6 @@ interface ITransferDetails {
     accountId: string;
     accountName: string;
     accountAddress: string;
-    networkId: string;
     context: INativeOperationContext;
     to: Address;
     amount: string;
@@ -266,9 +265,10 @@ export const Send: React.FC = () => {
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const network = useSelector(selectSelectedNetwork);
     const networkKey = useSelector(selectSelectedNetworkKey);
-    const nativeTokenDecimals = getNativeTokenDecimals(network);
+    const nativeTokenDecimals = useSelector(
+        selectSelectedNetworkNativeTokenDecimals,
+    );
     const {
         currentData: currentBalance,
         isFetching,
@@ -331,7 +331,7 @@ export const Send: React.FC = () => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-            if (pendingTransfer.networkId !== networkId) {
+            if (pendingTransfer.context.networkKey !== networkKey) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
@@ -554,24 +554,12 @@ export const Send: React.FC = () => {
         amountPasteGenerationRef.current += 1;
         setScanError("");
         dispatch(networkOperationStarted());
-        let context: INativeOperationContext;
-        try {
-            context = SdkWalletService.captureOperationContext();
-            if (context.networkId !== networkId || context.nativeTokenDecimals !== nativeTokenDecimals) {
-                throw new Error(NETWORK_CHANGED_ERROR);
-            }
-        } catch (error) {
-            dispatch(networkOperationFinished());
-            setValidationError(error instanceof Error ? error.message : NETWORK_CHANGED_ERROR);
-            return;
-        }
         setPendingTransfer({
             walletId,
             accountId: selectedAccount.id,
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
-            networkId,
-            context,
+            context: { networkKey, nativeTokenDecimals },
             to: recipient.trim() as Address,
             amount: amount.trim(),
         });

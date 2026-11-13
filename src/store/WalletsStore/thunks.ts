@@ -31,7 +31,7 @@ import {
     IKeyfileImportPreview,
     IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
+import { INativeOperationContext, SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
@@ -145,7 +145,7 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
-    context: import("sdk").INativeOperationContext;
+    context: INativeOperationContext;
     password?: string;
 }
 
@@ -557,7 +557,7 @@ export interface IDeployContractPayload {
     accountId: string;
     term: string;
     phloLimit: number;
-    context: import("sdk").INativeOperationContext;
+    context: INativeOperationContext;
     password?: string;
 }
 

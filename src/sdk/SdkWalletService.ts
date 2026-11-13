@@ -1,6 +1,5 @@
 import {
     Account,
-    ApiClientManager,
     Address,
     Client,
     decodeBase16,
@@ -30,7 +29,6 @@ import {
     PRIVATE_KEY_LENGTH,
     ClientEvent,
     fromAtomicAmount,
-    getNativeTokenDecimals,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
     SignedResult,
     toAtomicAmount,
@@ -49,50 +47,43 @@ import {
 } from "types/wallet";
 
 export interface INativeOperationContext {
-    networkId: string;
+    networkKey: string;
     nativeTokenDecimals: number;
-    networkRevision: number;
 }
+
+const NETWORK_CHANGED_ERROR =
+    "Network changed while awaiting confirmation. Check the details and try again.";
 
 export class SdkWalletService {
     private client: Client | null = null;
 
-    public static toDisplayAmount(atomicAmount: bigint, decimals = NATIVE_TOKEN_DECIMALS_AMOUNT): string {
-        return fromAtomicAmount(atomicAmount, decimals);
+    public static toDisplayAmount(atomicAmount: bigint): string {
+        return fromAtomicAmount(atomicAmount, NATIVE_TOKEN_DECIMALS_AMOUNT);
     }
 
-    public static toAtomicAmount(amount: string | number, decimals = NATIVE_TOKEN_DECIMALS_AMOUNT): bigint {
-        return toAtomicAmount(amount, decimals);
-    }
-
-    public static captureOperationContext(): INativeOperationContext {
-        const manager = ApiClientManager.getInstance();
-        const network = manager.getCurrentNetwork();
-        return Object.freeze({
-            networkId: network.id,
-            nativeTokenDecimals: getNativeTokenDecimals(network.config),
-            networkRevision: manager.getCurrentNetworkRevision(),
-        });
-    }
-
-    public static assertOperationContext(expected: INativeOperationContext): void {
-        const current = SdkWalletService.captureOperationContext();
-        if (current.networkId !== expected.networkId ||
-            current.nativeTokenDecimals !== expected.nativeTokenDecimals ||
-            current.networkRevision !== expected.networkRevision) {
-            throw new Error("Network changed while awaiting confirmation. Check the details and try again.");
-        }
+    public static toAtomicAmount(amount: string | number): bigint {
+        return toAtomicAmount(amount, NATIVE_TOKEN_DECIMALS_AMOUNT);
     }
 
     public static getNetworkKey(network: Network): string {
         return JSON.stringify([
-            network.id, network.validatorUrl, network.observerUrl,
-            network.indexerUrl, network.nodeApiProfile, getNativeTokenDecimals(network),
+            network.id,
+            network.validatorUrl,
+            network.observerUrl,
+            network.indexerUrl,
+            network.nodeApiProfile,
+            network.nativeTokenDecimals,
         ]);
     }
 
     public getActiveNetworkKey(): string {
         return SdkWalletService.getNetworkKey(this.getActiveNetwork());
+    }
+
+    private assertActiveNetwork({ networkKey }: INativeOperationContext): void {
+        if (this.getActiveNetworkKey() !== networkKey) {
+            throw new Error(NETWORK_CHANGED_ERROR);
+        }
     }
 
     public attachClient(client: Client): void {
@@ -148,7 +139,7 @@ export class SdkWalletService {
             observerUrl: record.config.ReadOnlyURL,
             indexerUrl: record.config.IndexerURL,
             nodeApiProfile: record.config.nodeApiProfile,
-            nativeTokenDecimals: getNativeTokenDecimals(record.config),
+            nativeTokenDecimals: record.config.nativeTokenDecimals,
             isDefault: record.isDefault,
         };
     }
@@ -158,15 +149,14 @@ export class SdkWalletService {
         observerUrl,
         indexerUrl,
         nodeApiProfile,
-        ...metadata
+        nativeTokenDecimals,
     }: Network): INetworkConfig {
         return {
             ValidatorURL: validatorUrl,
             ReadOnlyURL: observerUrl,
             IndexerURL: indexerUrl,
             nodeApiProfile,
-            ...("nativeTokenDecimals" in metadata
-                ? { nativeTokenDecimals: metadata.nativeTokenDecimals } : {}),
+            nativeTokenDecimals,
         };
     }
 
@@ -448,11 +438,9 @@ export class SdkWalletService {
 
     public async getBalance(address: string): Promise<string> {
         const client = this.requireClient();
-        const context = SdkWalletService.captureOperationContext();
         const atomicBalance = await client.getBalance(address as Address);
 
-        SdkWalletService.assertOperationContext(context);
-        return SdkWalletService.toDisplayAmount(atomicBalance, context.nativeTokenDecimals);
+        return client.toDisplayAmount(atomicBalance);
     }
 
     public async getAvailableBalance(
@@ -460,29 +448,24 @@ export class SdkWalletService {
         accountId: string,
     ): Promise<string> {
         const client = this.requireClient();
-        const context = SdkWalletService.captureOperationContext();
         const atomicBalance = await client.getAvailableBalance(
             walletId,
             accountId,
         );
 
-        SdkWalletService.assertOperationContext(context);
-        return SdkWalletService.toDisplayAmount(atomicBalance, context.nativeTokenDecimals);
+        return client.toDisplayAmount(atomicBalance);
     }
 
-    public async getTransactionsHistory(
+    public getTransactionsHistory(
         walletId: string,
         accountId: string,
         options?: ITransactionsHistoryOptions,
     ): Promise<Transaction[]> {
-        const context = SdkWalletService.captureOperationContext();
-        const history = await this.requireClient().getTransactionsHistory(
+        return this.requireClient().getTransactionsHistory(
             walletId,
             accountId,
             options,
         );
-        SdkWalletService.assertOperationContext(context);
-        return history;
     }
 
     public signDeploy(
@@ -520,27 +503,39 @@ export class SdkWalletService {
             to,
             amount,
             context,
-        }: Omit<ITransferRequest, "amount"> & { amount: string; context: INativeOperationContext },
+        }: Omit<ITransferRequest, "amount"> & {
+            amount: string;
+            context: INativeOperationContext;
+        },
         password?: string,
     ): Promise<IReservedOperationResult> {
         const client = this.requireClient();
-        SdkWalletService.assertOperationContext(context);
+
+        this.assertActiveNetwork(context);
+
         return client.transfer(
             {
                 walletId,
                 accountId,
                 to,
-                amount: client.toAtomicAmount(amount),
+                amount: client.toExactAtomicAmount(amount),
             },
             password,
         );
     }
 
-    public deploy(
-        { walletId, accountId, term, phloLimit, context }: IDeployRequest & { context: INativeOperationContext },
+    public async deploy(
+        {
+            walletId,
+            accountId,
+            term,
+            phloLimit,
+            context,
+        }: IDeployRequest & { context: INativeOperationContext },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        SdkWalletService.assertOperationContext(context);
+        this.assertActiveNetwork(context);
+
         return this.requireClient().deploy(
             { walletId, accountId, term, phloLimit },
             password,

@@ -6,9 +6,8 @@ import {
     getErrorMessage,
     isIntegerInRange,
     DEFAULT_PHLO_PRICE,
-    getNativeTokenDecimals,
 } from "@asichain/asi-wallet-sdk";
-import { INativeOperationContext, SdkWalletService } from "sdk";
+import { INativeOperationContext } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -18,6 +17,7 @@ import {
     selectSelectedAccountId,
     selectSelectedNetworkId,
     selectSelectedNetworkKey,
+    selectSelectedNetworkNativeTokenDecimals,
     selectSelectedNetwork,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -144,9 +144,10 @@ export const useDeployContract = ({
     );
     const networkId = useSelector(selectSelectedNetworkId);
     const networkKey = useSelector(selectSelectedNetworkKey);
-    const network = useSelector(selectSelectedNetwork);
-    const networkName = network.name;
-    const nativeTokenDecimals = getNativeTokenDecimals(network);
+    const networkName = useSelector(selectSelectedNetwork).name;
+    const nativeTokenDecimals = useSelector(
+        selectSelectedNetworkNativeTokenDecimals,
+    );
     const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
@@ -341,24 +342,13 @@ export const useDeployContract = ({
             return;
         }
 
-        let context: INativeOperationContext;
-        try {
-            context = SdkWalletService.captureOperationContext();
-            if (context.networkId !== networkId || context.nativeTokenDecimals !== nativeTokenDecimals) {
-                throw new Error("Network changed. Check the details and try again.");
-            }
-        } catch (error) {
-            emit({ type: DeployEventTypes.DEPLOY_FAILED, message: getErrorMessage(error, "Network changed. Please retry.") });
-            return;
-        }
-
         setPendingRequest({
             mode: DeployConfirmationMods.DEPLOY,
             term,
             fileName,
             phloLimit: phloLimitValue,
             phloPrice,
-            context,
+            context: { networkKey, nativeTokenDecimals },
             walletId,
             account,
             networkName,

@@ -346,6 +346,8 @@ export const selectSelectedNetwork = (state: RootState) =>
     state.walletsStore.selectedNetwork;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
+export const selectSelectedNetworkNativeTokenDecimals = (state: RootState) =>
+    state.walletsStore.selectedNetwork.nativeTokenDecimals;
 
 export const selectSelectedNetworkKey = createSelector(
     [selectSelectedNetwork],
