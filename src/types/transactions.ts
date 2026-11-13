@@ -6,6 +6,7 @@ export interface Transaction {
     from: string;
     to: string;
     amount: string;
+    nativeTokenDecimals: number;
     timestamp: string;
     status: TransactionStatus;
     type: TransactionType;
