@@ -503,6 +503,7 @@ export const Bridge: React.FC = () => {
             selectedASIAccountBalance,
             BRIDGE_LOCK_MAX_GAS_COST,
             true,
+            ASI_DECIMALS,
         );
 
         return (
@@ -584,9 +585,10 @@ export const Bridge: React.FC = () => {
             const max = getMaxSendableAmount(
                 selectedASIAccountBalance,
                 BRIDGE_LOCK_MAX_GAS_COST,
+                ASI_DECIMALS,
             );
 
-            if (!isPositiveTokenAmount(max)) {
+            if (!isPositiveTokenAmount(max, ASI_DECIMALS)) {
                 setAmount("");
                 setLockError(
                     "Insufficient balance to cover the estimated fee.",
@@ -980,6 +982,7 @@ export const Bridge: React.FC = () => {
                 senderAddress={pendingLock?.accountAddress ?? ""}
                 senderName={pendingLock?.accountName ?? ""}
                 maxFee={BRIDGE_LOCK_MAX_GAS_COST}
+                nativeTokenDecimals={ASI_DECIMALS}
                 feeLabel={`up to ${fromAtomicAmount(
                     BRIDGE_LOCK_MAX_GAS_COST,
                     ASI_DECIMALS,

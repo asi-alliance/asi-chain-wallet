@@ -373,6 +373,10 @@ export class SdkWalletService {
         return this.requireClient().getCurrentNetworkId();
     }
 
+    public getTransferGasReserve(): bigint {
+        return this.requireClient().getTransferGasReserve();
+    }
+
     public getNetworkNativeTokenDecimals(networkId: NetworkId): number {
         return this.requireClient().getNetwork(networkId).config
             .nativeTokenDecimals;

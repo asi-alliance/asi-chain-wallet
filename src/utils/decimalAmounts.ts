@@ -4,23 +4,45 @@ interface IDecimalAmount {
     fraction: string;
 }
 
+const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d{1,3}))?$/;
+const LEADING_ZEROS_REGEX = /^0+(?=\d)/;
+const TRAILING_ZEROS_REGEX = /0+$/;
+const NONZERO_DIGIT_REGEX = /[1-9]/;
+
 const parseDecimalAmount = (value: unknown): IDecimalAmount | null => {
-    // A numeric input is usable only while its integer value is provably exact.
-    if (typeof value === "number") {
-        if (!Number.isSafeInteger(value)) return null;
-        value = String(value);
+    const text: unknown =
+        typeof value === "number" && Number.isSafeInteger(value)
+            ? String(value)
+            : value;
+
+    if (typeof text !== "string") {
+        return null;
     }
-    if (typeof value !== "string") return null;
 
-    const match = /^(-?)(0|[1-9]\d*)(?:\.(\d+))?$/.exec(value.trim());
-    if (!match) return null;
+    const match: RegExpExecArray | null = DECIMAL_AMOUNT_REGEX.exec(
+        text.trim(),
+    );
 
-    const whole = match[2];
-    const fraction = (match[3] ?? "").replace(/0+$/, "");
+    if (!match) {
+        return null;
+    }
+
+    const [, sign, integerDigits, fractionDigits = "", exponent = "0"] = match;
+    const digits: string = integerDigits + fractionDigits;
+    const pointIndex: number = integerDigits.length + Number(exponent);
+
+    const alignedDigits: string =
+        pointIndex < 1
+            ? "0".repeat(1 - pointIndex) + digits
+            : digits.padEnd(pointIndex, "0");
+    const integerLength: number = Math.max(pointIndex, 1);
+
     return {
-        negative: match[1] === "-" && (whole !== "0" || fraction !== ""),
-        whole,
-        fraction,
+        negative: sign === "-" && NONZERO_DIGIT_REGEX.test(digits),
+        whole: alignedDigits
+            .slice(0, integerLength)
+            .replace(LEADING_ZEROS_REGEX, ""),
+        fraction: alignedDigits.slice(integerLength),
     };
 };
 
@@ -47,7 +69,6 @@ export const compareDecimalAmounts = (
     return a.negative && order !== 0 ? (order === 1 ? -1 : 1) : order;
 };
 
-// Optional shortening affects display only and never rounds a balance upward.
 export const formatDecimalAmount = (
     value: unknown,
     minDecimals = 0,
@@ -66,44 +87,28 @@ export const formatDecimalAmount = (
     const fraction = (maxDecimals === undefined
         ? amount.fraction
         : amount.fraction.slice(0, maxDecimals)
-    ).replace(/0+$/, "").padEnd(minDecimals, "0");
-    const sign = amount.negative && (amount.whole !== "0" || /[1-9]/.test(fraction))
+    ).replace(TRAILING_ZEROS_REGEX, "").padEnd(minDecimals, "0");
+    const sign = amount.negative &&
+        (amount.whole !== "0" || NONZERO_DIGIT_REGEX.test(fraction))
         ? "-" : "";
     return `${sign}${amount.whole}${fraction ? `.${fraction}` : ""}`;
 };
-
-const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/;
-const LEADING_ZEROS_REGEX = /^0+(?=\d)/;
-const NONZERO_DIGIT_REGEX = /[1-9]/;
 
 export const formatExactDecimalAmount = (
     amount: string,
     minFractionDigits: number,
 ): string | null => {
-    const match: RegExpExecArray | null = DECIMAL_AMOUNT_REGEX.exec(amount);
+    const parsedAmount: IDecimalAmount | null = parseDecimalAmount(amount);
 
-    if (!match) {
+    if (!parsedAmount) {
         return null;
     }
 
-    const [, sign, integerDigits, fractionDigits = "", exponent = "0"] = match;
-    const digits: string = integerDigits + fractionDigits;
-    const pointIndex: number = integerDigits.length + Number(exponent);
+    const { negative, whole } = parsedAmount;
+    const fraction: string = parsedAmount.fraction.padEnd(
+        minFractionDigits,
+        "0",
+    );
 
-    const alignedDigits: string =
-        pointIndex < 1
-            ? "0".repeat(1 - pointIndex) + digits
-            : digits.padEnd(pointIndex, "0");
-    const integerLength: number = Math.max(pointIndex, 1);
-
-    const integer: string = alignedDigits
-        .slice(0, integerLength)
-        .replace(LEADING_ZEROS_REGEX, "");
-    const fraction: string = alignedDigits
-        .slice(integerLength)
-        .padEnd(minFractionDigits, "0");
-    const amountSign: string =
-        sign && NONZERO_DIGIT_REGEX.test(digits) ? sign : "";
-
-    return `${amountSign}${integer}${fraction ? `.${fraction}` : ""}`;
+    return `${negative ? "-" : ""}${whole}${fraction ? `.${fraction}` : ""}`;
 };

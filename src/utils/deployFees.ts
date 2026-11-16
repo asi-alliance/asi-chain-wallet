@@ -1,6 +1,6 @@
 import {
+    CANONICAL_INTEGER_REGEX,
     fromAtomicAmount,
-    NATIVE_TOKEN_DECIMALS_AMOUNT,
 } from "@asichain/asi-wallet-sdk";
 import { compareDecimalAmounts } from "./decimalAmounts";
 
@@ -11,7 +11,7 @@ export const getDeployCostAtomic = (
     const parse = (value: string | number): bigint | null => {
         if (typeof value === "number" && !Number.isSafeInteger(value)) return null;
         const text = String(value).trim();
-        return /^(0|[1-9]\d*)$/.test(text) ? BigInt(text) : null;
+        return CANONICAL_INTEGER_REGEX.test(text) ? BigInt(text) : null;
     };
     const limit = parse(phloLimit);
     const price = parse(phloPrice);
@@ -21,7 +21,7 @@ export const getDeployCostAtomic = (
 export const canCoverDeployCost = (
     balance: string,
     cost: bigint,
-    decimals = NATIVE_TOKEN_DECIMALS_AMOUNT,
+    decimals: number,
 ): boolean => {
     const positive = compareDecimalAmounts(balance, "0");
     const order = compareDecimalAmounts(balance, fromAtomicAmount(cost, decimals));

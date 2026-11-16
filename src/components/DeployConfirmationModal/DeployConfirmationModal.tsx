@@ -2,10 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
-import {
-    fromAtomicAmount,
-    NATIVE_TOKEN_DECIMALS_AMOUNT,
-} from "@asichain/asi-wallet-sdk";
+import { fromAtomicAmount } from "@asichain/asi-wallet-sdk";
 import { getTokenDisplayName } from "constants/token";
 import { getDeployCostAtomic } from "utils/deployFees";
 
@@ -129,7 +126,7 @@ interface DeploymentConfirmationProps {
     rholangCode: string;
     phloLimit: string;
     phloPrice: string;
-    nativeTokenDecimals?: number;
+    nativeTokenDecimals: number;
     accountName: string;
     accountAddress: string;
     isExplore?: boolean;
@@ -146,7 +143,7 @@ export const DeploymentConfirmationModal: React.FC<
     rholangCode,
     phloLimit,
     phloPrice,
-    nativeTokenDecimals = NATIVE_TOKEN_DECIMALS_AMOUNT,
+    nativeTokenDecimals,
     accountName,
     accountAddress,
     isExplore = false,

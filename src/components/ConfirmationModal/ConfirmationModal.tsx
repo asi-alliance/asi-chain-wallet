@@ -107,7 +107,7 @@ interface TransactionConfirmationProps {
     senderAddress: string;
     senderName: string;
     maxFee: bigint;
-    nativeTokenDecimals?: number;
+    nativeTokenDecimals: number;
     feeLabel: string;
     feeDetailLabel?: string;
     totalLabel?: string;
@@ -126,7 +126,7 @@ export const TransactionConfirmationModal: React.FC<
     senderAddress,
     senderName,
     maxFee,
-    nativeTokenDecimals = 8,
+    nativeTokenDecimals,
     feeLabel,
     feeDetailLabel = "Commission amount can be :",
     totalLabel = "Total Cost:",

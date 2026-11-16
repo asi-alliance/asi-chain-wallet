@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
 import { INativeOperationContext } from "sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
@@ -18,7 +18,10 @@ import {
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { sendTransaction } from "store/WalletsStore/thunks";
+import {
+    getTransferGasReserve,
+    sendTransaction,
+} from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
@@ -91,6 +94,7 @@ interface ITransferDetails {
     accountName: string;
     accountAddress: string;
     context: INativeOperationContext;
+    gasReserve: bigint;
     to: Address;
     amount: string;
 }
@@ -269,6 +273,7 @@ export const Send: React.FC = () => {
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
+    const transferGasReserve = dispatch(getTransferGasReserve());
     const {
         currentData: currentBalance,
         isFetching,
@@ -367,8 +372,18 @@ export const Send: React.FC = () => {
 
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
+    const confirmationGasReserve =
+        pendingTransfer?.gasReserve ?? transferGasReserve;
+    const confirmationDecimals =
+        pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals;
     const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance, GasFee.MAX, true, nativeTokenDecimals)
+        ? getAmountValidationError(
+              amount,
+              balance,
+              transferGasReserve,
+              true,
+              nativeTokenDecimals,
+          )
         : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
 
@@ -560,6 +575,7 @@ export const Send: React.FC = () => {
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
             context: { networkKey, nativeTokenDecimals },
+            gasReserve: transferGasReserve,
             to: recipient.trim() as Address,
             amount: amount.trim(),
         });
@@ -587,7 +603,11 @@ export const Send: React.FC = () => {
 
     const handleMax = (): void => {
         amountPasteGenerationRef.current += 1;
-        const max = getMaxSendableAmount(balance, GasFee.MAX, nativeTokenDecimals);
+        const max = getMaxSendableAmount(
+            balance,
+            transferGasReserve,
+            nativeTokenDecimals,
+        );
         if (!isPositiveTokenAmount(max, nativeTokenDecimals)) {
             setAmount("");
             setMaxError("Insufficient balance to cover the estimated fee.");
@@ -984,9 +1004,12 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                maxFee={GasFee.MAX}
-                nativeTokenDecimals={pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals}
-                feeLabel={getGasFeeRangeLabel(pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals)}
+                maxFee={confirmationGasReserve}
+                nativeTokenDecimals={confirmationDecimals}
+                feeLabel={getGasFeeRangeLabel(
+                    confirmationGasReserve,
+                    confirmationDecimals,
+                )}
                 loading={isSending}
             />
 

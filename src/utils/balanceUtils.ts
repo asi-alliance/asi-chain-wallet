@@ -1,35 +1,33 @@
 import {
-    ASI_DECIMALS,
     fromAtomicAmount,
-    GasFee,
+    isUint256,
+    MAX_UINT256,
     NON_NEGATIVE_DECIMAL_REGEX,
-    toAtomicAmount,
+    toExactAtomicAmount,
 } from "@asichain/asi-wallet-sdk";
 import { getTokenDisplayName } from "../constants/token";
 import { compareDecimalAmounts, formatDecimalAmount } from "./decimalAmounts";
 
 export const BALANCE_PLACEHOLDER = "--";
 
-const getFractionLength = (value: string): number =>
-    (value.split(".")[1] ?? "").length;
-
 const parseTokenAmount = (value: string, decimals: number): bigint | null => {
     const normalized = value.trim();
 
-    if (
-        !NON_NEGATIVE_DECIMAL_REGEX.test(normalized) ||
-        /[1-9]/.test((normalized.split(".")[1] ?? "").slice(decimals))
-    ) {
+    if (!NON_NEGATIVE_DECIMAL_REGEX.test(normalized)) {
         return null;
     }
 
-    return toAtomicAmount(normalized, decimals);
+    try {
+        return toExactAtomicAmount(normalized, decimals);
+    } catch {
+        return null;
+    }
 };
 
 export const getMaxSendableAmount = (
     balance: string,
-    gasFee: bigint = GasFee.MAX,
-    decimals: number = ASI_DECIMALS,
+    gasFee: bigint,
+    decimals: number,
 ): string => {
     const balanceAtomic = parseTokenAmount(balance, decimals);
 
@@ -38,14 +36,17 @@ export const getMaxSendableAmount = (
     }
 
     const available = balanceAtomic - gasFee;
-    const transferLimit = (1n << 256n) - 1n;
-    return fromAtomicAmount(available > transferLimit ? transferLimit : available, decimals);
+
+    return fromAtomicAmount(
+        isUint256(available) ? available : MAX_UINT256,
+        decimals,
+    );
 };
 
 export const getTokenAmountWithFee = (
     amount: string,
-    gasFee: bigint = GasFee.MAX,
-    decimals: number = ASI_DECIMALS,
+    gasFee: bigint,
+    decimals: number,
 ): string | null => {
     const amountAtomic = parseTokenAmount(amount, decimals);
 
@@ -56,7 +57,10 @@ export const getTokenAmountWithFee = (
     return fromAtomicAmount(amountAtomic + gasFee, decimals);
 };
 
-export const isPositiveTokenAmount = (amount: string, decimals = ASI_DECIMALS): boolean => {
+export const isPositiveTokenAmount = (
+    amount: string,
+    decimals: number,
+): boolean => {
     const amountAtomic = parseTokenAmount(amount, decimals);
 
     return amountAtomic !== null && amountAtomic > 0n;
@@ -65,9 +69,9 @@ export const isPositiveTokenAmount = (amount: string, decimals = ASI_DECIMALS): 
 export const getAmountValidationError = (
     amount: string,
     balance: string,
-    gasFee: bigint = GasFee.MAX,
-    validateInput: boolean = false,
-    decimals: number = ASI_DECIMALS,
+    gasFee: bigint,
+    validateInput: boolean,
+    decimals: number,
 ): string => {
     const normalizedAmount = amount.trim();
 
@@ -79,20 +83,19 @@ export const getAmountValidationError = (
         return validateInput ? "Enter a valid amount" : "";
     }
 
-    if (getFractionLength(normalizedAmount) > decimals &&
-        /[1-9]/.test((normalizedAmount.split(".")[1] ?? "").slice(decimals))) {
+    const amountAtomic = parseTokenAmount(normalizedAmount, decimals);
+
+    if (amountAtomic === null) {
         return validateInput
             ? `Amount supports up to ${decimals} decimal places`
             : "";
     }
 
-    const amountAtomic = parseTokenAmount(normalizedAmount, decimals);
-
-    if (amountAtomic === null || amountAtomic <= 0n) {
+    if (amountAtomic <= 0n) {
         return validateInput ? "Amount must be greater than zero" : "";
     }
 
-    if (amountAtomic >= 1n << 256n) {
+    if (!isUint256(amountAtomic)) {
         return "Amount exceeds the supported transfer limit";
     }
 
