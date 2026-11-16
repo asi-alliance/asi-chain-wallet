@@ -10,6 +10,13 @@ describe("deploy submission outcomes", () => {
         expect(getWalletActionErrorMessage({ code: "DEPLOY_ADMISSION_REFUSED", status: 503, message: "busy" }, "failed"))
             .toBe("Not accepted by the node. Please try again later.");
     });
+    it.each([
+        ["DEPLOY_TOO_LARGE", 413, "Not accepted by the node: the transaction is too large."],
+        ["DEPLOY_EXPIRED", 400, "Not accepted by the node: the transaction has expired. Create a new transaction."],
+        ["DEPLOY_WINDOW_INVALID", 400, "Not accepted by the node yet. Please try again later."],
+    ])("shows the node refusal %s as not accepted", (code, status, expected) => {
+        expect(getWalletActionErrorMessage({ code, status, message: "node detail" }, "failed")).toBe(expected);
+    });
     it("preserves an unknown outcome and signed deploy ID", () => {
         const message = "Submission outcome for deploy abc is unknown. Check its status before retrying.";
         expect(getWalletActionErrorMessage({ code: "DEPLOY_SUBMISSION_UNKNOWN", message }, "failed")).toBe("Submission outcome is unknown. Check transaction history before trying again.");

@@ -396,4 +396,6 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
 The draft adaptation for [node #789](https://github.com/F1R3FLY-io/f1r3node-rust/pull/789) displays explicit SDK admission refusals as "Not accepted by the node. Please try again later." An unknown submission instead directs the user to check transaction history before retrying. Transfer and contract-deploy watchers start only after the SDK submission promise resolves.
 
+The SDK's typed node refusals have their own messages. `DEPLOY_TOO_LARGE` (HTTP 413) and `DEPLOY_EXPIRED` (HTTP 400) say that the transaction was not accepted and cannot be resubmitted as is. `DEPLOY_WINDOW_INVALID` (HTTP 400) asks the user to try again later.
+
 This UI requires the SDK companion admission-handling change to be released and resolved in the wallet lockfile before this draft becomes ready. The existing npm dependency is retained while that release is pending. A bare HTTP 503 is never interpreted by the wallet as proof of non-acceptance.

@@ -11,6 +11,12 @@ export const getWalletActionErrorMessage = (error: unknown, fallback: string): s
     switch (getErrorCode(error)) {
         case "DEPLOY_ADMISSION_REFUSED":
             return "Not accepted by the node. Please try again later.";
+        case "DEPLOY_TOO_LARGE":
+            return "Not accepted by the node: the transaction is too large.";
+        case "DEPLOY_EXPIRED":
+            return "Not accepted by the node: the transaction has expired. Create a new transaction.";
+        case "DEPLOY_WINDOW_INVALID":
+            return "Not accepted by the node yet. Please try again later.";
         case "DEPLOY_SUBMISSION_UNKNOWN":
             return "Submission outcome is unknown. Check transaction history before trying again.";
         default:
