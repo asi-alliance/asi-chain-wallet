@@ -36,11 +36,7 @@ import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
 import { useCopyToClipboard, useWalletSessionAction } from "hooks";
-import {
-    selectActiveWallet,
-    selectSelectedAccount,
-    selectSelectedNetworkKey,
-} from "store/WalletsStore";
+import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { IWalletSessionContext, WalletKind } from "types/bridgeWalletSession";
@@ -339,7 +335,6 @@ export const Bridge: React.FC = () => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
-    const selectedNetworkKey = useSelector(selectSelectedNetworkKey);
 
     const cardano = useCardanoWallet();
 
@@ -349,11 +344,7 @@ export const Bridge: React.FC = () => {
         isError: isBalanceError,
     } = useGetBalanceQuery(
         selectedAccount
-            ? {
-                  accountId: selectedAccount.id,
-                  networkId: selectedNetwork.id,
-                  networkKey: selectedNetworkKey,
-              }
+            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
             : skipToken,
     );
 

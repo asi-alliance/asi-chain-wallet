@@ -1,6 +1,6 @@
 import { CSSProperties, ReactElement } from "react";
 import { useSelector } from "react-redux";
-import { selectSelectedNetworkId, selectSelectedNetworkKey } from "store/WalletsStore";
+import { selectSelectedNetworkId } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { AccountBalance } from "components/AccountBalance";
 import { IAccountMeta } from "types/wallet";
@@ -21,12 +21,11 @@ export const ASIAccountBalance = ({
     onBalanceUpdate,
 }: IASIAccountBalanceProps): ReactElement => {
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkKey = useSelector(selectSelectedNetworkKey);
     const {
         currentData: balance,
         isFetching,
         refetch,
-    } = useGetBalanceQuery({ accountId: account.id, networkId, networkKey });
+    } = useGetBalanceQuery({ accountId: account.id, networkId });
 
     const handleRefresh = () => {
         refetch();

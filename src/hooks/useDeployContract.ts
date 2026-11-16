@@ -7,7 +7,6 @@ import {
     isIntegerInRange,
     DEFAULT_PHLO_PRICE,
 } from "@asichain/asi-wallet-sdk";
-import { INativeOperationContext } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -16,7 +15,6 @@ import {
     selectDeployWatch,
     selectSelectedAccountId,
     selectSelectedNetworkId,
-    selectSelectedNetworkKey,
     selectSelectedNetworkNativeTokenDecimals,
     selectSelectedNetwork,
     selectWalletByAccountId,
@@ -71,7 +69,7 @@ interface IPendingDeployRequest {
     term: string;
     fileName?: string;
     phloLimit: number;
-    context: INativeOperationContext;
+    nativeTokenDecimals: number;
     walletId: string;
     account: IUnlockedAccountMeta;
     networkName: string;
@@ -143,7 +141,6 @@ export const useDeployContract = ({
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkKey = useSelector(selectSelectedNetworkKey);
     const networkName = useSelector(selectSelectedNetwork).name;
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
@@ -152,7 +149,7 @@ export const useDeployContract = ({
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
             selectedAccountId
-                ? { accountId: selectedAccountId, networkId, networkKey }
+                ? { accountId: selectedAccountId, networkId }
                 : skipToken,
         );
 
@@ -265,7 +262,6 @@ export const useDeployContract = ({
                     accountId: pendingRequest.account.id,
                     term: pendingRequest.term,
                     phloLimit: pendingRequest.phloLimit,
-                    context: pendingRequest.context,
                     password,
                 }),
             ).unwrap();
@@ -348,7 +344,7 @@ export const useDeployContract = ({
             fileName,
             phloLimit: phloLimitValue,
             phloPrice,
-            context: { networkKey, nativeTokenDecimals },
+            nativeTokenDecimals,
             walletId,
             account,
             networkName,
@@ -417,7 +413,7 @@ export const useDeployContract = ({
     return {
         account: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.account : account,
         networkName: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.networkName : networkName,
-        nativeTokenDecimals: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.context.nativeTokenDecimals : nativeTokenDecimals,
+        nativeTokenDecimals: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.nativeTokenDecimals : nativeTokenDecimals,
         pendingPhloLimit: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? String(pendingRequest.phloLimit) : phloLimit,
         pendingPhloPrice: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.phloPrice : phloPrice,
         isBalanceReady,

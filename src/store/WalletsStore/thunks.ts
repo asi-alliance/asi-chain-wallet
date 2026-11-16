@@ -31,7 +31,7 @@ import {
     IKeyfileImportPreview,
     IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
-import { INativeOperationContext, SdkWalletService } from "sdk";
+import { SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
@@ -145,7 +145,6 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
-    context: INativeOperationContext;
     password?: string;
 }
 
@@ -497,7 +496,7 @@ export const sendTransaction = createAppAsyncThunk<
 >(
     "wallets-store/sendTransaction",
     async (
-        { walletId, accountId, to, amount, password, context }: ITransferPayload,
+        { walletId, accountId, to, amount, password }: ITransferPayload,
         { getState, dispatch, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
@@ -522,7 +521,6 @@ export const sendTransaction = createAppAsyncThunk<
                 accountId,
                 to,
                 amount,
-                context,
             },
             password,
         );
@@ -557,7 +555,6 @@ export interface IDeployContractPayload {
     accountId: string;
     term: string;
     phloLimit: number;
-    context: INativeOperationContext;
     password?: string;
 }
 
@@ -572,7 +569,6 @@ export const deployContract = createAppAsyncThunk<
             accountId,
             term,
             phloLimit,
-            context,
             password,
         }: IDeployContractPayload,
         { getState, dispatch, extra: { walletService } },
@@ -590,7 +586,7 @@ export const deployContract = createAppAsyncThunk<
         }
 
         const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit, context },
+            { walletId, accountId, term, phloLimit },
             password,
         );
 

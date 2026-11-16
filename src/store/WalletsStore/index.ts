@@ -1,6 +1,5 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { DeployStatus } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk/SdkWalletService";
 import {
     WalletStoreState,
     IWalletMeta,
@@ -348,11 +347,6 @@ export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
 export const selectSelectedNetworkNativeTokenDecimals = (state: RootState) =>
     state.walletsStore.selectedNetwork.nativeTokenDecimals;
-
-export const selectSelectedNetworkKey = createSelector(
-    [selectSelectedNetwork],
-    (network: Network) => SdkWalletService.getNetworkKey(network),
-);
 
 export const selectCustomNetworks = createSelector(
     [selectNetworks],

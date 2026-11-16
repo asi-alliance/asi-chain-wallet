@@ -46,14 +46,6 @@ import {
     TCustomNetworkRecord,
 } from "types/wallet";
 
-export interface INativeOperationContext {
-    networkKey: string;
-    nativeTokenDecimals: number;
-}
-
-const NETWORK_CHANGED_ERROR =
-    "Network changed while awaiting confirmation. Check the details and try again.";
-
 export class SdkWalletService {
     private client: Client | null = null;
 
@@ -63,27 +55,6 @@ export class SdkWalletService {
 
     public static toAtomicAmount(amount: string | number): bigint {
         return toAtomicAmount(amount, NATIVE_TOKEN_DECIMALS_AMOUNT);
-    }
-
-    public static getNetworkKey(network: Network): string {
-        return JSON.stringify([
-            network.id,
-            network.validatorUrl,
-            network.observerUrl,
-            network.indexerUrl,
-            network.nodeApiProfile,
-            network.nativeTokenDecimals,
-        ]);
-    }
-
-    public getActiveNetworkKey(): string {
-        return SdkWalletService.getNetworkKey(this.getActiveNetwork());
-    }
-
-    private assertActiveNetwork({ networkKey }: INativeOperationContext): void {
-        if (this.getActiveNetworkKey() !== networkKey) {
-            throw new Error(NETWORK_CHANGED_ERROR);
-        }
     }
 
     public attachClient(client: Client): void {
@@ -442,9 +413,10 @@ export class SdkWalletService {
 
     public async getBalance(address: string): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getBalance(address as Address);
 
-        return client.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public async getAvailableBalance(
@@ -452,12 +424,13 @@ export class SdkWalletService {
         accountId: string,
     ): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getAvailableBalance(
             walletId,
             accountId,
         );
 
-        return client.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public getTransactionsHistory(
@@ -506,16 +479,10 @@ export class SdkWalletService {
             accountId,
             to,
             amount,
-            context,
-        }: Omit<ITransferRequest, "amount"> & {
-            amount: string;
-            context: INativeOperationContext;
-        },
+        }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
     ): Promise<IReservedOperationResult> {
         const client = this.requireClient();
-
-        this.assertActiveNetwork(context);
 
         return client.transfer(
             {
@@ -528,18 +495,10 @@ export class SdkWalletService {
         );
     }
 
-    public async deploy(
-        {
-            walletId,
-            accountId,
-            term,
-            phloLimit,
-            context,
-        }: IDeployRequest & { context: INativeOperationContext },
+    public deploy(
+        { walletId, accountId, term, phloLimit }: IDeployRequest,
         password?: string,
     ): Promise<IReservedOperationResult> {
-        this.assertActiveNetwork(context);
-
         return this.requireClient().deploy(
             { walletId, accountId, term, phloLimit },
             password,

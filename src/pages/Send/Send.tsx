@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
 import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
-import { INativeOperationContext } from "sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -13,7 +12,6 @@ import {
     selectDeployWatch,
     selectSelectedAccount,
     selectSelectedNetworkId,
-    selectSelectedNetworkKey,
     selectSelectedNetworkNativeTokenDecimals,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -93,7 +91,8 @@ interface ITransferDetails {
     accountId: string;
     accountName: string;
     accountAddress: string;
-    context: INativeOperationContext;
+    networkId: string;
+    nativeTokenDecimals: number;
     gasReserve: bigint;
     to: Address;
     amount: string;
@@ -269,7 +268,6 @@ export const Send: React.FC = () => {
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkKey = useSelector(selectSelectedNetworkKey);
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
@@ -281,7 +279,7 @@ export const Send: React.FC = () => {
         refetch: refetchBalance,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId, networkKey }
+            ? { accountId: selectedAccount.id, networkId }
             : skipToken,
         { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
@@ -336,7 +334,7 @@ export const Send: React.FC = () => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-            if (pendingTransfer.context.networkKey !== networkKey) {
+            if (pendingTransfer.networkId !== networkId) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
@@ -347,7 +345,6 @@ export const Send: React.FC = () => {
                     accountId: pendingTransfer.accountId,
                     to: pendingTransfer.to,
                     amount: pendingTransfer.amount,
-                    context: pendingTransfer.context,
                     password,
                 }),
             ).unwrap();
@@ -375,7 +372,7 @@ export const Send: React.FC = () => {
     const confirmationGasReserve =
         pendingTransfer?.gasReserve ?? transferGasReserve;
     const confirmationDecimals =
-        pendingTransfer?.context.nativeTokenDecimals ?? nativeTokenDecimals;
+        pendingTransfer?.nativeTokenDecimals ?? nativeTokenDecimals;
     const amountError = isBalanceReady
         ? getAmountValidationError(
               amount,
@@ -574,7 +571,8 @@ export const Send: React.FC = () => {
             accountId: selectedAccount.id,
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
-            context: { networkKey, nativeTokenDecimals },
+            networkId,
+            nativeTokenDecimals,
             gasReserve: transferGasReserve,
             to: recipient.trim() as Address,
             amount: amount.trim(),

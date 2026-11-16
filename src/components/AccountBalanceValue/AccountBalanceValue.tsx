@@ -6,7 +6,7 @@ import {
     formatBalanceCompact,
     formatBalanceExact,
 } from "utils/balanceUtils";
-import { selectSelectedNetworkId, selectSelectedNetworkKey } from "store/WalletsStore";
+import { selectSelectedNetworkId } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 
 const LoadingSpinner = styled.span`
@@ -35,11 +35,9 @@ export const AccountBalanceValue = ({
     accountId,
 }: IAccountBalanceValueProps): ReactElement => {
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkKey = useSelector(selectSelectedNetworkKey);
     const { currentData: balance, isFetching } = useGetBalanceQuery({
         accountId,
         networkId,
-        networkKey,
     });
 
     return (
