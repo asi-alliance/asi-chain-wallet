@@ -19,6 +19,8 @@ const renderHook = <T,>(hook: () => T): { result: { current: T } } => {
     const Probe = () => { result.current = hook(); return null; };
     const root = createRoot(document.createElement("div"));
     roots.push(root);
+    // React's own act, not a Testing Library helper: rendering a hook probe needs it.
+    // eslint-disable-next-line testing-library/no-unnecessary-act
     act(() => { root.render(<Probe />); });
     return { result };
 };
@@ -33,6 +35,19 @@ it("does not enter the accepted/finalization path after an admission refusal", a
     expect(onSuccess).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith("Not accepted by the node. Please try again later.");
     expect(result.current.isRunning).toBe(false);
+});
+
+it("does not enter the accepted/finalization path after a deploy queue refusal", async () => {
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+    const action = jest.fn().mockRejectedValue(Object.assign(new Error("deploy queue is full"), {
+        code: "DEPLOY_QUEUE_FULL", congestion: "shard", retryAfterMs: 12_000,
+    }));
+    const { result } = renderHook(() => useWalletSessionAction({ walletId: "wallet", action, onSuccess, onError }));
+    await act(async () => { await result.current.run(); });
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith("Not accepted by the node: the network is busy. Please try again in 12 s.");
 });
 
 it("keeps an unknown submission distinct from not accepted", async () => {

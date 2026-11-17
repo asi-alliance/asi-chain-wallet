@@ -1,9 +1,10 @@
+import { getWalletActionErrorMessage } from "./errors";
+
+// Jest hoists this mock above the import.
 jest.mock("@asichain/asi-wallet-sdk", () => ({
     CustomErrorCode: { WALLET_LOCKED: "WALLET_LOCKED", INVALID_PASSWORD: "INVALID_PASSWORD" },
     getErrorMessage: (error: { message?: string }, fallback: string) => error?.message || fallback,
 }));
-
-import { getWalletActionErrorMessage } from "./errors";
 
 describe("deploy submission outcomes", () => {
     it("shows an explicit temporary refusal as not accepted", () => {
@@ -23,6 +24,23 @@ describe("deploy submission outcomes", () => {
     });
     it("never infers non-acceptance from HTTP 503 alone", () => {
         expect(getWalletActionErrorMessage({ status: 503, message: "proxy unavailable" }, "failed")).toBe("proxy unavailable");
+    });
+    it.each([
+        ["validator", 12_000, "Not accepted by the node: the network is busy. Please try again in 12 s."],
+        ["shard", 1_500, "Not accepted by the node: the network is busy. Please try again in 2 s."],
+        ["storage", undefined, "Not accepted by the node: the network is busy. Please try again later."],
+        [undefined, 0, "Not accepted by the node: the network is busy. Please try again in 1 s."],
+        ["deployer_share", 9_000, "Not accepted by the node: too many of your transactions are already waiting. Please try again in 9 s."],
+        ["validator_idle", 60_000, "Not accepted by the node: its validator is not producing blocks. Try another node or try again later."],
+    ])("shows a full deploy queue (%s) as not accepted", (congestion, retryAfterMs, expected) => {
+        const error = { code: "DEPLOY_QUEUE_FULL", status: 503, message: "deploy queue is full", congestion, retryAfterMs };
+        expect(getWalletActionErrorMessage(error, "failed")).toBe(expected);
+    });
+    it("shows an unavailable deploy queue as not accepted", () => {
+        expect(getWalletActionErrorMessage({ code: "DEPLOY_QUEUE_UNAVAILABLE", status: 503, retryAfterMs: 5_000 }, "failed"))
+            .toBe("Not accepted by the node: its deploy queue is temporarily unavailable. Please try again in 5 s.");
+        expect(getWalletActionErrorMessage({ code: "DEPLOY_QUEUE_UNAVAILABLE", status: 503, retryAfterMs: "soon" }, "failed"))
+            .toBe("Not accepted by the node: its deploy queue is temporarily unavailable. Please try again later.");
     });
     it("keeps permanent failures distinct from admission backpressure", () => {
         expect(getWalletActionErrorMessage({ code: "DEPLOY_SUBMISSION_REJECTED", message: "invalid window" }, "failed")).toBe("invalid window");
