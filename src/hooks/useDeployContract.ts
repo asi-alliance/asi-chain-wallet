@@ -162,7 +162,10 @@ export const useDeployContract = ({
 
     const isDeployConfirmed = deployWatch?.status === DeployStatus.FINALIZED;
     const isWaitingForConfirmation =
-        !!deployWatch && !isDeployConfirmed && !deployWatch.unresolvedReason;
+        !!deployWatch &&
+        !isDeployConfirmed &&
+        !deployWatch.unresolvedReason &&
+        !deployWatch.failedReason;
 
     const onEventRef = useRef(onEvent);
 
@@ -176,6 +179,15 @@ export const useDeployContract = ({
 
     useEffect(() => {
         if (!deployWatch) {
+            return;
+        }
+
+        if (deployWatch.failedReason) {
+            emit({
+                type: DeployEventTypes.DEPLOY_FAILED,
+                message: deployWatch.failedReason,
+            });
+
             return;
         }
 

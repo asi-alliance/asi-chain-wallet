@@ -1,4 +1,4 @@
-import { getWalletActionErrorMessage } from "./errors";
+import { getDeployVerdictMessage, getWalletActionErrorMessage } from "./errors";
 
 // Jest hoists this mock above the import.
 jest.mock("@asichain/asi-wallet-sdk", () => ({
@@ -44,5 +44,22 @@ describe("deploy submission outcomes", () => {
     });
     it("keeps permanent failures distinct from admission backpressure", () => {
         expect(getWalletActionErrorMessage({ code: "DEPLOY_SUBMISSION_REJECTED", message: "invalid window" }, "failed")).toBe("invalid window");
+    });
+});
+
+describe("watched deploy verdicts", () => {
+    it.each([
+        ["DEPLOY_REJECTED", "rholang_bad_term: syntax error", "The node rejected the transaction when it left the deploy queue. It was not executed and no funds moved. Node detail: rholang_bad_term: syntax error"],
+        ["DEPLOY_EXPIRED", undefined, "The transaction expired before it was included in a block. It was not executed and no funds moved. Create a new transaction."],
+        ["DEPLOY_EXECUTION_FAILED", undefined, "The transaction was executed but failed, so its transfer did not happen."],
+    ])("reports %s as a final failure", (code, detail, expected) => {
+        expect(getDeployVerdictMessage({ code, detail, message: "sdk message" })).toBe(expected);
+    });
+    it.each([
+        [{ code: "DEPLOY_TIMEOUT", message: "not finalized in time" }],
+        [{ code: "API_REQUEST_FAILED", message: "observer down" }],
+        [new Error("plain")],
+    ])("keeps other watch errors unresolved: %p", (error) => {
+        expect(getDeployVerdictMessage(error)).toBeUndefined();
     });
 });

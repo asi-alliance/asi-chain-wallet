@@ -37,6 +37,26 @@ const getDeployQueueFullMessage = (error: unknown): string => {
     }
 };
 
+/**
+ * The message for a watched deploy that reached a terminal verdict other than
+ * finalization (SDK `DeployVerdictError`), or `undefined` for any other watch
+ * error, whose outcome stays unknown.
+ */
+export const getDeployVerdictMessage = (error: unknown): string | undefined => {
+    const detail: unknown = isPlainObject(error) ? error.detail : undefined;
+    const suffix = typeof detail === "string" && detail ? ` Node detail: ${detail}` : "";
+    switch (getErrorCode(error)) {
+        case "DEPLOY_REJECTED":
+            return `The node rejected the transaction when it left the deploy queue. It was not executed and no funds moved.${suffix}`;
+        case "DEPLOY_EXPIRED":
+            return "The transaction expired before it was included in a block. It was not executed and no funds moved. Create a new transaction.";
+        case "DEPLOY_EXECUTION_FAILED":
+            return `The transaction was executed but failed, so its transfer did not happen.${suffix}`;
+        default:
+            return undefined;
+    }
+};
+
 export const getWalletActionErrorMessage = (error: unknown, fallback: string): string => {
     switch (getErrorCode(error)) {
         case "DEPLOY_QUEUE_FULL":

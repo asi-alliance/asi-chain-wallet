@@ -302,8 +302,9 @@ export const Send: React.FC = () => {
     const isTransactionConfirmed =
         deployWatch?.status === DeployStatus.FINALIZED;
     const unresolvedReason = deployWatch?.unresolvedReason ?? "";
+    const failedReason = deployWatch?.failedReason ?? "";
     const isWaitingForConfirmation =
-        !!txHash && !isTransactionConfirmed && !unresolvedReason;
+        !!txHash && !isTransactionConfirmed && !unresolvedReason && !failedReason;
     const walletId = selectedWallet?.id;
     const txHashClipboard = useCopyToClipboard(1500);
     const txHashCopyStatus =
@@ -707,14 +708,16 @@ export const Send: React.FC = () => {
 
     const statusTone = isTransactionConfirmed
         ? "success"
-        : unresolvedReason
+        : failedReason || unresolvedReason
           ? "warning"
           : "pending";
     const statusTitle = isTransactionConfirmed
         ? "Transaction completed"
-        : unresolvedReason
-          ? "Confirmation unavailable"
-          : "Transaction pending";
+        : failedReason
+          ? "Transaction not completed"
+          : unresolvedReason
+            ? "Confirmation unavailable"
+            : "Transaction pending";
 
     return (
         <SendContainer>
@@ -726,16 +729,18 @@ export const Send: React.FC = () => {
                     {txHash && (
                         <StatusBanner
                             $tone={statusTone}
-                            role={unresolvedReason ? "alert" : "status"}
+                            role={failedReason || unresolvedReason ? "alert" : "status"}
                             aria-live="polite"
                         >
                             <StatusHeading>{statusTitle}</StatusHeading>
                             <StatusText>
                                 {isTransactionConfirmed
                                     ? "The transfer was finalized on chain. Balance and transaction history are being refreshed."
-                                    : unresolvedReason
-                                      ? TRANSACTION_UNRESOLVED_TITLE
-                                      : "The transfer was submitted and is waiting for on-chain finalization."}
+                                    : failedReason
+                                      ? failedReason
+                                      : unresolvedReason
+                                        ? TRANSACTION_UNRESOLVED_TITLE
+                                        : "The transfer was submitted and is waiting for on-chain finalization."}
                             </StatusText>
                             <HashValue>Deploy ID: {txHash}</HashValue>
                             {unresolvedReason && (
