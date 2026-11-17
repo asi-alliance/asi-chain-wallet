@@ -1,4 +1,4 @@
-const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/;
+const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?$/;
 const LEADING_ZEROS_REGEX = /^0+(?=\d)/;
 const NONZERO_DIGIT_REGEX = /[1-9]/;
 
@@ -12,24 +12,14 @@ export const formatExactDecimalAmount = (
         return null;
     }
 
-    const [, sign, integerDigits, fractionDigits = "", exponent = "0"] = match;
-    const digits: string = integerDigits + fractionDigits;
-    const pointIndex: number = integerDigits.length + Number(exponent);
+    const [, sign, integerDigits, fractionDigits = ""] = match;
 
-    const alignedDigits: string =
-        pointIndex < 1
-            ? "0".repeat(1 - pointIndex) + digits
-            : digits.padEnd(pointIndex, "0");
-    const integerLength: number = Math.max(pointIndex, 1);
-
-    const integer: string = alignedDigits
-        .slice(0, integerLength)
-        .replace(LEADING_ZEROS_REGEX, "");
-    const fraction: string = alignedDigits
-        .slice(integerLength)
-        .padEnd(minFractionDigits, "0");
+    const integer: string = integerDigits.replace(LEADING_ZEROS_REGEX, "");
+    const fraction: string = fractionDigits.padEnd(minFractionDigits, "0");
     const amountSign: string =
-        sign && NONZERO_DIGIT_REGEX.test(digits) ? sign : "";
+        sign && NONZERO_DIGIT_REGEX.test(integerDigits + fractionDigits)
+            ? sign
+            : "";
 
     return `${amountSign}${integer}${fraction ? `.${fraction}` : ""}`;
 };
