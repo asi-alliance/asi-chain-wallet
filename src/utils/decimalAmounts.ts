@@ -4,7 +4,7 @@ interface IDecimalAmount {
     fraction: string;
 }
 
-const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d{1,3}))?$/;
+const DECIMAL_AMOUNT_REGEX = /^(-?)(\d+)(?:\.(\d+))?$/;
 const LEADING_ZEROS_REGEX = /^0+(?=\d)/;
 const TRAILING_ZEROS_REGEX = /0+$/;
 const NONZERO_DIGIT_REGEX = /[1-9]/;
@@ -27,22 +27,14 @@ const parseDecimalAmount = (value: unknown): IDecimalAmount | null => {
         return null;
     }
 
-    const [, sign, integerDigits, fractionDigits = "", exponent = "0"] = match;
-    const digits: string = integerDigits + fractionDigits;
-    const pointIndex: number = integerDigits.length + Number(exponent);
-
-    const alignedDigits: string =
-        pointIndex < 1
-            ? "0".repeat(1 - pointIndex) + digits
-            : digits.padEnd(pointIndex, "0");
-    const integerLength: number = Math.max(pointIndex, 1);
+    const [, sign, integerDigits, fractionDigits = ""] = match;
 
     return {
-        negative: sign === "-" && NONZERO_DIGIT_REGEX.test(digits),
-        whole: alignedDigits
-            .slice(0, integerLength)
-            .replace(LEADING_ZEROS_REGEX, ""),
-        fraction: alignedDigits.slice(integerLength),
+        negative:
+            sign === "-" &&
+            NONZERO_DIGIT_REGEX.test(integerDigits + fractionDigits),
+        whole: integerDigits.replace(LEADING_ZEROS_REGEX, ""),
+        fraction: fractionDigits,
     };
 };
 
