@@ -124,12 +124,12 @@ export const walletsApi = createApi({
                         historyOptions.sources = HISTORY_SOURCES[source];
                     }
 
-                    const history =
-                        await getWalletService(extra).getTransactionsHistory(
-                            wallet.id,
-                            accountId,
-                            historyOptions,
-                        );
+                    const walletService = getWalletService(extra);
+                    const history = await walletService.getTransactionsHistory(
+                        wallet.id,
+                        accountId,
+                        historyOptions,
+                    );
 
                     return {
                         data: history.map((tx) => ({
@@ -138,6 +138,11 @@ export const walletsApi = createApi({
                             from: tx.from,
                             to: tx.to ?? "",
                             amount: tx.amount ?? "",
+                            nativeTokenDecimals:
+                                tx.nativeTokenDecimals ??
+                                walletService.getNetworkNativeTokenDecimals(
+                                    tx.networkId,
+                                ),
                             // Prefer ISO so client-side Date filters parse reliably.
                             timestamp: serializeHistoryTimestamp(tx.timestamp),
                             status: tx.status,

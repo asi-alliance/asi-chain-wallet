@@ -341,6 +341,11 @@ export class SdkWalletService {
         return this.requireClient().getCurrentNetworkId();
     }
 
+    public getNetworkNativeTokenDecimals(networkId: NetworkId): number {
+        return this.requireClient().getNetwork(networkId).config
+            .nativeTokenDecimals;
+    }
+
     public async addCustomNetwork(
         name: NetworkName,
         config: INetworkConfig,
