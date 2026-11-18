@@ -13,6 +13,7 @@ import {
     selectSelectedAccount,
     selectSelectedNetworkId,
     selectSelectedNetworkNativeTokenDecimals,
+    selectSelectedNetworkRevision,
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
@@ -271,6 +272,7 @@ export const Send: React.FC = () => {
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
     const transferGasReserve = dispatch(getTransferGasReserve());
     const {
         currentData: currentBalance,
@@ -279,7 +281,7 @@ export const Send: React.FC = () => {
         refetch: refetchBalance,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId }
+            ? { accountId: selectedAccount.id, networkRevision }
             : skipToken,
         { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );

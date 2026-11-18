@@ -14,8 +14,8 @@ import {
     selectAccountById,
     selectDeployWatch,
     selectSelectedAccountId,
-    selectSelectedNetworkId,
     selectSelectedNetworkNativeTokenDecimals,
+    selectSelectedNetworkRevision,
     selectSelectedNetwork,
     selectWalletByAccountId,
 } from "store/WalletsStore";
@@ -140,16 +140,16 @@ export const useDeployContract = ({
             ? selectWalletByAccountId(state, selectedAccountId)
             : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
     const networkName = useSelector(selectSelectedNetwork).name;
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
     const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
             selectedAccountId
-                ? { accountId: selectedAccountId, networkId }
+                ? { accountId: selectedAccountId, networkRevision }
                 : skipToken,
         );
 
