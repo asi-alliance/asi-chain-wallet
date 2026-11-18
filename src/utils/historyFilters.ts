@@ -15,6 +15,9 @@ interface IDurationPreset {
     durationMs: number;
 }
 
+const LEADING_DECIMAL_POINT_REGEX = /^\.(?=\d)/;
+const TRAILING_DECIMAL_POINT_REGEX = /^(\d+)\.$/;
+
 const HOUR_IN_MS = 60 * 60 * 1000;
 const DAY_IN_MS = 24 * HOUR_IN_MS;
 
@@ -122,6 +125,14 @@ export const createEmptyPanelFilters = (): IPanelFilters => ({
     details: "",
 });
 
+const parseFilterAmount = (value: string): string | null =>
+    formatDecimalAmount(
+        value
+            .trim()
+            .replace(LEADING_DECIMAL_POINT_REGEX, "0.")
+            .replace(TRAILING_DECIMAL_POINT_REGEX, "$1"),
+    );
+
 interface IBounds {
     start?: number;
     end?: number;
@@ -167,8 +178,8 @@ export const getAmountFieldErrors = (amount: IRangeFilter): IAmountFieldErrors =
         return { from: "", to: "" };
     }
 
-    const from = formatDecimalAmount(amount.from);
-    const to = formatDecimalAmount(amount.to);
+    const from = parseFilterAmount(amount.from);
+    const to = parseFilterAmount(amount.to);
     let fromError = "";
     let toError = "";
 
@@ -220,8 +231,8 @@ const matchesAmount = (
         return preset.max === undefined || compareDecimalAmounts(value, preset.max) !== 1;
     }
 
-    const from = formatDecimalAmount(amount.from);
-    const to = formatDecimalAmount(amount.to);
+    const from = parseFilterAmount(amount.from);
+    const to = parseFilterAmount(amount.to);
 
     if (from === null && to === null) {
         return true;
