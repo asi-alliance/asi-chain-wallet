@@ -163,8 +163,11 @@ export const useDeployContract = ({
     const confirmationSubmittedRef = useRef(false);
     const ownsPendingOperationRef = useRef(false);
 
-    const isDeployPending =
-        pendingRequest?.mode === DeployConfirmationMods.DEPLOY;
+    const pendingDeploy: IPendingDeployRequest | null =
+        pendingRequest?.mode === DeployConfirmationMods.DEPLOY
+            ? pendingRequest
+            : null;
+    const isDeployPending = pendingDeploy !== null;
     const isOperationActive = pendingRequest !== null || isExploring;
 
     const deployWatch = useSelector((state: RootState) =>
@@ -241,7 +244,7 @@ export const useDeployContract = ({
     };
 
     const deployAction = useWalletSessionAction({
-        walletId: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.walletId : walletId,
+        walletId: pendingDeploy?.walletId ?? walletId,
         action: (password?: string) => {
             if (
                 pendingRequest?.mode !== DeployConfirmationMods.DEPLOY ||
@@ -321,11 +324,13 @@ export const useDeployContract = ({
         }
 
         const minGasCost = getDeployCostAtomic(phloLimitValue, phloPrice);
+
         if (minGasCost === null || phloPrice !== String(DEFAULT_PHLO_PRICE)) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: invalid phlo price",
             });
+
             return;
         }
 
@@ -411,11 +416,14 @@ export const useDeployContract = ({
     };
 
     return {
-        account: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.account : account,
-        networkName: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.networkName : networkName,
-        nativeTokenDecimals: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.nativeTokenDecimals : nativeTokenDecimals,
-        pendingPhloLimit: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? String(pendingRequest.phloLimit) : phloLimit,
-        pendingPhloPrice: pendingRequest?.mode === DeployConfirmationMods.DEPLOY ? pendingRequest.phloPrice : phloPrice,
+        account: pendingDeploy?.account ?? account,
+        networkName: pendingDeploy?.networkName ?? networkName,
+        nativeTokenDecimals:
+            pendingDeploy?.nativeTokenDecimals ?? nativeTokenDecimals,
+        pendingPhloLimit: pendingDeploy
+            ? String(pendingDeploy.phloLimit)
+            : phloLimit,
+        pendingPhloPrice: pendingDeploy?.phloPrice ?? phloPrice,
         isBalanceReady,
         isPhloLimitValid: parsePhloLimit(phloLimit) !== null,
         isBlockedByAnotherChainOperation:

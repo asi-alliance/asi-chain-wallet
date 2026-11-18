@@ -2,20 +2,34 @@ import {
     CANONICAL_INTEGER_REGEX,
     fromAtomicAmount,
 } from "@asichain/asi-wallet-sdk";
-import { compareDecimalAmounts } from "./decimalAmounts";
+import { compareDecimalAmounts, TDecimalAmountOrder } from "./decimalAmounts";
+
+const parsePhloValue = (value: string | number): bigint | null => {
+    if (typeof value === "number" && !Number.isSafeInteger(value)) {
+        return null;
+    }
+
+    const text: string = String(value).trim();
+
+    if (!CANONICAL_INTEGER_REGEX.test(text)) {
+        return null;
+    }
+
+    return BigInt(text);
+};
 
 export const getDeployCostAtomic = (
     phloLimit: string | number,
     phloPrice: string | number,
 ): bigint | null => {
-    const parse = (value: string | number): bigint | null => {
-        if (typeof value === "number" && !Number.isSafeInteger(value)) return null;
-        const text = String(value).trim();
-        return CANONICAL_INTEGER_REGEX.test(text) ? BigInt(text) : null;
-    };
-    const limit = parse(phloLimit);
-    const price = parse(phloPrice);
-    return limit !== null && limit > 0n && price !== null ? limit * price : null;
+    const limit: bigint | null = parsePhloValue(phloLimit);
+    const price: bigint | null = parsePhloValue(phloPrice);
+
+    if (limit === null || limit <= 0n || price === null) {
+        return null;
+    }
+
+    return limit * price;
 };
 
 export const canCoverDeployCost = (
@@ -23,7 +37,14 @@ export const canCoverDeployCost = (
     cost: bigint,
     decimals: number,
 ): boolean => {
-    const positive = compareDecimalAmounts(balance, "0");
-    const order = compareDecimalAmounts(balance, fromAtomicAmount(cost, decimals));
-    return cost >= 0n && positive === 1 && (order === 0 || order === 1);
+    if (cost < 0n || compareDecimalAmounts(balance, "0") !== 1) {
+        return false;
+    }
+
+    const order: TDecimalAmountOrder | null = compareDecimalAmounts(
+        balance,
+        fromAtomicAmount(cost, decimals),
+    );
+
+    return order === 0 || order === 1;
 };

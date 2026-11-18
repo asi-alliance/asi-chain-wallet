@@ -38,27 +38,56 @@ const parseDecimalAmount = (value: unknown): IDecimalAmount | null => {
     };
 };
 
+export type TDecimalAmountOrder = -1 | 0 | 1;
+
+const compareDecimalMagnitudes = (
+    left: IDecimalAmount,
+    right: IDecimalAmount,
+): TDecimalAmountOrder => {
+    if (left.whole.length !== right.whole.length) {
+        return left.whole.length < right.whole.length ? -1 : 1;
+    }
+
+    if (left.whole !== right.whole) {
+        return left.whole < right.whole ? -1 : 1;
+    }
+
+    const width: number = Math.max(left.fraction.length, right.fraction.length);
+    const leftFraction: string = left.fraction.padEnd(width, "0");
+    const rightFraction: string = right.fraction.padEnd(width, "0");
+
+    if (leftFraction === rightFraction) {
+        return 0;
+    }
+
+    return leftFraction < rightFraction ? -1 : 1;
+};
+
 export const compareDecimalAmounts = (
     left: unknown,
     right: unknown,
-): -1 | 0 | 1 | null => {
-    const a = parseDecimalAmount(left);
-    const b = parseDecimalAmount(right);
-    if (!a || !b) return null;
-    if (a.negative !== b.negative) return a.negative ? -1 : 1;
+): TDecimalAmountOrder | null => {
+    const leftAmount: IDecimalAmount | null = parseDecimalAmount(left);
+    const rightAmount: IDecimalAmount | null = parseDecimalAmount(right);
 
-    let order: -1 | 0 | 1 = 0;
-    if (a.whole.length !== b.whole.length) {
-        order = a.whole.length < b.whole.length ? -1 : 1;
-    } else if (a.whole !== b.whole) {
-        order = a.whole < b.whole ? -1 : 1;
-    } else {
-        const width = Math.max(a.fraction.length, b.fraction.length);
-        const af = a.fraction.padEnd(width, "0");
-        const bf = b.fraction.padEnd(width, "0");
-        if (af !== bf) order = af < bf ? -1 : 1;
+    if (!leftAmount || !rightAmount) {
+        return null;
     }
-    return a.negative && order !== 0 ? (order === 1 ? -1 : 1) : order;
+
+    if (leftAmount.negative !== rightAmount.negative) {
+        return leftAmount.negative ? -1 : 1;
+    }
+
+    const order: TDecimalAmountOrder = compareDecimalMagnitudes(
+        leftAmount,
+        rightAmount,
+    );
+
+    if (!leftAmount.negative || order === 0) {
+        return order;
+    }
+
+    return order === 1 ? -1 : 1;
 };
 
 export const formatDecimalAmount = (
@@ -66,24 +95,31 @@ export const formatDecimalAmount = (
     minDecimals = 0,
     maxDecimals?: number,
 ): string | null => {
-    if (
-        !Number.isSafeInteger(minDecimals) || minDecimals < 0 ||
-        (maxDecimals !== undefined &&
-            (!Number.isSafeInteger(maxDecimals) || maxDecimals < minDecimals))
-    ) {
+    const isMinDecimalsValid: boolean =
+        Number.isSafeInteger(minDecimals) && minDecimals >= 0;
+    const isMaxDecimalsValid: boolean =
+        maxDecimals === undefined ||
+        (Number.isSafeInteger(maxDecimals) && maxDecimals >= minDecimals);
+
+    if (!isMinDecimalsValid || !isMaxDecimalsValid) {
         throw new RangeError("Invalid display precision");
     }
-    const amount = parseDecimalAmount(value);
-    if (!amount) return null;
 
-    const fraction = (maxDecimals === undefined
-        ? amount.fraction
-        : amount.fraction.slice(0, maxDecimals)
-    ).replace(TRAILING_ZEROS_REGEX, "").padEnd(minDecimals, "0");
-    const sign = amount.negative &&
-        (amount.whole !== "0" || NONZERO_DIGIT_REGEX.test(fraction))
-        ? "-" : "";
-    return `${sign}${amount.whole}${fraction ? `.${fraction}` : ""}`;
+    const amount: IDecimalAmount | null = parseDecimalAmount(value);
+
+    if (!amount) {
+        return null;
+    }
+
+    const fraction: string = amount.fraction
+        .slice(0, maxDecimals)
+        .replace(TRAILING_ZEROS_REGEX, "")
+        .padEnd(minDecimals, "0");
+    const isNegative: boolean =
+        amount.negative &&
+        (amount.whole !== "0" || NONZERO_DIGIT_REGEX.test(fraction));
+
+    return `${isNegative ? "-" : ""}${amount.whole}${fraction ? `.${fraction}` : ""}`;
 };
 
 export const formatExactDecimalAmount = (

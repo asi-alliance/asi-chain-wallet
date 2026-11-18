@@ -129,13 +129,56 @@ export const getAmountValidationError = (
 };
 
 const parseBalance = (balance: unknown): string | null => {
-    const amount = formatDecimalAmount(balance);
-    return amount !== null && compareDecimalAmounts(amount, "0") !== -1
-        ? amount : null;
+    const amount: string | null = formatDecimalAmount(balance);
+
+    if (amount === null || compareDecimalAmounts(amount, "0") === -1) {
+        return null;
+    }
+
+    return amount;
+};
+
+const isBalanceBelow = (value: string, threshold: string): boolean =>
+    compareDecimalAmounts(value, threshold) === -1;
+
+const formatFixedBalance = (value: string, fractionDigits: number): string =>
+    formatDecimalAmount(value, fractionDigits, fractionDigits)!;
+
+const formatKnownBalance = (
+    balance: string | number,
+    formatPositiveBalance: (value: string) => string,
+): string => {
+    const value: string | null = parseBalance(balance);
+
+    if (value === null) {
+        return BALANCE_PLACEHOLDER;
+    }
+
+    if (value === "0") {
+        return "0";
+    }
+
+    return formatPositiveBalance(value);
 };
 
 export const formatBalanceExact = (balance: string | number): string =>
     `${parseBalance(balance) ?? BALANCE_PLACEHOLDER} ${getTokenDisplayName()}`;
+
+const getBalanceFractionDigits = (value: string): number => {
+    if (!isBalanceBelow(value, "1")) {
+        return 2;
+    }
+
+    if (!isBalanceBelow(value, "0.01")) {
+        return 4;
+    }
+
+    if (!isBalanceBelow(value, "0.0001")) {
+        return 6;
+    }
+
+    return 8;
+};
 
 export const formatBalance = (
     balance: string | number,
@@ -146,75 +189,80 @@ export const formatBalance = (
     } = {},
 ): string => {
     const { showCurrency = true, maxDecimals = 8, minDecimals = 0 } = options;
-    const value = parseBalance(balance);
-    let amount = BALANCE_PLACEHOLDER;
-    if (value === "0") {
-        amount = "0";
-    } else if (value !== null) {
-        if (compareDecimalAmounts(value, "0.000001") === -1) {
-            amount = "<0.000001";
-        } else {
-            const digits = compareDecimalAmounts(value, "1") !== -1 ? 2
-                : compareDecimalAmounts(value, "0.01") !== -1 ? 4
-                : compareDecimalAmounts(value, "0.0001") !== -1 ? 6 : 8;
-            amount = formatDecimalAmount(
-                value, minDecimals, Math.max(minDecimals, Math.min(maxDecimals, digits)),
-            )!;
+
+    const amount: string = formatKnownBalance(balance, (value: string) => {
+        if (isBalanceBelow(value, "0.000001")) {
+            return "<0.000001";
         }
-    }
+
+        const fractionDigits: number = Math.max(
+            minDecimals,
+            Math.min(maxDecimals, getBalanceFractionDigits(value)),
+        );
+
+        return formatDecimalAmount(value, minDecimals, fractionDigits)!;
+    });
+
     return showCurrency ? `${amount} ${getTokenDisplayName()}` : amount;
 };
 
-export const formatBalanceCompact = (balance: string | number): string => {
-    const value = parseBalance(balance);
-    let amount = BALANCE_PLACEHOLDER;
-    if (value === "0") {
-        amount = "0";
-    } else if (value !== null) {
-        if (compareDecimalAmounts(value, "0.0001") === -1) {
-            amount = "<0.0001";
-        } else if (compareDecimalAmounts(value, "1") !== -1) {
-            amount = formatDecimalAmount(value, 0, 4)!;
-        } else {
-            const digits = compareDecimalAmounts(value, "0.01") !== -1 ? 4 : 6;
-            amount = formatDecimalAmount(value, digits, digits)!;
-        }
+const formatCompactPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.0001")) {
+        return "<0.0001";
     }
-    return `${amount} ${getTokenDisplayName()}`;
+
+    if (!isBalanceBelow(value, "1")) {
+        return formatDecimalAmount(value, 0, 4)!;
+    }
+
+    if (!isBalanceBelow(value, "0.01")) {
+        return formatFixedBalance(value, 4);
+    }
+
+    return formatFixedBalance(value, 6);
+};
+
+export const formatBalanceCompact = (balance: string | number): string =>
+    `${formatKnownBalance(balance, formatCompactPositiveBalance)} ${getTokenDisplayName()}`;
+
+const formatCardPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.000001")) {
+        return "<0.000001";
+    }
+
+    if (!isBalanceBelow(value, "1")) {
+        return formatFixedBalance(value, 4);
+    }
+
+    if (!isBalanceBelow(value, "0.001")) {
+        return formatFixedBalance(value, 6);
+    }
+
+    return formatFixedBalance(value, 8);
 };
 
 export const formatBalanceCard = (
     balance: string | number,
-): { amount: string; currency: string } => {
-    const value = parseBalance(balance);
-    let amount = BALANCE_PLACEHOLDER;
-    if (value === "0") {
-        amount = "0";
-    } else if (value !== null) {
-        if (compareDecimalAmounts(value, "0.000001") === -1) {
-            amount = "<0.000001";
-        } else {
-            const digits = compareDecimalAmounts(value, "1") !== -1 ? 4
-                : compareDecimalAmounts(value, "0.001") !== -1 ? 6 : 8;
-            amount = formatDecimalAmount(value, digits, digits)!;
-        }
+): { amount: string; currency: string } => ({
+    amount: formatKnownBalance(balance, formatCardPositiveBalance),
+    currency: getTokenDisplayName(),
+});
+
+const formatDashboardPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.00000001")) {
+        return "<0.00000001";
     }
-    return { amount, currency: getTokenDisplayName() };
+
+    if (!isBalanceBelow(value, "1")) {
+        return formatFixedBalance(value, 4);
+    }
+
+    if (!isBalanceBelow(value, "0.01")) {
+        return formatFixedBalance(value, 6);
+    }
+
+    return formatFixedBalance(value, 8);
 };
 
-export const formatBalanceDashboard = (balance: string | number): string => {
-    const value = parseBalance(balance);
-    let amount = BALANCE_PLACEHOLDER;
-    if (value === "0") {
-        amount = "0";
-    } else if (value !== null) {
-        if (compareDecimalAmounts(value, "0.00000001") === -1) {
-            amount = "<0.00000001";
-        } else {
-            const digits = compareDecimalAmounts(value, "1") !== -1 ? 4
-                : compareDecimalAmounts(value, "0.01") !== -1 ? 6 : 8;
-            amount = formatDecimalAmount(value, digits, digits)!;
-        }
-    }
-    return `${amount} ${getTokenDisplayName()}`;
-};
+export const formatBalanceDashboard = (balance: string | number): string =>
+    `${formatKnownBalance(balance, formatDashboardPositiveBalance)} ${getTokenDisplayName()}`;
