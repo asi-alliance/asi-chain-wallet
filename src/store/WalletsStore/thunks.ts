@@ -1,5 +1,6 @@
 import {
     deployStatusChanged,
+    deployWatchFailed,
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
@@ -31,7 +32,7 @@ import {
     IKeyfileImportPreview,
     IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
+import { getDeployVerdictMessage, SdkWalletService } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
@@ -78,11 +79,15 @@ const buildDeployWatchCallbacks = ({
         invalidateAccountData();
     },
     onError: (error: Error) => {
+        const verdict: string | undefined = getDeployVerdictMessage(error);
+
         dispatch(
-            deployWatchUnresolved({
-                deployId,
-                reason: getErrorMessage(error, fallbackUnresolvedMessage),
-            }),
+            verdict
+                ? deployWatchFailed({ deployId, reason: verdict })
+                : deployWatchUnresolved({
+                      deployId,
+                      reason: getErrorMessage(error, fallbackUnresolvedMessage),
+                  }),
         );
         invalidateAccountData();
     },
