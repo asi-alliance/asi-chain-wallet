@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import {
     BrowserRouter as Router,
     Routes,
@@ -12,7 +12,8 @@ import { Client } from "@asichain/asi-wallet-sdk";
 import { store, RootState } from "store";
 import { GlobalStyles } from "styles/GlobalStyles";
 import { lightTheme, darkTheme } from "styles/theme";
-import { Layout, Loader } from "components";
+import { Alert, Layout, Loader } from "components";
+import ErrorBoundary from "components/ErrorBoundary";
 import { Dashboard } from "pages/Dashboard";
 import { Send } from "pages/Send";
 import { Receive } from "pages/Receive";
@@ -21,12 +22,11 @@ import { Deploy } from "pages/Deploy";
 import { Settings } from "pages/Settings";
 import { KeyGenerator } from "pages/KeyGenerator";
 import { Login } from "pages/Login";
-import { Bridge } from "pages/Bridge";
 import { History } from "pages/History";
 import { ExistingAccountGuard } from "components/ExistingAccountGuard";
 import FeedbackForm from "components/community/FeedbackForm";
 import { QueryProvider } from "components/QueryProvider";
-import { EvmProvider } from "components/EvmProvider";
+import { bridgeFeature } from "config/bridgeFeature";
 import { loadWalletsFromStorage } from "store/WalletsStore/thunks";
 import { selectWalletsInitialLoadComplete } from "store/WalletsStore";
 import { SdkClientProvider } from "sdk";
@@ -39,7 +39,7 @@ import {
 import { connectSdkClient } from "store/SdkClient/thunks";
 import { ProtectedRoute } from "components/ProtectedRoute";
 
-import "@rainbow-me/rainbowkit/styles.css";
+const BridgeRoute = lazy(() => import("pages/Bridge/BridgeRoute"));
 
 const AppContent: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -120,16 +120,29 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                <Route
-                    path="/bridge"
-                    element={
-                        <ProtectedRoute>
-                            <Layout>
-                                <Bridge />
-                            </Layout>
-                        </ProtectedRoute>
-                    }
-                />
+                {bridgeFeature.status !== "disabled" && (
+                    <Route
+                        path="/bridge"
+                        element={
+                            <ProtectedRoute>
+                                <Layout>
+                                    {bridgeFeature.status === "invalid" ? (
+                                        <Alert tone="warning" role="alert">
+                                            Bridge is unavailable. {bridgeFeature.message}
+                                            {" "}Rebuild the Wallet with the updated configuration.
+                                        </Alert>
+                                    ) : (
+                                        <ErrorBoundary>
+                                            <Suspense fallback={<Loader />}>
+                                                <BridgeRoute />
+                                            </Suspense>
+                                        </ErrorBoundary>
+                                    )}
+                                </Layout>
+                            </ProtectedRoute>
+                        }
+                    />
+                )}
 
                 <Route
                     path="/receive"
@@ -214,14 +227,12 @@ const App: React.FC = () => {
                 }}
             >
                 <QueryProvider>
-                    <EvmProvider>
-                        <SdkClientProvider
-                            onReady={handleSdkClientReady}
-                            onError={handleSdkClientError}
-                        >
-                            <AppContent />
-                        </SdkClientProvider>
-                    </EvmProvider>
+                    <SdkClientProvider
+                        onReady={handleSdkClientReady}
+                        onError={handleSdkClientError}
+                    >
+                        <AppContent />
+                    </SdkClientProvider>
                 </QueryProvider>
             </Router>
         </Provider>

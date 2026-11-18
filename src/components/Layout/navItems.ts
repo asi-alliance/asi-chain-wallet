@@ -1,3 +1,5 @@
+import { bridgeFeature } from "config/bridgeFeature";
+
 export interface NavItem {
     path: string;
     label: string;
@@ -9,7 +11,7 @@ const ACCOUNTS_NAV_ITEM: NavItem = { path: "/accounts", label: "Accounts" };
 export const authenticatedNavItems: NavItem[] = [
     { path: "/", label: "Wallet" },
     { path: "/send", label: "Send" },
-    { path: "/bridge", label: "Bridge" },
+    ...(bridgeFeature.status === "ready" ? [{ path: "/bridge", label: "Bridge" }] : []),
     { path: "/receive", label: "Receive" },
     ACCOUNTS_NAV_ITEM,
     { path: "/history", label: "Transactions" },

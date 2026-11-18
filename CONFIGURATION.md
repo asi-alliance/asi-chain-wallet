@@ -57,6 +57,11 @@ Missing or invalid: `npm start` and `npm run build` stop in `config-overrides.js
 | `REACT_APP_FEEDBACK_FORM_URL` | No | [src/components/community/FeedbackForm/meta.ts](src/components/community/FeedbackForm/meta.ts) | Endpoint the feedback form posts to. Defaults to an empty string, which makes submission fail |
 | `REACT_APP_JSAPI_URL` | No | [src/utils/captchaFetch.ts](src/utils/captchaFetch.ts) | AWS WAF captcha JS API bundle. Required together with `REACT_APP_CAPTCHA_TOKEN` for the captcha to be applied |
 
+### Bridge Flag
+
+Set `REACT_APP_BRIDGE_ENABLED=true` at build time to enable Bridge. The tables
+below describe the fields required with the flag enabled. The default is off.
+
 ### Bridge: ASI Source Chain
 
 | Variable | Required | Type | Purpose |
@@ -171,11 +176,18 @@ Networks that the SDK reports as busy are disabled in the network selector; the 
 
 ## Bridge Configuration
 
-The bridge reads its configuration through the `envStr` and `envNum` helpers in [src/constants/bridgeChains.ts](src/constants/bridgeChains.ts), at module load, into module-level constants. Both helpers **throw** when a variable is missing, empty, or (for `envNum`) not a finite number.
+Wallet-only builds can leave all Bridge fields empty. To enable Bridge, set
+`REACT_APP_BRIDGE_ENABLED=true` and fill in the required source-chain and
+destination fields above before running the build. The flag also applies to
+existing Bridge deployments when they rebuild.
 
-Because the Bridge page is imported statically by the router, that throw happens while the bundle is evaluated, before React mounts: the page stays blank and the console shows `Env variable with key REACT_APP_... not found`. Treat every bridge variable in the tables above as required for the application to start, not only for the Bridge page to work.
+The Bridge navigation item appears once the flag and the required fields are
+valid. If Bridge is enabled with incomplete or invalid settings, opening
+`/bridge` displays the field to correct. Wallet routes remain available. The
+Bridge page and its chain providers load when the configured route opens.
 
-The only exception is `REACT_APP_CARDANO_PREPROD_KOIOS_URL`, which is read in [src/utils/cardanoTx.ts](src/utils/cardanoTx.ts) with an empty-string default and fails later, when a Cardano lock transaction is built.
+`REACT_APP_CARDANO_PREPROD_KOIOS_URL` is used by the Cardano lock transaction
+builder. Supply it for Cardano lock transactions.
 
 The gas reserved for a bridge lock is not configurable: `BRIDGE_LOCK_PHLO_LIMIT` and `BRIDGE_LOCK_PHLO_PRICE` in [src/services/rchain.ts](src/services/rchain.ts) define the maximum cost that the Bridge page validates the amount against.
 
