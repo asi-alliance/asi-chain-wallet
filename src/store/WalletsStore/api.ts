@@ -8,6 +8,7 @@ import { Transaction } from "types/transactions";
 import { RootState } from "store";
 import { IThunkExtraArgument } from "store/appThunk";
 import {
+    getNetworkRevision,
     getUnlockedWalletAndAccountFromWalletsMeta,
     IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
@@ -32,18 +33,30 @@ const HISTORY_SOURCES: Record<
 
 export interface IAccountQueryArgs {
     accountId: string;
-    networkId: string;
+    networkRevision: string;
 }
 
 export interface IHistoryQueryArgs extends IAccountQueryArgs {
     source: THistorySourceFilter;
 }
 
+const NETWORK_CONFIGURATION_CHANGED_ERROR =
+    "The network configuration changed while the request was running";
+
 const toErrorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error ? error.message : fallback;
 
 const getWalletService = (extra: unknown) =>
     (extra as IThunkExtraArgument).walletService;
+
+const isSelectedNetworkRevision = (
+    getState: () => unknown,
+    networkRevision: string,
+): boolean => {
+    const { selectedNetwork } = (getState() as RootState).walletsStore;
+
+    return getNetworkRevision(selectedNetwork) === networkRevision;
+};
 
 export const serializeHistoryTimestamp = (timestamp: Date | string): string => {
     if (timestamp instanceof Date) {
@@ -63,7 +76,10 @@ export const walletsApi = createApi({
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
         getBalance: build.query<string, IAccountQueryArgs>({
-            queryFn: async ({ accountId }, { getState, extra }) => {
+            queryFn: async (
+                { accountId, networkRevision },
+                { getState, extra },
+            ) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -86,7 +102,9 @@ export const walletsApi = createApi({
                         accountId,
                     );
 
-                    return { data: balance };
+                    return isSelectedNetworkRevision(getState, networkRevision)
+                        ? { data: balance }
+                        : { error: NETWORK_CONFIGURATION_CHANGED_ERROR };
                 } catch (error: unknown) {
                     return {
                         error: toErrorMessage(error, "Failed to fetch balance"),
@@ -98,7 +116,10 @@ export const walletsApi = createApi({
             ],
         }),
         getTransactionHistory: build.query<Transaction[], IHistoryQueryArgs>({
-            queryFn: async ({ accountId, source }, { getState, extra }) => {
+            queryFn: async (
+                { accountId, source, networkRevision },
+                { getState, extra },
+            ) => {
                 const { wallets } = (getState() as RootState).walletsStore;
 
                 const walletAndAccount: IUnlockedWalletAndAccountPathFromMeta | null =
@@ -130,6 +151,10 @@ export const walletsApi = createApi({
                         accountId,
                         historyOptions,
                     );
+
+                    if (!isSelectedNetworkRevision(getState, networkRevision)) {
+                        return { error: NETWORK_CONFIGURATION_CHANGED_ERROR };
+                    }
 
                     return {
                         data: history.map((tx) => ({

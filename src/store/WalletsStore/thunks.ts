@@ -758,6 +758,11 @@ export const exploreDeploy =
     (_dispatch, _getState, { walletService }) =>
         walletService.exploreDeploy(term);
 
+export const getTransferGasReserve =
+    (): TAppThunk<bigint> =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.getTransferGasReserve();
+
 export const checkWalletUnlocked =
     (walletId: string): TAppThunk<boolean> =>
     (_dispatch, _getState, { walletService }) =>

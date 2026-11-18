@@ -369,9 +369,10 @@ const DeployLiteModeBoard: React.FC = () => {
         exploreResult,
         deployId,
         deployStatus,
-        phloLimit,
-        phloPrice,
         pendingTerm,
+        pendingPhloLimit,
+        pendingPhloPrice,
+        nativeTokenDecimals,
         isProcessing,
         isWaitingForConfirmation,
         isDeployConfirmed,
@@ -521,8 +522,9 @@ const DeployLiteModeBoard: React.FC = () => {
                 onClose={cancel}
                 onConfirm={confirmDeploy}
                 rholangCode={pendingTerm}
-                phloLimit={phloLimit}
-                phloPrice={phloPrice}
+                phloLimit={pendingPhloLimit}
+                phloPrice={pendingPhloPrice}
+                nativeTokenDecimals={nativeTokenDecimals}
                 accountName={account?.name || ""}
                 accountAddress={account?.address || ""}
                 loading={isProcessing}
@@ -533,8 +535,9 @@ const DeployLiteModeBoard: React.FC = () => {
                 onClose={cancel}
                 onConfirm={confirmExplore}
                 rholangCode={pendingTerm}
-                phloLimit={phloLimit}
-                phloPrice={phloPrice}
+                phloLimit={pendingPhloLimit}
+                phloPrice={pendingPhloPrice}
+                nativeTokenDecimals={nativeTokenDecimals}
                 accountName={account?.name || ""}
                 accountAddress={account?.address || ""}
                 isExplore

@@ -1,5 +1,6 @@
 import {
     DEFAULT_NODE_API_PROFILE,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
     TNetworksConfig,
 } from "@asichain/asi-wallet-sdk";
 import {
@@ -19,6 +20,7 @@ export const UNCONFIGURED_NETWORK: Network = {
     observerUrl: "",
     indexerUrl: "",
     nodeApiProfile: DEFAULT_NODE_API_PROFILE,
+    nativeTokenDecimals: NATIVE_TOKEN_DECIMALS_AMOUNT,
     isDefault: true,
 };
 

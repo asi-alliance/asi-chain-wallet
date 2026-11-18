@@ -6,6 +6,7 @@ import {
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
     IWalletMeta,
+    Network,
     WalletStoreState,
 } from "types/wallet";
 import { Transaction } from "types/transactions";
@@ -40,6 +41,23 @@ export const updateTransactionStatus = (
         targetTransaction.error = error;
     }
 };
+
+export const getNetworkRevision = ({
+    id,
+    validatorUrl,
+    observerUrl,
+    indexerUrl,
+    nodeApiProfile,
+    nativeTokenDecimals,
+}: Network): string =>
+    JSON.stringify([
+        id,
+        validatorUrl,
+        observerUrl,
+        indexerUrl,
+        nodeApiProfile,
+        nativeTokenDecimals,
+    ]);
 
 export const getUnlockedWalletAndAccountFromWalletsMeta = (
     walletsMeta: IWalletMeta[],

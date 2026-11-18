@@ -110,6 +110,7 @@ export class SdkWalletService {
             observerUrl: record.config.ReadOnlyURL,
             indexerUrl: record.config.IndexerURL,
             nodeApiProfile: record.config.nodeApiProfile,
+            nativeTokenDecimals: record.config.nativeTokenDecimals,
             isDefault: record.isDefault,
         };
     }
@@ -119,12 +120,14 @@ export class SdkWalletService {
         observerUrl,
         indexerUrl,
         nodeApiProfile,
+        nativeTokenDecimals,
     }: Network): INetworkConfig {
         return {
             ValidatorURL: validatorUrl,
             ReadOnlyURL: observerUrl,
             IndexerURL: indexerUrl,
             nodeApiProfile,
+            nativeTokenDecimals,
         };
     }
 
@@ -341,6 +344,10 @@ export class SdkWalletService {
         return this.requireClient().getCurrentNetworkId();
     }
 
+    public getTransferGasReserve(): bigint {
+        return this.requireClient().getTransferGasReserve();
+    }
+
     public getNetworkNativeTokenDecimals(networkId: NetworkId): number {
         return this.requireClient().getNetwork(networkId).config
             .nativeTokenDecimals;
@@ -406,9 +413,10 @@ export class SdkWalletService {
 
     public async getBalance(address: string): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getBalance(address as Address);
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public async getAvailableBalance(
@@ -416,12 +424,13 @@ export class SdkWalletService {
         accountId: string,
     ): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getAvailableBalance(
             walletId,
             accountId,
         );
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public getTransactionsHistory(
@@ -473,12 +482,14 @@ export class SdkWalletService {
         }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().transfer(
+        const client = this.requireClient();
+
+        return client.transfer(
             {
                 walletId,
                 accountId,
                 to,
-                amount: SdkWalletService.toAtomicAmount(amount),
+                amount: client.toExactAtomicAmount(amount),
             },
             password,
         );
