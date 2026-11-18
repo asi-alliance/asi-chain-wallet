@@ -36,7 +36,11 @@ import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
 import { useCopyToClipboard, useWalletSessionAction } from "hooks";
-import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
+import {
+    selectActiveWallet,
+    selectSelectedAccount,
+    selectSelectedNetworkRevision,
+} from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { IWalletSessionContext, WalletKind } from "types/bridgeWalletSession";
@@ -335,6 +339,7 @@ export const Bridge: React.FC = () => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
 
     const cardano = useCardanoWallet();
 
@@ -344,7 +349,7 @@ export const Bridge: React.FC = () => {
         isError: isBalanceError,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
+            ? { accountId: selectedAccount.id, networkRevision }
             : skipToken,
     );
 
@@ -494,6 +499,7 @@ export const Bridge: React.FC = () => {
             selectedASIAccountBalance,
             BRIDGE_LOCK_MAX_GAS_COST,
             true,
+            ASI_DECIMALS,
         );
 
         return (
@@ -575,9 +581,10 @@ export const Bridge: React.FC = () => {
             const max = getMaxSendableAmount(
                 selectedASIAccountBalance,
                 BRIDGE_LOCK_MAX_GAS_COST,
+                ASI_DECIMALS,
             );
 
-            if (!isPositiveTokenAmount(max)) {
+            if (!isPositiveTokenAmount(max, ASI_DECIMALS)) {
                 setAmount("");
                 setLockError(
                     "Insufficient balance to cover the estimated fee.",
@@ -971,6 +978,7 @@ export const Bridge: React.FC = () => {
                 senderAddress={pendingLock?.accountAddress ?? ""}
                 senderName={pendingLock?.accountName ?? ""}
                 maxFee={BRIDGE_LOCK_MAX_GAS_COST}
+                nativeTokenDecimals={ASI_DECIMALS}
                 feeLabel={`up to ${fromAtomicAmount(
                     BRIDGE_LOCK_MAX_GAS_COST,
                     ASI_DECIMALS,

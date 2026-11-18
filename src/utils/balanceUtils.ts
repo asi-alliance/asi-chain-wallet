@@ -1,58 +1,67 @@
 import {
-    ASI_DECIMALS,
     fromAtomicAmount,
-    GasFee,
+    isUint256,
+    MAX_UINT256,
     NON_NEGATIVE_DECIMAL_REGEX,
-    toAtomicAmount,
+    toExactAtomicAmount,
 } from "@asichain/asi-wallet-sdk";
 import { getTokenDisplayName } from "../constants/token";
+import { compareDecimalAmounts, formatDecimalAmount } from "./decimalAmounts";
 
 export const BALANCE_PLACEHOLDER = "--";
 
-const getFractionLength = (value: string): number =>
-    (value.split(".")[1] ?? "").length;
-
-const parseTokenAmount = (value: string): bigint | null => {
+const parseTokenAmount = (value: string, decimals: number): bigint | null => {
     const normalized = value.trim();
 
-    if (
-        !NON_NEGATIVE_DECIMAL_REGEX.test(normalized) ||
-        getFractionLength(normalized) > ASI_DECIMALS
-    ) {
+    if (!NON_NEGATIVE_DECIMAL_REGEX.test(normalized)) {
         return null;
     }
 
-    return toAtomicAmount(normalized, ASI_DECIMALS);
+    try {
+        return toExactAtomicAmount(normalized, decimals);
+    } catch {
+        return null;
+    }
 };
 
 export const getMaxSendableAmount = (
     balance: string,
-    gasFee: bigint = GasFee.MAX,
+    gasFee: bigint,
+    decimals: number,
 ): string => {
-    const balanceAtomic = parseTokenAmount(balance);
+    const balanceAtomic = parseTokenAmount(balance, decimals);
 
     if (balanceAtomic === null || balanceAtomic <= gasFee) {
-        return fromAtomicAmount(0n, ASI_DECIMALS);
+        return fromAtomicAmount(0n, decimals);
     }
 
-    return fromAtomicAmount(balanceAtomic - gasFee, ASI_DECIMALS);
+    const available = balanceAtomic - gasFee;
+
+    return fromAtomicAmount(
+        isUint256(available) ? available : MAX_UINT256,
+        decimals,
+    );
 };
 
 export const getTokenAmountWithFee = (
     amount: string,
-    gasFee: bigint = GasFee.MAX,
+    gasFee: bigint,
+    decimals: number,
 ): string | null => {
-    const amountAtomic = parseTokenAmount(amount);
+    const amountAtomic = parseTokenAmount(amount, decimals);
 
     if (amountAtomic === null) {
         return null;
     }
 
-    return fromAtomicAmount(amountAtomic + gasFee, ASI_DECIMALS);
+    return fromAtomicAmount(amountAtomic + gasFee, decimals);
 };
 
-export const isPositiveTokenAmount = (amount: string): boolean => {
-    const amountAtomic = parseTokenAmount(amount);
+export const isPositiveTokenAmount = (
+    amount: string,
+    decimals: number,
+): boolean => {
+    const amountAtomic = parseTokenAmount(amount, decimals);
 
     return amountAtomic !== null && amountAtomic > 0n;
 };
@@ -60,8 +69,9 @@ export const isPositiveTokenAmount = (amount: string): boolean => {
 export const getAmountValidationError = (
     amount: string,
     balance: string,
-    gasFee: bigint = GasFee.MAX,
-    validateInput: boolean = false,
+    gasFee: bigint,
+    validateInput: boolean,
+    decimals: number,
 ): string => {
     const normalizedAmount = amount.trim();
 
@@ -73,52 +83,103 @@ export const getAmountValidationError = (
         return validateInput ? "Enter a valid amount" : "";
     }
 
-    if (getFractionLength(normalizedAmount) > ASI_DECIMALS) {
+    const amountAtomic = parseTokenAmount(normalizedAmount, decimals);
+
+    if (amountAtomic === null) {
         return validateInput
-            ? `Amount supports up to ${ASI_DECIMALS} decimal places`
+            ? `Amount supports up to ${decimals} decimal places`
             : "";
     }
 
-    const amountAtomic = parseTokenAmount(normalizedAmount);
-
-    if (amountAtomic === null || amountAtomic <= 0n) {
+    if (amountAtomic <= 0n) {
         return validateInput ? "Amount must be greater than zero" : "";
     }
 
-    const balanceAtomic = parseTokenAmount(balance);
+    if (!isUint256(amountAtomic)) {
+        return "Amount exceeds the supported transfer limit";
+    }
+
+    const balanceAtomic = parseTokenAmount(balance, decimals);
 
     if (balanceAtomic === null) {
-        return "";
+        return "Balance is unavailable";
     }
 
     if (amountAtomic > balanceAtomic) {
         return `Insufficient balance. You have ${fromAtomicAmount(
             balanceAtomic,
-            ASI_DECIMALS,
+            decimals,
         )} ${getTokenDisplayName()}`;
     }
 
     if (amountAtomic + gasFee > balanceAtomic) {
         const totalRequired = fromAtomicAmount(
             amountAtomic + gasFee,
-            ASI_DECIMALS,
+            decimals,
         );
 
         return `Amount + fee (${totalRequired}) exceeds balance. Max: ${getMaxSendableAmount(
             balance,
             gasFee,
+            decimals,
         )} ${getTokenDisplayName()}`;
     }
 
     return "";
 };
 
-/**
- * Formats a balance value for display with appropriate precision
- * @param balance - The balance value as string or number
- * @param options - Formatting options
- * @returns Formatted balance string
- */
+const parseBalance = (balance: unknown): string | null => {
+    const amount: string | null = formatDecimalAmount(balance);
+
+    if (amount === null || compareDecimalAmounts(amount, "0") === -1) {
+        return null;
+    }
+
+    return amount;
+};
+
+const isBalanceBelow = (value: string, threshold: string): boolean =>
+    compareDecimalAmounts(value, threshold) === -1;
+
+const formatFixedBalance = (value: string, fractionDigits: number): string =>
+    formatDecimalAmount(value, fractionDigits, fractionDigits)!;
+
+const formatKnownBalance = (
+    balance: string | number,
+    formatPositiveBalance: (value: string) => string,
+): string => {
+    const value: string | null = parseBalance(balance);
+
+    if (value === null) {
+        return BALANCE_PLACEHOLDER;
+    }
+
+    if (value === "0") {
+        return "0";
+    }
+
+    return formatPositiveBalance(value);
+};
+
+export const formatBalanceExact = (balance: string | number): string =>
+    `${parseBalance(balance) ?? BALANCE_PLACEHOLDER} ${getTokenDisplayName()}`;
+
+const getBalanceFractionDigits = (value: string): number => {
+    if (!isBalanceBelow(value, "1")) {
+        return 2;
+    }
+
+    if (!isBalanceBelow(value, "0.01")) {
+        return 4;
+    }
+
+    if (!isBalanceBelow(value, "0.0001")) {
+        return 6;
+    }
+
+    return 8;
+};
+
 export const formatBalance = (
     balance: string | number,
     options: {
@@ -129,139 +190,79 @@ export const formatBalance = (
 ): string => {
     const { showCurrency = true, maxDecimals = 8, minDecimals = 0 } = options;
 
-    const num = typeof balance === "string" ? parseFloat(balance) : balance;
+    const amount: string = formatKnownBalance(balance, (value: string) => {
+        if (isBalanceBelow(value, "0.000001")) {
+            return "<0.000001";
+        }
 
-    if (isNaN(num) || !isFinite(num)) {
-        return showCurrency ? `0 ${getTokenDisplayName()}` : "0";
-    }
+        const fractionDigits: number = Math.max(
+            minDecimals,
+            Math.min(maxDecimals, getBalanceFractionDigits(value)),
+        );
 
-    if (num === 0) {
-        return showCurrency ? `0 ${getTokenDisplayName()}` : "0";
-    }
+        return formatDecimalAmount(value, minDecimals, fractionDigits)!;
+    });
 
-    if (num < 0.000001) {
-        return showCurrency
-            ? `<0.000001 ${getTokenDisplayName()}`
-            : "<0.000001";
-    }
-
-    let decimals = minDecimals;
-
-    if (num >= 1) {
-        decimals = Math.min(maxDecimals, 2);
-    } else if (num >= 0.01) {
-        decimals = Math.min(maxDecimals, 4);
-    } else if (num >= 0.0001) {
-        decimals = Math.min(maxDecimals, 6);
-    } else {
-        decimals = Math.min(maxDecimals, 8);
-    }
-
-    const formatted = num.toFixed(decimals);
-
-    const trimmed = parseFloat(formatted).toString();
-
-    return showCurrency ? `${trimmed} ${getTokenDisplayName()}` : trimmed;
+    return showCurrency ? `${amount} ${getTokenDisplayName()}` : amount;
 };
 
-/**
- * Formats balance for display in account switcher (compact format)
- * @param balance - The balance value as string or number
- * @returns Formatted balance string
- */
-export const formatBalanceCompact = (balance: string | number): string => {
-    const num = typeof balance === "string" ? parseFloat(balance) : balance;
-
-    if (isNaN(num) || !isFinite(num)) {
-        return `0 ${getTokenDisplayName()}`;
+const formatCompactPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.0001")) {
+        return "<0.0001";
     }
 
-    if (num === 0) {
-        return `0 ${getTokenDisplayName()}`;
+    if (!isBalanceBelow(value, "1")) {
+        return formatDecimalAmount(value, 0, 4)!;
     }
 
-    if (num < 0.0001) {
-        return `<0.0001 ${getTokenDisplayName()}`;
+    if (!isBalanceBelow(value, "0.01")) {
+        return formatFixedBalance(value, 4);
     }
 
-    if (num >= 1) {
-        const formatted = num.toFixed(4);
-        const trimmed = parseFloat(formatted).toString();
-        return `${trimmed} ${getTokenDisplayName()}`;
-    } else if (num >= 0.01) {
-        return `${num.toFixed(4)} ${getTokenDisplayName()}`;
-    } else {
-        return `${num.toFixed(6)} ${getTokenDisplayName()}`;
-    }
+    return formatFixedBalance(value, 6);
 };
 
-/**
- * Formats balance for display in account cards (medium precision)
- * @param balance - The balance value as string or number
- * @returns Formatted balance string
- */
+export const formatBalanceCompact = (balance: string | number): string =>
+    `${formatKnownBalance(balance, formatCompactPositiveBalance)} ${getTokenDisplayName()}`;
+
+const formatCardPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.000001")) {
+        return "<0.000001";
+    }
+
+    if (!isBalanceBelow(value, "1")) {
+        return formatFixedBalance(value, 4);
+    }
+
+    if (!isBalanceBelow(value, "0.001")) {
+        return formatFixedBalance(value, 6);
+    }
+
+    return formatFixedBalance(value, 8);
+};
+
 export const formatBalanceCard = (
     balance: string | number,
-): { amount: string; currency: string } => {
-    const num = typeof balance === "string" ? parseFloat(balance) : balance;
-    const currency = getTokenDisplayName();
+): { amount: string; currency: string } => ({
+    amount: formatKnownBalance(balance, formatCardPositiveBalance),
+    currency: getTokenDisplayName(),
+});
 
-    if (isNaN(num) || !isFinite(num)) {
-        return { amount: "0", currency };
+const formatDashboardPositiveBalance = (value: string): string => {
+    if (isBalanceBelow(value, "0.00000001")) {
+        return "<0.00000001";
     }
 
-    if (num === 0) {
-        return { amount: "0", currency };
+    if (!isBalanceBelow(value, "1")) {
+        return formatFixedBalance(value, 4);
     }
 
-    if (num < 0.000001) {
-        return { amount: "<0.000001", currency };
+    if (!isBalanceBelow(value, "0.01")) {
+        return formatFixedBalance(value, 6);
     }
 
-    let amount: string;
-
-    if (num >= 1) {
-        const truncated = Math.floor(num * 10000) / 10000;
-        amount = truncated.toFixed(4);
-    } else if (num >= 0.001) {
-        const truncated = Math.floor(num * 1000000) / 1000000;
-        amount = truncated.toFixed(6);
-    } else {
-        const truncated = Math.floor(num * 100000000) / 100000000;
-        amount = truncated.toFixed(8);
-    }
-
-    return { amount, currency };
+    return formatFixedBalance(value, 8);
 };
 
-/**
- * Formats balance for display on dashboard (high precision)
- * @param balance - The balance value as string or number
- * @returns Formatted balance string
- */
-export const formatBalanceDashboard = (balance: string | number): string => {
-    const num = typeof balance === "string" ? parseFloat(balance) : balance;
-
-    if (isNaN(num) || !isFinite(num)) {
-        return `0 ${getTokenDisplayName()}`;
-    }
-
-    if (num === 0) {
-        return `0 ${getTokenDisplayName()}`;
-    }
-
-    if (num < 0.00000001) {
-        return `<0.00000001 ${getTokenDisplayName()}`;
-    }
-
-    if (num >= 1) {
-        const truncated = Math.floor(num * 10000) / 10000;
-        return `${truncated.toFixed(4)} ${getTokenDisplayName()}`;
-    } else if (num >= 0.01) {
-        const truncated = Math.floor(num * 1000000) / 1000000;
-        return `${truncated.toFixed(6)} ${getTokenDisplayName()}`;
-    } else {
-        const truncated = Math.floor(num * 100000000) / 100000000;
-        return `${truncated.toFixed(8)} ${getTokenDisplayName()}`;
-    }
-};
+export const formatBalanceDashboard = (balance: string | number): string =>
+    `${formatKnownBalance(balance, formatDashboardPositiveBalance)} ${getTokenDisplayName()}`;

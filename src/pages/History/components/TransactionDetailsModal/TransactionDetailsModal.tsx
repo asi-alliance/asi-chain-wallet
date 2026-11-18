@@ -52,7 +52,12 @@ export const TransactionDetailsModal: FC<ITransactionDetailsModalProps> = ({
                 </DetailField>
                 <DetailField>
                     <DetailFieldLabel>Amount</DetailFieldLabel>
-                    <span>{formatTransactionAmount(transaction.amount)}</span>
+                    <span>
+                        {formatTransactionAmount(
+                            transaction.amount,
+                            transaction.nativeTokenDecimals,
+                        )}
+                    </span>
                 </DetailField>
                 <DetailField>
                     <DetailFieldLabel>From</DetailFieldLabel>
