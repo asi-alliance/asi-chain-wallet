@@ -20,11 +20,6 @@ const tryAgain = (error: unknown): string => {
         : `Please try again in ${Math.max(1, Math.ceil(retryAfterMs / 1000))} s.`;
 };
 
-/**
- * A deploy queue (node-rust #990) refused the transaction and did not hold it.
- * Trying again from the wallet signs a new transaction, as a full queue
- * requires.
- */
 const getDeployQueueFullMessage = (error: unknown): string => {
     const congestion: unknown = isPlainObject(error) ? error.congestion : undefined;
     switch (congestion) {
@@ -37,11 +32,6 @@ const getDeployQueueFullMessage = (error: unknown): string => {
     }
 };
 
-/**
- * The message for a watched deploy that reached a terminal verdict other than
- * finalization (SDK `DeployVerdictError`), or `undefined` for any other watch
- * error, whose outcome stays unknown.
- */
 export const getDeployVerdictMessage = (error: unknown): string | undefined => {
     const detail: unknown = isPlainObject(error) ? error.detail : undefined;
     const suffix = typeof detail === "string" && detail ? ` Node detail: ${detail}` : "";

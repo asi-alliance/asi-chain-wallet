@@ -49,7 +49,6 @@ export type TCustomNetwork = Omit<Network, "isDefault"> & {
 export interface IDeployWatchState {
     status: DeployStatus;
     unresolvedReason?: string;
-    /** The node's terminal verdict other than finalization: the deploy will not complete. */
     failedReason?: string;
 }
 
