@@ -391,15 +391,3 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 ---
 
 **Remember**: this is a self-custodial wallet with no backend. You control your keys and your data.
-
-## Bounded deploy admission compatibility
-
-The draft adaptation for [node #789](https://github.com/F1R3FLY-io/f1r3node-rust/pull/789) displays explicit SDK admission refusals as "Not accepted by the node. Please try again later." An unknown submission instead directs the user to check transaction history before retrying. Transfer and contract-deploy watchers start only after the SDK submission promise resolves.
-
-The SDK's typed node refusals have their own messages. `DEPLOY_TOO_LARGE` (HTTP 413) and `DEPLOY_EXPIRED` (HTTP 400) say that the transaction was not accepted and cannot be resubmitted as is. `DEPLOY_WINDOW_INVALID` (HTTP 400) asks the user to try again later.
-
-A [deploy queue (node #990)](https://github.com/F1R3FLY-io/f1r3node-rust/pull/990) in front of a validator refuses with its own SDK codes. `DEPLOY_QUEUE_FULL` says the network is busy and gives the queue's wait; trying again signs a new transaction, as a full queue requires. When the cause is the user's own share of the queue, the message says that their earlier transactions are still waiting. When the validator is not producing blocks, it suggests another node. `DEPLOY_QUEUE_UNAVAILABLE` asks the user to try again after the queue's wait.
-
-With the SDK's validator verdicts, a watched transaction whose node verdict is `Rejected` (refused on release from the deploy queue), `Expired` (never landed) or `Failed` (executed with an error) ends as "Transaction not completed" with that reason, instead of an unknown status after the watch timeout. The SDK releases its reservation. Other watch errors, including the timeout, stay unknown and direct the user to transaction history.
-
-This UI requires the SDK companion admission-handling change to be released and resolved in the wallet lockfile before this draft becomes ready. The existing npm dependency is retained while that release is pending. A bare HTTP 503 is never interpreted by the wallet as proof of non-acceptance.
