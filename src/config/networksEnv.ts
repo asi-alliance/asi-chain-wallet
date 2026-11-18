@@ -146,7 +146,7 @@ const readNativeTokenDecimals = (
 
     if (!isNativeTokenDecimals(decimals)) {
         issues.push({
-            level: "error",
+            level: "warning",
             networkId,
             message: `skipped: nativeTokenDecimals must be an integer from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}`,
         });
@@ -348,8 +348,7 @@ export const parseNetworksEnv = (
     if (!hasCompleteNetwork) {
         issues.push({
             level: "error",
-            message:
-                "NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
+            message: `NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL and, if set, nativeTokenDecimals from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}`,
         });
     }
 
