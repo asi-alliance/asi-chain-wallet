@@ -21,8 +21,8 @@ For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 
 ## Prerequisites
 
-- **Node.js**: 18.x (the Docker image builds on `node:18-alpine`, and the toolchain is pinned around `@types/node` 18)
-- **npm**: 8.x or higher
+- **Node.js**: 26.13.1 or later in the 26.x LTS line. The version in `.nvmrc` matches the Docker builder and the CodeBuild example.
+- **npm**: use the version bundled with Node.js (11.20.0 with Node.js 26.13.1).
 - **Git**
 - **Docker** (optional): only needed to run the published image
 
@@ -38,6 +38,7 @@ cd asi-chain-wallet
 ### 2. Install Dependencies
 
 ```bash
+nvm install
 npm install --legacy-peer-deps
 ```
 
@@ -214,7 +215,7 @@ Same steps against the CodeBuild project `asi-chain-wallet-prod-frontend`. The p
 
 ### AWS CodeBuild
 
-The actual build and the S3 and CloudFront deployment happen in CodeBuild. `buildspec.example.yml` is an example only and is behind the current tree: it pins Node 16, runs `npm install` without `--legacy-peer-deps`, and writes a `.env` that contains `NETWORKS` alone (no bridge variables, no `nodeApiProfile`). Use it as a shape, not as a working spec.
+The actual build and the S3 and CloudFront deployment happen in CodeBuild. `buildspec.example.yml` selects the project’s Node.js version and installs dependencies with `--legacy-peer-deps`. Its sample environment contains only `NETWORKS`. Supply the network profiles and bridge settings described in [CONFIGURATION.md](CONFIGURATION.md) for your deployment.
 
 ## Building For Production
 
