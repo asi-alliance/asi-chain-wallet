@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 16
+      nodejs: 26.13.1
     commands:
       - |
           cat <<EOF > .env
@@ -26,7 +26,7 @@ phases:
           else
             echo "❌ WARNING: NETWORKS is not valid JSON"
           fi
-      - npm install
+      - npm install --legacy-peer-deps
       - echo "Install phase complete..."
 
   build:

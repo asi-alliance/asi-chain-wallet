@@ -177,7 +177,8 @@ The ASI Wallet SDK is installed from the npm registry together with the other de
 git clone https://github.com/asi-alliance/asi-chain-wallet.git
 cd asi-chain-wallet
 
-# 2. Install dependencies
+# 2. Select the project's Node.js LTS version and install dependencies
+nvm install
 npm install --legacy-peer-deps
 
 # 3. Configure the environment
