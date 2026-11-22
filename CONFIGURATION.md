@@ -59,8 +59,14 @@ Missing or invalid: `npm start` and `npm run build` stop in `config-overrides.js
 
 ### Bridge Flag
 
-Set `REACT_APP_BRIDGE_ENABLED=true` at build time to enable Bridge. The tables
-below describe the fields required with the flag enabled. The default is off.
+| Variable | Required | Type | Purpose |
+| --- | --- | --- | --- |
+| `REACT_APP_BRIDGE_ENABLED` | No | boolean | Enables Bridge. Accepts `true`, `1` or `yes` (case-insensitive, trimmed); `false`, `0`, `no` and an empty value keep it off. Any other value makes Bridge unavailable with an explicit error. Default: off. Read by [src/config/bridgeFeature.ts](src/config/bridgeFeature.ts) |
+
+With the flag on, every value in the tables below is required. A missing or
+invalid value does not stop the Wallet: `/bridge` lists all of them, the startup
+log repeats the list with the `[bridge]` prefix, and the other routes keep
+working.
 
 ### Bridge: ASI Source Chain
 
@@ -99,9 +105,9 @@ Route ids for these two chains are not configurable: they come from `sepolia.id`
 | `REACT_APP_CARDANO_PREPROD_NETWORK_ID` | Yes | string | Cardano network name, for example `preprod` |
 | `REACT_APP_CARDANO_PREPROD_NETWORK_MAGIC` | Yes | number | Network magic of that network |
 | `REACT_APP_CARDANO_PREPROD_BRIDGE_ADDRESS` | Yes | string | Bridge script address |
-| `REACT_APP_CARDANO_PREPROD_POLICY_ID` | Yes | string | Policy id of the bridged asset |
+| `REACT_APP_CARDANO_PREPROD_POLICY_ID` | Yes | string | Policy id of the bridged asset (56 hex characters) |
 | `REACT_APP_CARDANO_PREPROD_ASSET_NAME` | Yes | string | Hex encoded asset name |
-| `REACT_APP_CARDANO_PREPROD_KOIOS_URL` | No | url | Koios API used to build the lock transaction. Defaults to an empty string, which makes transaction building fail |
+| `REACT_APP_CARDANO_PREPROD_KOIOS_URL` | Yes | url | Koios API used to build the lock transaction |
 
 ## Network Management
 

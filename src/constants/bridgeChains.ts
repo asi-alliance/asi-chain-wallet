@@ -32,6 +32,7 @@ export interface BridgeChainConfig {
     networkMagic?: number;
     assetPolicyId?: string;
     assetName?: string;
+    koiosUrl?: string;
 }
 
 const SEPOLIA_ROUTE_ID = sepolia.id;
@@ -96,6 +97,7 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         bridgeAddress: cardanoPreprod.bridgeAddress,
         assetPolicyId: cardanoPreprod.assetPolicyId,
         assetName: cardanoPreprod.assetName,
+        koiosUrl: cardanoPreprod.koiosUrl,
     },
 ];
 

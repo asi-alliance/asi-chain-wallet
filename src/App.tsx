@@ -39,7 +39,7 @@ import {
 import { connectSdkClient } from "store/SdkClient/thunks";
 import { ProtectedRoute } from "components/ProtectedRoute";
 
-const BridgeRoute = lazy(() => import("pages/Bridge/BridgeRoute"));
+const BridgeRoute = lazy(() => import("pages/Bridge"));
 
 const AppContent: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -120,24 +120,35 @@ const AppContent: React.FC = () => {
                         </ProtectedRoute>
                     }
                 />
-                {bridgeFeature.status !== "disabled" && (
+                {bridgeFeature.status === "invalid" && (
+                    <Route
+                        path="/bridge"
+                        element={
+                            <Layout>
+                                <Alert tone="warning">
+                                    <strong>Bridge is unavailable.</strong> Rebuild
+                                    the Wallet with the updated configuration:
+                                    <ul>
+                                        {bridgeFeature.issues.map((issue) => (
+                                            <li key={issue}>{issue}</li>
+                                        ))}
+                                    </ul>
+                                </Alert>
+                            </Layout>
+                        }
+                    />
+                )}
+                {bridgeFeature.status === "ready" && (
                     <Route
                         path="/bridge"
                         element={
                             <ProtectedRoute>
                                 <Layout>
-                                    {bridgeFeature.status === "invalid" ? (
-                                        <Alert tone="warning" role="alert">
-                                            Bridge is unavailable. {bridgeFeature.message}
-                                            {" "}Rebuild the Wallet with the updated configuration.
-                                        </Alert>
-                                    ) : (
-                                        <ErrorBoundary>
-                                            <Suspense fallback={<Loader />}>
-                                                <BridgeRoute />
-                                            </Suspense>
-                                        </ErrorBoundary>
-                                    )}
+                                    <ErrorBoundary>
+                                        <Suspense fallback={<Loader />}>
+                                            <BridgeRoute />
+                                        </Suspense>
+                                    </ErrorBoundary>
                                 </Layout>
                             </ProtectedRoute>
                         }

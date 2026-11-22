@@ -100,10 +100,13 @@ In practice signed operations go through without a prompt for 15 minutes after t
 ## Bridge
 
 Bridge is off by default. Build the Wallet with `REACT_APP_BRIDGE_ENABLED=true`
-and the required [Bridge variables](CONFIGURATION.md#bridge-configuration) to
-show the Bridge page. Existing Bridge deployments need the flag on their next
-build. Wallet login, balances, transfers and history run with only the network
-configuration.
+(also accepted: `1` or `yes`, case-insensitive and trimmed) and the required
+[Bridge variables](CONFIGURATION.md#bridge-configuration) to show the Bridge
+page. Existing Bridge deployments need the flag on their next build. Wallet
+login, balances, transfers and history run with only the network configuration.
+If the flag is on and a value is missing or malformed, the Wallet still starts:
+`/bridge` lists every problem, the console repeats the same list with the
+`[bridge]` prefix, and the other routes stay available.
 
 - **Source** is fixed to ASI Chain and rendered as a static field. The source account is the currently selected wallet account.
 - **Destinations** are Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod, listed in `DESTINATION_CHAIN_KEYS` in [src/constants/bridgeChains.ts](src/constants/bridgeChains.ts) minus the source chain.
@@ -371,8 +374,9 @@ If you encounter a problem that is not listed, please open a new issue and provi
 
 ## Quick Troubleshooting
 
-- **`/bridge` reports a missing or invalid field**. Update the named build
-  variable and rebuild. Wallet routes remain available while Bridge is unavailable.
+- **`/bridge` lists missing or invalid fields**. Update every named build
+  variable and rebuild. The invalid page does not require a wallet, and the
+  other routes remain available while Bridge is unavailable.
 - **`npm start` or `npm run build` stops with `[config-overrides] Invalid NETWORKS env config`**: `NETWORKS` is missing, is not valid JSON, contains no fully configured network, or contains duplicate networks (same endpoints and `nodeApiProfile`, or same name). The message names the problem and the conflicting ids. See [CONFIGURATION.md](CONFIGURATION.md#validation-rules).
 - **The app renders a configuration message instead of the UI**: the bundle was built without the build-time check and `NETWORKS` fails validation. The exact reason is in the message and in the `[NETWORKS env]` console output.
 - **`Module not found: Can't resolve '@harmoniclabs/crypto'` during a build**: a transitive Cardano dependency is not installed by `--legacy-peer-deps`. See [DEVELOPMENT.md](DEVELOPMENT.md).
