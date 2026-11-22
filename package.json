@@ -112,5 +112,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@asichain/asi-wallet-sdk$": "<rootDir>/node_modules/@asichain/asi-wallet-sdk/dist/index.cjs"
+    }
   }
 }

@@ -391,3 +391,17 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 ---
 
 **Remember**: this is a self-custodial wallet with no backend. You control your keys and your data.
+
+## Bounded deploy admission compatibility
+
+The draft adaptation for [node #789](https://github.com/F1R3FLY-io/f1r3node-rust/pull/789) shows typed SDK admission refusals separately from unknown submission outcomes. A `DEPLOY_ADMISSION_REFUSED` refusal reads "Not accepted by the node. Please try again later." An unknown submission names the signed deploy ID and points to that exact submission in transaction history before a retry. The transfer and contract-deploy watchers start only after the SDK submission promise resolves.
+
+The SDK's typed node refusals keep their messages. `DEPLOY_TOO_LARGE` (HTTP 413) and `DEPLOY_EXPIRED` (HTTP 400) say that the transaction was not accepted and cannot be resubmitted as is. `DEPLOY_WINDOW_INVALID` (HTTP 400) asks the user to try again later.
+
+A [deploy queue (node #990)](https://github.com/F1R3FLY-io/f1r3node-rust/pull/990) in front of a validator refuses with its own SDK codes. `DEPLOY_QUEUE_FULL` says the network is busy and gives the queue's wait; trying again signs a new transaction, as a full queue requires. `DEPLOY_QUEUE_UNAVAILABLE` asks the user to try again after the queue's wait. The SDK reports a single queue-full refusal, so the wallet shows one generic message with the retry delay; per-cause guidance waits on [node #1067](https://github.com/F1R3FLY-io/f1r3node-rust/issues/1067).
+
+With the SDK's validator verdicts, a watched transaction whose node verdict is `Rejected` (refused on release from the deploy queue), `Expired` (its effects did not reach finalized state) or `Failed` (executed with an error) ends as "Transaction not completed" with that reason instead of an unknown status after the watch timeout. The SDK releases its reservation. Other watch errors, including the timeout, stay unknown and direct the user to transaction history.
+
+The send and contract-deploy thunks reject with a plain serializable error that keeps the code, message, deploy queue wait and signed deploy ID, because Redux Toolkit's default error serializer keeps only the string fields. Jest covers both `.unwrap()` paths with the SDK #217 error shapes and the verdict callbacks through the store reducer. The Jest module map loads the SDK's CommonJS build until the release that carries these errors is resolved in the wallet lockfile.
+
+This UI requires the SDK companion admission-handling change to be released and resolved in the wallet lockfile before this draft becomes ready. The existing npm dependency is retained while that release is pending. A bare HTTP 503 is never interpreted by the wallet as proof of non-acceptance.
