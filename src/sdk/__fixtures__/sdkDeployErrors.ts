@@ -1,11 +1,13 @@
+import * as walletSdk from "@asichain/asi-wallet-sdk";
+
 /**
  * Runtime copies of the deploy errors introduced by asi-chain-wallet-sdk #217
  * including the optional queue cause from node #1123.
  *
  * The wallet still resolves the published SDK 2.1.0, which has neither the
- * codes nor the classes. The tests recreate the instances the SDK throws so
- * the wallet contract is exercised against the real fields, including the
- * deploy queue wait and the signed deploy ID, until the SDK release lands.
+ * codes nor the classes. Most tests recreate the SDK fields. The unknown
+ * submission tests use the SDK constructor when it is available and exercise
+ * the wallet-local error shape with the published package.
  */
 
 export const DeployStatus = {
@@ -87,7 +89,7 @@ export class SdkDeployAdmissionRefusedError extends SdkDeployRefusalError {
     }
 }
 
-export class SdkDeploySubmissionUnknownError extends Error {
+class WalletDeploySubmissionUnknownError extends Error {
     public readonly code: string = "DEPLOY_SUBMISSION_UNKNOWN";
     public readonly status: number = 502;
     public readonly deployId: string;
@@ -101,6 +103,13 @@ export class SdkDeploySubmissionUnknownError extends Error {
         this.deployId = deployId;
     }
 }
+
+export const createSdkDeploySubmissionUnknownError = (deployId: string, reason: string): Error => {
+    const sdkError: unknown = Reflect.get(walletSdk, "DeploySubmissionUnknownError");
+    return typeof sdkError === "function"
+        ? Reflect.construct(sdkError, ["deploy", reason, deployId]) as Error
+        : new WalletDeploySubmissionUnknownError(deployId, reason);
+};
 
 const DEPLOY_VERDICT_ERROR_CODES: Readonly<Record<TDeployVerdictStatus, string>> =
     {

@@ -1,4 +1,4 @@
-import type { Client } from "@asichain/asi-wallet-sdk";
+import { ApiRequestError, ApiSource, type Client } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "../SdkWalletService";
 import {
     getDeployVerdictMessage,
@@ -9,7 +9,7 @@ import {
     DeployStatus,
     SdkDeployAdmissionRefusedError,
     SdkDeployQueueRefusedError,
-    SdkDeploySubmissionUnknownError,
+    createSdkDeploySubmissionUnknownError,
     SdkDeployVerdictError,
 } from "../__fixtures__/sdkDeployErrors";
 
@@ -102,7 +102,7 @@ describe("deploy submission refusals", () => {
     });
 
     it("shows the signed deploy ID of an unknown submission", () => {
-        const error = new SdkDeploySubmissionUnknownError(
+        const error = createSdkDeploySubmissionUnknownError(
             "deploy-7f3c",
             "the node connection dropped",
         );
@@ -110,6 +110,19 @@ describe("deploy submission refusals", () => {
         expect(getWalletActionErrorMessage(error, "failed")).toBe(
             "Submission outcome for deploy deploy-7f3c is unknown. Check its status in transaction history before trying again.",
         );
+        expect(toWalletActionError(error)).toMatchObject({
+            code: "DEPLOY_SUBMISSION_UNKNOWN",
+            deployId: "deploy-7f3c",
+        });
+    });
+
+    it("keeps ordinary API request failures even when they carry a deploy ID", () => {
+        const error = Object.assign(new ApiRequestError(ApiSource.NODE, "deploy", "request failed"), {
+            deployId: "attempt-1",
+        });
+        const serialized = toWalletActionError(error);
+        expect(serialized).toMatchObject({ code: "API_REQUEST_FAILED", deployId: "attempt-1" });
+        expect(getWalletActionErrorMessage(serialized, "failed")).toBe(error.message);
     });
 
     it("keeps an unknown submission without a deploy ID generic", () => {

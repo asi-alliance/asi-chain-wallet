@@ -1,6 +1,14 @@
-import { CustomErrorCode, getErrorMessage } from "@asichain/asi-wallet-sdk";
+import * as walletSdk from "@asichain/asi-wallet-sdk";
 import { getErrorCode } from "utils/errors";
 import { isPlainObject } from "utils/guards";
+
+const { CustomErrorCode, getErrorMessage } = walletSdk;
+const sdkUnknownSubmissionError: unknown = Reflect.get(walletSdk, "DeploySubmissionUnknownError");
+
+const getWalletActionErrorCode = (error: unknown): string | undefined =>
+    typeof sdkUnknownSubmissionError === "function" && error instanceof sdkUnknownSubmissionError
+        ? "DEPLOY_SUBMISSION_UNKNOWN"
+        : getErrorCode(error);
 
 export const isWalletLockedError = (error: unknown): boolean =>
     getErrorCode(error) === CustomErrorCode.WALLET_LOCKED;
@@ -44,7 +52,7 @@ export interface IWalletActionError {
 }
 
 export const toWalletActionError = (error: unknown): IWalletActionError => {
-    const code: string | undefined = getErrorCode(error);
+    const code: string | undefined = getWalletActionErrorCode(error);
     const cause = code === "DEPLOY_QUEUE_FULL" ? getStringField(error, "cause") : undefined;
     const name: string | undefined = getStringField(error, "name");
     const retryAfterMs: number | undefined = getRetryAfterMs(error);
@@ -103,7 +111,7 @@ export const getWalletActionErrorMessage = (
     error: unknown,
     fallback: string,
 ): string => {
-    switch (getErrorCode(error)) {
+    switch (getWalletActionErrorCode(error)) {
         case "DEPLOY_QUEUE_FULL":
             if (getStringField(error, "cause") === "deployer_share") {
                 return "This account has reached its queue limit. The signed transaction was refused.";

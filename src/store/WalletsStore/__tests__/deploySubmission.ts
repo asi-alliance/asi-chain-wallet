@@ -6,7 +6,7 @@ import { deployContract, sendTransaction } from "../thunks";
 import {
     DeployStatus,
     SdkDeployQueueRefusedError,
-    SdkDeploySubmissionUnknownError,
+    createSdkDeploySubmissionUnknownError,
     SdkDeployVerdictError,
 } from "sdk/__fixtures__/sdkDeployErrors";
 
@@ -133,7 +133,7 @@ describe("submission refusals through dispatch(...).unwrap()", () => {
     it("keeps the signed deploy ID of an unknown contract deploy", async () => {
         const walletService = {
             deploy: jest.fn().mockRejectedValue(
-                new SdkDeploySubmissionUnknownError(
+                createSdkDeploySubmissionUnknownError(
                     "deploy-contract-1",
                     "the connection dropped",
                 ),
