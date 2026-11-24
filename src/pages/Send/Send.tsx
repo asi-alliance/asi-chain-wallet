@@ -11,13 +11,13 @@ import {
     deployWatchCleared,
     selectDeployWatch,
     selectSelectedAccount,
-    selectSelectedNetworkId,
     selectSelectedNetworkNativeTokenDecimals,
     selectSelectedNetworkRevision,
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
 import {
+    getActiveNetworkRevision,
     getTransferGasReserve,
     sendTransaction,
 } from "store/WalletsStore/thunks";
@@ -92,7 +92,7 @@ interface ITransferDetails {
     accountId: string;
     accountName: string;
     accountAddress: string;
-    networkId: string;
+    networkRevision: string;
     nativeTokenDecimals: number;
     gasReserve: bigint;
     to: Address;
@@ -268,7 +268,6 @@ export const Send: React.FC = () => {
             ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
@@ -336,7 +335,10 @@ export const Send: React.FC = () => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-            if (pendingTransfer.networkId !== networkId) {
+            if (
+                pendingTransfer.networkRevision !==
+                dispatch(getActiveNetworkRevision())
+            ) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
@@ -573,7 +575,7 @@ export const Send: React.FC = () => {
             accountId: selectedAccount.id,
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
-            networkId,
+            networkRevision,
             nativeTokenDecimals,
             gasReserve: transferGasReserve,
             to: recipient.trim() as Address,

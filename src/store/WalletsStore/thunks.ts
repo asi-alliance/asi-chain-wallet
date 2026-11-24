@@ -2,6 +2,7 @@ import {
     deployStatusChanged,
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
+    selectIsNetworkSettingsLocked,
 } from ".";
 import { AnyAction } from "@reduxjs/toolkit";
 import {
@@ -38,9 +39,13 @@ import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
 import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import { walletsApi, WalletsApiTags } from "./api";
 import {
+    getNetworkRevision,
     getUnlockedAccountFromWalletsMeta,
     getUnlockedWalletAndAccountFromWalletsMeta,
 } from "./helpers";
+
+const NETWORK_SETTINGS_LOCKED_ERROR: string =
+    "Network settings cannot be changed while an operation is awaiting confirmation";
 
 const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
     "The wallet stopped tracking this transfer before it was finalized";
@@ -433,6 +438,10 @@ export const updateCustomNetwork = createAppAsyncThunk<
         { id, update }: IUpdateNetworkPayload,
         { dispatch, getState, rejectWithValue, extra: { walletService } },
     ) => {
+        if (selectIsNetworkSettingsLocked(getState(), id)) {
+            return rejectWithValue(NETWORK_SETTINGS_LOCKED_ERROR);
+        }
+
         try {
             const updatedNetwork = await walletService.updateCustomNetwork(
                 id,
@@ -468,8 +477,12 @@ export const removeCustomNetwork = createAppAsyncThunk<
     "walletsStore/removeCustomNetwork",
     async (
         { id }: ICustomNetworkDefaultGetFieldsPayload,
-        { rejectWithValue, extra: { walletService } },
+        { getState, rejectWithValue, extra: { walletService } },
     ) => {
+        if (selectIsNetworkSettingsLocked(getState(), id)) {
+            return rejectWithValue(NETWORK_SETTINGS_LOCKED_ERROR);
+        }
+
         try {
             await walletService.removeCustomNetwork(id);
 
@@ -762,6 +775,11 @@ export const getTransferGasReserve =
     (): TAppThunk<bigint> =>
     (_dispatch, _getState, { walletService }) =>
         walletService.getTransferGasReserve();
+
+export const getActiveNetworkRevision =
+    (): TAppThunk<string> =>
+    (_dispatch, _getState, { walletService }) =>
+        getNetworkRevision(walletService.getActiveNetwork());
 
 export const checkWalletUnlocked =
     (walletId: string): TAppThunk<boolean> =>

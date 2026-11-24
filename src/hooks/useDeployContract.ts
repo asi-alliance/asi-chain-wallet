@@ -20,7 +20,11 @@ import {
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { deployContract, exploreDeploy } from "store/WalletsStore/thunks";
+import {
+    deployContract,
+    exploreDeploy,
+    getActiveNetworkRevision,
+} from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
@@ -33,6 +37,8 @@ import {
     useWalletSessionAction,
 } from "./useWalletSessionAction";
 
+const NETWORK_CHANGED_ERROR =
+    "Network changed while the deploy was awaiting confirmation. Check the details and deploy again.";
 const MIN_PHLO_LIMIT = 1;
 const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
 
@@ -70,6 +76,7 @@ interface IPendingDeployRequest {
     fileName?: string;
     phloLimit: number;
     nativeTokenDecimals: number;
+    networkRevision: string;
     walletId: string;
     account: IUnlockedAccountMeta;
     networkName: string;
@@ -253,6 +260,13 @@ export const useDeployContract = ({
                 throw new Error("Deploy details are missing. Please retry.");
             }
 
+            if (
+                pendingRequest.networkRevision !==
+                dispatch(getActiveNetworkRevision())
+            ) {
+                throw new Error(NETWORK_CHANGED_ERROR);
+            }
+
             clearDeployWatch();
             emit({
                 type: DeployEventTypes.DEPLOY_STARTED,
@@ -350,6 +364,7 @@ export const useDeployContract = ({
             phloLimit: phloLimitValue,
             phloPrice,
             nativeTokenDecimals,
+            networkRevision,
             walletId,
             account,
             networkName,

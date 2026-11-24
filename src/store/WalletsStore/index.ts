@@ -1,5 +1,5 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { DeployStatus } from "@asichain/asi-wallet-sdk";
+import { DeployStatus, NetworkId } from "@asichain/asi-wallet-sdk";
 import {
     WalletStoreState,
     IWalletMeta,
@@ -11,6 +11,7 @@ import {
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import {
     importKeyfileAccounts,
     addCustomNetwork,
@@ -352,6 +353,12 @@ export const selectSelectedNetworkRevision = createSelector(
     [selectSelectedNetwork],
     getNetworkRevision,
 );
+export const selectIsNetworkSettingsLocked = (
+    state: RootState,
+    networkId: NetworkId,
+): boolean =>
+    selectIsNetworkOperationPending(state) &&
+    state.walletsStore.selectedNetwork.id === networkId;
 
 export const selectCustomNetworks = createSelector(
     [selectNetworks],
