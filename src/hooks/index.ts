@@ -20,6 +20,13 @@ export { useDeleteAccount } from "./useDeleteAccount";
 export type { IAccountDeleteTarget } from "./useDeleteAccount";
 export { useDisposableAsync } from "./useDisposableAsync";
 export { useWalletSessionAction } from "./useWalletSessionAction";
+export { useRestoredOperation } from "./useRestoredOperation";
+export { useOperationGuard } from "./useOperationGuard";
+export type {
+    IOperationGuardPrompt,
+    IUseOperationGuard,
+} from "./useOperationGuard";
+export { useOperationUnloadGuard } from "./useOperationUnloadGuard";
 export { useDeployContract, DeployEventTypes } from "./useDeployContract";
 export type {
     TDeployEvent,

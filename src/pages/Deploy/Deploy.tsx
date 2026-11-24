@@ -8,7 +8,7 @@ import {
     selectAccountById,
     selectSelectedAccountId,
 } from "store/WalletsStore";
-import { selectIsNetworkOperationPending } from "store/NetworkActivity";
+import { selectIsOperationSubmitting } from "store/NetworkActivity";
 import {
     Card,
     CardHeader,
@@ -114,7 +114,7 @@ export const Deploy: React.FC = () => {
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
     );
-    const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
+    const isOperationSubmitting = useSelector(selectIsOperationSubmitting);
     const { isTablet } = useScreen();
 
     const [selectedMode, setSelectedMode] = useState<DeployPageMods>(
@@ -142,7 +142,7 @@ export const Deploy: React.FC = () => {
         : "Enter a whole Phlo Limit greater than zero.";
 
     const changeMode = (mode: string): void => {
-        if (isChainOperationPending || mode === selectedMode) return;
+        if (isOperationSubmitting || mode === selectedMode) return;
         modeFocusPendingRef.current = true;
         if (mode === DeployPageMods.PRO) setHasOpenedPro(true);
         setSelectedMode(mode as DeployPageMods);
@@ -194,7 +194,7 @@ export const Deploy: React.FC = () => {
                                                     aria-labelledby={`deploy-mode-selector-label-${mode}`}
                                                     value={selectedMode}
                                                     onChange={changeMode}
-                                                    disabled={isChainOperationPending}
+                                                    disabled={isOperationSubmitting}
                                                     placeholder="Select mode"
                                                     options={deployPageModsOptions}
                                                 />

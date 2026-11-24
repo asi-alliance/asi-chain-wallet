@@ -7,10 +7,15 @@ import { useAppDispatch } from "store/hooks";
 import { toggleTheme } from "store/themeSlice";
 import { logout } from "store/Auth/thunks";
 import { selectHasWallets } from "store/WalletsStore";
-import { selectIsNetworkOperationPending } from "store/NetworkActivity";
+import { selectHasOperationInProgress } from "store/NetworkActivity";
 import { ASIAccountSwitcher } from "components/ASIAccountSwitcher";
 import { DeleteWalletModal } from "components/DeleteWalletModal";
-import { useDeleteActiveWallet } from "hooks";
+import {
+    DELETE_DURING_OPERATION_WARNING,
+    LOGOUT_OPERATION_PROMPT,
+    OperationInProgressModal,
+} from "components/OperationInProgressModal";
+import { useDeleteActiveWallet, useOperationGuard } from "hooks";
 import { Button } from "components/Button";
 import {
     SunIcon,
@@ -163,9 +168,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     const isAuthenticated = useSelector(
         (state: RootState) => state.auth.isAuthenticated,
     );
-    const isNetworkOperationPending = useSelector(
-        selectIsNetworkOperationPending,
-    );
+    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
 
     const deleteWallet = useDeleteActiveWallet();
 
@@ -173,12 +176,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         dispatch(toggleTheme());
     };
 
-    const handleLogout = () => {
-        if (isNetworkOperationPending) return;
-
+    const logoutGuard = useOperationGuard(() => {
         dispatch(logout());
         navigate("/login");
-    };
+    });
 
     return (
         <Fragment>
@@ -189,7 +190,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                             type="button"
                             aria-label="Go to wallet home"
                             onClick={() => navigate("/")}
-                            disabled={isNetworkOperationPending}
                         >
                             <LogoImage isDarkMode={darkMode} />
                             <LogoText>ASI:Chain Wallet</LogoText>
@@ -222,10 +222,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
                         {isAuthenticated && (
                             <DesktopButton
-                                onClick={handleLogout}
+                                onClick={() => logoutGuard.run()}
                                 title={"Logout"}
                                 aria-label="Logout"
-                                disabled={isNetworkOperationPending}
                             >
                                 <LogoutIcon size={20} />
                             </DesktopButton>
@@ -237,7 +236,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                                 onClick={deleteWallet.open}
                                 title={"Delete Wallet"}
                                 aria-label="Delete Wallet"
-                                disabled={isNetworkOperationPending}
                             >
                                 <DeleteIcon size={20} />
                             </DesktopButton>
@@ -260,8 +258,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 isOpen={deleteWallet.isOpen}
                 isDeleting={deleteWallet.isDeleting}
                 error={deleteWallet.error}
+                operationWarning={
+                    hasOperationInProgress
+                        ? DELETE_DURING_OPERATION_WARNING
+                        : undefined
+                }
                 onConfirm={deleteWallet.confirm}
                 onCancel={deleteWallet.close}
+            />
+            <OperationInProgressModal
+                {...logoutGuard.prompt}
+                {...LOGOUT_OPERATION_PROMPT}
             />
         </Fragment>
     );

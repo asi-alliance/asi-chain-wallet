@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "styled-components";
-import { Button } from "components";
+import { Alert, Button } from "components";
 import { ModalWindow } from "components/ModalWindow";
 import { WarningIcon } from "components/Icons";
 
@@ -37,6 +37,7 @@ interface DeleteWalletModalProps {
     onCancel: () => void;
     isDeleting?: boolean;
     error?: string;
+    operationWarning?: string;
     title?: string;
     message?: string;
     confirmLabel?: string;
@@ -53,6 +54,7 @@ export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
     onCancel,
     isDeleting = false,
     error,
+    operationWarning,
     title = "Delete Wallet",
     message = DEFAULT_MESSAGE,
     confirmLabel = "Delete Wallet",
@@ -71,6 +73,15 @@ export const DeleteWalletModal: React.FC<DeleteWalletModalProps> = ({
             </IconWrapper>
             <span>{message}</span>
         </WarningRow>
+        {operationWarning && (
+            <Alert
+                tone="warning"
+                icon={<WarningIcon size={20} />}
+                style={{ marginTop: "16px" }}
+            >
+                {operationWarning}
+            </Alert>
+        )}
         {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
         <Actions>
             <Button

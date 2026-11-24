@@ -38,6 +38,7 @@ import {
 } from "store/SdkClient";
 import { connectSdkClient } from "store/SdkClient/thunks";
 import { ProtectedRoute } from "components/ProtectedRoute";
+import { useOperationUnloadGuard } from "hooks";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -49,6 +50,8 @@ const AppContent: React.FC = () => {
     const isSdkClientReady = useSelector(selectIsSdkClientReady);
     const sdkClientError = useSelector(selectSdkClientError);
     const theme = darkMode ? darkTheme : lightTheme;
+
+    useOperationUnloadGuard();
 
     const loadWallets = async (): Promise<void> => {
         try {

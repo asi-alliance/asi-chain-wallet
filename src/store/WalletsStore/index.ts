@@ -295,6 +295,7 @@ const walletsStoreSlice = createSlice({
             .addCase(logout.fulfilled, (state) => {
                 state.wallets = state.wallets.map(toLockedWalletMeta);
                 state.selectedAccountId = null;
+                state.deployWatches = {};
             });
     },
 });

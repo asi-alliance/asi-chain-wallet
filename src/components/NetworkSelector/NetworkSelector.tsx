@@ -6,7 +6,7 @@ import { selectNetworks, selectSelectedNetwork } from "store/WalletsStore";
 import { selectNetwork } from "store/WalletsStore/thunks";
 import {
     selectBusyNetworkIds,
-    selectIsNetworkOperationPending,
+    selectHasOperationInProgress,
 } from "store/NetworkActivity";
 import { Network } from "types/wallet";
 
@@ -27,9 +27,7 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
     const selectedNetwork = useSelector(selectSelectedNetwork);
 
     const busyNetworkIds = useSelector(selectBusyNetworkIds);
-    const isNetworkOperationPending = useSelector(
-        selectIsNetworkOperationPending,
-    );
+    const hasOperationInProgress = useSelector(selectHasOperationInProgress);
 
     const handleNetworkChange = (networkId: string): void => {
         dispatch(selectNetwork({ id: networkId }))
@@ -41,11 +39,6 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
 
     const options: ISelectOption[] = useMemo(() => {
         const busyNetworkIdSet = new Set(busyNetworkIds);
-        const isSelectedNetworkBusy = busyNetworkIdSet.has(
-            selectedNetwork.id,
-        );
-        const isSwitchingBlocked =
-            isNetworkOperationPending || isSelectedNetworkBusy;
 
         return networks.map((network: Network) => {
             const isBusy = busyNetworkIdSet.has(network.id);
@@ -56,12 +49,12 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
                 value: network.id,
                 label: network.name,
                 additionalLabel: isBusy ? "(busy)" : undefined,
-                disabled: !isSelected && (isBusy || isSwitchingBlocked),
+                disabled: !isSelected && (isBusy || hasOperationInProgress),
             };
         });
     }, [
         busyNetworkIds,
-        isNetworkOperationPending,
+        hasOperationInProgress,
         networks,
         selectedNetwork.id,
     ]);
