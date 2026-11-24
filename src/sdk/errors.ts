@@ -39,11 +39,13 @@ export interface IWalletActionError {
     name?: string;
     code?: string;
     retryAfterMs?: number;
+    cause?: string;
     deployId?: string;
 }
 
 export const toWalletActionError = (error: unknown): IWalletActionError => {
     const code: string | undefined = getErrorCode(error);
+    const cause = code === "DEPLOY_QUEUE_FULL" ? getStringField(error, "cause") : undefined;
     const name: string | undefined = getStringField(error, "name");
     const retryAfterMs: number | undefined = getRetryAfterMs(error);
     const deployId: string | undefined = getStringField(error, "deployId");
@@ -51,6 +53,7 @@ export const toWalletActionError = (error: unknown): IWalletActionError => {
     return {
         message: getStringField(error, "message") ?? "",
         ...(name && { name }),
+        ...(cause && { cause }),
         ...(code && { code }),
         ...(retryAfterMs !== undefined && { retryAfterMs }),
         ...(deployId && { deployId }),
@@ -63,6 +66,21 @@ const tryAgain = (error: unknown): string => {
     return retryAfterMs === undefined
         ? "Please try again later."
         : `Please try again in ${Math.max(1, Math.ceil(retryAfterMs / 1000))} s.`;
+};
+
+const queueFullReason = (error: unknown): string => {
+    switch (getStringField(error, "cause")) {
+        case "validator":
+            return "the validator cannot process this transaction within its validity window.";
+        case "validator_idle":
+            return "the validator is not producing blocks. You can choose another validator.";
+        case "shard":
+            return "shard finalization is delayed.";
+        case "storage":
+            return "the validator's deploy queue storage is full.";
+        default:
+            return "the network is busy.";
+    }
 };
 
 export const getDeployVerdictMessage = (error: unknown): string | undefined => {
@@ -87,7 +105,10 @@ export const getWalletActionErrorMessage = (
 ): string => {
     switch (getErrorCode(error)) {
         case "DEPLOY_QUEUE_FULL":
-            return `Not accepted by the node: the network is busy. ${tryAgain(error)}`;
+            if (getStringField(error, "cause") === "deployer_share") {
+                return "This account has reached its queue limit. The signed transaction was refused.";
+            }
+            return `Not accepted by the node: ${queueFullReason(error)} ${tryAgain(error)}`;
         case "DEPLOY_QUEUE_UNAVAILABLE":
             return `Not accepted by the node: its deploy queue is temporarily unavailable. ${tryAgain(error)}`;
         case "DEPLOY_ADMISSION_REFUSED":

@@ -1,3 +1,5 @@
+import type { Client } from "@asichain/asi-wallet-sdk";
+import { SdkWalletService } from "../SdkWalletService";
 import {
     getDeployVerdictMessage,
     getWalletActionErrorMessage,
@@ -34,7 +36,23 @@ describe("deploy submission refusals", () => {
         },
     );
 
-    it("keeps one generic queue-full message whatever cause the node reports", () => {
+    it.each([
+        ["validator", "within its validity window"],
+        ["validator_idle", "choose another validator"],
+        ["shard", "shard finalization"],
+        ["storage", "storage is full"],
+        ["deployer_share", "account has reached its queue limit"],
+        ["future", "network is busy"],
+    ])("preserves %s across Redux and displays its guidance", (cause, guidance) => {
+        const error = new SdkDeployQueueRefusedError(
+            "deploy_queue_full", "id", 9000, "busy", cause,
+        );
+        const payload = JSON.parse(JSON.stringify(toWalletActionError(error)));
+        expect(payload).toMatchObject({ cause, deployId: "id", retryAfterMs: 9000 });
+        expect(getWalletActionErrorMessage(payload, "failed")).toContain(guidance);
+    });
+
+    it("ignores the legacy congestion field", () => {
         const error = Object.assign(
             new SdkDeployQueueRefusedError(
                 "deploy_queue_full",
@@ -112,6 +130,30 @@ describe("deploy submission refusals", () => {
                 "failed",
             ),
         ).toBe("proxy unavailable");
+    });
+});
+
+describe("wallet confirmation for the SDK's same-signature retry", () => {
+    it.each([true, false])("passes the user's decision (%p) for send and deploy", async (answer) => {
+        const prompt = jest.spyOn(window, "confirm").mockReturnValue(answer);
+        try {
+            const service = new SdkWalletService();
+            const call = jest.fn();
+            service.attachClient({ transfer: call, deploy: call } as unknown as Client);
+            const account = { walletId: "wallet", accountId: "account" };
+            await service.transfer({ ...account, to: "recipient", amount: "1" });
+            await service.deploy({ ...account, term: "Nil" });
+            expect(prompt).not.toHaveBeenCalled();
+            for (const [request] of call.mock.calls) {
+                expect(request.confirmDeployerShareRetry({
+                    deployId: "signed-id", retryAfterMs: 1500,
+                })).toBe(answer);
+            }
+            expect(prompt).toHaveBeenCalledTimes(2);
+            expect(prompt).toHaveBeenCalledWith(expect.stringContaining("signed-id once after 2 s"));
+        } finally {
+            prompt.mockRestore();
+        }
     });
 });
 

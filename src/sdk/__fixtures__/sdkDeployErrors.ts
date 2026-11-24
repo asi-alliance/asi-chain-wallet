@@ -1,6 +1,6 @@
 /**
  * Runtime copies of the deploy errors introduced by asi-chain-wallet-sdk #217
- * at e3d456085531b00ac65e913525ac95fdfdb45eb4.
+ * including the optional queue cause from node #1123.
  *
  * The wallet still resolves the published SDK 2.1.0, which has neither the
  * codes nor the classes. The tests recreate the instances the SDK throws so
@@ -44,12 +44,14 @@ export class SdkDeployRefusalError extends Error {
 
 export class SdkDeployQueueRefusedError extends SdkDeployRefusalError {
     public readonly queueCode: string;
+    public readonly cause?: string;
 
     constructor(
         queueCode: string,
         deployId: string,
         retryAfterMs: number | undefined,
         reason: string = "the deploy queue refused the deploy",
+        cause?: string,
     ) {
         super(
             queueCode === "deploy_queue_full"
@@ -57,11 +59,12 @@ export class SdkDeployQueueRefusedError extends SdkDeployRefusalError {
                 : "DEPLOY_QUEUE_UNAVAILABLE",
             `Submission of deploy ${deployId} was refused: ${reason}`,
             deployId,
-            queueCode !== "deploy_queue_full",
+            queueCode !== "deploy_queue_full" || cause === "deployer_share",
             retryAfterMs,
         );
 
         this.queueCode = queueCode;
+        this.cause = queueCode === "deploy_queue_full" ? cause : undefined;
     }
 }
 

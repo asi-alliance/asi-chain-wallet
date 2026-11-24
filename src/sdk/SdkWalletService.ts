@@ -459,6 +459,13 @@ export class SdkWalletService {
         return this.client?.isWalletUnlocked(walletId) ?? false;
     }
 
+    private static confirmDeployerShareRetry(error: { deployId: string; retryAfterMs?: number }): boolean {
+        const seconds = Math.ceil((error.retryAfterMs ?? 0) / 1000);
+        return window.confirm(
+            `This account has reached its queue limit. Resend the same signed transaction ${error.deployId} once after ${seconds} s?`,
+        );
+    }
+
     public async transfer(
         {
             walletId,
@@ -468,25 +475,23 @@ export class SdkWalletService {
         }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().transfer(
-            {
-                walletId,
-                accountId,
-                to,
-                amount: SdkWalletService.toAtomicAmount(amount),
-            },
-            password,
-        );
+        const request = {
+            walletId, accountId, to,
+            amount: SdkWalletService.toAtomicAmount(amount),
+            confirmDeployerShareRetry: SdkWalletService.confirmDeployerShareRetry,
+        };
+        return this.requireClient().transfer(request, password);
     }
 
     public deploy(
         { walletId, accountId, term, phloLimit }: IDeployRequest,
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        const request = {
+            walletId, accountId, term, phloLimit,
+            confirmDeployerShareRetry: SdkWalletService.confirmDeployerShareRetry,
+        };
+        return this.requireClient().deploy(request, password);
     }
 
     public exploreDeploy(term: string): Promise<unknown> {
