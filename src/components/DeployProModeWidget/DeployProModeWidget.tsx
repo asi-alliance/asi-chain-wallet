@@ -1059,8 +1059,8 @@ const DeployProModeBoard: React.FC = () => {
         darkMode,
         activeFile,
         deployableFile,
-        phloLimit,
-        phloPrice,
+        pendingPhloLimit: phloLimit,
+        pendingPhloPrice: phloPrice,
         pendingTerm,
         pendingFileName,
         isProcessing,
@@ -1408,7 +1408,7 @@ const DeployProModeBoard: React.FC = () => {
                             !deployableFile ||
                             !account ||
                             !isBalanceReady ||
-                            !isPhloLimitValid
+                            !isPhloLimitValid || !phloPrice
                         }
                     >
                         <h3>Deploy</h3>

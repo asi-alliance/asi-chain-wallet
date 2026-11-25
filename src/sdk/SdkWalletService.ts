@@ -4,7 +4,9 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
-    IDeployRequest,
+    ApiClientManager,
+    ApiServiceRegistry,
+    DeploySubmissionRejectedError,
     IDeployWatchCallbacks,
     IDeployWatchHandle,
     IDeployWatchOptions,
@@ -480,13 +482,37 @@ export class SdkWalletService {
     }
 
     public deploy(
-        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        request: ISignDeployRequest & { phloLimit: number; phloPrice: number },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        const client = this.requireClient();
+        // SDK 2.1.0 Client.deploy drops the price. Its explicit signer accepts it.
+        return ApiClientManager.getInstance().runNetworkOperation(async () => {
+            const signed = await client.signDeploy(request, password);
+            const deployId = signed.signature;
+            const gasCost = BigInt(request.phloLimit) * BigInt(request.phloPrice);
+            const reservation = await client.addTransactionReservation({
+                walletId: request.walletId,
+                accountId: request.accountId,
+                kind: "deploy",
+                term: request.term,
+                deployId,
+                pendingAmount: gasCost,
+                gasCost,
+            }, password);
+            try {
+                await ApiServiceRegistry.getInstance().transactions.submitSignedDeploy(signed);
+            } catch (error) {
+                if (error instanceof DeploySubmissionRejectedError) {
+                    await client.removeTransactionReservation(request.walletId, reservation.id);
+                }
+                throw error;
+            }
+            return {
+                deployId,
+                subscribe: (callbacks) => client.watchDeploy(deployId, callbacks).cancel,
+            };
+        });
     }
 
     public exploreDeploy(term: string): Promise<unknown> {

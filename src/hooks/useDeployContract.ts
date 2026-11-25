@@ -6,6 +6,7 @@ import {
     getErrorMessage,
     isIntegerInRange,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
+    toAtomicAmount,
 } from "@asichain/asi-wallet-sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -30,8 +31,6 @@ import {
     IPasswordPromptProps,
     useWalletSessionAction,
 } from "./useWalletSessionAction";
-
-const ATOMIC_UNITS_PER_ASI = 10 ** NATIVE_TOKEN_DECIMALS_AMOUNT;
 
 const MIN_PHLO_LIMIT = 1;
 const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
@@ -66,9 +65,11 @@ enum DeployConfirmationMods {
 
 interface IPendingDeployRequest {
     mode: DeployConfirmationMods.DEPLOY;
+    networkKey: string;
     term: string;
     fileName?: string;
     phloLimit: number;
+    phloPrice: string;
 }
 
 interface IPendingExploreRequest {
@@ -95,6 +96,8 @@ export interface IUseDeployContractResponse {
     submittedDeployStatus: string;
     unresolvedReason: string;
     pendingTerm: string;
+    pendingPhloPrice: string;
+    pendingPhloLimit: string;
     pendingFileName?: string;
     isProcessing: boolean;
     isWaitingForConfirmation: boolean;
@@ -133,7 +136,9 @@ export const useDeployContract = ({
             : null,
     );
     const networkId = useSelector(selectSelectedNetworkId);
-    const networkName = useSelector(selectSelectedNetwork).name;
+    const network = useSelector(selectSelectedNetwork);
+    const networkName = network.name;
+    const networkKey = JSON.stringify([network.id, network.validatorUrl]);
     const isChainOperationPending = useSelector(selectIsNetworkOperationPending);
     const { currentData: balance, isError: isBalanceError } =
         useGetBalanceQuery(
@@ -240,6 +245,10 @@ export const useDeployContract = ({
                 throw new Error("Deploy details are missing. Please retry.");
             }
 
+            if (pendingRequest.phloPrice !== phloPrice || pendingRequest.networkKey !== networkKey) {
+                throw new Error("Deploy settings changed. Review the current network and Phlo Price.");
+            }
+
             clearDeployWatch();
             emit({
                 type: DeployEventTypes.DEPLOY_STARTED,
@@ -252,6 +261,7 @@ export const useDeployContract = ({
                     accountId: selectedAccountId,
                     term: pendingRequest.term,
                     phloLimit: pendingRequest.phloLimit,
+                    phloPrice: pendingRequest.phloPrice,
                     password,
                 }),
             ).unwrap();
@@ -310,11 +320,12 @@ export const useDeployContract = ({
             return;
         }
 
-        const minGasCost =
-            (phloLimitValue * Number(phloPrice)) / ATOMIC_UNITS_PER_ASI;
-        const availableBalance = Number(balance);
-
-        if (availableBalance <= 0 || availableBalance < minGasCost) {
+        if (!phloPrice) {
+            emit({ type: DeployEventTypes.DEPLOY_FAILED, message: "Deploy aborted: invalid phlo price" });
+            return;
+        }
+        const maxCost = BigInt(phloLimitValue) * BigInt(phloPrice);
+        if (toAtomicAmount(balance, NATIVE_TOKEN_DECIMALS_AMOUNT) < maxCost) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: insufficient balance",
@@ -325,9 +336,11 @@ export const useDeployContract = ({
 
         setPendingRequest({
             mode: DeployConfirmationMods.DEPLOY,
+            networkKey,
             term,
             fileName,
             phloLimit: phloLimitValue,
+            phloPrice,
         });
         setIsConfirmationOpen(true);
     };
@@ -401,6 +414,8 @@ export const useDeployContract = ({
         submittedDeployStatus: deployWatch?.status ?? "",
         unresolvedReason: deployWatch?.unresolvedReason ?? "",
         pendingTerm: pendingRequest?.term ?? "",
+        pendingPhloPrice: isDeployPending ? pendingRequest.phloPrice : phloPrice,
+        pendingPhloLimit: isDeployPending ? String(pendingRequest.phloLimit) : phloLimit,
         pendingFileName: pendingRequest?.fileName,
         isProcessing: deployAction.isRunning || isExploring,
         isWaitingForConfirmation,

@@ -163,7 +163,7 @@ export const DeploymentConfirmationModal: React.FC<
         return rholangCode.substring(0, 300) + "\n\n... (truncated)";
     };
 
-    const estimatedCost = parseInt(phloLimit) * parseInt(phloPrice);
+    const maxCost = !isExplore && isOpen ? BigInt(phloLimit) * BigInt(phloPrice) : 0n;
 
     return (
         <ModalWindow
@@ -223,8 +223,8 @@ export const DeploymentConfirmationModal: React.FC<
                         </DetailRow>
 
                         <DetailRow>
-                            <DetailLabel>Estimated Cost:</DetailLabel>
-                            <DetailValue>{estimatedCost} phlo</DetailValue>
+                            <DetailLabel>Maximum fee:</DetailLabel>
+                            <DetailValue>{maxCost.toString()} atomic units</DetailValue>
                         </DetailRow>
                     </>
                 )}

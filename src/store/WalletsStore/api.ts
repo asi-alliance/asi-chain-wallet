@@ -12,6 +12,8 @@ import {
     IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
 
+import { parsePositivePrice } from "utils/deployPrice";
+
 export const HISTORY_LIMIT = 50;
 
 export enum WalletsApiTags {
@@ -62,6 +64,20 @@ export const walletsApi = createApi({
     refetchOnMountOrArgChange: true,
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
+        getMinimumPhloPrice: build.query<string, string>({
+            async queryFn(validatorUrl, { signal }) {
+                try {
+                    const url = `${validatorUrl.replace(/\/+$/, "")}/api/status`;
+                    const response = await fetch(url, { signal, cache: "no-store" });
+                    if (!response.ok) throw new Error(`Validator status returned HTTP ${response.status}`);
+                    const minimum = parsePositivePrice((await response.json()).minPhloPrice);
+                    if (!minimum) throw new Error("Validator returned an invalid minimum Phlo Price");
+                    return { data: minimum };
+                } catch (error) {
+                    return { error: toErrorMessage(error, "Could not read validator status") };
+                }
+            },
+        }),
         getBalance: build.query<string, IAccountQueryArgs>({
             queryFn: async ({ accountId }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
@@ -161,6 +177,7 @@ export const walletsApi = createApi({
 });
 
 export const {
+    useGetMinimumPhloPriceQuery,
     useGetBalanceQuery,
     useLazyGetBalanceQuery,
     useGetTransactionHistoryQuery,

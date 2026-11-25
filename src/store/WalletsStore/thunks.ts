@@ -555,6 +555,7 @@ export interface IDeployContractPayload {
     accountId: string;
     term: string;
     phloLimit: number;
+    phloPrice: string;
     password?: string;
 }
 
@@ -569,6 +570,7 @@ export const deployContract = createAppAsyncThunk<
             accountId,
             term,
             phloLimit,
+            phloPrice,
             password,
         }: IDeployContractPayload,
         { getState, dispatch, extra: { walletService } },
@@ -586,7 +588,7 @@ export const deployContract = createAppAsyncThunk<
         }
 
         const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit },
+            { walletId, accountId, term, phloLimit, phloPrice: Number(phloPrice) },
             password,
         );
 

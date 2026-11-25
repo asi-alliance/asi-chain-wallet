@@ -369,8 +369,8 @@ const DeployLiteModeBoard: React.FC = () => {
         exploreResult,
         deployId,
         deployStatus,
-        phloLimit,
-        phloPrice,
+        pendingPhloLimit: phloLimit,
+        pendingPhloPrice: phloPrice,
         pendingTerm,
         isProcessing,
         isWaitingForConfirmation,
@@ -483,7 +483,7 @@ const DeployLiteModeBoard: React.FC = () => {
                             !code.trim() ||
                             !account ||
                             !isBalanceReady ||
-                            !isPhloLimitValid
+                            !isPhloLimitValid || !phloPrice
                         }
                     >
                         <h3>Deploy</h3>

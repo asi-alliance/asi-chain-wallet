@@ -2,11 +2,14 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { DEFAULT_PHLO_PRICE, isIntegerInRange } from "@asichain/asi-wallet-sdk";
+import { isIntegerInRange } from "@asichain/asi-wallet-sdk";
+import { useGetMinimumPhloPriceQuery } from "store/WalletsStore/api";
+import { deployPriceError } from "utils/deployPrice";
 import { RootState } from "store";
 import {
     selectAccountById,
     selectSelectedAccountId,
+    selectSelectedNetwork,
 } from "store/WalletsStore";
 import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import {
@@ -110,6 +113,19 @@ const deployWidgetsByMode: Record<DeployPageMods, TDeployModeWidget> = {
 
 export const Deploy: React.FC = () => {
     const navigate = useNavigate();
+    const network = useSelector(selectSelectedNetwork);
+    const { currentData, isError } = useGetMinimumPhloPriceQuery(network.validatorUrl, {
+        skip: !network.validatorUrl,
+        pollingInterval: 30_000,
+    });
+    const minimum = isError ? undefined : currentData;
+    const statusError = isError || !network.validatorUrl
+        ? "Validator minimum Phlo Price is unavailable."
+        : undefined;
+    const networkKey = JSON.stringify([network.id, network.validatorUrl]);
+    const [override, setOverride] = useState<{ network: string; price: string } | null>(null);
+    const proPrice = override?.network === networkKey ? override.price : null;
+    const maximum = BigInt(Number.MAX_SAFE_INTEGER);
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
@@ -129,8 +145,6 @@ export const Deploy: React.FC = () => {
         modeFocusPendingRef.current = false;
         document.getElementById(`deploy-mode-selector-${selectedMode}-button`)?.focus();
     }, [selectedMode]);
-
-    const phloPrice = DEFAULT_PHLO_PRICE.toString();
 
     const numericPhloLimit = Number(phloLimit.trim());
     const phloLimitError = isIntegerInRange(
@@ -167,7 +181,13 @@ export const Deploy: React.FC = () => {
         <DeployContainer className="deploy-container">
             {Object.entries(deployWidgetsByMode)
                 .filter(([mode]) => mode === DeployPageMods.LITE || hasOpenedPro)
-                .map(([mode, ModeWidget]) => (
+                .map(([mode, ModeWidget]) => {
+                    const lite = mode === DeployPageMods.LITE;
+                    const phloPrice = (lite ? minimum : proPrice ?? minimum) ?? "";
+                    const priceError = minimum
+                        ? deployPriceError(phloPrice, minimum, maximum)
+                        : statusError;
+                    return (
                     <ModePanel
                         key={mode}
                         $active={selectedMode === mode}
@@ -175,7 +195,7 @@ export const Deploy: React.FC = () => {
                     >
                         <ModeWidget
                             phloLimit={phloLimit}
-                            phloPrice={phloPrice}
+                            phloPrice={minimum && !priceError ? phloPrice : ""}
                             isActive={selectedMode === mode}
                         >
                             <Card>
@@ -215,11 +235,15 @@ export const Deploy: React.FC = () => {
                                                 className="deploy-phlo-price-input text-3"
                                                 wrapperStyle={{ marginBottom: 0, minWidth: "200px" }}
                                                 label="Phlo Price"
-                                                title="Phlo price is fixed by the network configuration"
+                                                helperText={minimum ? `Validator minimum: ${minimum}` : priceError ? undefined : "Reading validator minimum…"}
+                                                error={priceError}
+                                                onChange={lite ? undefined : (event) => setOverride({ network: networkKey, price: event.target.value })}
                                                 value={phloPrice}
                                                 fullWidth={isTablet}
-                                                type="number"
-                                                readOnly
+                                                type="text"
+                                                inputMode="numeric"
+                                                readOnly={lite}
+                                                disabled={!minimum || isChainOperationPending}
                                             />
                                         </FormRow>
                                         <ModeWidget.Actions />
@@ -229,7 +253,8 @@ export const Deploy: React.FC = () => {
                             </Card>
                         </ModeWidget>
                     </ModePanel>
-                ))}
+                    );
+                })}
         </DeployContainer>
     );
 };
