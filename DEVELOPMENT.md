@@ -4,7 +4,7 @@
 
 This guide covers setup, the SDK dependency, the available scripts, Docker, CI/CD and troubleshooting.
 
-Use `dev` for current development. Read [branch and testnet-image selection](README.md#branches-and-testnet-image) first: the testnet ECR artifact has a separate infra packaging recipe and runtime configuration from the repository Dockerfile described here.
+Use `dev` for current development. For the published testnet container's registry and runtime settings, see [Branches and Testnet Image](README.md#branches-and-testnet-image).
 
 For configuration details, see the [Configuration Guide](CONFIGURATION.md).
 

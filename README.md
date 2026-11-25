@@ -50,28 +50,13 @@ Besides sending and receiving ASI, the wallet can deploy Rholang contracts (a si
 
 ## Branches and Testnet Image
 
-Verified on 2026-11-03. Use `dev` for current development and ASI testnet source
-builds. `main` remains the repository default/release line; select dev explicitly
-when cloning or opening a development PR. Release promotion is a separate review.
-The open `feature/cost-accounted-f1r3node` work targets a different runtime and
-is not the selected testnet baseline.
+`main` is the default branch on GitHub. Start development branches from `dev`
+and target `dev` when opening a pull request.
 
-This browser wallet uses the npm package `@asichain/asi-wallet-sdk`, not the
-Rust client submodule used by wallet CLI. Updating the standalone client image
-does not update either wallet's dependencies.
-
-Testnet ECR builds default to remote dev unless the owner explicitly selects
-another source, and record the full build SHA. The current testnet image uses
-dev `b2e3a45f70d17c05979de38290d7a4fb7e8c42dd` plus the infra packaging recipe:
-
-- [Published source/tag matrix](https://github.com/asi-alliance/asi-chain-testnet-infra/blob/main/docs/releases/image-inventory-20261103.md#published-image-sources)
-- [Wallet release record, digest and configuration](https://github.com/asi-alliance/asi-chain-testnet-infra/blob/main/docs/releases/wallet-dev-20261102-b2e3a45f70d1.md)
-
-That image is under `public.ecr.aws/l2u2v4a8/asi-chain/wallet`, listens on 8080,
-and uses the recorded startup substitution for public endpoint URLs. The source
-Dockerfile/Compose configuration described below uses different packaging;
-follow the release record for the testnet image. Documentation changes alone
-do not require a new application image. Deployment acceptance remains separate.
+Testnet wallet images are published to `public.ecr.aws/l2u2v4a8/asi-chain/wallet`.
+Use the image digest and endpoint settings for the specific release you want to run.
+The testnet container listens on port 8080 and reads public endpoint URLs at startup.
+The repository [Dockerfile](Dockerfile) exposes port 80.
 
 ## Key Features
 
@@ -151,7 +136,7 @@ The SDK provides mnemonic generation and validation, wallet creation, opening an
 | History pagination and the load more control | [src/pages/History/History.tsx](src/pages/History/History.tsx), `HISTORY_LIMIT` in [src/store/WalletsStore/api.ts](src/store/WalletsStore/api.ts) | An indexer root field that returns the combined ordered timeline under one offset and limit, and an SDK `getTransactionsHistory` built on it (see [Known Limitations](#known-limitations)) |
 | CSV and JSON export of history | [src/pages/History/History.tsx](src/pages/History/History.tsx) | The SDK exposes a history download flow |
 | ETH address format on the Receive page | [src/pages/Receive/Receive.tsx](src/pages/Receive/Receive.tsx) | The SDK exposes the Ethereum address of an account |
-| App-level transaction status polling | [src/App.tsx](src/App.tsx) | The same validation. Deploy status is now tracked per deploy in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): `sendTransaction` and `deployContract` subscribe through the `subscribe` callback returned by the SDK `transfer` and `deploy` calls, while `bridgeLock`, which signs and submits its deploy itself, calls `SdkWalletService.watchDeploy` directly |
+| App-level transaction status polling | [src/App.tsx](src/App.tsx) | Pending production validation of per-deploy status tracking in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts). `sendTransaction` and `deployContract` subscribe through the SDK. `bridgeLock` calls `SdkWalletService.watchDeploy` directly. |
 
 ### Removed and Relocated Functionality
 
@@ -221,11 +206,10 @@ The wallet will be available at [http://localhost:3000](http://localhost:3000).
 
 ### Using Docker
 
-The checked-in `docker-compose.yml` still selects a legacy registry's `latest`
-image and does not build the working tree. For ASI testnet use the pinned
-`public.ecr.aws/l2u2v4a8/asi-chain/wallet` artifact and configuration in
+The checked-in [docker-compose.yml](docker-compose.yml) pulls
+`public.ecr.aws/f6y9h6x4/asi-chain/wallet:latest` and maps host port 3000 to
+container port 80. For the published testnet container, see
 [Branches and Testnet Image](#branches-and-testnet-image).
-The following commands describe that existing Compose file only:
 
 ```bash
 docker-compose up -d     # wallet at http://localhost:3000
@@ -380,7 +364,7 @@ Test results: [https://automation.lambdatest.com](https://automation.lambdatest.
 
 - **[CONFIGURATION.md](CONFIGURATION.md)** - environment variables, `NETWORKS` parsing and validation, storage, Docker
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - setup, the SDK dependency, scripts, Docker, CI/CD, troubleshooting
-- **[docs.asichain.io](https://docs.asichain.io)** - documentation portal; its deployment content is outdated, so verify commands/endpoints against selected source and the infra records above
+- **[docs.asichain.io](https://docs.asichain.io)** - user-facing documentation
 
 ## Contributing
 

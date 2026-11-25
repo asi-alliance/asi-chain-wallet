@@ -78,7 +78,7 @@ enum DeployPageMods {
     PRO = "pro",
 }
 
-const DEFAULT_PHLO_LIMIT = "100000000";
+const DEFAULT_PHLO_LIMIT = "20000000";
 
 const deployPageModsOptions: ISelectOption[] = [
     {
