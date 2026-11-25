@@ -38,6 +38,11 @@ export interface Network {
     isDefault: boolean;
 }
 
+export interface INetworksStateMeta {
+    networks: Network[];
+    selectedNetwork: Network;
+}
+
 export type TCustomNetworkRecord = Omit<INetworkRecord, "isDefault"> & {
     isDefault: false;
 };
