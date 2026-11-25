@@ -5,8 +5,10 @@ import {
     networkBusyChanged,
 } from "store/NetworkActivity";
 import { sdkClientReady, selectIsSdkClientReady } from "store/SdkClient";
-import { networksStateChanged } from "store/WalletsStore";
-import { initializeNetworks } from "store/WalletsStore/thunks";
+import {
+    initializeNetworks,
+    syncNetworksState,
+} from "store/WalletsStore/thunks";
 import { INetworksStateMeta } from "types/wallet";
 
 export const connectSdkClient =
@@ -26,12 +28,12 @@ export const connectSdkClient =
 
         walletService.onNetworksChanged(
             (networksState: INetworksStateMeta) => {
-                dispatch(networksStateChanged(networksState));
+                dispatch(syncNetworksState(networksState));
             },
         );
 
         dispatch(busyNetworksSynced(walletService.getBusyNetworkIds()));
-        dispatch(networksStateChanged(walletService.getNetworksState()));
+        dispatch(syncNetworksState(walletService.getNetworksState()));
         dispatch(initializeNetworks());
         dispatch(sdkClientReady());
     };

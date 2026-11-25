@@ -2,6 +2,8 @@ import {
     deployStatusChanged,
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
+    networksStateChanged,
+    selectSelectedNetwork,
 } from ".";
 import { AnyAction } from "@reduxjs/toolkit";
 import {
@@ -12,6 +14,7 @@ import {
 } from "services/rchain";
 import {
     IAccountMeta,
+    INetworksStateMeta,
     IUnlockedAccountMeta,
     IWalletMeta,
     Network,
@@ -40,6 +43,7 @@ import { walletsApi, WalletsApiTags } from "./api";
 import {
     getUnlockedAccountFromWalletsMeta,
     getUnlockedWalletAndAccountFromWalletsMeta,
+    hasSameNetworkConnection,
 } from "./helpers";
 
 const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
@@ -309,6 +313,32 @@ export const updateAccountName = createAppAsyncThunk<
     },
 );
 
+export const syncNetworksState =
+    (networksState: INetworksStateMeta): TAppThunk =>
+    (dispatch, getState) => {
+        const previousSelectedNetwork: Network = selectSelectedNetwork(
+            getState(),
+        );
+
+        dispatch(networksStateChanged(networksState));
+
+        const selectedNetwork: Network = selectSelectedNetwork(getState());
+
+        if (
+            selectedNetwork.id !== previousSelectedNetwork.id ||
+            hasSameNetworkConnection(selectedNetwork, previousSelectedNetwork)
+        ) {
+            return;
+        }
+
+        dispatch(
+            walletsApi.util.invalidateTags([
+                WalletsApiTags.BALANCE,
+                WalletsApiTags.HISTORY,
+            ]),
+        );
+    };
+
 export const initializeNetworks =
     (): TAppThunk =>
     (_dispatch, _getState, { walletService }) => {
@@ -404,22 +434,10 @@ export const updateCustomNetwork = createAppAsyncThunk<
     "walletsStore/updateCustomNetwork",
     async (
         { id, update }: IUpdateNetworkPayload,
-        { dispatch, getState, rejectWithValue, extra: { walletService } },
+        { rejectWithValue, extra: { walletService } },
     ) => {
         try {
             await walletService.updateCustomNetwork(id, update);
-
-            if (
-                update.config &&
-                getState().walletsStore.selectedNetwork.id === id
-            ) {
-                dispatch(
-                    walletsApi.util.invalidateTags([
-                        WalletsApiTags.BALANCE,
-                        WalletsApiTags.HISTORY,
-                    ]),
-                );
-            }
         } catch (error) {
             return rejectWithValue(
                 getErrorMessage(error, "Failed to update custom network"),

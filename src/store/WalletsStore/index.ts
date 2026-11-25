@@ -24,6 +24,7 @@ import {
 import {
     addWalletToWalletsStore,
     applyActiveWalletSession,
+    applyNetworksState,
     getUnlockedAccountFromWalletsMeta,
     toLockedWalletMeta,
 } from "./helpers";
@@ -95,8 +96,7 @@ const walletsStoreSlice = createSlice({
             state,
             action: PayloadAction<INetworksStateMeta>,
         ) => {
-            state.networks = action.payload.networks;
-            state.selectedNetwork = action.payload.selectedNetwork;
+            applyNetworksState(state, action.payload);
         },
     },
     extraReducers: (builder) => {

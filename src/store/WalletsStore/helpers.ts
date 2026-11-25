@@ -1,11 +1,14 @@
 import { WalletPreferencesStorage } from "services/walletPreferences";
+import { NETWORKS } from "constants/networks";
 import {
     IAccountMeta,
     IActiveWalletSession,
     ILockedWalletMeta,
+    INetworksStateMeta,
     IUnlockedAccountMeta,
     IUnlockedWalletMeta,
     IWalletMeta,
+    Network,
     WalletStoreState,
 } from "types/wallet";
 import { Transaction } from "types/transactions";
@@ -149,6 +152,61 @@ const restoreSelectedAccountId = (
     }
 
     return selectedAccountId;
+};
+
+export const hasSameNetworkConnection = (
+    network: Network,
+    otherNetwork: Network,
+): boolean =>
+    network.validatorUrl === otherNetwork.validatorUrl &&
+    network.observerUrl === otherNetwork.observerUrl &&
+    network.indexerUrl === otherNetwork.indexerUrl &&
+    network.nodeApiProfile === otherNetwork.nodeApiProfile;
+
+const isSameNetwork = (network: Network, otherNetwork: Network): boolean =>
+    network.id === otherNetwork.id &&
+    network.name === otherNetwork.name &&
+    network.isDefault === otherNetwork.isDefault &&
+    hasSameNetworkConnection(network, otherNetwork);
+
+const withConfiguredNetworkName = (network: Network): Network => {
+    if (!network.isDefault) {
+        return network;
+    }
+
+    const configuredNetwork: Network | undefined = NETWORKS.find(
+        (networkMeta: Network) => networkMeta.id === network.id,
+    );
+
+    return configuredNetwork
+        ? { ...network, name: configuredNetwork.name }
+        : network;
+};
+
+const reuseUnchangedNetwork = (
+    currentNetworks: Network[],
+    network: Network,
+): Network =>
+    currentNetworks.find((currentNetwork: Network) =>
+        isSameNetwork(currentNetwork, network),
+    ) ?? network;
+
+export const applyNetworksState = (
+    state: WalletStoreState,
+    { networks, selectedNetwork }: INetworksStateMeta,
+): void => {
+    const nextNetworks: Network[] = networks.map((network: Network) =>
+        reuseUnchangedNetwork(
+            state.networks,
+            withConfiguredNetworkName(network),
+        ),
+    );
+
+    state.networks = nextNetworks;
+    state.selectedNetwork = reuseUnchangedNetwork(
+        nextNetworks,
+        withConfiguredNetworkName(selectedNetwork),
+    );
 };
 
 export const toActiveWalletSession = (
