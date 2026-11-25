@@ -23,6 +23,7 @@ import {
     DeployStatus,
     IDeployStatusResult,
     IDeployWatchCallbacks,
+    IReservedOperationResult,
     INetworkConfig,
     INetworkUpdate,
     NetworkId,
@@ -34,10 +35,10 @@ import {
 } from "@asichain/asi-wallet-sdk";
 import {
     getDeployVerdictMessage,
+    IWalletActionError,
     SdkWalletService,
     toWalletActionError,
 } from "sdk";
-import type { IWalletActionError } from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
@@ -526,7 +527,7 @@ export const sendTransaction = createAppAsyncThunk<
             );
         }
 
-        let submission: Awaited<ReturnType<typeof walletService.transfer>>;
+        let submission: IReservedOperationResult;
 
         try {
             submission = await walletService.transfer(
@@ -605,7 +606,7 @@ export const deployContract = createAppAsyncThunk<
             );
         }
 
-        let submission: Awaited<ReturnType<typeof walletService.deploy>>;
+        let submission: IReservedOperationResult;
 
         try {
             submission = await walletService.deploy(

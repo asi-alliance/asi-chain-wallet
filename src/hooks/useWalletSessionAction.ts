@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { getWalletActionErrorMessage, isInvalidPasswordError, isWalletLockedError } from "sdk";
+import {
+    getWalletActionErrorMessage,
+    isInvalidPasswordError,
+    isWalletLockedError,
+} from "sdk";
 import { useAppDispatch } from "store/hooks";
 import { checkWalletUnlocked } from "store/WalletsStore/thunks";
 
@@ -77,7 +81,10 @@ export const useWalletSessionAction = <TResult>({
                 return;
             }
 
-            const message: string = getWalletActionErrorMessage(error, errorFallback);
+            const message: string = getWalletActionErrorMessage(
+                error,
+                errorFallback,
+            );
 
             if (password === undefined) {
                 onError?.(message);
