@@ -54,7 +54,11 @@ export type TDeployEvent =
     | { type: DeployEventTypes.DEPLOY_SUBMITTED; deployId: string }
     | { type: DeployEventTypes.DEPLOY_STATUS; status: DeployStatus }
     | { type: DeployEventTypes.DEPLOY_CONFIRMED }
-    | { type: DeployEventTypes.DEPLOY_FAILED; message: string }
+    | {
+          type: DeployEventTypes.DEPLOY_FAILED;
+          message: string;
+          deployId?: string;
+      }
     | { type: DeployEventTypes.DEPLOY_UNRESOLVED; message: string }
     | { type: DeployEventTypes.EXPLORE_STARTED; fileName?: string }
     | { type: DeployEventTypes.EXPLORE_COMPLETED; result: unknown }
@@ -188,6 +192,7 @@ export const useDeployContract = ({
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: deployWatch.failedReason,
+                deployId: submittedDeployId,
             });
 
             return;

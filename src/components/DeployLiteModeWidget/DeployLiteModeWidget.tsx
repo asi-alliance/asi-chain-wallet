@@ -199,6 +199,7 @@ interface IDeployLiteModeContextValue extends IUseDeployContractResponse {
     code: string;
     setCode: (value: string) => void;
     error: string;
+    errorDeployId: string;
     unresolvedReason: string;
     exploreResult: unknown;
     deployId: string;
@@ -239,6 +240,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 }) => {
     const [code, setCode] = useState(exampleContract);
     const [error, setError] = useState("");
+    const [errorDeployId, setErrorDeployId] = useState("");
     const [unresolvedReason, setUnresolvedReason] = useState("");
     const [exploreResult, setExploreResult] = useState<unknown>(null);
     const [deployId, setDeployId] = useState("");
@@ -246,6 +248,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 
     const resetOutput = (): void => {
         setError("");
+        setErrorDeployId("");
         setUnresolvedReason("");
         setExploreResult(null);
         setDeployId("");
@@ -277,8 +280,13 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 
                 return;
             case DeployEventTypes.DEPLOY_FAILED:
+                setError(event.message);
+                setErrorDeployId(event.deployId ?? "");
+
+                return;
             case DeployEventTypes.EXPLORE_FAILED:
                 setError(event.message);
+                setErrorDeployId("");
         }
     };
 
@@ -309,6 +317,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
         code,
         setCode,
         error,
+        errorDeployId,
         unresolvedReason,
         exploreResult,
         deployId,
@@ -373,6 +382,7 @@ const DeployLiteModeBoard: React.FC = () => {
         code,
         setCode,
         error,
+        errorDeployId,
         unresolvedReason,
         exploreResult,
         deployId,
@@ -411,13 +421,15 @@ const DeployLiteModeBoard: React.FC = () => {
                     >
                         <div style={{ flex: "1", minWidth: "200px" }}>
                             <div>{error}</div>
-                            {deployId && (
+                            {errorDeployId && (
                                 <div className="deploy-id">
-                                    Deploy ID: {deployId}
+                                    Deploy ID: {errorDeployId}
                                 </div>
                             )}
                         </div>
-                        {deployId && <CopyDeployIdButton deployId={deployId} />}
+                        {errorDeployId && (
+                            <CopyDeployIdButton deployId={errorDeployId} />
+                        )}
                     </div>
                 </ErrorMessage>
             )}
