@@ -4,12 +4,7 @@ import {
     IAccountDefaultUpdateFieldsPayload,
 } from ".";
 import { AnyAction } from "@reduxjs/toolkit";
-import {
-    BRIDGE_LOCK_MAX_GAS_COST,
-    BRIDGE_LOCK_PHLO_LIMIT,
-    BRIDGE_LOCK_PHLO_PRICE,
-    RChainService,
-} from "services/rchain";
+import { RChainService } from "services/rchain";
 import {
     IAccountMeta,
     IUnlockedAccountMeta,
@@ -145,6 +140,8 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
+    phloLimit: number;
+    phloPrice: string;
     password?: string;
 }
 
@@ -496,7 +493,7 @@ export const sendTransaction = createAppAsyncThunk<
 >(
     "wallets-store/sendTransaction",
     async (
-        { walletId, accountId, to, amount, password }: ITransferPayload,
+        { walletId, accountId, to, amount, phloLimit, phloPrice, password }: ITransferPayload,
         { getState, dispatch, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
@@ -521,6 +518,8 @@ export const sendTransaction = createAppAsyncThunk<
                 accountId,
                 to,
                 amount,
+                phloLimit,
+                phloPrice,
             },
             password,
         );
@@ -622,6 +621,8 @@ export interface IBridgeLockPayload {
     amount: string;
     destChainId: number;
     bridgeUri: string;
+    phloLimit: number;
+    phloPrice: string;
     password?: string;
     network: Network;
 }
@@ -639,6 +640,8 @@ export const bridgeLock = createAppAsyncThunk<
             amount,
             destChainId,
             bridgeUri,
+            phloLimit,
+            phloPrice,
             password,
             network,
         }: IBridgeLockPayload,
@@ -653,6 +656,7 @@ export const bridgeLock = createAppAsyncThunk<
         );
 
         const atomicAmount: bigint = SdkWalletService.toAtomicAmount(amount);
+        const gasCost = BigInt(phloLimit) * BigInt(phloPrice);
 
         const lockTerm: string = rchain.buildBridgeLockTerm(
             atomicAmount.toString(),
@@ -666,8 +670,8 @@ export const bridgeLock = createAppAsyncThunk<
                 walletId,
                 accountId,
                 term: lockTerm,
-                phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
-                phloPrice: BRIDGE_LOCK_PHLO_PRICE,
+                phloLimit,
+                phloPrice,
             },
             password,
         );
@@ -681,10 +685,8 @@ export const bridgeLock = createAppAsyncThunk<
                 kind: "deploy",
                 deployId,
                 term: lockTerm,
-                pendingAmount:
-                    atomicAmount +
-                    BRIDGE_LOCK_MAX_GAS_COST,
-                gasCost: BRIDGE_LOCK_MAX_GAS_COST,
+                pendingAmount: atomicAmount + gasCost,
+                gasCost,
             },
             password,
         );

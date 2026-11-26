@@ -461,32 +461,29 @@ export class SdkWalletService {
 
     public async transfer(
         {
-            walletId,
-            accountId,
-            to,
             amount,
+            ...request
         }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
     ): Promise<IReservedOperationResult> {
         return this.requireClient().transfer(
             {
-                walletId,
-                accountId,
-                to,
+                ...request,
                 amount: SdkWalletService.toAtomicAmount(amount),
             },
             password,
         );
     }
 
+    public getTransferQuote(preferredLimit?: number) {
+        return this.requireClient().getTransferQuote(preferredLimit);
+    }
+
     public deploy(
-        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        request: IDeployRequest,
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        return this.requireClient().deploy(request, password);
     }
 
     public exploreDeploy(term: string): Promise<unknown> {

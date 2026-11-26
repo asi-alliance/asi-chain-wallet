@@ -39,6 +39,14 @@ export interface IHistoryQueryArgs extends IAccountQueryArgs {
     source: THistorySourceFilter;
 }
 
+export interface IPhloQuote {
+    phloLimit: number;
+    phloPrice: string;
+    gasReserve: string;
+}
+
+export const PHLO_QUOTE_POLLING_INTERVAL_MS = 60_000;
+
 const toErrorMessage = (error: unknown, fallback: string): string =>
     error instanceof Error ? error.message : fallback;
 
@@ -62,6 +70,29 @@ export const walletsApi = createApi({
     refetchOnMountOrArgChange: true,
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
+        getPhloQuote: build.query<IPhloQuote, {
+            networkId: string;
+            validatorUrl: string;
+            preferredLimit?: number;
+        }>({
+            queryFn: async ({ networkId, preferredLimit }, { extra }) => {
+                try {
+                    const service = getWalletService(extra);
+                    if (service.getActiveNetworkId() !== networkId) {
+                        return { error: "Active network changed. Try again." };
+                    }
+                    const { phloLimit, phloPrice, gasReserve } =
+                        await service.getTransferQuote(preferredLimit);
+                    return { data: {
+                        phloLimit,
+                        phloPrice: phloPrice.toString(),
+                        gasReserve: gasReserve.toString(),
+                    } };
+                } catch (error) {
+                    return { error: toErrorMessage(error, "Failed to load the validator's Phlo parameters") };
+                }
+            },
+        }),
         getBalance: build.query<string, IAccountQueryArgs>({
             queryFn: async ({ accountId }, { getState, extra }) => {
                 const { wallets } = (getState() as RootState).walletsStore;
@@ -161,6 +192,7 @@ export const walletsApi = createApi({
 });
 
 export const {
+    useGetPhloQuoteQuery,
     useGetBalanceQuery,
     useLazyGetBalanceQuery,
     useGetTransactionHistoryQuery,

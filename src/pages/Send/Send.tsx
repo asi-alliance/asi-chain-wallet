@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { Address, ASI_DECIMALS, DeployStatus, fromAtomicAmount } from "@asichain/asi-wallet-sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -11,10 +11,15 @@ import {
     deployWatchCleared,
     selectDeployWatch,
     selectSelectedAccount,
-    selectSelectedNetworkId,
+    selectSelectedNetwork,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import { useGetBalanceQuery } from "store/WalletsStore/api";
+import {
+    IPhloQuote,
+    PHLO_QUOTE_POLLING_INTERVAL_MS,
+    useGetBalanceQuery,
+    useGetPhloQuoteQuery,
+} from "store/WalletsStore/api";
 import { sendTransaction } from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
@@ -41,7 +46,6 @@ import {
 } from "components/Icons";
 import { ModalWindow } from "components/ModalWindow";
 import { useCopyToClipboard, useWalletSessionAction } from "hooks";
-import { getGasFeeRangeLabel } from "../../constants/gas";
 import { ACCOUNT_DATA_POLLING_INTERVAL_MS } from "constants/polling";
 import {
     getAmountValidationError,
@@ -88,6 +92,8 @@ interface ITransferDetails {
     accountName: string;
     accountAddress: string;
     networkId: string;
+    validatorUrl: string;
+    quote: IPhloQuote;
     to: Address;
     amount: string;
 }
@@ -261,7 +267,12 @@ export const Send: React.FC = () => {
             ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
+    const { id: networkId, validatorUrl } = useSelector(selectSelectedNetwork);
+    const { currentData: quote, isError: isQuoteError } = useGetPhloQuoteQuery(
+        selectedAccount ? { networkId, validatorUrl } : skipToken,
+        { pollingInterval: PHLO_QUOTE_POLLING_INTERVAL_MS },
+    );
+    const gasReserve = quote && !isQuoteError ? BigInt(quote.gasReserve) : undefined;
     const {
         currentData: currentBalance,
         isFetching,
@@ -324,7 +335,7 @@ export const Send: React.FC = () => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-            if (pendingTransfer.networkId !== networkId) {
+            if (pendingTransfer.networkId !== networkId || pendingTransfer.validatorUrl !== validatorUrl) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
@@ -335,6 +346,8 @@ export const Send: React.FC = () => {
                     accountId: pendingTransfer.accountId,
                     to: pendingTransfer.to,
                     amount: pendingTransfer.amount,
+                    phloLimit: pendingTransfer.quote.phloLimit,
+                    phloPrice: pendingTransfer.quote.phloPrice,
                     password,
                 }),
             ).unwrap();
@@ -359,10 +372,11 @@ export const Send: React.FC = () => {
 
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
-    const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance, GasFee.MAX, true)
+    const amountError = isBalanceReady && gasReserve !== undefined
+        ? getAmountValidationError(amount, balance, gasReserve, true)
         : "";
-    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
+    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR
+        : isQuoteError ? "Could not load the validator's transfer fee." : "";
 
     useLayoutEffect(() => {
         if (!pendingTransfer) return;
@@ -533,7 +547,7 @@ export const Send: React.FC = () => {
     };
 
     const handleSend = (): void => {
-        if (isSending || confirmationInFlightRef.current || !validateForm()) {
+        if (isSending || confirmationInFlightRef.current || !quote || isQuoteError || !validateForm()) {
             return;
         }
         if (!walletId) {
@@ -552,6 +566,8 @@ export const Send: React.FC = () => {
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
             networkId,
+            validatorUrl,
+            quote,
             to: recipient.trim() as Address,
             amount: amount.trim(),
         });
@@ -578,8 +594,9 @@ export const Send: React.FC = () => {
     };
 
     const handleMax = (): void => {
+        if (gasReserve === undefined) return;
         amountPasteGenerationRef.current += 1;
-        const max = getMaxSendableAmount(balance);
+        const max = getMaxSendableAmount(balance, gasReserve);
         if (!isPositiveTokenAmount(max)) {
             setAmount("");
             setMaxError("Insufficient balance to cover the estimated fee.");
@@ -897,6 +914,7 @@ export const Send: React.FC = () => {
                                 onClick={handleMax}
                                 disabled={
                                     !isBalanceReady ||
+                                    gasReserve === undefined ||
                                     isFormFrozen
                                 }
                             >
@@ -918,6 +936,7 @@ export const Send: React.FC = () => {
                                     !!amountError ||
                                     !!maxError ||
                                     !!amountPasteError ||
+                                    gasReserve === undefined ||
                                     !isBalanceReady
                                 }
                             >
@@ -976,8 +995,8 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                maxFee={GasFee.MAX}
-                feeLabel={getGasFeeRangeLabel()}
+                maxFee={BigInt(pendingTransfer?.quote.gasReserve ?? "0")}
+                feeLabel={`up to ${fromAtomicAmount(BigInt(pendingTransfer?.quote.gasReserve ?? "0"), ASI_DECIMALS)}`}
                 loading={isSending}
             />
 
