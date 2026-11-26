@@ -211,6 +211,7 @@ const FormError = styled.div`
     color: ${({ theme }) => theme.dangerText};
     font-size: ${({ theme }) => theme.typography.size.sm};
     line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    overflow-wrap: anywhere;
 `;
 
 const Actions = styled.div`

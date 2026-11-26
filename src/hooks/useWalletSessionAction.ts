@@ -22,7 +22,7 @@ export interface IWalletSessionActionOptions<TResult> {
     walletId: string | undefined;
     action: (password?: string) => Promise<TResult>;
     onSuccess?: (result: TResult) => void;
-    onError?: (message: string) => void;
+    onError?: (message: string, error?: unknown) => void;
     errorFallback?: string;
 }
 
@@ -87,7 +87,7 @@ export const useWalletSessionAction = <TResult>({
             );
 
             if (password === undefined) {
-                onError?.(message);
+                onError?.(message, error);
 
                 return;
             }
@@ -99,7 +99,7 @@ export const useWalletSessionAction = <TResult>({
             }
 
             setIsPasswordPromptOpen(false);
-            onError?.(message);
+            onError?.(message, error);
         } finally {
             setIsRunning(false);
         }

@@ -109,6 +109,14 @@ const ErrorMessage = styled.div`
     border: 1px solid ${({ theme }) => `${theme.danger}40`};
     border-radius: ${({ theme }) => theme.radii.md};
     margin-bottom: 16px;
+    overflow-wrap: anywhere;
+
+    .deploy-id {
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0.8;
+        line-height: 1.4;
+    }
 `;
 
 const WarningMessage = styled.div`
@@ -390,7 +398,29 @@ const DeployLiteModeBoard: React.FC = () => {
 
     return (
         <>
-            {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+            {error && (
+                <ErrorMessage role="alert">
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 12,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ flex: "1", minWidth: "200px" }}>
+                            <div>{error}</div>
+                            {deployId && (
+                                <div className="deploy-id">
+                                    Deploy ID: {deployId}
+                                </div>
+                            )}
+                        </div>
+                        {deployId && <CopyDeployIdButton deployId={deployId} />}
+                    </div>
+                </ErrorMessage>
+            )}
             {unresolvedReason && (
                 <WarningMessage>
                     <div>{DEPLOY_UNRESOLVED_TITLE}</div>

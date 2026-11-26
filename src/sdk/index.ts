@@ -2,6 +2,7 @@ export {
     getDeployVerdictMessage,
     getWalletActionErrorMessage,
     isInvalidPasswordError,
+    isUnknownSubmissionOutcome,
     isWalletLockedError,
     toWalletActionError,
 } from "./errors";

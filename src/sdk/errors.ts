@@ -32,6 +32,9 @@ export interface IWalletActionError {
 const isWalletActionError = (error: unknown): error is IWalletActionError =>
     isPlainObject(error) && typeof error.message === "string";
 
+export const isUnknownSubmissionOutcome = (error: unknown): boolean =>
+    isWalletActionError(error) && !!error.unknownOutcomeDeployId;
+
 export const toWalletActionError = (error: unknown): IWalletActionError => ({
     message: getErrorMessage(error, ""),
     name: getErrorName(error),

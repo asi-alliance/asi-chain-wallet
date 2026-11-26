@@ -7,6 +7,7 @@ import {
     isIntegerInRange,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
 } from "@asichain/asi-wallet-sdk";
+import { isUnknownSubmissionOutcome } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -94,6 +95,7 @@ export interface IUseDeployContractResponse {
     submittedDeployId: string;
     submittedDeployStatus: string;
     unresolvedReason: string;
+    failedReason: string;
     pendingTerm: string;
     pendingFileName?: string;
     isProcessing: boolean;
@@ -274,9 +276,16 @@ export const useDeployContract = ({
             setSubmittedDeployId(deployId);
             emit({ type: DeployEventTypes.DEPLOY_SUBMITTED, deployId });
         },
-        onError: (message: string) => {
+        onError: (message: string, error?: unknown) => {
             confirmationSubmittedRef.current = false;
             setPendingRequest(null);
+
+            if (isUnknownSubmissionOutcome(error)) {
+                emit({ type: DeployEventTypes.DEPLOY_UNRESOLVED, message });
+
+                return;
+            }
+
             emit({ type: DeployEventTypes.DEPLOY_FAILED, message });
         },
         errorFallback: "Deploy failed",
@@ -412,6 +421,7 @@ export const useDeployContract = ({
         submittedDeployId,
         submittedDeployStatus: deployWatch?.status ?? "",
         unresolvedReason: deployWatch?.unresolvedReason ?? "",
+        failedReason: deployWatch?.failedReason ?? "",
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
         isProcessing: deployAction.isRunning || isExploring,
