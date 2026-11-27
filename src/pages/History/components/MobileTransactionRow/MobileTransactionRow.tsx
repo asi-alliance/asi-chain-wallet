@@ -124,7 +124,12 @@ export const MobileTransactionRow: FC<IMobileTransactionRowProps> = ({
                         "—"}
                 </AddressValue>
             </TableCell>
-            <TableCell>{formatTransactionAmount(transaction.amount)}</TableCell>
+            <TableCell>
+                {formatTransactionAmount(
+                    transaction.amount,
+                    transaction.nativeTokenDecimals,
+                )}
+            </TableCell>
             <TableCell>
                 <DeployIdValue title={transaction.deployId}>
                     {transaction.deployId || "—"}

@@ -1108,9 +1108,10 @@ const DeployProModeBoard: React.FC = () => {
         darkMode,
         activeFile,
         deployableFile,
-        phloLimit,
-        phloPrice,
         pendingTerm,
+        pendingPhloLimit,
+        pendingPhloPrice,
+        nativeTokenDecimals,
         pendingFileName,
         isProcessing,
         isDeployConfirmationOpen,
@@ -1622,8 +1623,9 @@ const DeployProModeBoard: React.FC = () => {
                 onClose={cancel}
                 onConfirm={confirmDeploy}
                 rholangCode={pendingTerm}
-                phloLimit={phloLimit}
-                phloPrice={phloPrice}
+                phloLimit={pendingPhloLimit}
+                phloPrice={pendingPhloPrice}
+                nativeTokenDecimals={nativeTokenDecimals}
                 accountName={account?.name || ""}
                 accountAddress={account?.address || ""}
                 fileName={pendingFileName}
@@ -1635,8 +1637,9 @@ const DeployProModeBoard: React.FC = () => {
                 onClose={cancel}
                 onConfirm={confirmExplore}
                 rholangCode={pendingTerm}
-                phloLimit={phloLimit}
-                phloPrice={phloPrice}
+                phloLimit={pendingPhloLimit}
+                phloPrice={pendingPhloPrice}
+                nativeTokenDecimals={nativeTokenDecimals}
                 accountName={account?.name || ""}
                 accountAddress={account?.address || ""}
                 fileName={pendingFileName}
