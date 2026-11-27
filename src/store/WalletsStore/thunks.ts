@@ -127,19 +127,6 @@ export interface IAccountUpdateNamePayload extends IAccountDefaultUpdateFieldsPa
     name: string;
 }
 
-export interface IAccountUpdateNameResponse {
-    account: IAccountMeta;
-    name: string;
-}
-
-export interface IAccountDefaultGetFieldsPayload {
-    accountId: string;
-}
-
-export interface IAccountGetBalanceResponse extends IAccountDefaultGetFieldsPayload {
-    balance: string;
-}
-
 export interface ITransferPayload {
     walletId: string;
     accountId: string;
@@ -646,9 +633,6 @@ export const bridgeLock = createAppAsyncThunk<
     ) => {
         const rchain = new RChainService(
             network.validatorUrl,
-            network.observerUrl,
-            undefined,
-            undefined,
             network.indexerUrl,
         );
 

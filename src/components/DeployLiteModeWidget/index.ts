@@ -1,1 +1,1 @@
-export { DeployLiteModeWidget, exampleContract } from "./DeployLiteModeWidget";
+export { DeployLiteModeWidget } from "./DeployLiteModeWidget";

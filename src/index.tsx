@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { SecureStorage } from "services/secureStorage";
+import { StorageProvider } from "services/storage";
 
 const root = ReactDOM.createRoot(
     document.getElementById("root") as HTMLElement,
@@ -18,12 +18,12 @@ const renderApp = () => {
     );
 };
 
-SecureStorage.init()
+StorageProvider.init()
     .then(() => {
         renderApp();
     })
     .catch((err) => {
-        console.error("[index] SecureStorage.init failed:", err);
+        console.error("[index] StorageProvider.init failed:", err);
         renderApp();
     });
 

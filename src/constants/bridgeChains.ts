@@ -146,14 +146,6 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
     },
 ];
 
-export const SOURCE_CHAIN_KEYS: BridgeChainKey[] = [
-    "asi",
-    "sepolia",
-    "baseSepolia",
-    "fetchhubDorado",
-    "cardanoPreprod",
-];
-
 export const DESTINATION_CHAIN_KEYS: BridgeChainKey[] = [
     "asi",
     "sepolia",

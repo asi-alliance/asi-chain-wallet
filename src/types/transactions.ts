@@ -12,8 +12,3 @@ export interface Transaction {
     blockNumber?: number;
     error?: string;
 }
-
-export interface IPagination {
-    limit?: number;
-    offset?: number;
-}

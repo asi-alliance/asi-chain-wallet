@@ -8,4 +8,3 @@ export const TOKEN_CONFIG = {
 
 export const getTokenDisplayName = (): string => TOKEN_CONFIG.SYMBOL;
 export const getAddressLabel = (): string => `${TOKEN_CONFIG.ADDRESS_PREFIX} Address`;
-export const getTokenTechnicalName = (): string => TOKEN_CONFIG.TECHNICAL_NAME;

@@ -231,7 +231,7 @@ module.exports = function override(config, env) {
           enforce: true
         },
         crypto: {
-          test: /[\\/]node_modules[\\/](crypto-js|elliptic|ethereumjs-util|blakejs|blake2b|js-sha3)[\\/]/,
+          test: /[\\/]node_modules[\\/](crypto-js|elliptic|blakejs|blake2b|js-sha3)[\\/]/,
           name: 'crypto',
           priority: 20,
           enforce: true

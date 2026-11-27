@@ -24,14 +24,6 @@ export class StorageProvider {
     return this.adapter;
   }
 
-  static getStatus(): StorageStatus {
-    return this.status;
-  }
-
-  static isAvailable(): boolean {
-    return this.status === StorageStatus.Available;
-  }
-
   private static async performInit(): Promise<void> {
     const availability = await checkIndexedDBAvailability();
 
@@ -53,11 +45,5 @@ export class StorageProvider {
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[StorageProvider] ${STORAGE_NOT_SUPPORTED_MESSAGE}: ${message}`);
     }
-  }
-
-  static resetForTesting(): void {
-    this.adapter = null;
-    this.status = StorageStatus.Pending;
-    this.initPromise = null;
   }
 }

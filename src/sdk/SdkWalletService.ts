@@ -247,10 +247,6 @@ export class SdkWalletService {
         return SdkWalletService.mapWallet(wallet);
     }
 
-    public getActiveSession(): IUnlockedWalletMeta | null {
-        return this.getUnlockedWallets()[0] ?? null;
-    }
-
     public closeSession(): void {
         this.lockAll();
     }
@@ -310,15 +306,6 @@ export class SdkWalletService {
         }
 
         return SdkWalletService.toClosedWalletMeta(publicWalletMeta);
-    }
-
-    public getUnlockedWallets(): IUnlockedWalletMeta[] {
-        return (
-            this.client
-                ?.getWalletManager()
-                .getAll()
-                .map(SdkWalletService.mapWallet) ?? []
-        );
     }
 
     public getCustomNetworks(): TCustomNetwork[] {

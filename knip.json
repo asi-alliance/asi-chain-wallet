@@ -1,0 +1,34 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "entry": [
+        "src/index.tsx",
+        "src/setupTests.ts",
+        "src/__mocks__/**",
+        "config-overrides.js",
+        "public/service-worker.js",
+        "public/walletconnect-error-handler.js",
+        "tests-automation/**/*.js"
+    ],
+    "project": ["src/**/*.{ts,tsx}", "public/*.js"],
+    "webdriver-io": {
+        "config": ["tests-automation/wdio.*.conf.js"]
+    },
+    "ignoreExportsUsedInFile": true,
+    "ignoreDependencies": [
+        "ajv",
+        "assert",
+        "buffer",
+        "webpack",
+        "@testing-library/react",
+        "@testing-library/user-event",
+        "@wdio/visual-service",
+        "chromedriver",
+        "selenium-webdriver",
+        "glob"
+    ],
+    "ignoreBinaries": ["eslint"],
+    "ignoreIssues": {
+        "src/components/BridgeWalletSelector/**": ["exports", "types"],
+        "src/utils/cardanoTx.ts": ["exports", "types"]
+    }
+}

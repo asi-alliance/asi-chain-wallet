@@ -233,16 +233,6 @@ export const getNetworkFormFieldErrors = (
     return fieldErrors;
 };
 
-export const validateNetworkFormValues = (
-    values: INetworkFormValues,
-    reservedNames: string[],
-): string | null => {
-    const fieldErrors = getNetworkFormFieldErrors(values, reservedNames);
-    const firstError = Object.values(fieldErrors).find(Boolean);
-
-    return firstError ?? null;
-};
-
 const openLink = (url: string): void => {
     if (!validateUrl(url).isValid) {
         return;

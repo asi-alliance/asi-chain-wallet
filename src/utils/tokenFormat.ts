@@ -31,17 +31,3 @@ export const formatToken = (
 
     return `${sign}${whole}.${shownFrac.padEnd(displayDecimals, "0")}`;
 };
-
-export const formatTokenAmount = (
-    value: string | number | bigint,
-    decimals = ASI_DECIMALS,
-): string => {
-    try {
-        return formatToken(
-            BigInt(typeof value === "string" ? value.trim() : value),
-            decimals,
-        );
-    } catch {
-        return String(value);
-    }
-};

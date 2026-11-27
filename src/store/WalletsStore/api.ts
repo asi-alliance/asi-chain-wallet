@@ -162,6 +162,5 @@ export const walletsApi = createApi({
 
 export const {
     useGetBalanceQuery,
-    useLazyGetBalanceQuery,
     useGetTransactionHistoryQuery,
 } = walletsApi;

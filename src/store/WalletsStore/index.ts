@@ -365,15 +365,6 @@ export const selectIsAnyAccountBalanceFetching = (
             })(state).isLoading,
     );
 };
-
-export const selectUnlockedWallets = createSelector(
-    [selectWallets],
-    (wallets: IWalletMeta[]): IUnlockedWalletMeta[] =>
-        wallets.filter(
-            (walletMeta: IWalletMeta): walletMeta is IUnlockedWalletMeta =>
-                walletMeta.isUnlocked,
-        ),
-);
 export const selectHasWallets = (state: RootState) =>
     state.walletsStore.wallets.length > 0;
 export const selectWalletsInitialLoadComplete = (state: RootState) =>
