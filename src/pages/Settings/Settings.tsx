@@ -242,4 +242,3 @@ export const Settings = (): ReactElement => {
     );
 };
 
-export default Settings;

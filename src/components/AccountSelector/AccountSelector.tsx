@@ -35,7 +35,7 @@ interface IAccountSelectorProps extends TSelectAdditionalProps {
 export const AccountSelector = ({
     fullWidth = false,
     wrapperStyle,
-    labelMode,
+    labelMode = AccountSelectorLabelMods.COMMON,
     label = "Account",
     ...selectProps
 }: IAccountSelectorProps): ReactElement => {

@@ -1,6 +1,5 @@
 import React from "react";
 import styled from "styled-components";
-import { ignorePropsForDOMElement } from "utils/styledComponentsUtils";
 
 export const PageContent = styled.div`
     width: 100%;
@@ -29,78 +28,6 @@ export const FormActions = styled.div`
     @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
         flex-direction: column;
     }
-`;
-
-export const LayoutGrid = styled.div`
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: ${({ theme }) => theme.layout.gutterDesktop};
-
-    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: ${({ theme }) => theme.layout.gutterMobile};
-    }
-`;
-
-export interface GridItemProps extends React.HTMLAttributes<HTMLDivElement> {
-    desktopSpan?: number;
-    desktopStart?: number;
-    mobileSpan?: number;
-    mobileStart?: number;
-}
-
-export const GridItem = styled.div.withConfig(
-    ignorePropsForDOMElement<GridItemProps>([
-        "desktopSpan",
-        "desktopStart",
-        "mobileSpan",
-        "mobileStart",
-    ]),
-)<GridItemProps>`
-    min-width: 0;
-    grid-column: ${({ desktopStart = 1, desktopSpan = 12 }) =>
-        `${desktopStart} / span ${desktopSpan}`};
-
-    @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-        grid-column: ${({ mobileStart = 1, mobileSpan = 5 }) =>
-            `${mobileStart} / span ${mobileSpan}`};
-    }
-`;
-
-export interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
-    gap?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
-    align?: React.CSSProperties["alignItems"];
-}
-
-export const Stack = styled.div.withConfig(
-    ignorePropsForDOMElement<StackProps>(["gap", "align"]),
-)<StackProps>`
-    display: flex;
-    flex-direction: column;
-    align-items: ${({ align }) => align ?? "stretch"};
-    gap: ${({ gap = "xl", theme }) => theme.spacing[gap]};
-`;
-
-export interface InlineProps extends React.HTMLAttributes<HTMLDivElement> {
-    gap?: "sm" | "md" | "lg" | "xl" | "2xl";
-    align?: React.CSSProperties["alignItems"];
-    justify?: React.CSSProperties["justifyContent"];
-    wrap?: boolean;
-}
-
-export const Inline = styled.div.withConfig(
-    ignorePropsForDOMElement<InlineProps>([
-        "gap",
-        "align",
-        "justify",
-        "wrap",
-    ]),
-)<InlineProps>`
-    display: flex;
-    align-items: ${({ align }) => align ?? "center"};
-    justify-content: ${({ justify }) => justify ?? "flex-start"};
-    flex-wrap: ${({ wrap }) => (wrap ? "wrap" : "nowrap")};
-    gap: ${({ gap = "xl", theme }) => theme.spacing[gap]};
 `;
 
 export const VisuallyHidden = styled.span`
