@@ -109,6 +109,14 @@ const ErrorMessage = styled.div`
     border: 1px solid ${({ theme }) => `${theme.danger}40`};
     border-radius: ${({ theme }) => theme.radii.md};
     margin-bottom: 16px;
+    overflow-wrap: anywhere;
+
+    .deploy-id {
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0.8;
+        line-height: 1.4;
+    }
 `;
 
 const WarningMessage = styled.div`
@@ -191,6 +199,7 @@ interface IDeployLiteModeContextValue extends IUseDeployContractResponse {
     code: string;
     setCode: (value: string) => void;
     error: string;
+    errorDeployId: string;
     unresolvedReason: string;
     exploreResult: unknown;
     deployId: string;
@@ -231,6 +240,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 }) => {
     const [code, setCode] = useState(exampleContract);
     const [error, setError] = useState("");
+    const [errorDeployId, setErrorDeployId] = useState("");
     const [unresolvedReason, setUnresolvedReason] = useState("");
     const [exploreResult, setExploreResult] = useState<unknown>(null);
     const [deployId, setDeployId] = useState("");
@@ -238,6 +248,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 
     const resetOutput = (): void => {
         setError("");
+        setErrorDeployId("");
         setUnresolvedReason("");
         setExploreResult(null);
         setDeployId("");
@@ -269,8 +280,13 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
 
                 return;
             case DeployEventTypes.DEPLOY_FAILED:
+                setError(event.message);
+                setErrorDeployId(event.deployId ?? "");
+
+                return;
             case DeployEventTypes.EXPLORE_FAILED:
                 setError(event.message);
+                setErrorDeployId("");
         }
     };
 
@@ -301,6 +317,7 @@ const DeployLiteModeWidgetRoot: React.FC<IDeployLiteModeWidgetProps> = ({
         code,
         setCode,
         error,
+        errorDeployId,
         unresolvedReason,
         exploreResult,
         deployId,
@@ -365,6 +382,7 @@ const DeployLiteModeBoard: React.FC = () => {
         code,
         setCode,
         error,
+        errorDeployId,
         unresolvedReason,
         exploreResult,
         deployId,
@@ -391,7 +409,31 @@ const DeployLiteModeBoard: React.FC = () => {
 
     return (
         <>
-            {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
+            {error && (
+                <ErrorMessage role="alert">
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 12,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ flex: "1", minWidth: "200px" }}>
+                            <div>{error}</div>
+                            {errorDeployId && (
+                                <div className="deploy-id">
+                                    Deploy ID: {errorDeployId}
+                                </div>
+                            )}
+                        </div>
+                        {errorDeployId && (
+                            <CopyDeployIdButton deployId={errorDeployId} />
+                        )}
+                    </div>
+                </ErrorMessage>
+            )}
             {unresolvedReason && (
                 <WarningMessage>
                     <div>{DEPLOY_UNRESOLVED_TITLE}</div>

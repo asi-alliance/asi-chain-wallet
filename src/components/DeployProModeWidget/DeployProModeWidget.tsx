@@ -372,7 +372,55 @@ const ContextMenuItem = styled.button`
     }
 `;
 
-const DeployStatusPanel = styled.div<{ $tone: "info" | "success" | "warning" }>`
+type TDeployStatusPanelTone = "info" | "success" | "warning";
+
+interface IDeployStatusPanel {
+    tone: TDeployStatusPanelTone;
+    title: string;
+    reason: string;
+}
+
+interface IDeployStatusPanelInput {
+    failedReason: string;
+    unresolvedReason: string;
+    isDeployConfirmed: boolean;
+    isWaitingForConfirmation: boolean;
+}
+
+const getDeployStatusPanel = ({
+    failedReason,
+    unresolvedReason,
+    isDeployConfirmed,
+    isWaitingForConfirmation,
+}: IDeployStatusPanelInput): IDeployStatusPanel => {
+    if (failedReason) {
+        return {
+            tone: "warning",
+            title: "Deploy not completed",
+            reason: failedReason,
+        };
+    }
+
+    if (unresolvedReason) {
+        return {
+            tone: "warning",
+            title: "Deploy status unknown",
+            reason: unresolvedReason,
+        };
+    }
+
+    if (isDeployConfirmed) {
+        return { tone: "success", title: "Deploy finalized", reason: "" };
+    }
+
+    return {
+        tone: "info",
+        title: isWaitingForConfirmation ? "Deploy pending" : "Deploy sent",
+        reason: "",
+    };
+};
+
+const DeployStatusPanel = styled.div<{ $tone: TDeployStatusPanelTone }>`
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1043,6 +1091,7 @@ const DeployProModeBoard: React.FC = () => {
         submittedDeployId,
         submittedDeployStatus,
         unresolvedReason,
+        failedReason,
         isWaitingForConfirmation,
         isDeployConfirmed,
         items,
@@ -1089,6 +1138,13 @@ const DeployProModeBoard: React.FC = () => {
         clearConsole,
         toggleFolder,
     } = useDeployProMode();
+
+    const deployStatusPanel: IDeployStatusPanel = getDeployStatusPanel({
+        failedReason,
+        unresolvedReason,
+        isDeployConfirmed,
+        isWaitingForConfirmation,
+    });
 
     const contextMenuRef = useRef<HTMLDivElement>(null);
     const contextMenuOpenerRef = useRef<HTMLElement | null>(null);
@@ -1439,12 +1495,14 @@ const DeployProModeBoard: React.FC = () => {
             {submittedDeployId && (
                 <DeployStatusPanel
                     role="status"
-                    $tone={unresolvedReason ? "warning" : isDeployConfirmed ? "success" : "info"}
+                    $tone={deployStatusPanel.tone}
                 >
                     <div>
-                        <strong>{unresolvedReason ? "Deploy status unknown" : isDeployConfirmed ? "Deploy finalized" : isWaitingForConfirmation ? "Deploy pending" : "Deploy sent"}</strong>
+                        <strong>{deployStatusPanel.title}</strong>
                         {submittedDeployStatus && <span> · {submittedDeployStatus}</span>}
-                        {unresolvedReason && <div>{unresolvedReason}</div>}
+                        {deployStatusPanel.reason && (
+                            <div>{deployStatusPanel.reason}</div>
+                        )}
                         <code>Deploy ID: {submittedDeployId}</code>
                     </div>
                     <Button

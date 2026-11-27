@@ -1,5 +1,6 @@
 import {
     deployStatusChanged,
+    deployWatchFailed,
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
     selectIsNetworkSettingsLocked,
@@ -23,6 +24,7 @@ import {
     DeployStatus,
     IDeployStatusResult,
     IDeployWatchCallbacks,
+    IReservedOperationResult,
     INetworkConfig,
     INetworkUpdate,
     NetworkId,
@@ -32,7 +34,12 @@ import {
     IKeyfileImportPreview,
     IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
+import {
+    getDeployVerdictMessage,
+    IWalletActionError,
+    SdkWalletService,
+    toWalletActionError,
+} from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
@@ -83,11 +90,15 @@ const buildDeployWatchCallbacks = ({
         invalidateAccountData();
     },
     onError: (error: Error) => {
+        const verdict: string | undefined = getDeployVerdictMessage(error);
+
         dispatch(
-            deployWatchUnresolved({
-                deployId,
-                reason: getErrorMessage(error, fallbackUnresolvedMessage),
-            }),
+            verdict
+                ? deployWatchFailed({ deployId, reason: verdict })
+                : deployWatchUnresolved({
+                      deployId,
+                      reason: getErrorMessage(error, fallbackUnresolvedMessage),
+                  }),
         );
         invalidateAccountData();
     },
@@ -505,12 +516,13 @@ export const removeCustomNetwork = createAppAsyncThunk<
 
 export const sendTransaction = createAppAsyncThunk<
     { deployId: string },
-    ITransferPayload
+    ITransferPayload,
+    { rejectValue: IWalletActionError }
 >(
     "wallets-store/sendTransaction",
     async (
         { walletId, accountId, to, amount, password }: ITransferPayload,
-        { getState, dispatch, extra: { walletService } },
+        { getState, dispatch, rejectWithValue, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
             throw new Error("Sending to Ethereum addresses is not supported");
@@ -528,15 +540,23 @@ export const sendTransaction = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.transfer(
-            {
-                walletId,
-                accountId,
-                to,
-                amount,
-            },
-            password,
-        );
+        let submission: IReservedOperationResult;
+
+        try {
+            submission = await walletService.transfer(
+                {
+                    walletId,
+                    accountId,
+                    to,
+                    amount,
+                },
+                password,
+            );
+        } catch (error) {
+            return rejectWithValue(toWalletActionError(error));
+        }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(
@@ -573,7 +593,8 @@ export interface IDeployContractPayload {
 
 export const deployContract = createAppAsyncThunk<
     { deployId: string },
-    IDeployContractPayload
+    IDeployContractPayload,
+    { rejectValue: IWalletActionError }
 >(
     "wallets-store/deployContract",
     async (
@@ -584,7 +605,7 @@ export const deployContract = createAppAsyncThunk<
             phloLimit,
             password,
         }: IDeployContractPayload,
-        { getState, dispatch, extra: { walletService } },
+        { getState, dispatch, rejectWithValue, extra: { walletService } },
     ) => {
         const deployerAccount: IUnlockedAccountMeta | null =
             getUnlockedAccountFromWalletsMeta(
@@ -598,10 +619,18 @@ export const deployContract = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        let submission: IReservedOperationResult;
+
+        try {
+            submission = await walletService.deploy(
+                { walletId, accountId, term, phloLimit },
+                password,
+            );
+        } catch (error) {
+            return rejectWithValue(toWalletActionError(error));
+        }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(

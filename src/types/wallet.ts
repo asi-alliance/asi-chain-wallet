@@ -50,6 +50,7 @@ export type TCustomNetwork = Omit<Network, "isDefault"> & {
 export interface IDeployWatchState {
     status: DeployStatus;
     unresolvedReason?: string;
+    failedReason?: string;
 }
 
 export interface WalletStoreState {

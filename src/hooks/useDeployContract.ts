@@ -7,6 +7,7 @@ import {
     isIntegerInRange,
     DEFAULT_PHLO_PRICE,
 } from "@asichain/asi-wallet-sdk";
+import { isUnknownSubmissionOutcome } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
 import {
@@ -59,7 +60,11 @@ export type TDeployEvent =
     | { type: DeployEventTypes.DEPLOY_SUBMITTED; deployId: string }
     | { type: DeployEventTypes.DEPLOY_STATUS; status: DeployStatus }
     | { type: DeployEventTypes.DEPLOY_CONFIRMED }
-    | { type: DeployEventTypes.DEPLOY_FAILED; message: string }
+    | {
+          type: DeployEventTypes.DEPLOY_FAILED;
+          message: string;
+          deployId?: string;
+      }
     | { type: DeployEventTypes.DEPLOY_UNRESOLVED; message: string }
     | { type: DeployEventTypes.EXPLORE_STARTED; fileName?: string }
     | { type: DeployEventTypes.EXPLORE_COMPLETED; result: unknown }
@@ -109,6 +114,7 @@ export interface IUseDeployContractResponse {
     submittedDeployId: string;
     submittedDeployStatus: string;
     unresolvedReason: string;
+    failedReason: string;
     pendingTerm: string;
     pendingFileName?: string;
     isProcessing: boolean;
@@ -183,7 +189,10 @@ export const useDeployContract = ({
 
     const isDeployConfirmed = deployWatch?.status === DeployStatus.FINALIZED;
     const isWaitingForConfirmation =
-        !!deployWatch && !isDeployConfirmed && !deployWatch.unresolvedReason;
+        !!deployWatch &&
+        !isDeployConfirmed &&
+        !deployWatch.unresolvedReason &&
+        !deployWatch.failedReason;
 
     const onEventRef = useRef(onEvent);
 
@@ -197,6 +206,16 @@ export const useDeployContract = ({
 
     useEffect(() => {
         if (!deployWatch) {
+            return;
+        }
+
+        if (deployWatch.failedReason) {
+            emit({
+                type: DeployEventTypes.DEPLOY_FAILED,
+                message: deployWatch.failedReason,
+                deployId: submittedDeployId,
+            });
+
             return;
         }
 
@@ -289,9 +308,16 @@ export const useDeployContract = ({
             setSubmittedDeployId(deployId);
             emit({ type: DeployEventTypes.DEPLOY_SUBMITTED, deployId });
         },
-        onError: (message: string) => {
+        onError: (message: string, error?: unknown) => {
             confirmationSubmittedRef.current = false;
             setPendingRequest(null);
+
+            if (isUnknownSubmissionOutcome(error)) {
+                emit({ type: DeployEventTypes.DEPLOY_UNRESOLVED, message });
+
+                return;
+            }
+
             emit({ type: DeployEventTypes.DEPLOY_FAILED, message });
         },
         errorFallback: "Deploy failed",
@@ -446,6 +472,7 @@ export const useDeployContract = ({
         submittedDeployId,
         submittedDeployStatus: deployWatch?.status ?? "",
         unresolvedReason: deployWatch?.unresolvedReason ?? "",
+        failedReason: deployWatch?.failedReason ?? "",
         pendingTerm: pendingRequest?.term ?? "",
         pendingFileName: pendingRequest?.fileName,
         isProcessing: deployAction.isRunning || isExploring,

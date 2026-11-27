@@ -87,6 +87,56 @@ const validateRecipientAddress = (
     return "";
 };
 
+type TTransferStatusTone = "pending" | "success" | "warning";
+
+interface ITransferStatus {
+    tone: TTransferStatusTone;
+    title: string;
+    text: string;
+}
+
+interface ITransferStatusInput {
+    isConfirmed: boolean;
+    failedReason: string;
+    unresolvedReason: string;
+}
+
+const getTransferStatus = ({
+    isConfirmed,
+    failedReason,
+    unresolvedReason,
+}: ITransferStatusInput): ITransferStatus => {
+    if (isConfirmed) {
+        return {
+            tone: "success",
+            title: "Transaction completed",
+            text: "The transfer was finalized on chain. Balance and transaction history are being refreshed.",
+        };
+    }
+
+    if (failedReason) {
+        return {
+            tone: "warning",
+            title: "Transaction not completed",
+            text: failedReason,
+        };
+    }
+
+    if (unresolvedReason) {
+        return {
+            tone: "warning",
+            title: "Confirmation unavailable",
+            text: TRANSACTION_UNRESOLVED_TITLE,
+        };
+    }
+
+    return {
+        tone: "pending",
+        title: "Transaction pending",
+        text: "The transfer was submitted and is waiting for on-chain finalization.",
+    };
+};
+
 interface ITransferDetails {
     walletId: string;
     accountId: string;
@@ -168,6 +218,7 @@ const FormError = styled.div`
     color: ${({ theme }) => theme.dangerText};
     font-size: ${({ theme }) => theme.typography.size.sm};
     line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    overflow-wrap: anywhere;
 `;
 
 const Actions = styled.div`
@@ -190,7 +241,7 @@ const Actions = styled.div`
 `;
 
 const StatusBanner = styled.section<{
-    $tone: "pending" | "success" | "warning";
+    $tone: TTransferStatusTone;
 }>`
     margin-bottom: ${({ theme }) => theme.spacing.xl};
     padding: ${({ theme }) => theme.spacing.lg};
@@ -313,8 +364,12 @@ export const Send: React.FC = () => {
     const isTransactionConfirmed =
         deployWatch?.status === DeployStatus.FINALIZED;
     const unresolvedReason = deployWatch?.unresolvedReason ?? "";
+    const failedReason = deployWatch?.failedReason ?? "";
     const isWaitingForConfirmation =
-        !!txHash && !isTransactionConfirmed && !unresolvedReason;
+        !!txHash &&
+        !isTransactionConfirmed &&
+        !unresolvedReason &&
+        !failedReason;
     const walletId = selectedWallet?.id;
     const txHashClipboard = useCopyToClipboard(1500);
     const txHashCopyStatus =
@@ -735,16 +790,11 @@ export const Send: React.FC = () => {
     };
 
 
-    const statusTone = isTransactionConfirmed
-        ? "success"
-        : unresolvedReason
-          ? "warning"
-          : "pending";
-    const statusTitle = isTransactionConfirmed
-        ? "Transaction completed"
-        : unresolvedReason
-          ? "Confirmation unavailable"
-          : "Transaction pending";
+    const transferStatus: ITransferStatus = getTransferStatus({
+        isConfirmed: isTransactionConfirmed,
+        failedReason,
+        unresolvedReason,
+    });
 
     return (
         <SendContainer>
@@ -755,18 +805,18 @@ export const Send: React.FC = () => {
                 <CardContent>
                     {txHash && (
                         <StatusBanner
-                            $tone={statusTone}
-                            role={unresolvedReason ? "alert" : "status"}
+                            $tone={transferStatus.tone}
+                            role={
+                                transferStatus.tone === "warning"
+                                    ? "alert"
+                                    : "status"
+                            }
                             aria-live="polite"
                         >
-                            <StatusHeading>{statusTitle}</StatusHeading>
-                            <StatusText>
-                                {isTransactionConfirmed
-                                    ? "The transfer was finalized on chain. Balance and transaction history are being refreshed."
-                                    : unresolvedReason
-                                      ? TRANSACTION_UNRESOLVED_TITLE
-                                      : "The transfer was submitted and is waiting for on-chain finalization."}
-                            </StatusText>
+                            <StatusHeading>
+                                {transferStatus.title}
+                            </StatusHeading>
+                            <StatusText>{transferStatus.text}</StatusText>
                             <HashValue>Deploy ID: {txHash}</HashValue>
                             {unresolvedReason && (
                                 <StatusText>{unresolvedReason}</StatusText>
