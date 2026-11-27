@@ -6,7 +6,11 @@ import {
 } from "./types";
 
 const DB_NAME = "asi_wallet_db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
+
+// TODO(next-major): Remove together with the deleteObjectStore call in
+// createStores once no stored profile is older than database version 4.
+const LEGACY_SESSIONS_STORE = "sessions";
 
 function toError(
     domError: DOMException | null,
@@ -39,9 +43,7 @@ function openDatabase(): Promise<IDBDatabase> {
         const request: IDBOpenDBRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
-            const db = (event.target as IDBOpenDBRequest).result;
-            const tx = (event.target as IDBOpenDBRequest).transaction;
-            createStores(db, event.oldVersion, tx);
+            createStores((event.target as IDBOpenDBRequest).result);
         };
 
         request.onsuccess = () => resolve(request.result);
@@ -50,11 +52,7 @@ function openDatabase(): Promise<IDBDatabase> {
     });
 }
 
-function createStores(
-    db: IDBDatabase,
-    oldVersion: number,
-    tx: IDBTransaction | null,
-): void {
+function createStores(db: IDBDatabase): void {
     if (!db.objectStoreNames.contains(StoreName.Accounts)) {
         const accountStore = db.createObjectStore(StoreName.Accounts, {
             keyPath: "id",
@@ -70,21 +68,10 @@ function createStores(
         db.createObjectStore(StoreName.General, { keyPath: "key" });
     }
 
-    if (!db.objectStoreNames.contains(StoreName.Sessions)) {
-        const sessionStore = db.createObjectStore(StoreName.Sessions, {
-            keyPath: "token",
-        });
-        sessionStore.createIndex("updatedAt", "updatedAt", { unique: false });
-    } else if (oldVersion < 3 && tx) {
-        const sessionStore = tx.objectStore(StoreName.Sessions);
-        if (sessionStore.indexNames.contains("createdAt")) {
-            sessionStore.deleteIndex("createdAt");
-        }
-        if (!sessionStore.indexNames.contains("updatedAt")) {
-            sessionStore.createIndex("updatedAt", "updatedAt", {
-                unique: false,
-            });
-        }
+    // TODO(next-major): Remove together with LEGACY_SESSIONS_STORE. Profiles
+    // written before the SDK migration still keep auth session records here.
+    if (db.objectStoreNames.contains(LEGACY_SESSIONS_STORE)) {
+        db.deleteObjectStore(LEGACY_SESSIONS_STORE);
     }
 }
 

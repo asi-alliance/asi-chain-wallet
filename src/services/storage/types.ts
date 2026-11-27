@@ -2,7 +2,6 @@ export enum StoreName {
   Accounts = 'accounts',
   Settings = 'settings',
   General = 'general',
-  Sessions = 'sessions',
 }
 
 export enum TransactionMode {
