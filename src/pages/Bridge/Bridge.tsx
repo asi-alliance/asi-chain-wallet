@@ -39,6 +39,7 @@ import { useCopyToClipboard, useWalletSessionAction } from "hooks";
 import {
     selectActiveWallet,
     selectSelectedAccount,
+    selectSelectedNetworkNativeTokenDecimals,
     selectSelectedNetworkRevision,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
@@ -77,6 +78,8 @@ const NETWORK_CHANGED_ERROR =
     "Network changed while the lock was awaiting confirmation. Check the details and try again.";
 
 const LOCK_DETAILS_MISSING_ERROR = "Lock details are missing. Please retry.";
+
+const UNSUPPORTED_NETWORK_DECIMALS_ERROR = `Bridge supports only networks with ${ASI_DECIMALS}-decimal native tokens. Switch the network to lock tokens.`;
 
 const EVM_EXPLORER_URLS: Partial<Record<BridgeChainKey, string>> = {
     sepolia: sepolia.blockExplorers.default.url,
@@ -340,6 +343,8 @@ export const Bridge: React.FC = () => {
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
     const networkRevision = useSelector(selectSelectedNetworkRevision);
+    const isNetworkDecimalsSupported =
+        useSelector(selectSelectedNetworkNativeTokenDecimals) === ASI_DECIMALS;
 
     const cardano = useCardanoWallet();
 
@@ -490,7 +495,7 @@ export const Bridge: React.FC = () => {
           : txHash;
 
     const getAmountError = (): string => {
-        if (!isBalanceReady) {
+        if (!isBalanceReady || !isNetworkDecimalsSupported) {
             return "";
         }
 
@@ -512,8 +517,12 @@ export const Bridge: React.FC = () => {
     const balanceLoadingStatus =
         !isBalanceReady && !isBalanceError ? BALANCE_LOADING_ERROR : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
+    const networkDecimalsError = isNetworkDecimalsSupported
+        ? ""
+        : UNSUPPORTED_NETWORK_DECIMALS_ERROR;
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
+        networkDecimalsError ||
         balanceError ||
         "";
 
@@ -741,9 +750,11 @@ export const Bridge: React.FC = () => {
     const isAmountValid =
         amount.trim() !== "" && atomicAmount > BigInt(0) && !amountError;
 
+    const isAmountInputDisabled = !isBalanceReady || !isNetworkDecimalsSupported;
+
     const lockDisabled =
         busy ||
-        !isBalanceReady ||
+        isAmountInputDisabled ||
         isBalanceFetching ||
         !sourceAccountLoaded ||
         !destinationAccountLoaded ||
@@ -878,7 +889,7 @@ export const Bridge: React.FC = () => {
                             placeholder="Enter Amount"
                             step="0.00000001"
                             min="0"
-                            disabled={!isBalanceReady}
+                            disabled={isAmountInputDisabled}
                             error={amountError || undefined}
                             helperText={`8 decimal places (1 ${assetSymbol} = 1.00000000)`}
                             copyable
@@ -889,7 +900,7 @@ export const Bridge: React.FC = () => {
                             id="bridge-max-amount-button"
                             variant="secondary"
                             onClick={maxAmount}
-                            disabled={!isBalanceReady}
+                            disabled={isAmountInputDisabled}
                             aria-label={`Use maximum available ${assetSymbol} amount`}
                         >
                             Max
