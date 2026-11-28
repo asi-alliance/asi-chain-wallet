@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { skipToken } from "@reduxjs/toolkit/query/react";
-import {
-    DeployStatus,
-    getErrorMessage,
-    isIntegerInRange,
-    DEFAULT_PHLO_PRICE,
-} from "@asichain/asi-wallet-sdk";
+import { DeployStatus, getErrorMessage, isIntegerInRange } from "@asichain/asi-wallet-sdk";
 import { isUnknownSubmissionOutcome } from "sdk";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -40,6 +35,8 @@ import {
 
 const NETWORK_CHANGED_ERROR =
     "Network changed while the deploy was awaiting confirmation. Check the details and deploy again.";
+const DEPLOY_SETTINGS_CHANGED_ERROR =
+    "Deploy settings changed. Review the current network and Phlo Price.";
 const MIN_PHLO_LIMIT = 1;
 const MAX_PHLO_LIMIT = Number.MAX_SAFE_INTEGER;
 
@@ -80,12 +77,12 @@ interface IPendingDeployRequest {
     term: string;
     fileName?: string;
     phloLimit: number;
+    phloPrice: string;
     nativeTokenDecimals: number;
     networkRevision: string;
     walletId: string;
     account: IUnlockedAccountMeta;
     networkName: string;
-    phloPrice: string;
 }
 
 interface IPendingExploreRequest {
@@ -286,6 +283,10 @@ export const useDeployContract = ({
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
+            if (pendingRequest.phloPrice !== phloPrice) {
+                throw new Error(DEPLOY_SETTINGS_CHANGED_ERROR);
+            }
+
             clearDeployWatch();
             emit({
                 type: DeployEventTypes.DEPLOY_STARTED,
@@ -298,6 +299,7 @@ export const useDeployContract = ({
                     accountId: pendingRequest.account.id,
                     term: pendingRequest.term,
                     phloLimit: pendingRequest.phloLimit,
+                    phloPrice: pendingRequest.phloPrice,
                     password,
                 }),
             ).unwrap();
@@ -365,7 +367,7 @@ export const useDeployContract = ({
 
         const minGasCost = getDeployCostAtomic(phloLimitValue, phloPrice);
 
-        if (minGasCost === null || phloPrice !== String(DEFAULT_PHLO_PRICE)) {
+        if (minGasCost === null || minGasCost <= 0n) {
             emit({
                 type: DeployEventTypes.DEPLOY_FAILED,
                 message: "Deploy aborted: invalid phlo price",

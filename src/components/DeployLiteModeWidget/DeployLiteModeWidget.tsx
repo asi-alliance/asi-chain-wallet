@@ -390,6 +390,7 @@ const DeployLiteModeBoard: React.FC = () => {
         pendingTerm,
         pendingPhloLimit,
         pendingPhloPrice,
+        phloPrice,
         nativeTokenDecimals,
         isProcessing,
         isWaitingForConfirmation,
@@ -526,7 +527,7 @@ const DeployLiteModeBoard: React.FC = () => {
                             !code.trim() ||
                             !account ||
                             !isBalanceReady ||
-                            !isPhloLimitValid
+                            !isPhloLimitValid || !phloPrice
                         }
                     >
                         <h3>Deploy</h3>

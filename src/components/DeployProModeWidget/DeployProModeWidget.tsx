@@ -1111,6 +1111,7 @@ const DeployProModeBoard: React.FC = () => {
         pendingTerm,
         pendingPhloLimit,
         pendingPhloPrice,
+        phloPrice,
         nativeTokenDecimals,
         pendingFileName,
         isProcessing,
@@ -1465,7 +1466,7 @@ const DeployProModeBoard: React.FC = () => {
                             !deployableFile ||
                             !account ||
                             !isBalanceReady ||
-                            !isPhloLimitValid
+                            !isPhloLimitValid || !phloPrice
                         }
                     >
                         <h3>Deploy</h3>
