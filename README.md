@@ -20,22 +20,23 @@ Part of the [**Artificial Superintelligence Alliance**](https://superintelligenc
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Wallets and Accounts](#wallets-and-accounts)
-4. [Wallet Session and Auto-Lock](#wallet-session-and-auto-lock)
-5. [Bridge](#bridge)
-6. [Built on the ASI Wallet SDK](#built-on-the-asi-wallet-sdk)
-7. [Known Limitations](#known-limitations)
-8. [Quick Start](#quick-start)
-9. [Architecture Overview](#architecture-overview)
-10. [Security Model](#security-model)
-11. [Project Structure](#project-structure)
-12. [Commands](#commands)
-13. [E2E Testing](#e2e-testing)
-14. [Documentation](#documentation)
-15. [Contributing](#contributing)
-16. [Quick Troubleshooting](#quick-troubleshooting)
-17. [License](#license)
+2. [Branches and Testnet Image](#branches-and-testnet-image)
+3. [Key Features](#key-features)
+4. [Wallets and Accounts](#wallets-and-accounts)
+5. [Wallet Session and Auto-Lock](#wallet-session-and-auto-lock)
+6. [Bridge](#bridge)
+7. [Built on the ASI Wallet SDK](#built-on-the-asi-wallet-sdk)
+8. [Known Limitations](#known-limitations)
+9. [Quick Start](#quick-start)
+10. [Architecture Overview](#architecture-overview)
+11. [Security Model](#security-model)
+12. [Project Structure](#project-structure)
+13. [Commands](#commands)
+14. [E2E Testing](#e2e-testing)
+15. [Documentation](#documentation)
+16. [Contributing](#contributing)
+17. [Quick Troubleshooting](#quick-troubleshooting)
+18. [License](#license)
 
 ---
 
@@ -46,6 +47,16 @@ ASI Chain Wallet is a web wallet for ASI Chain, built with React and TypeScript.
 Every wallet operation - key generation, storage, unlocking, balances, transfers, Rholang deploys and transaction history - is served by the [ASI Wallet SDK](#built-on-the-asi-wallet-sdk) (`@asichain/asi-wallet-sdk`). The application layer owns the UI, the Redux state and the cross-chain bridge flow.
 
 Besides sending and receiving ASI, the wallet can deploy Rholang contracts (a simple editor in Lite mode and a Monaco-based IDE in Pro mode) and lock tokens for transfer to other chains through the Bridge page.
+
+## Branches and Testnet Image
+
+`main` is the default branch on GitHub. Start development branches from `dev`
+and target `dev` when opening a pull request.
+
+Testnet wallet images are published to `public.ecr.aws/l2u2v4a8/asi-chain/wallet`.
+Use the image digest and endpoint settings for the specific release you want to run.
+The testnet container listens on port 8080 and reads public endpoint URLs at startup.
+The repository [Dockerfile](Dockerfile) exposes port 80.
 
 ## Key Features
 
@@ -125,15 +136,14 @@ The SDK provides mnemonic generation and validation, wallet creation, opening an
 | History pagination and the load more control | [src/pages/History/History.tsx](src/pages/History/History.tsx), `HISTORY_LIMIT` in [src/store/WalletsStore/api.ts](src/store/WalletsStore/api.ts) | An indexer root field that returns the combined ordered timeline under one offset and limit, and an SDK `getTransactionsHistory` built on it (see [Known Limitations](#known-limitations)) |
 | CSV and JSON export of history | [src/pages/History/History.tsx](src/pages/History/History.tsx) | The SDK exposes a history download flow |
 | ETH address format on the Receive page | [src/pages/Receive/Receive.tsx](src/pages/Receive/Receive.tsx) | The SDK exposes the Ethereum address of an account |
-| Legacy balance and transaction polling services | [src/services/balancePolling.ts](src/services/balancePolling.ts), [src/services/transactionPolling.ts](src/services/transactionPolling.ts) | Nothing: they are replaced by the SDK deploy watcher plus 30-second RTK Query polling. They are kept disabled until that replacement is validated in production, then deleted |
-| App-level transaction status polling | [src/App.tsx](src/App.tsx) | The same validation. Deploy status is now tracked per deploy in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts): `sendTransaction` and `deployContract` subscribe through the `subscribe` callback returned by the SDK `transfer` and `deploy` calls, while `bridgeLock`, which signs and submits its deploy itself, calls `SdkWalletService.watchDeploy` directly |
+| App-level transaction status polling | [src/App.tsx](src/App.tsx) | Pending production validation of per-deploy status tracking in [src/store/WalletsStore/thunks.ts](src/store/WalletsStore/thunks.ts). `sendTransaction` and `deployContract` subscribe through the SDK. `bridgeLock` calls `SdkWalletService.watchDeploy` directly. |
 
 ### Removed and Relocated Functionality
 
 - The standalone **IDE page is gone**. Its functionality is **Pro mode on the Deploy page**: the mode selector switches between Lite mode (a single contract editor) and Pro mode ([DeployProModeWidget](src/components/DeployProModeWidget)), which provides the Monaco editor, the file explorer, tabs, workspace import and export and the console. There is no `/ide` route.
 - **Settings is now Network Settings only.** The page adds, edits and deletes custom networks. The former auto-lock timer entry is gone, replaced by the SDK auto-lock described above; theme switching lives in the header.
 - **Wallet keys no longer live in the legacy vault.** Wallets, accounts and custom networks are stored by the SDK in IndexedDB. The old storage layer is still initialized at startup (`SecureStorage.init()` in [src/index.tsx](src/index.tsx)) because the login rate limiter uses its adapter, but it no longer holds wallet keys.
-- **Multisig, hardware wallet, two-factor authentication, biometric authentication, backup and recovery, and token swap** modules still exist under `src/services`, `src/components` and `src/pages`, but they were written against the pre-SDK vault and are not reachable from any route or UI control.
+- **Legacy balance/transaction polling and unused pre-SDK feature modules** were removed in the dev cleanup. The SDK deploy watcher and 30-second RTK Query history polling remain; removed modules are not available wallet features.
 - The `/keys` route still serves the standalone key generator; it is not linked from the navigation.
 
 ## Known Limitations
@@ -174,7 +184,7 @@ The ASI Wallet SDK is installed from the npm registry together with the other de
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/asi-alliance/asi-chain-wallet.git
+git clone --branch dev https://github.com/asi-alliance/asi-chain-wallet.git
 cd asi-chain-wallet
 
 # 2. Install dependencies
@@ -196,7 +206,10 @@ The wallet will be available at [http://localhost:3000](http://localhost:3000).
 
 ### Using Docker
 
-`docker-compose.yml` runs the published image `public.ecr.aws/f6y9h6x4/asi-chain/wallet:latest`; it does not build the working tree.
+The checked-in [docker-compose.yml](docker-compose.yml) pulls
+`public.ecr.aws/f6y9h6x4/asi-chain/wallet:latest` and maps host port 3000 to
+container port 80. For the published testnet container, see
+[Branches and Testnet Image](#branches-and-testnet-image).
 
 ```bash
 docker-compose up -d     # wallet at http://localhost:3000
@@ -358,11 +371,11 @@ Test results: [https://automation.lambdatest.com](https://automation.lambdatest.
 Known issues and bugs are tracked in the [Issues](https://github.com/asi-alliance/asi-chain-wallet/issues) section.
 If you encounter a problem that is not listed, please open a new issue and provide as much detail as possible.
 
-1. Fork the repository
+1. Fork the repository and start from its current `dev`
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+5. Open a Pull Request targeting `dev`
 
 ## Quick Troubleshooting
 
