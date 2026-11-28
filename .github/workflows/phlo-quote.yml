@@ -1,0 +1,25 @@
+name: Phlo quote test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  phlo-quote:
+    name: Verify validator Phlo quote
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Run Phlo quote test
+        run: npm run test:phlo-quote

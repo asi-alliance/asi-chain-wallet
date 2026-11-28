@@ -6,12 +6,7 @@ import {
     selectIsNetworkSettingsLocked,
 } from ".";
 import { AnyAction } from "@reduxjs/toolkit";
-import {
-    BRIDGE_LOCK_MAX_GAS_COST,
-    BRIDGE_LOCK_PHLO_LIMIT,
-    BRIDGE_LOCK_PHLO_PRICE,
-    RChainService,
-} from "services/rchain";
+import { RChainService } from "services/rchain";
 import {
     IAccountMeta,
     IUnlockedAccountMeta,
@@ -29,7 +24,6 @@ import {
     INetworkUpdate,
     NetworkId,
     NetworkName,
-    SignedResult,
     getErrorMessage,
     IKeyfileImportPreview,
     IWalletKeyfile,
@@ -59,6 +53,8 @@ const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
 
 const FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE: string =
     "The wallet stopped tracking this deploy before it was finalized";
+const FALLBACK_BRIDGE_LOCK_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this bridge lock before it was finalized";
 
 interface IDeployWatchCallbacksOptions {
     deployId: string;
@@ -664,6 +660,8 @@ export interface IBridgeLockPayload {
     amount: string;
     destChainId: number;
     bridgeUri: string;
+    phloLimit: number;
+    phloPrice: string;
     password?: string;
     network: Network;
 }
@@ -681,6 +679,8 @@ export const bridgeLock = createAppAsyncThunk<
             amount,
             destChainId,
             bridgeUri,
+            phloLimit,
+            phloPrice,
             password,
             network,
         }: IBridgeLockPayload,
@@ -703,49 +703,24 @@ export const bridgeLock = createAppAsyncThunk<
             bridgeUri,
         );
 
-        const signedLock: SignedResult = await walletService.signDeploy(
-            {
-                walletId,
-                accountId,
-                term: lockTerm,
-                phloLimit: BRIDGE_LOCK_PHLO_LIMIT,
-                phloPrice: BRIDGE_LOCK_PHLO_PRICE,
-            },
-            password,
-        );
-
-        const deployId: string = signedLock.signature;
-
-        const reservation = await walletService.addTransactionReservation(
-            {
-                walletId,
-                accountId,
-                kind: "deploy",
-                deployId,
-                term: lockTerm,
-                pendingAmount:
-                    atomicAmount +
-                    BRIDGE_LOCK_MAX_GAS_COST,
-                gasCost: BRIDGE_LOCK_MAX_GAS_COST,
-            },
-            password,
-        );
+        let submission: IReservedOperationResult;
 
         try {
-            await rchain.submitDeploy(signedLock);
-        } catch (error: unknown) {
-            await walletService.removeTransactionReservation(
-                walletId,
-                reservation.id,
-            ).catch((releaseError: unknown) =>
-                console.error(
-                    "bridgeLock: failed to release the reservation of the rejected deploy:",
-                    releaseError,
-                ),
+            submission = await walletService.deploy(
+                {
+                    walletId,
+                    accountId,
+                    term: lockTerm,
+                    phloLimit,
+                    phloPrice,
+                },
+                password,
             );
-
-            throw error;
+        } catch (error) {
+            throw toWalletActionError(error);
         }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(
@@ -756,10 +731,15 @@ export const bridgeLock = createAppAsyncThunk<
             );
         };
 
-        walletService.watchDeploy(deployId, {
-            onConfirmed: invalidateAccountData,
-            onError: invalidateAccountData,
-        });
+        subscribe(
+            buildDeployWatchCallbacks({
+                deployId,
+                dispatch,
+                invalidateAccountData,
+                fallbackUnresolvedMessage:
+                    FALLBACK_BRIDGE_LOCK_UNRESOLVED_MESSAGE,
+            }),
+        );
 
         invalidateAccountData();
 

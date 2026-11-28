@@ -12,6 +12,11 @@ import {
     getUnlockedWalletAndAccountFromWalletsMeta,
     IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
+import type { IPhloQuote, IPhloQuoteQueryArgs } from "./phloQuote";
+import { isPhloQuoteNetworkActive } from "./phloQuote";
+
+export type { IPhloQuote } from "./phloQuote";
+export { PHLO_QUOTE_POLLING_INTERVAL_MS } from "./phloQuote";
 
 export const HISTORY_LIMIT = 50;
 
@@ -75,6 +80,35 @@ export const walletsApi = createApi({
     refetchOnMountOrArgChange: true,
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
+        getPhloQuote: build.query<IPhloQuote, IPhloQuoteQueryArgs>({
+            queryFn: async (
+                { networkId, validatorUrl, preferredLimit },
+                { extra },
+            ) => {
+                try {
+                    const service = getWalletService(extra);
+                    if (
+                        !isPhloQuoteNetworkActive(service.getActiveNetwork(), {
+                            networkId,
+                            validatorUrl,
+                        })
+                    ) {
+                        return {
+                            error: "The active network or validator changed. Try again.",
+                        };
+                    }
+                    const { phloLimit, phloPrice, gasReserve } =
+                        await service.getPhloQuote(preferredLimit);
+                    return { data: {
+                        phloLimit,
+                        phloPrice: phloPrice.toString(),
+                        gasReserve: gasReserve.toString(),
+                    } };
+                } catch (error) {
+                    return { error: toErrorMessage(error, "Failed to load the validator's Phlo parameters") };
+                }
+            },
+        }),
         getBalance: build.query<string, IAccountQueryArgs>({
             queryFn: async (
                 { accountId, networkRevision },
@@ -191,6 +225,7 @@ export const walletsApi = createApi({
 });
 
 export const {
+    useGetPhloQuoteQuery,
     useGetBalanceQuery,
     useLazyGetBalanceQuery,
     useGetTransactionHistoryQuery,

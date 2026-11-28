@@ -11,14 +11,18 @@ import {
     deployWatchCleared,
     selectDeployWatch,
     selectSelectedAccount,
+    selectSelectedNetwork,
     selectSelectedNetworkNativeTokenDecimals,
     selectSelectedNetworkRevision,
     selectWalletByAccountId,
 } from "store/WalletsStore";
-import { useGetBalanceQuery } from "store/WalletsStore/api";
+import {
+    PHLO_QUOTE_POLLING_INTERVAL_MS,
+    useGetBalanceQuery,
+    useGetPhloQuoteQuery,
+} from "store/WalletsStore/api";
 import {
     getActiveNetworkRevision,
-    getTransferGasReserve,
     sendTransaction,
 } from "store/WalletsStore/thunks";
 import {
@@ -319,11 +323,17 @@ export const Send: React.FC = () => {
             ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
+    const network = useSelector(selectSelectedNetwork);
     const nativeTokenDecimals = useSelector(
         selectSelectedNetworkNativeTokenDecimals,
     );
     const networkRevision = useSelector(selectSelectedNetworkRevision);
-    const transferGasReserve = dispatch(getTransferGasReserve());
+    const { currentData: quote, isError: isQuoteError } = useGetPhloQuoteQuery(
+        selectedAccount ? { networkId: network.id, validatorUrl: network.validatorUrl } : skipToken,
+        { pollingInterval: PHLO_QUOTE_POLLING_INTERVAL_MS },
+    );
+    const transferGasReserve =
+        quote && !isQuoteError ? BigInt(quote.gasReserve) : undefined;
     const {
         currentData: currentBalance,
         isFetching,
@@ -429,19 +439,24 @@ export const Send: React.FC = () => {
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
     const confirmationGasReserve =
-        pendingTransfer?.gasReserve ?? transferGasReserve;
+        pendingTransfer?.gasReserve ?? transferGasReserve ?? 0n;
     const confirmationDecimals =
         pendingTransfer?.nativeTokenDecimals ?? nativeTokenDecimals;
-    const amountError = isBalanceReady
-        ? getAmountValidationError(
-              amount,
-              balance,
-              transferGasReserve,
-              true,
-              nativeTokenDecimals,
-          )
-        : "";
-    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
+    const amountError =
+        isBalanceReady && transferGasReserve !== undefined
+            ? getAmountValidationError(
+                  amount,
+                  balance,
+                  transferGasReserve,
+                  true,
+                  nativeTokenDecimals,
+              )
+            : "";
+    const balanceError = isBalanceError
+        ? BALANCE_UNAVAILABLE_ERROR
+        : isQuoteError
+          ? "Could not load the validator's transfer fee."
+          : "";
 
     useLayoutEffect(() => {
         if (!pendingTransfer) return;
@@ -612,7 +627,7 @@ export const Send: React.FC = () => {
     };
 
     const handleSend = (): void => {
-        if (isSending || confirmationInFlightRef.current || !validateForm()) {
+        if (isSending || confirmationInFlightRef.current || transferGasReserve === undefined || !validateForm()) {
             return;
         }
         if (!walletId) {
@@ -659,6 +674,7 @@ export const Send: React.FC = () => {
     };
 
     const handleMax = (): void => {
+        if (transferGasReserve === undefined) return;
         amountPasteGenerationRef.current += 1;
         const max = getMaxSendableAmount(
             balance,
@@ -977,6 +993,7 @@ export const Send: React.FC = () => {
                                 onClick={handleMax}
                                 disabled={
                                     !isBalanceReady ||
+                                    transferGasReserve === undefined ||
                                     isFormFrozen
                                 }
                             >
@@ -998,6 +1015,7 @@ export const Send: React.FC = () => {
                                     !!amountError ||
                                     !!maxError ||
                                     !!amountPasteError ||
+                                    transferGasReserve === undefined ||
                                     !isBalanceReady
                                 }
                             >

@@ -54,9 +54,6 @@ export const createPrivateKeySigner =
     };
 
 export const BRIDGE_LOCK_PHLO_LIMIT: number = 5_000_000_000;
-export const BRIDGE_LOCK_PHLO_PRICE: number = 1;
-export const BRIDGE_LOCK_MAX_GAS_COST: bigint =
-    BigInt(BRIDGE_LOCK_PHLO_LIMIT) * BigInt(BRIDGE_LOCK_PHLO_PRICE);
 
 export class RChainService {
     private validatorClient: AxiosInstance;

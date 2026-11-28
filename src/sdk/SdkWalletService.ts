@@ -28,6 +28,7 @@ import {
     NetworkName,
     PRIVATE_KEY_LENGTH,
     ClientEvent,
+    DEFAULT_PHLO_LIMIT,
     fromAtomicAmount,
     NATIVE_TOKEN_DECIMALS_AMOUNT,
     SignedResult,
@@ -495,14 +496,33 @@ export class SdkWalletService {
         );
     }
 
+    public async getPhloQuote(preferredLimit?: number): Promise<{
+        phloLimit: number;
+        phloPrice: string;
+        gasReserve: string;
+    }> {
+        const client = this.requireClient();
+        const phloPrice: bigint = await client.getMinPhloPrice();
+        const maxPhloLimit: bigint | null = await client.getMaxPhloLimit();
+        const requestedLimit: number = preferredLimit ?? DEFAULT_PHLO_LIMIT;
+        const phloLimit: number =
+            maxPhloLimit !== null &&
+            BigInt(requestedLimit) > maxPhloLimit
+                ? Number(maxPhloLimit)
+                : requestedLimit;
+
+        return {
+            phloLimit,
+            phloPrice: phloPrice.toString(),
+            gasReserve: (BigInt(phloLimit) * phloPrice).toString(),
+        };
+    }
+
     public deploy(
-        { walletId, accountId, term, phloLimit }: IDeployRequest,
+        request: IDeployRequest,
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        return this.requireClient().deploy(request, password);
     }
 
     public exploreDeploy(term: string): Promise<unknown> {
