@@ -1,5 +1,5 @@
 import { createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { DeployStatus } from "@asichain/asi-wallet-sdk";
+import { DeployStatus, NetworkId } from "@asichain/asi-wallet-sdk";
 import {
     WalletStoreState,
     IWalletMeta,
@@ -11,6 +11,7 @@ import {
 } from "types/wallet";
 import { RootState } from "store";
 import { getInitialNetwork, NETWORKS } from "constants/networks";
+import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import {
     importKeyfileAccounts,
     addCustomNetwork,
@@ -31,6 +32,7 @@ import {
 import {
     addWalletToWalletsStore,
     applyActiveWalletSession,
+    getNetworkRevision,
     getUnlockedAccountFromWalletsMeta,
     toLockedWalletMeta,
 } from "./helpers";
@@ -70,6 +72,11 @@ export interface IDeployWatchUnresolvedPayload {
     reason: string;
 }
 
+export interface IDeployWatchFailedPayload {
+    deployId: string;
+    reason: string;
+}
+
 const walletsStoreSlice = createSlice({
     name: "wallets-store",
     initialState,
@@ -94,6 +101,19 @@ const walletsStoreSlice = createSlice({
             }
 
             watch.unresolvedReason = reason;
+        },
+        deployWatchFailed: (
+            state,
+            action: PayloadAction<IDeployWatchFailedPayload>,
+        ) => {
+            const { deployId, reason } = action.payload;
+            const watch = state.deployWatches[deployId];
+
+            if (!watch) {
+                return;
+            }
+
+            watch.failedReason = reason;
         },
         deployWatchCleared: (state, action: PayloadAction<string>) => {
             delete state.deployWatches[action.payload];
@@ -345,6 +365,18 @@ export const selectSelectedNetwork = (state: RootState) =>
     state.walletsStore.selectedNetwork;
 export const selectSelectedNetworkId = (state: RootState) =>
     state.walletsStore.selectedNetwork.id;
+export const selectSelectedNetworkNativeTokenDecimals = (state: RootState) =>
+    state.walletsStore.selectedNetwork.nativeTokenDecimals;
+export const selectSelectedNetworkRevision = createSelector(
+    [selectSelectedNetwork],
+    getNetworkRevision,
+);
+export const selectIsNetworkSettingsLocked = (
+    state: RootState,
+    networkId: NetworkId,
+): boolean =>
+    selectIsNetworkOperationPending(state) &&
+    state.walletsStore.selectedNetwork.id === networkId;
 
 export const selectCustomNetworks = createSelector(
     [selectNetworks],
@@ -355,13 +387,13 @@ export const selectCustomNetworks = createSelector(
 export const selectIsAnyAccountBalanceFetching = (
     state: RootState,
 ): boolean => {
-    const networkId = selectSelectedNetworkId(state);
+    const networkRevision = selectSelectedNetworkRevision(state);
 
     return selectAccounts(state).some(
         (accountMeta: IAccountMeta) =>
             walletsApi.endpoints.getBalance.select({
                 accountId: accountMeta.id,
-                networkId,
+                networkRevision,
             })(state).isLoading,
     );
 };
@@ -391,6 +423,7 @@ export const selectDeployWatch = (
 export const {
     deployStatusChanged,
     deployWatchUnresolved,
+    deployWatchFailed,
     deployWatchCleared,
 } = walletsStoreSlice.actions;
 
