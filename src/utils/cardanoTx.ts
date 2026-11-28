@@ -22,8 +22,12 @@ type BuildCardanoLockTxInput = {
 
 const MIN_BROWSER_LOCK_LOVELACE = BigInt(3000000);
 
-const cardanoProviderUrl = (): string =>
-    process.env.REACT_APP_CARDANO_PREPROD_KOIOS_URL ?? "";
+const cardanoProviderUrl = (chain: BridgeChainConfig): string => {
+    if (!chain.koiosUrl) {
+        throw new Error("Cardano Koios endpoint is not configured");
+    }
+    return chain.koiosUrl;
+};
 
 const formatAda = (lovelace: bigint): string => {
     const sign = lovelace < BigInt(0) ? "-" : "";
@@ -139,7 +143,7 @@ export const fetchCardanoBridgeTotalLocked = async (
     if (!chain.bridgeAddress)
         throw new Error("Cardano bridge address is not configured");
     const { KoiosProvider } = await import("@meshsdk/core");
-    const provider = new KoiosProvider(cardanoProviderUrl());
+    const provider = new KoiosProvider(cardanoProviderUrl(chain));
     const utxos = await provider.fetchAddressUTxOs(
         chain.bridgeAddress,
         assetUnit(chain),
@@ -166,7 +170,7 @@ export const buildCardanoLockTx = async ({
     const { MeshTxBuilder, KoiosProvider, resolveTxHash } = await import(
         "@meshsdk/core"
     );
-    const provider = new KoiosProvider(cardanoProviderUrl());
+    const provider = new KoiosProvider(cardanoProviderUrl(chain));
     const utxos = await wallet.getUtxos();
     const available = sumCardanoAsset(utxos, chain);
     if (available < amount) {

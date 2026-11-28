@@ -1,6 +1,7 @@
 import { sepolia, baseSepolia } from "viem/chains";
 import { CARDANO_TOKEN_DECIMALS } from "utils/tokenFormat";
 import { ASI_DECIMALS } from "@asichain/asi-wallet-sdk";
+import { getBridgeConfiguration } from "config/bridgeFeature";
 
 export type BridgeChainKey =
     | "asi"
@@ -31,62 +32,15 @@ export interface BridgeChainConfig {
     networkMagic?: number;
     assetPolicyId?: string;
     assetName?: string;
+    koiosUrl?: string;
 }
-
-export const envStr = (key: string): string => {
-    if (!process.env[key]) {
-        throw new Error(`Env variable with key ${key} not found`);
-    }
-
-    return process.env[key];
-};
-export const envNum = (key: string): number => {
-    const raw: string | undefined = process.env[key];
-
-    if (raw === undefined || raw.trim() === "") {
-        throw new Error(`Env variable with key ${key} not found`);
-    }
-
-    const parsed = Number(raw);
-
-    if (!Number.isFinite(parsed)) {
-        throw new Error(
-            `Env variable with key ${key} is not a valid number: "${raw}"`,
-        );
-    }
-
-    return parsed;
-};
 
 const SEPOLIA_ROUTE_ID = sepolia.id;
 const BASE_SEPOLIA_ROUTE_ID = baseSepolia.id;
 
-export const ASI_BRIDGE_URI = envStr("REACT_APP_ASI_BRIDGE_URI");
+const { asi, fetchhubDorado, cardanoPreprod } = getBridgeConfiguration();
 
-const ASI_ROUTE_ID = envNum("REACT_APP_ASI_CHAIN_ID");
-const FETCHHUB_DORADO_ROUTE_ID = envNum("REACT_APP_FETCHHUB_DORADO_ROUTE_ID");
-const CARDANO_PREPROD_ROUTE_ID = envNum("REACT_APP_CARDANO_PREPROD_ROUTE_ID");
-
-const FETCHHUB_DORADO_BRIDGE_ADDRESS = envStr(
-    "REACT_APP_FETCHHUB_DORADO_BRIDGE_ADDRESS",
-);
-const FETCHHUB_DORADO_CHAIN_ID = envStr("REACT_APP_FETCHHUB_DORADO_CHAIN_ID");
-const FETCHHUB_DORADO_RPC_URL = envStr("REACT_APP_FETCHHUB_DORADO_RPC_URL");
-const FETCHHUB_DORADO_REST_URL = envStr("REACT_APP_FETCHHUB_DORADO_REST_URL");
-const FETCHHUB_DORADO_DENOM = envStr("REACT_APP_FETCHHUB_DORADO_DENOM");
-const CARDANO_PREPROD_BRIDGE_ADDRESS = envStr(
-    "REACT_APP_CARDANO_PREPROD_BRIDGE_ADDRESS",
-);
-const CARDANO_PREPROD_POLICY_ID = envStr("REACT_APP_CARDANO_PREPROD_POLICY_ID");
-const CARDANO_PREPROD_ASSET_NAME = envStr(
-    "REACT_APP_CARDANO_PREPROD_ASSET_NAME",
-);
-const CARDANO_PREPROD_NETWORK_ID = envStr(
-    "REACT_APP_CARDANO_PREPROD_NETWORK_ID",
-);
-const CARDANO_PREPROD_NETWORK_MAGIC = envNum(
-    "REACT_APP_CARDANO_PREPROD_NETWORK_MAGIC",
-);
+export const ASI_BRIDGE_URI = asi.bridgeUri;
 
 export const BRIDGE_CHAINS: BridgeChainConfig[] = [
     {
@@ -94,7 +48,7 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         kind: "asi",
         label: "ASI Chain",
         shortLabel: "ASI",
-        routeId: ASI_ROUTE_ID,
+        routeId: asi.routeId,
         nativeDecimals: ASI_DECIMALS,
         bridgeUri: ASI_BRIDGE_URI,
     },
@@ -121,14 +75,14 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         kind: "cosmos",
         label: "FetchHub Dorado",
         shortLabel: "Dorado",
-        routeId: FETCHHUB_DORADO_ROUTE_ID,
+        routeId: fetchhubDorado.routeId,
         nativeDecimals: 18,
         addressPrefix: "fetch",
-        bridgeAddress: FETCHHUB_DORADO_BRIDGE_ADDRESS,
-        cosmosChainId: FETCHHUB_DORADO_CHAIN_ID,
-        rpcUrl: FETCHHUB_DORADO_RPC_URL,
-        restUrl: FETCHHUB_DORADO_REST_URL,
-        denom: FETCHHUB_DORADO_DENOM,
+        bridgeAddress: fetchhubDorado.bridgeAddress,
+        cosmosChainId: fetchhubDorado.chainId,
+        rpcUrl: fetchhubDorado.rpcUrl,
+        restUrl: fetchhubDorado.restUrl,
+        denom: fetchhubDorado.denom,
         displayDenom: "TESTFET",
     },
     {
@@ -136,13 +90,14 @@ export const BRIDGE_CHAINS: BridgeChainConfig[] = [
         kind: "cardano",
         label: "Cardano Preprod",
         shortLabel: "Cardano",
-        routeId: CARDANO_PREPROD_ROUTE_ID,
+        routeId: cardanoPreprod.routeId,
         nativeDecimals: CARDANO_TOKEN_DECIMALS,
-        cardanoNetworkId: CARDANO_PREPROD_NETWORK_ID,
-        networkMagic: CARDANO_PREPROD_NETWORK_MAGIC,
-        bridgeAddress: CARDANO_PREPROD_BRIDGE_ADDRESS,
-        assetPolicyId: CARDANO_PREPROD_POLICY_ID,
-        assetName: CARDANO_PREPROD_ASSET_NAME,
+        cardanoNetworkId: cardanoPreprod.networkId,
+        networkMagic: cardanoPreprod.networkMagic,
+        bridgeAddress: cardanoPreprod.bridgeAddress,
+        assetPolicyId: cardanoPreprod.assetPolicyId,
+        assetName: cardanoPreprod.assetName,
+        koiosUrl: cardanoPreprod.koiosUrl,
     },
 ];
 

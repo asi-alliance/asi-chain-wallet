@@ -53,7 +53,7 @@ Besides sending and receiving ASI, the wallet can deploy Rholang contracts (a si
 - **Keyfile export and import** - export the open wallet as an encrypted keyfile, import a keyfile as a new wallet or import selected accounts from it into an existing one
 - **Private key wallets** - generate a new private key or import an existing one; either way the result is a single-account wallet that cannot derive further accounts
 - **Send and Receive** - address validation, QR code for the account address, QR scanning for the recipient, confirmation modal with the gas reserve
-- **Bridge** - outbound locks from ASI Chain to Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod (the lock action is disabled in this release, see [Bridge](#bridge))
+- **Optional Bridge** - outbound routes from ASI Chain to Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod. See [Bridge](#bridge) for enablement and lock availability.
 - **Rholang deployment** - Lite mode for a single contract, Pro mode with a Monaco editor, file explorer, tabs, workspace import and export, and a console
 - **Transaction history** - auto-refreshed every 30 seconds, with Date, Type, Status, From, To, Amount and Details column filters, a transaction details modal and deploy id copying (see [Known Limitations](#known-limitations))
 - **Multiple networks** - networks from the `NETWORKS` environment variable plus custom networks added at runtime, with busy networks disabled in the selector
@@ -99,7 +99,14 @@ In practice signed operations go through without a prompt for 15 minutes after t
 
 ## Bridge
 
-The Bridge page locks ASI tokens on ASI Chain for transfer to another chain.
+Bridge is off by default. Build the Wallet with `REACT_APP_BRIDGE_ENABLED=true`
+(also accepted: `1` or `yes`, case-insensitive and trimmed) and the required
+[Bridge variables](CONFIGURATION.md#bridge-configuration) to show the Bridge
+page. Existing Bridge deployments need the flag on their next build. Wallet
+login, balances, transfers and history run with only the network configuration.
+If the flag is on and a value is missing or malformed, the Wallet still starts:
+`/bridge` lists every problem, the console repeats the same list with the
+`[bridge]` prefix, and the other routes stay available.
 
 - **Source** is fixed to ASI Chain and rendered as a static field. The source account is the currently selected wallet account.
 - **Destinations** are Sepolia, Base Sepolia, FetchHub Dorado and Cardano Preprod, listed in `DESTINATION_CHAIN_KEYS` in [src/constants/bridgeChains.ts](src/constants/bridgeChains.ts) minus the source chain.
@@ -182,7 +189,7 @@ npm install --legacy-peer-deps
 
 # 3. Configure the environment
 cp .env.example .env
-# fill in NETWORKS and the bridge variables before starting
+# Fill in NETWORKS. Set the Bridge flag and variables only to enable Bridge.
 
 # 4. Start the development server
 npm start
@@ -190,7 +197,8 @@ npm start
 
 > **Important**: use `npm install --legacy-peer-deps`; the dependency tree does not resolve with strict peer dependencies.
 
-> **Important**: the application does not start with an empty `.env`. A missing or invalid `NETWORKS` stops `npm start` and `npm run build` before webpack runs, and a missing bridge variable throws while the bridge module is loaded. See [CONFIGURATION.md](CONFIGURATION.md).
+A missing or invalid `NETWORKS` stops `npm start` and `npm run build` before
+webpack runs. See [CONFIGURATION.md](CONFIGURATION.md).
 
 The wallet will be available at [http://localhost:3000](http://localhost:3000).
 
@@ -366,7 +374,9 @@ If you encounter a problem that is not listed, please open a new issue and provi
 
 ## Quick Troubleshooting
 
-- **Blank page, console says `Env variable with key REACT_APP_... not found`**: a bridge variable is missing from `.env`; the bridge module throws while loading and the app never mounts.
+- **`/bridge` lists missing or invalid fields**. Update every named build
+  variable and rebuild. The invalid page does not require a wallet, and the
+  other routes remain available while Bridge is unavailable.
 - **`npm start` or `npm run build` stops with `[config-overrides] Invalid NETWORKS env config`**: `NETWORKS` is missing, is not valid JSON, contains no fully configured network, or contains duplicate networks (same endpoints and `nodeApiProfile`, or same name). The message names the problem and the conflicting ids. See [CONFIGURATION.md](CONFIGURATION.md#validation-rules).
 - **The app renders a configuration message instead of the UI**: the bundle was built without the build-time check and `NETWORKS` fails validation. The exact reason is in the message and in the `[NETWORKS env]` console output.
 - **`Module not found: Can't resolve '@harmoniclabs/crypto'` during a build**: a transitive Cardano dependency is not installed by `--legacy-peer-deps`. See [DEVELOPMENT.md](DEVELOPMENT.md).
