@@ -36,7 +36,12 @@ import { useEvmBridge } from "hooks/useEvmBridge";
 import { useCosmosWallet } from "hooks/useCosmosWallet";
 import { buildCardanoLockTx } from "utils/cardanoTx";
 import { useCopyToClipboard, useWalletSessionAction } from "hooks";
-import { selectActiveWallet, selectSelectedAccount } from "store/WalletsStore";
+import {
+    selectActiveWallet,
+    selectSelectedAccount,
+    selectSelectedNetworkNativeTokenDecimals,
+    selectSelectedNetworkRevision,
+} from "store/WalletsStore";
 import {
     IPhloQuote,
     PHLO_QUOTE_POLLING_INTERVAL_MS,
@@ -78,6 +83,8 @@ const NETWORK_CHANGED_ERROR =
     "Network changed while the lock was awaiting confirmation. Check the details and try again.";
 
 const LOCK_DETAILS_MISSING_ERROR = "Lock details are missing. Please retry.";
+
+const UNSUPPORTED_NETWORK_DECIMALS_ERROR = `Bridge supports only networks with ${ASI_DECIMALS}-decimal native tokens. Switch the network to lock tokens.`;
 
 const EVM_EXPLORER_URLS: Partial<Record<BridgeChainKey, string>> = {
     sepolia: sepolia.blockExplorers.default.url,
@@ -342,6 +349,9 @@ export const Bridge: React.FC = () => {
     const selectedNetwork = useSelector(
         (state: RootState) => state.walletsStore.selectedNetwork,
     );
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
+    const isNetworkDecimalsSupported =
+        useSelector(selectSelectedNetworkNativeTokenDecimals) === ASI_DECIMALS;
 
     const cardano = useCardanoWallet();
 
@@ -351,7 +361,7 @@ export const Bridge: React.FC = () => {
         isError: isBalanceError,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId: selectedNetwork.id }
+            ? { accountId: selectedAccount.id, networkRevision }
             : skipToken,
     );
 
@@ -391,6 +401,7 @@ export const Bridge: React.FC = () => {
     const gasReserve = quote && !isQuoteError
         ? BigInt(quote.phloLimit) * BigInt(quote.phloPrice)
         : undefined;
+    const validationGasReserve = srcKind === "asi" ? gasReserve : 0n;
     const confirmedGasReserve = pendingLock
         ? BigInt(pendingLock.quote.phloLimit) * BigInt(pendingLock.quote.phloPrice)
         : 0n;
@@ -511,15 +522,20 @@ export const Bridge: React.FC = () => {
           : txHash;
 
     const getAmountError = (): string => {
-        if (!isBalanceReady || gasReserve === undefined) {
+        if (
+            !isBalanceReady ||
+            !isNetworkDecimalsSupported ||
+            validationGasReserve === undefined
+        ) {
             return "";
         }
 
         const validationError = getAmountValidationError(
             amount,
             selectedASIAccountBalance,
-            gasReserve,
+            validationGasReserve,
             true,
+            ASI_DECIMALS,
         );
 
         return (
@@ -531,10 +547,17 @@ export const Bridge: React.FC = () => {
     const amountError = getAmountError();
     const balanceLoadingStatus =
         !isBalanceReady && !isBalanceError ? BALANCE_LOADING_ERROR : "";
-    const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR
-        : isQuoteError ? "Could not load the validator's lock fee." : "";
+    const balanceError = isBalanceError
+        ? BALANCE_UNAVAILABLE_ERROR
+        : srcKind === "asi" && isQuoteError
+          ? "Could not load the validator's lock fee."
+          : "";
+    const networkDecimalsError = isNetworkDecimalsSupported
+        ? ""
+        : UNSUPPORTED_NETWORK_DECIMALS_ERROR;
     const shownError =
         (srcKind === "evm" ? evm.error?.message : lockError) ||
+        networkDecimalsError ||
         balanceError ||
         "";
 
@@ -599,13 +622,14 @@ export const Bridge: React.FC = () => {
 
     const maxAmount = (): void => {
         if (srcKind === "asi") {
-            if (gasReserve === undefined) return;
+            if (validationGasReserve === undefined) return;
             const max = getMaxSendableAmount(
                 selectedASIAccountBalance,
-                gasReserve,
+                validationGasReserve,
+                ASI_DECIMALS,
             );
 
-            if (!isPositiveTokenAmount(max)) {
+            if (!isPositiveTokenAmount(max, ASI_DECIMALS)) {
                 setAmount("");
                 setLockError(
                     "Insufficient balance to cover the estimated fee.",
@@ -765,9 +789,11 @@ export const Bridge: React.FC = () => {
     const isAmountValid =
         amount.trim() !== "" && atomicAmount > BigInt(0) && !amountError;
 
+    const isAmountInputDisabled = !isBalanceReady || !isNetworkDecimalsSupported;
+
     const lockDisabled =
         busy ||
-        !isBalanceReady ||
+        isAmountInputDisabled ||
         (srcKind === "asi" && gasReserve === undefined) ||
         isBalanceFetching ||
         !sourceAccountLoaded ||
@@ -903,7 +929,7 @@ export const Bridge: React.FC = () => {
                             placeholder="Enter Amount"
                             step="0.00000001"
                             min="0"
-                            disabled={!isBalanceReady}
+                            disabled={isAmountInputDisabled}
                             error={amountError || undefined}
                             helperText={`8 decimal places (1 ${assetSymbol} = 1.00000000)`}
                             copyable
@@ -914,7 +940,7 @@ export const Bridge: React.FC = () => {
                             id="bridge-max-amount-button"
                             variant="secondary"
                             onClick={maxAmount}
-                            disabled={!isBalanceReady}
+                            disabled={isAmountInputDisabled}
                             aria-label={`Use maximum available ${assetSymbol} amount`}
                         >
                             Max
@@ -1003,6 +1029,7 @@ export const Bridge: React.FC = () => {
                 senderAddress={pendingLock?.accountAddress ?? ""}
                 senderName={pendingLock?.accountName ?? ""}
                 maxFee={confirmedGasReserve}
+                nativeTokenDecimals={ASI_DECIMALS}
                 feeLabel={`up to ${fromAtomicAmount(
                     confirmedGasReserve,
                     ASI_DECIMALS,

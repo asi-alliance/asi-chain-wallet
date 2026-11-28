@@ -1,7 +1,9 @@
 import {
     deployStatusChanged,
+    deployWatchFailed,
     deployWatchUnresolved,
     IAccountDefaultUpdateFieldsPayload,
+    selectIsNetworkSettingsLocked,
 } from ".";
 import { AnyAction } from "@reduxjs/toolkit";
 import { RChainService } from "services/rchain";
@@ -17,31 +19,42 @@ import {
     DeployStatus,
     IDeployStatusResult,
     IDeployWatchCallbacks,
+    IReservedOperationResult,
     INetworkConfig,
     INetworkUpdate,
     NetworkId,
     NetworkName,
-    SignedResult,
     getErrorMessage,
     IKeyfileImportPreview,
     IWalletKeyfile,
 } from "@asichain/asi-wallet-sdk";
-import { SdkWalletService } from "sdk";
+import {
+    getDeployVerdictMessage,
+    IWalletActionError,
+    SdkWalletService,
+    toWalletActionError,
+} from "sdk";
 import { WalletPreferencesStorage } from "services/walletPreferences";
 import { RootState } from "store";
 import { createAppAsyncThunk, TAppThunk } from "store/appThunk";
 import { selectIsNetworkOperationPending } from "store/NetworkActivity";
 import { walletsApi, WalletsApiTags } from "./api";
 import {
+    getNetworkRevision,
     getUnlockedAccountFromWalletsMeta,
     getUnlockedWalletAndAccountFromWalletsMeta,
 } from "./helpers";
+
+const NETWORK_SETTINGS_LOCKED_ERROR: string =
+    "Network settings cannot be changed while an operation is awaiting confirmation";
 
 const FALLBACK_SEND_TRANSACTION_UNRESOLVED_MESSAGE: string =
     "The wallet stopped tracking this transfer before it was finalized";
 
 const FALLBACK_DEPLOY_CONTRACT_UNRESOLVED_MESSAGE: string =
     "The wallet stopped tracking this deploy before it was finalized";
+const FALLBACK_BRIDGE_LOCK_UNRESOLVED_MESSAGE: string =
+    "The wallet stopped tracking this bridge lock before it was finalized";
 
 interface IDeployWatchCallbacksOptions {
     deployId: string;
@@ -73,11 +86,15 @@ const buildDeployWatchCallbacks = ({
         invalidateAccountData();
     },
     onError: (error: Error) => {
+        const verdict: string | undefined = getDeployVerdictMessage(error);
+
         dispatch(
-            deployWatchUnresolved({
-                deployId,
-                reason: getErrorMessage(error, fallbackUnresolvedMessage),
-            }),
+            verdict
+                ? deployWatchFailed({ deployId, reason: verdict })
+                : deployWatchUnresolved({
+                      deployId,
+                      reason: getErrorMessage(error, fallbackUnresolvedMessage),
+                  }),
         );
         invalidateAccountData();
     },
@@ -140,8 +157,6 @@ export interface ITransferPayload {
     accountId: string;
     to: Address;
     amount: string;
-    phloLimit: number;
-    phloPrice: string;
     password?: string;
 }
 
@@ -430,6 +445,10 @@ export const updateCustomNetwork = createAppAsyncThunk<
         { id, update }: IUpdateNetworkPayload,
         { dispatch, getState, rejectWithValue, extra: { walletService } },
     ) => {
+        if (selectIsNetworkSettingsLocked(getState(), id)) {
+            return rejectWithValue(NETWORK_SETTINGS_LOCKED_ERROR);
+        }
+
         try {
             const updatedNetwork = await walletService.updateCustomNetwork(
                 id,
@@ -465,8 +484,12 @@ export const removeCustomNetwork = createAppAsyncThunk<
     "walletsStore/removeCustomNetwork",
     async (
         { id }: ICustomNetworkDefaultGetFieldsPayload,
-        { rejectWithValue, extra: { walletService } },
+        { getState, rejectWithValue, extra: { walletService } },
     ) => {
+        if (selectIsNetworkSettingsLocked(getState(), id)) {
+            return rejectWithValue(NETWORK_SETTINGS_LOCKED_ERROR);
+        }
+
         try {
             await walletService.removeCustomNetwork(id);
 
@@ -489,12 +512,13 @@ export const removeCustomNetwork = createAppAsyncThunk<
 
 export const sendTransaction = createAppAsyncThunk<
     { deployId: string },
-    ITransferPayload
+    ITransferPayload,
+    { rejectValue: IWalletActionError }
 >(
     "wallets-store/sendTransaction",
     async (
-        { walletId, accountId, to, amount, phloLimit, phloPrice, password }: ITransferPayload,
-        { getState, dispatch, extra: { walletService } },
+        { walletId, accountId, to, amount, password }: ITransferPayload,
+        { getState, dispatch, rejectWithValue, extra: { walletService } },
     ) => {
         if (to.trim().toLowerCase().startsWith("0x")) {
             throw new Error("Sending to Ethereum addresses is not supported");
@@ -512,17 +536,23 @@ export const sendTransaction = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.transfer(
-            {
-                walletId,
-                accountId,
-                to,
-                amount,
-                phloLimit,
-                phloPrice,
-            },
-            password,
-        );
+        let submission: IReservedOperationResult;
+
+        try {
+            submission = await walletService.transfer(
+                {
+                    walletId,
+                    accountId,
+                    to,
+                    amount,
+                },
+                password,
+            );
+        } catch (error) {
+            return rejectWithValue(toWalletActionError(error));
+        }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(
@@ -559,7 +589,8 @@ export interface IDeployContractPayload {
 
 export const deployContract = createAppAsyncThunk<
     { deployId: string },
-    IDeployContractPayload
+    IDeployContractPayload,
+    { rejectValue: IWalletActionError }
 >(
     "wallets-store/deployContract",
     async (
@@ -570,7 +601,7 @@ export const deployContract = createAppAsyncThunk<
             phloLimit,
             password,
         }: IDeployContractPayload,
-        { getState, dispatch, extra: { walletService } },
+        { getState, dispatch, rejectWithValue, extra: { walletService } },
     ) => {
         const deployerAccount: IUnlockedAccountMeta | null =
             getUnlockedAccountFromWalletsMeta(
@@ -584,10 +615,18 @@ export const deployContract = createAppAsyncThunk<
             );
         }
 
-        const { deployId, subscribe } = await walletService.deploy(
-            { walletId, accountId, term, phloLimit },
-            password,
-        );
+        let submission: IReservedOperationResult;
+
+        try {
+            submission = await walletService.deploy(
+                { walletId, accountId, term, phloLimit },
+                password,
+            );
+        } catch (error) {
+            return rejectWithValue(toWalletActionError(error));
+        }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(
@@ -656,7 +695,6 @@ export const bridgeLock = createAppAsyncThunk<
         );
 
         const atomicAmount: bigint = SdkWalletService.toAtomicAmount(amount);
-        const gasCost = BigInt(phloLimit) * BigInt(phloPrice);
 
         const lockTerm: string = rchain.buildBridgeLockTerm(
             atomicAmount.toString(),
@@ -665,47 +703,24 @@ export const bridgeLock = createAppAsyncThunk<
             bridgeUri,
         );
 
-        const signedLock: SignedResult = await walletService.signDeploy(
-            {
-                walletId,
-                accountId,
-                term: lockTerm,
-                phloLimit,
-                phloPrice,
-            },
-            password,
-        );
-
-        const deployId: string = signedLock.signature;
-
-        const reservation = await walletService.addTransactionReservation(
-            {
-                walletId,
-                accountId,
-                kind: "deploy",
-                deployId,
-                term: lockTerm,
-                pendingAmount: atomicAmount + gasCost,
-                gasCost,
-            },
-            password,
-        );
+        let submission: IReservedOperationResult;
 
         try {
-            await rchain.submitDeploy(signedLock);
-        } catch (error: unknown) {
-            await walletService.removeTransactionReservation(
-                walletId,
-                reservation.id,
-            ).catch((releaseError: unknown) =>
-                console.error(
-                    "bridgeLock: failed to release the reservation of the rejected deploy:",
-                    releaseError,
-                ),
+            submission = await walletService.deploy(
+                {
+                    walletId,
+                    accountId,
+                    term: lockTerm,
+                    phloLimit,
+                    phloPrice,
+                },
+                password,
             );
-
-            throw error;
+        } catch (error) {
+            throw toWalletActionError(error);
         }
+
+        const { deployId, subscribe } = submission;
 
         const invalidateAccountData = (): void => {
             dispatch(
@@ -716,10 +731,15 @@ export const bridgeLock = createAppAsyncThunk<
             );
         };
 
-        walletService.watchDeploy(deployId, {
-            onConfirmed: invalidateAccountData,
-            onError: invalidateAccountData,
-        });
+        subscribe(
+            buildDeployWatchCallbacks({
+                deployId,
+                dispatch,
+                invalidateAccountData,
+                fallbackUnresolvedMessage:
+                    FALLBACK_BRIDGE_LOCK_UNRESOLVED_MESSAGE,
+            }),
+        );
 
         invalidateAccountData();
 
@@ -759,6 +779,16 @@ export const exploreDeploy =
     (term: string): TAppThunk<Promise<unknown>> =>
     (_dispatch, _getState, { walletService }) =>
         walletService.exploreDeploy(term);
+
+export const getTransferGasReserve =
+    (): TAppThunk<bigint> =>
+    (_dispatch, _getState, { walletService }) =>
+        walletService.getTransferGasReserve();
+
+export const getActiveNetworkRevision =
+    (): TAppThunk<string> =>
+    (_dispatch, _getState, { walletService }) =>
+        getNetworkRevision(walletService.getActiveNetwork());
 
 export const checkWalletUnlocked =
     (walletId: string): TAppThunk<boolean> =>

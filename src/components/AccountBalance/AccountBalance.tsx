@@ -2,7 +2,11 @@ import { CSSProperties, ReactElement } from "react";
 import styled from "styled-components";
 import { Button } from "components/Button";
 import { ReloadIcon } from "components/Icons";
-import { BALANCE_PLACEHOLDER, formatBalanceCard } from "utils/balanceUtils";
+import {
+    BALANCE_PLACEHOLDER,
+    formatBalanceCard,
+    formatBalanceExact,
+} from "utils/balanceUtils";
 
 interface IAccountBalanceProps {
     balance?: string;
@@ -24,6 +28,11 @@ const AmountBalanceCard = styled.div`
 const AmountBalanceWrapper = styled.div`
     display: flex;
     align-items: center;
+
+    .amount-balance-info-wrapper {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
 `;
 
 const amountColor = ({
@@ -103,6 +112,7 @@ export const AccountBalance = ({
                     <AccountBalanceBlock
                         $isSelected={isSelected}
                         $neutralAmount={neutralAmount}
+                        title={balance === undefined ? undefined : formatBalanceExact(balance)}
                     >
                         {balance === undefined ? BALANCE_PLACEHOLDER : amount}
                     </AccountBalanceBlock>
