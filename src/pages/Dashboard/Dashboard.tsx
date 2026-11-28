@@ -6,7 +6,7 @@ import {
     selectAccounts,
     selectIsAccountUnlocked,
     selectSelectedAccount,
-    selectSelectedNetworkId,
+    selectSelectedNetworkRevision,
 } from "store/WalletsStore";
 import {
     IAccountQueryArgs,
@@ -93,7 +93,7 @@ export const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const selectedAccount = useSelector(selectSelectedAccount);
     const accounts = useSelector(selectAccounts);
-    const networkId = useSelector(selectSelectedNetworkId);
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
     const isAccountUnlocked = useSelector((state: RootState) =>
         selectedAccount
             ? selectIsAccountUnlocked(state, selectedAccount.id)
@@ -105,14 +105,14 @@ export const Dashboard: React.FC = () => {
 
     const balanceArgs: IAccountQueryArgs | typeof skipToken =
         selectedAccount && isAccountUnlocked
-            ? { accountId: selectedAccount.id, networkId }
+            ? { accountId: selectedAccount.id, networkRevision }
             : skipToken;
 
     const historyArgs: IHistoryQueryArgs | typeof skipToken =
         selectedAccount && isAccountUnlocked
             ? {
                   accountId: selectedAccount.id,
-                  networkId,
+                  networkRevision,
                   source: "all",
               }
             : skipToken;
