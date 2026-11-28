@@ -514,7 +514,7 @@ export class SdkWalletService {
         return {
             phloLimit,
             phloPrice: phloPrice.toString(),
-            gasReserve: this.getTransferGasReserve().toString(),
+            gasReserve: (BigInt(phloLimit) * phloPrice).toString(),
         };
     }
 

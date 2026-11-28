@@ -12,6 +12,11 @@ import {
     getUnlockedWalletAndAccountFromWalletsMeta,
     IUnlockedWalletAndAccountPathFromMeta,
 } from "./helpers";
+import type { IPhloQuote, IPhloQuoteQueryArgs } from "./phloQuote";
+import { isPhloQuoteNetworkActive } from "./phloQuote";
+
+export type { IPhloQuote } from "./phloQuote";
+export { PHLO_QUOTE_POLLING_INTERVAL_MS } from "./phloQuote";
 
 export const HISTORY_LIMIT = 50;
 
@@ -39,14 +44,6 @@ export interface IAccountQueryArgs {
 export interface IHistoryQueryArgs extends IAccountQueryArgs {
     source: THistorySourceFilter;
 }
-
-export interface IPhloQuote {
-    phloLimit: number;
-    phloPrice: string;
-    gasReserve: string;
-}
-
-export const PHLO_QUOTE_POLLING_INTERVAL_MS = 60_000;
 
 const NETWORK_CONFIGURATION_CHANGED_ERROR =
     "The network configuration changed while the request was running";
@@ -83,16 +80,22 @@ export const walletsApi = createApi({
     refetchOnMountOrArgChange: true,
     keepUnusedDataFor: ACCOUNT_DATA_POLLING_INTERVAL_SECONDS,
     endpoints: (build) => ({
-        getPhloQuote: build.query<IPhloQuote, {
-            networkId: string;
-            validatorUrl: string;
-            preferredLimit?: number;
-        }>({
-            queryFn: async ({ networkId, preferredLimit }, { extra }) => {
+        getPhloQuote: build.query<IPhloQuote, IPhloQuoteQueryArgs>({
+            queryFn: async (
+                { networkId, validatorUrl, preferredLimit },
+                { extra },
+            ) => {
                 try {
                     const service = getWalletService(extra);
-                    if (service.getActiveNetworkId() !== networkId) {
-                        return { error: "Active network changed. Try again." };
+                    if (
+                        !isPhloQuoteNetworkActive(service.getActiveNetwork(), {
+                            networkId,
+                            validatorUrl,
+                        })
+                    ) {
+                        return {
+                            error: "The active network or validator changed. Try again.",
+                        };
                     }
                     const { phloLimit, phloPrice, gasReserve } =
                         await service.getPhloQuote(preferredLimit);

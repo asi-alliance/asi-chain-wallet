@@ -8,6 +8,7 @@ const { Client } = require("@asichain/asi-wallet-sdk");
 
 require("ts-node").register({ transpileOnly: true, compilerOptions: { module: "CommonJS" } });
 const { SdkWalletService } = require("../src/sdk/SdkWalletService");
+const { isPhloQuoteNetworkActive } = require("../src/store/WalletsStore/phloQuote");
 
 const startStatusServer = async (status) => {
     const server = http.createServer((request, response) => {
@@ -70,7 +71,7 @@ test("Phlo quote uses the validator minimum and caps the preferred limit", async
     assert.deepEqual(await service.getPhloQuote(5000000000), {
         phloLimit: 4000000,
         phloPrice: "100000000000",
-        gasReserve: "50000000000000000",
+        gasReserve: "400000000000000000",
     });
 });
 
@@ -88,6 +89,35 @@ test("Phlo quote keeps the preferred limit when the node reports no maximum", as
     assert.deepEqual(await service.getPhloQuote(5000000000), {
         phloLimit: 5000000000,
         phloPrice: "1",
-        gasReserve: "500000",
+        gasReserve: "5000000000",
     });
+});
+
+test("quote guard rejects a different validator for the same network", () => {
+    const activeNetwork = {
+        id: "Test",
+        validatorUrl: "http://127.0.0.1:1",
+    };
+
+    assert.equal(
+        isPhloQuoteNetworkActive(activeNetwork, {
+            networkId: "Test",
+            validatorUrl: activeNetwork.validatorUrl,
+        }),
+        true,
+    );
+    assert.equal(
+        isPhloQuoteNetworkActive(activeNetwork, {
+            networkId: "Test",
+            validatorUrl: "http://127.0.0.1:2",
+        }),
+        false,
+    );
+    assert.equal(
+        isPhloQuoteNetworkActive(activeNetwork, {
+            networkId: "Other",
+            validatorUrl: activeNetwork.validatorUrl,
+        }),
+        false,
+    );
 });

@@ -16,6 +16,7 @@
     "analyze": "source-map-explorer 'build/static/js/*.js'",
     "TA": "node index.js",
     "test": "react-scripts test",
+    "test:phlo-quote": "node --test tests-automation/verify-phlo-quote.cjs",
     "wdio": "wdio run ./wdio.conf.js",
     "TA-lambda": "wdio wdio.lambdatest.conf.js",
     "test:lt:android": "npx wdio wdio.android.conf.js",

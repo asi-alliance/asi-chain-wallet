@@ -49,7 +49,7 @@ import {
     useGetPhloQuoteQuery,
 } from "store/WalletsStore/api";
 import { skipToken } from "@reduxjs/toolkit/query";
-import { IWalletSessionContext, WalletKind } from "types/bridgeWalletSession";
+import { IWalletSessionContext } from "types/bridgeWalletSession";
 import {
     ASIWalletSection,
     BridgeWalletSelector,
@@ -357,7 +357,6 @@ export const Bridge: React.FC = () => {
 
     const {
         currentData: currentASIAccountBalance,
-        isFetching: isBalanceFetching,
         isError: isBalanceError,
     } = useGetBalanceQuery(
         selectedAccount
@@ -398,12 +397,11 @@ export const Bridge: React.FC = () => {
             : skipToken,
         { pollingInterval: PHLO_QUOTE_POLLING_INTERVAL_MS },
     );
-    const gasReserve = quote && !isQuoteError
-        ? BigInt(quote.phloLimit) * BigInt(quote.phloPrice)
-        : undefined;
+    const gasReserve =
+        quote && !isQuoteError ? BigInt(quote.gasReserve) : undefined;
     const validationGasReserve = srcKind === "asi" ? gasReserve : 0n;
     const confirmedGasReserve = pendingLock
-        ? BigInt(pendingLock.quote.phloLimit) * BigInt(pendingLock.quote.phloPrice)
+        ? BigInt(pendingLock.quote.gasReserve)
         : 0n;
 
     const evm = useEvmBridge(srcChain, false);
@@ -414,13 +412,6 @@ export const Bridge: React.FC = () => {
         account: selectedAccount,
     };
 
-    const sourceWalletSessionContext: IWalletSessionContext = {
-        asi: asiSession,
-        cardano: cardano.session,
-        cosmos: cosmos.session,
-        evm: evm.session,
-    };
-
     const destinationWalletSessionContext: IWalletSessionContext = {
         asi: asiSession,
         cardano: cardano.session,
@@ -428,17 +419,8 @@ export const Bridge: React.FC = () => {
         evm: evmDestination.session,
     };
 
-    const sourceWallet = sourceWalletSessionContext[srcKind];
     const destinationWallet = destinationWalletSessionContext[dstChain.kind];
 
-    const hasWalletAccount = (
-        wallet: IWalletSessionContext[WalletKind],
-    ): boolean => {
-        return Boolean(wallet.account?.address);
-    };
-
-    const sourceAccountLoaded = hasWalletAccount(sourceWallet);
-    const destinationAccountLoaded = hasWalletAccount(destinationWallet);
     const destinationNeedsConnection =
         "connected" in destinationWallet && !destinationWallet.connected;
 
@@ -786,19 +768,7 @@ export const Bridge: React.FC = () => {
         setLockError("");
     };
 
-    const isAmountValid =
-        amount.trim() !== "" && atomicAmount > BigInt(0) && !amountError;
-
     const isAmountInputDisabled = !isBalanceReady || !isNetworkDecimalsSupported;
-
-    const lockDisabled =
-        busy ||
-        isAmountInputDisabled ||
-        (srcKind === "asi" && gasReserve === undefined) ||
-        isBalanceFetching ||
-        !sourceAccountLoaded ||
-        !destinationAccountLoaded ||
-        !isAmountValid;
 
     const assetSymbol = getTokenDisplayName();
     const recipientAddress = destinationWallet.account?.address ?? "";
