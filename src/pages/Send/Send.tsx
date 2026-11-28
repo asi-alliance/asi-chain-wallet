@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import QrScanner from "qr-scanner";
-import { Address, DeployStatus, GasFee } from "@asichain/asi-wallet-sdk";
+import { Address, DeployStatus } from "@asichain/asi-wallet-sdk";
 import { skipToken } from "@reduxjs/toolkit/query/react";
 import { RootState } from "store";
 import { useAppDispatch } from "store/hooks";
@@ -11,11 +11,16 @@ import {
     deployWatchCleared,
     selectDeployWatch,
     selectSelectedAccount,
-    selectSelectedNetworkId,
+    selectSelectedNetworkNativeTokenDecimals,
+    selectSelectedNetworkRevision,
     selectWalletByAccountId,
 } from "store/WalletsStore";
 import { useGetBalanceQuery } from "store/WalletsStore/api";
-import { sendTransaction } from "store/WalletsStore/thunks";
+import {
+    getActiveNetworkRevision,
+    getTransferGasReserve,
+    sendTransaction,
+} from "store/WalletsStore/thunks";
 import {
     networkOperationFinished,
     networkOperationStarted,
@@ -82,12 +87,64 @@ const validateRecipientAddress = (
     return "";
 };
 
+type TTransferStatusTone = "pending" | "success" | "warning";
+
+interface ITransferStatus {
+    tone: TTransferStatusTone;
+    title: string;
+    text: string;
+}
+
+interface ITransferStatusInput {
+    isConfirmed: boolean;
+    failedReason: string;
+    unresolvedReason: string;
+}
+
+const getTransferStatus = ({
+    isConfirmed,
+    failedReason,
+    unresolvedReason,
+}: ITransferStatusInput): ITransferStatus => {
+    if (isConfirmed) {
+        return {
+            tone: "success",
+            title: "Transaction completed",
+            text: "The transfer was finalized on chain. Balance and transaction history are being refreshed.",
+        };
+    }
+
+    if (failedReason) {
+        return {
+            tone: "warning",
+            title: "Transaction not completed",
+            text: failedReason,
+        };
+    }
+
+    if (unresolvedReason) {
+        return {
+            tone: "warning",
+            title: "Confirmation unavailable",
+            text: TRANSACTION_UNRESOLVED_TITLE,
+        };
+    }
+
+    return {
+        tone: "pending",
+        title: "Transaction pending",
+        text: "The transfer was submitted and is waiting for on-chain finalization.",
+    };
+};
+
 interface ITransferDetails {
     walletId: string;
     accountId: string;
     accountName: string;
     accountAddress: string;
-    networkId: string;
+    networkRevision: string;
+    nativeTokenDecimals: number;
+    gasReserve: bigint;
     to: Address;
     amount: string;
 }
@@ -161,6 +218,7 @@ const FormError = styled.div`
     color: ${({ theme }) => theme.dangerText};
     font-size: ${({ theme }) => theme.typography.size.sm};
     line-height: ${({ theme }) => theme.typography.lineHeight.md};
+    overflow-wrap: anywhere;
 `;
 
 const Actions = styled.div`
@@ -183,7 +241,7 @@ const Actions = styled.div`
 `;
 
 const StatusBanner = styled.section<{
-    $tone: "pending" | "success" | "warning";
+    $tone: TTransferStatusTone;
 }>`
     margin-bottom: ${({ theme }) => theme.spacing.xl};
     padding: ${({ theme }) => theme.spacing.lg};
@@ -261,7 +319,11 @@ export const Send: React.FC = () => {
             ? selectWalletByAccountId(state, selectedAccount.id)
             : null,
     );
-    const networkId = useSelector(selectSelectedNetworkId);
+    const nativeTokenDecimals = useSelector(
+        selectSelectedNetworkNativeTokenDecimals,
+    );
+    const networkRevision = useSelector(selectSelectedNetworkRevision);
+    const transferGasReserve = dispatch(getTransferGasReserve());
     const {
         currentData: currentBalance,
         isFetching,
@@ -269,7 +331,7 @@ export const Send: React.FC = () => {
         refetch: refetchBalance,
     } = useGetBalanceQuery(
         selectedAccount
-            ? { accountId: selectedAccount.id, networkId }
+            ? { accountId: selectedAccount.id, networkRevision }
             : skipToken,
         { pollingInterval: ACCOUNT_DATA_POLLING_INTERVAL_MS },
     );
@@ -302,8 +364,12 @@ export const Send: React.FC = () => {
     const isTransactionConfirmed =
         deployWatch?.status === DeployStatus.FINALIZED;
     const unresolvedReason = deployWatch?.unresolvedReason ?? "";
+    const failedReason = deployWatch?.failedReason ?? "";
     const isWaitingForConfirmation =
-        !!txHash && !isTransactionConfirmed && !unresolvedReason;
+        !!txHash &&
+        !isTransactionConfirmed &&
+        !unresolvedReason &&
+        !failedReason;
     const walletId = selectedWallet?.id;
     const txHashClipboard = useCopyToClipboard(1500);
     const txHashCopyStatus =
@@ -319,12 +385,15 @@ export const Send: React.FC = () => {
     };
 
     const sendAction = useWalletSessionAction({
-        walletId,
+        walletId: pendingTransfer?.walletId ?? walletId,
         action: (password?: string) => {
             if (!pendingTransfer) {
                 throw new Error("Transfer details are missing. Please retry.");
             }
-            if (pendingTransfer.networkId !== networkId) {
+            if (
+                pendingTransfer.networkRevision !==
+                dispatch(getActiveNetworkRevision())
+            ) {
                 throw new Error(NETWORK_CHANGED_ERROR);
             }
 
@@ -359,8 +428,18 @@ export const Send: React.FC = () => {
 
     const isSending = sendAction.isRunning;
     const isFormFrozen = !!pendingTransfer || isSending;
+    const confirmationGasReserve =
+        pendingTransfer?.gasReserve ?? transferGasReserve;
+    const confirmationDecimals =
+        pendingTransfer?.nativeTokenDecimals ?? nativeTokenDecimals;
     const amountError = isBalanceReady
-        ? getAmountValidationError(amount, balance, GasFee.MAX, true)
+        ? getAmountValidationError(
+              amount,
+              balance,
+              transferGasReserve,
+              true,
+              nativeTokenDecimals,
+          )
         : "";
     const balanceError = isBalanceError ? BALANCE_UNAVAILABLE_ERROR : "";
 
@@ -551,7 +630,9 @@ export const Send: React.FC = () => {
             accountId: selectedAccount.id,
             accountName: selectedAccount.name,
             accountAddress: selectedAccount.address,
-            networkId,
+            networkRevision,
+            nativeTokenDecimals,
+            gasReserve: transferGasReserve,
             to: recipient.trim() as Address,
             amount: amount.trim(),
         });
@@ -579,8 +660,12 @@ export const Send: React.FC = () => {
 
     const handleMax = (): void => {
         amountPasteGenerationRef.current += 1;
-        const max = getMaxSendableAmount(balance);
-        if (!isPositiveTokenAmount(max)) {
+        const max = getMaxSendableAmount(
+            balance,
+            transferGasReserve,
+            nativeTokenDecimals,
+        );
+        if (!isPositiveTokenAmount(max, nativeTokenDecimals)) {
             setAmount("");
             setMaxError("Insufficient balance to cover the estimated fee.");
             setAmountPasteError("");
@@ -705,16 +790,11 @@ export const Send: React.FC = () => {
     };
 
 
-    const statusTone = isTransactionConfirmed
-        ? "success"
-        : unresolvedReason
-          ? "warning"
-          : "pending";
-    const statusTitle = isTransactionConfirmed
-        ? "Transaction completed"
-        : unresolvedReason
-          ? "Confirmation unavailable"
-          : "Transaction pending";
+    const transferStatus: ITransferStatus = getTransferStatus({
+        isConfirmed: isTransactionConfirmed,
+        failedReason,
+        unresolvedReason,
+    });
 
     return (
         <SendContainer>
@@ -725,18 +805,18 @@ export const Send: React.FC = () => {
                 <CardContent>
                     {txHash && (
                         <StatusBanner
-                            $tone={statusTone}
-                            role={unresolvedReason ? "alert" : "status"}
+                            $tone={transferStatus.tone}
+                            role={
+                                transferStatus.tone === "warning"
+                                    ? "alert"
+                                    : "status"
+                            }
                             aria-live="polite"
                         >
-                            <StatusHeading>{statusTitle}</StatusHeading>
-                            <StatusText>
-                                {isTransactionConfirmed
-                                    ? "The transfer was finalized on chain. Balance and transaction history are being refreshed."
-                                    : unresolvedReason
-                                      ? TRANSACTION_UNRESOLVED_TITLE
-                                      : "The transfer was submitted and is waiting for on-chain finalization."}
-                            </StatusText>
+                            <StatusHeading>
+                                {transferStatus.title}
+                            </StatusHeading>
+                            <StatusText>{transferStatus.text}</StatusText>
                             <HashValue>Deploy ID: {txHash}</HashValue>
                             {unresolvedReason && (
                                 <StatusText>{unresolvedReason}</StatusText>
@@ -976,8 +1056,12 @@ export const Send: React.FC = () => {
                 recipient={pendingTransfer?.to ?? ""}
                 senderAddress={pendingTransfer?.accountAddress ?? ""}
                 senderName={pendingTransfer?.accountName ?? ""}
-                maxFee={GasFee.MAX}
-                feeLabel={getGasFeeRangeLabel()}
+                maxFee={confirmationGasReserve}
+                nativeTokenDecimals={confirmationDecimals}
+                feeLabel={getGasFeeRangeLabel(
+                    confirmationGasReserve,
+                    confirmationDecimals,
+                )}
                 loading={isSending}
             />
 

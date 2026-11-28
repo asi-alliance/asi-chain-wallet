@@ -1,8 +1,11 @@
 import {
     DEFAULT_NODE_API_PROFILE,
     INetworkEndpoints,
+    isNativeTokenDecimals,
     isNodeApiProfile,
     isSameNetworkConfig,
+    MAX_NATIVE_TOKEN_DECIMALS,
+    NATIVE_TOKEN_DECIMALS_AMOUNT,
     NodeApiProfile,
 } from "@asichain/asi-wallet-sdk";
 import { SdkWalletService } from "../sdk/SdkWalletService";
@@ -130,6 +133,30 @@ const readNodeApiProfile = (
     return profile;
 };
 
+const readNativeTokenDecimals = (
+    entry: TNetworkEnvEntry,
+    networkId: string,
+    issues: INetworksEnvIssue[],
+): number | null => {
+    const decimals: unknown = entry.nativeTokenDecimals;
+
+    if (decimals === undefined) {
+        return NATIVE_TOKEN_DECIMALS_AMOUNT;
+    }
+
+    if (!isNativeTokenDecimals(decimals)) {
+        issues.push({
+            level: "warning",
+            networkId,
+            message: `skipped: nativeTokenDecimals must be an integer from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}`,
+        });
+
+        return null;
+    }
+
+    return decimals;
+};
+
 const isSameNetworkEndpoints = (first: Network, second: Network): boolean =>
     isSameNetworkConfig(
         SdkWalletService.toNetworkConfig(first),
@@ -173,7 +200,7 @@ const validateNetworksUniqueness = (
         (group: Network[]) => {
             issues.push({
                 level: "error",
-                message: `NETWORKS contains networks with the same URLs and nodeApiProfile: ${formatNetworkIds(group)}`,
+                message: `NETWORKS contains networks with the same URLs, nodeApiProfile and nativeTokenDecimals: ${formatNetworkIds(group)}`,
             });
         },
     );
@@ -288,6 +315,16 @@ export const parseNetworksEnv = (
             });
         }
 
+        const nativeTokenDecimals = readNativeTokenDecimals(
+            entry,
+            networkId,
+            issues,
+        );
+
+        if (nativeTokenDecimals === null) {
+            return;
+        }
+
         networks.push({
             id: networkId,
             name:
@@ -296,6 +333,7 @@ export const parseNetworksEnv = (
             observerUrl,
             indexerUrl,
             nodeApiProfile: readNodeApiProfile(entry, networkId, issues),
+            nativeTokenDecimals,
             isDefault: true,
         });
     });
@@ -310,8 +348,7 @@ export const parseNetworksEnv = (
     if (!hasCompleteNetwork) {
         issues.push({
             level: "error",
-            message:
-                "NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL",
+            message: `NETWORKS contains no fully configured network: at least one entry needs valid http(s) ValidatorURL, ReadOnlyURL and IndexerURL and, if set, nativeTokenDecimals from 0 to ${MAX_NATIVE_TOKEN_DECIMALS}`,
         });
     }
 
