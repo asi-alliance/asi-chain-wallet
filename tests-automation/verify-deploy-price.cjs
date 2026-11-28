@@ -33,16 +33,16 @@ test("deploy signs the confirmed price and reserves the same maximum charge", as
     t.mock.method(registry.assets, "getBalance", async () => ({ amount: 10n ** 26n }));
     const submitted = t.mock.method(registry.transactions, "submitSignedDeploy", async (signed) => signed.signature);
     const ec = new EC("secp256k1");
-    for (const confirmedPrice of ["100000000000", "100000000001"]) {
+    for (const confirmedPrice of ["100000000000", "100000000001", "9007199254740993"]) {
         const { deployId } = await service.deploy({
             walletId: wallet.getId(), accountId: wallet.getAccounts()[0].getId(), term: "Nil",
-            phloLimit: 1000, phloPrice: Number(confirmedPrice),
+            phloLimit: 1000, phloPrice: confirmedPrice,
         }, "test-password");
         const signed = submitted.mock.calls.at(-1).arguments[0];
         assert.equal(signed.signature, deployId);
         assert.equal(String(signed.data.phloPrice), confirmedPrice);
         const verify = (data) => {
-            const bytes = SignerService.deployDataProtobufSerialize(data);
+            const bytes = SignerService.deployDataUint256ProtobufSerialize(data);
             return ec.verify(blake2b(bytes, undefined, 32), signed.signature, signed.deployer, "hex");
         };
         assert.ok(verify(signed.data));

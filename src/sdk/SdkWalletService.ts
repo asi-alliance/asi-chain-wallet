@@ -4,9 +4,7 @@ import {
     Client,
     decodeBase16,
     encodeBase16,
-    ApiClientManager,
-    ApiServiceRegistry,
-    DeploySubmissionRejectedError,
+    IDeployRequest,
     IDeployWatchCallbacks,
     IDeployWatchHandle,
     IDeployWatchOptions,
@@ -112,6 +110,7 @@ export class SdkWalletService {
             observerUrl: record.config.ReadOnlyURL,
             indexerUrl: record.config.IndexerURL,
             nodeApiProfile: record.config.nodeApiProfile,
+            nativeTokenDecimals: record.config.nativeTokenDecimals,
             isDefault: record.isDefault,
         };
     }
@@ -121,12 +120,14 @@ export class SdkWalletService {
         observerUrl,
         indexerUrl,
         nodeApiProfile,
+        nativeTokenDecimals,
     }: Network): INetworkConfig {
         return {
             ValidatorURL: validatorUrl,
             ReadOnlyURL: observerUrl,
             IndexerURL: indexerUrl,
             nodeApiProfile,
+            nativeTokenDecimals,
         };
     }
 
@@ -343,6 +344,15 @@ export class SdkWalletService {
         return this.requireClient().getCurrentNetworkId();
     }
 
+    public getTransferGasReserve(): bigint {
+        return this.requireClient().getTransferGasReserve();
+    }
+
+    public getNetworkNativeTokenDecimals(networkId: NetworkId): number {
+        return this.requireClient().getNetwork(networkId).config
+            .nativeTokenDecimals;
+    }
+
     public async addCustomNetwork(
         name: NetworkName,
         config: INetworkConfig,
@@ -403,9 +413,10 @@ export class SdkWalletService {
 
     public async getBalance(address: string): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getBalance(address as Address);
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public async getAvailableBalance(
@@ -413,12 +424,13 @@ export class SdkWalletService {
         accountId: string,
     ): Promise<string> {
         const client = this.requireClient();
+        const { nativeTokenDecimals } = client.getCurrentNetwork().config;
         const atomicBalance = await client.getAvailableBalance(
             walletId,
             accountId,
         );
 
-        return SdkWalletService.toDisplayAmount(atomicBalance);
+        return fromAtomicAmount(atomicBalance, nativeTokenDecimals);
     }
 
     public getTransactionsHistory(
@@ -470,49 +482,27 @@ export class SdkWalletService {
         }: Omit<ITransferRequest, "amount"> & { amount: string },
         password?: string,
     ): Promise<IReservedOperationResult> {
-        return this.requireClient().transfer(
+        const client = this.requireClient();
+
+        return client.transfer(
             {
                 walletId,
                 accountId,
                 to,
-                amount: SdkWalletService.toAtomicAmount(amount),
+                amount: client.toExactAtomicAmount(amount),
             },
             password,
         );
     }
 
     public deploy(
-        request: ISignDeployRequest & { phloLimit: number; phloPrice: number },
+        { walletId, accountId, term, phloLimit, phloPrice }: IDeployRequest,
         password?: string,
     ): Promise<IReservedOperationResult> {
-        const client = this.requireClient();
-        // SDK 2.1.0 Client.deploy drops the price. Its explicit signer accepts it.
-        return ApiClientManager.getInstance().runNetworkOperation(async () => {
-            const signed = await client.signDeploy(request, password);
-            const deployId = signed.signature;
-            const gasCost = BigInt(request.phloLimit) * BigInt(request.phloPrice);
-            const reservation = await client.addTransactionReservation({
-                walletId: request.walletId,
-                accountId: request.accountId,
-                kind: "deploy",
-                term: request.term,
-                deployId,
-                pendingAmount: gasCost,
-                gasCost,
-            }, password);
-            try {
-                await ApiServiceRegistry.getInstance().transactions.submitSignedDeploy(signed);
-            } catch (error) {
-                if (error instanceof DeploySubmissionRejectedError) {
-                    await client.removeTransactionReservation(request.walletId, reservation.id);
-                }
-                throw error;
-            }
-            return {
-                deployId,
-                subscribe: (callbacks) => client.watchDeploy(deployId, callbacks).cancel,
-            };
-        });
+        return this.requireClient().deploy(
+            { walletId, accountId, term, phloLimit, phloPrice },
+            password,
+        );
     }
 
     public exploreDeploy(term: string): Promise<unknown> {

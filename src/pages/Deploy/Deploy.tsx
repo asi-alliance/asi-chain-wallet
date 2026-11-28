@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { isIntegerInRange } from "@asichain/asi-wallet-sdk";
+import { isIntegerInRange, MAX_CLASSIC_PHLO_PRICE, MAX_UINT256, NodeApiProfile } from "@asichain/asi-wallet-sdk";
 import { useGetMinimumPhloPriceQuery } from "store/WalletsStore/api";
 import { deployPriceError } from "utils/deployPrice";
 import { RootState } from "store";
@@ -125,7 +125,10 @@ export const Deploy: React.FC = () => {
     const networkKey = JSON.stringify([network.id, network.validatorUrl]);
     const [override, setOverride] = useState<{ network: string; price: string } | null>(null);
     const proPrice = override?.network === networkKey ? override.price : null;
-    const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+    const maximum =
+        network.nodeApiProfile === NodeApiProfile.RUST
+            ? MAX_UINT256
+            : MAX_CLASSIC_PHLO_PRICE;
     const selectedAccountId = useSelector(selectSelectedAccountId);
     const selectedAccount = useSelector((state: RootState) =>
         selectedAccountId ? selectAccountById(state, selectedAccountId) : null,
