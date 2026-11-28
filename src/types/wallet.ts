@@ -35,6 +35,7 @@ export interface Network {
     observerUrl: string;
     indexerUrl: string;
     nodeApiProfile: NodeApiProfile;
+    nativeTokenDecimals: number;
     isDefault: boolean;
 }
 
@@ -49,6 +50,7 @@ export type TCustomNetwork = Omit<Network, "isDefault"> & {
 export interface IDeployWatchState {
     status: DeployStatus;
     unresolvedReason?: string;
+    failedReason?: string;
 }
 
 export interface WalletStoreState {

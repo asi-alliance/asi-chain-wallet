@@ -1,8 +1,4 @@
-import {
-    ASI_DECIMALS,
-    fromAtomicAmountToNumber,
-    GasFee,
-} from "@asichain/asi-wallet-sdk";
+import { fromAtomicAmount, GasFee } from "@asichain/asi-wallet-sdk";
 
 export const GAS_FEE = {
     BASE_FEE: 0.0025,
@@ -15,9 +11,12 @@ export const generateRandomGasFee = (): string => {
     return randomFee.toFixed(4);
 };
 
-export const getGasFeeRangeLabel = (): string => {
-    const min = fromAtomicAmountToNumber(GasFee.MIN, ASI_DECIMALS);
-    const max = fromAtomicAmountToNumber(GasFee.MAX, ASI_DECIMALS);
+export const getGasFeeRangeLabel = (
+    maxFee: bigint,
+    decimals: number,
+): string => {
+    const min = fromAtomicAmount(GasFee.MIN, decimals);
+    const max = fromAtomicAmount(maxFee, decimals);
 
     return `~${min}-${max}`;
 };

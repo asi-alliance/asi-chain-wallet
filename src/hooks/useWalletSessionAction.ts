@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { getErrorMessage } from "@asichain/asi-wallet-sdk";
-import { isInvalidPasswordError, isWalletLockedError } from "sdk";
+import {
+    getWalletActionErrorMessage,
+    isInvalidPasswordError,
+    isWalletLockedError,
+} from "sdk";
 import { useAppDispatch } from "store/hooks";
 import { checkWalletUnlocked } from "store/WalletsStore/thunks";
 
@@ -19,7 +22,7 @@ export interface IWalletSessionActionOptions<TResult> {
     walletId: string | undefined;
     action: (password?: string) => Promise<TResult>;
     onSuccess?: (result: TResult) => void;
-    onError?: (message: string) => void;
+    onError?: (message: string, error?: unknown) => void;
     errorFallback?: string;
 }
 
@@ -78,10 +81,13 @@ export const useWalletSessionAction = <TResult>({
                 return;
             }
 
-            const message: string = getErrorMessage(error, errorFallback);
+            const message: string = getWalletActionErrorMessage(
+                error,
+                errorFallback,
+            );
 
             if (password === undefined) {
-                onError?.(message);
+                onError?.(message, error);
 
                 return;
             }
@@ -93,7 +99,7 @@ export const useWalletSessionAction = <TResult>({
             }
 
             setIsPasswordPromptOpen(false);
-            onError?.(message);
+            onError?.(message, error);
         } finally {
             setIsRunning(false);
         }
